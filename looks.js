@@ -730,12 +730,34 @@ function changeCartQtyLocal(id, delta) {
   renderCartLocal();
 }
 
-function renderCartLocal() {
+function renderCart() {
   const container = document.getElementById("cart-items-container");
   if (!container) return;
   
+  // Verificar si hay una solicitud pendiente o aprobada
+  const pendingRequests = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('pending_purchase_')) {
+      try {
+        const request = JSON.parse(localStorage.getItem(key));
+        if (request.status === 'approved' && request.paymentLink) {
+          pendingRequests.push(request);
+        }
+      } catch(e) {}
+    }
+  }
+  
+  // Si hay una solicitud aprobada, mostrarla primero
+  if (pendingRequests.length > 0) {
+    const latestRequest = pendingRequests[pendingRequests.length - 1];
+    showPaymentLinkInCart(latestRequest.paymentLink, latestRequest.id);
+    return;
+  }
+  
+  // Si no hay solicitud aprobada, mostrar el carrito normal
   container.innerHTML = "";
-  const items = Object.values(localCart);
+  const items = Object.values(cart);
   
   if (items.length === 0) {
     container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
@@ -745,25 +767,23 @@ function renderCartLocal() {
       row.className = "cart-item";
       row.innerHTML = `
         <div class="cart-item-info">
-          <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
+          <div class="cart-item-title">${escapeHtml(item.name)}</div>
           <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
           <div class="cart-item-actions">
-            <button class="qty-btn" onclick="changeCartQtyLocal('${item.id}', -1)">−</button>
+            <button class="qty-btn" onclick="changeCartQty('${item.id}', -1)">−</button>
             <span class="qty-value">${item.quantity}</span>
-            <button class="qty-btn" onclick="changeCartQtyLocal('${item.id}', 1)">+</button>
-            <button class="cart-item-remove" onclick="removeFromCartLocal('${item.id}')">Eliminar</button>
+            <button class="qty-btn" onclick="changeCartQty('${item.id}', 1)">+</button>
+            <button class="cart-item-remove" onclick="removeFromCart('${item.id}')">Eliminar</button>
           </div>
         </div>
       `;
       container.appendChild(row);
     });
   }
-  
-  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const subtotalEl = document.getElementById("cart-subtotal");
-  const totalEl = document.getElementById("cart-total");
-  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
+
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  document.getElementById("cart-subtotal").textContent = formatCurrency(subtotal);
+  document.getElementById("cart-total").textContent = formatCurrency(subtotal);
 }
 
 
@@ -835,7 +855,6 @@ function generateRequestId() {
   return 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
 }
 
-// Reemplazar la función openWhatsAppCheckout por esta versión modificada
 async function openWhatsAppCheckout() {
   const items = Object.values(cart);
   if (items.length === 0) {
@@ -843,13 +862,22 @@ async function openWhatsAppCheckout() {
     return;
   }
   
+  // Limpiar solicitudes anteriores pendientes
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('pending_purchase_')) {
+      const request = JSON.parse(localStorage.getItem(key));
+      if (request.status !== 'approved') {
+        localStorage.removeItem(key);
+      }
+    }
+  }
+  
   showLoader("Enviando solicitud...");
   
-  // Generar ID único para esta solicitud
-  const requestId = 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
+  const requestId = generateRequestId();
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
-  // Guardar solicitud en localStorage
   const purchaseRequest = {
     id: requestId,
     items: items.map(item => ({
@@ -868,7 +896,6 @@ async function openWhatsAppCheckout() {
   localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(purchaseRequest));
   
   try {
-    // Enviar notificación al admin
     const notificationItems = items.map(item => ({
       productId: item.id,
       nombre: item.name,
@@ -889,18 +916,11 @@ async function openWhatsAppCheckout() {
     cart = {};
     saveCartToStorage();
     updateCartBadge();
-    renderCart();
     
-    // Mostrar mensaje y empezar a esperar confirmación
-    alert("✅ Solicitud enviada al administrador.\n\nEspera la confirmación, el link de pago aparecerá aquí automáticamente cuando sea aprobado.");
+    alert("✅ Solicitud enviada al administrador.\n\nEspera la confirmación. Cuando sea aprobada, el link de pago aparecerá automáticamente en tu carrito.");
     
     closeCartDrawer();
-    
-    // Abrir carrito para mostrar estado de espera
-    setTimeout(() => {
-      openCartDrawer();
-      startWaitingForConfirmation(requestId);
-    }, 500);
+    startWaitingForConfirmation(requestId);
     
   } catch(err) {
     console.error("Error:", err);
@@ -909,31 +929,57 @@ async function openWhatsAppCheckout() {
     hideLoader();
   }
 }
-
-// Función para esperar confirmación del admin
 function startWaitingForConfirmation(requestId) {
-  // Mostrar estado en el carrito
+  activeRequestId = requestId;
+  
+  // No mostrar estado de espera si ya está aprobada
+  const stored = localStorage.getItem('pending_purchase_' + requestId);
+  if (stored) {
+    const request = JSON.parse(stored);
+    if (request.status === 'approved' && request.paymentLink) {
+      showPaymentLinkInCart(request.paymentLink, requestId);
+      return;
+    }
+  }
+  
   showWaitingStatusInCart(requestId);
   
-  // Hacer polling cada 3 segundos
-  const intervalId = setInterval(async () => {
-    const stored = localStorage.getItem('pending_purchase_' + requestId);
-    if (!stored) {
-      // Solicitud eliminada o expirada
-      clearInterval(intervalId);
-      removeWaitingStatus();
+  if (pollingInterval) clearInterval(pollingInterval);
+  
+  pollingInterval = setInterval(async () => {
+    if (!activeRequestId) {
+      if (pollingInterval) clearInterval(pollingInterval);
       return;
     }
     
-    const request = JSON.parse(stored);
-    
-    if (request.status === 'approved' && request.paymentLink) {
-      // ¡Solicitud aprobada! Mostrar link de pago
-      clearInterval(intervalId);
-      showPaymentLinkInCart(request.paymentLink, requestId);
-    } else if (request.status === 'rejected') {
-      clearInterval(intervalId);
-      showRejectedStatus();
+    try {
+      const response = await fetch(`${SHEET_API_URL}?action=checkRequestStatus&requestId=${activeRequestId}`);
+      const data = await response.json();
+      
+      console.log("Polling response:", data);
+      
+      if (data.ok && data.status === 'approved' && data.paymentLink) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+        
+        const stored = localStorage.getItem('pending_purchase_' + activeRequestId);
+        if (stored) {
+          const request = JSON.parse(stored);
+          request.status = 'approved';
+          request.paymentLink = data.paymentLink;
+          localStorage.setItem('pending_purchase_' + activeRequestId, JSON.stringify(request));
+        }
+        
+        showPaymentLinkInCart(data.paymentLink, activeRequestId);
+        activeRequestId = null;
+      } else if (data.ok && data.status === 'rejected') {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+        showRejectedStatus();
+        activeRequestId = null;
+      }
+    } catch (err) {
+      console.error("Error checking request status:", err);
     }
   }, 3000);
 }
@@ -964,33 +1010,59 @@ function showPaymentLinkInCart(paymentLink, requestId) {
   const container = document.getElementById("cart-items-container");
   if (!container) return;
   
+  // Guardar el link en localStorage para que persista
+  const stored = localStorage.getItem('pending_purchase_' + requestId);
+  if (stored) {
+    const request = JSON.parse(stored);
+    request.status = 'approved';
+    request.paymentLink = paymentLink;
+    localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(request));
+  }
+  
   container.innerHTML = `
     <div style="text-align: center; padding: 30px 20px;">
       <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
       <h3 style="color: #22c55e;">¡Solicitud aprobada!</h3>
       <p style="color: #666; margin: 16px 0;">
-        El administrador ha confirmado el stock.
+        El administrador ha confirmado el stock. Tu pedido está listo para pagar.
       </p>
       <div style="background: #f0f0f8; border-radius: 12px; padding: 16px; margin: 16px 0;">
+        <p style="font-size: 12px; color: #666; margin-bottom: 8px;">💰 Total a pagar:</p>
+        <p style="font-size: 24px; font-weight: bold; color: #3b1f5f; margin: 8px 0;">
+          ${formatCurrency(getTotalFromRequest(requestId))}
+        </p>
         <p style="font-size: 12px; color: #666; margin-bottom: 8px;">🔗 Link de pago seguro:</p>
         <a href="${paymentLink}" target="_blank" 
            style="display: block; word-break: break-all; color: #009ee3; font-size: 12px; margin-bottom: 12px;">
           ${paymentLink}
         </a>
         <button onclick="window.open('${paymentLink}', '_blank')" 
-                class="primary-button" style="width: 100%; background: linear-gradient(135deg, #009ee3, #00a3e8);">
-          💳 Ir a pagar con Mercado Pago
+                class="primary-button" style="width: 100%; background: linear-gradient(135deg, #009ee3, #00a3e8); margin-bottom: 8px;">
+          💳 Pagar con Mercado Pago
+        </button>
+        <button onclick="navigator.clipboard.writeText('${paymentLink}')" 
+                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: white; cursor: pointer;">
+          📋 Copiar enlace
         </button>
       </div>
       <p style="font-size: 11px; color: #999;">
-        ⚠️ El enlace expira en 30 minutos
+        ⚠️ El enlace expira en 30 minutos. No cierres esta ventana hasta completar el pago.
       </p>
-      <button onclick="closeCartDrawer(); removePendingRequest('${requestId}')" 
-              class="text-button" style="margin-top: 12px;">
+      <button onclick="closeCartDrawer()" class="text-button" style="margin-top: 12px;">
         Cerrar
       </button>
     </div>
   `;
+}
+
+// Función auxiliar para obtener el total de la solicitud
+function getTotalFromRequest(requestId) {
+  const stored = localStorage.getItem('pending_purchase_' + requestId);
+  if (stored) {
+    const request = JSON.parse(stored);
+    return request.total;
+  }
+  return 0;
 }
 
 function showRejectedStatus() {
