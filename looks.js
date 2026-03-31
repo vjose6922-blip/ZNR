@@ -1322,7 +1322,11 @@ if (requestBtn) {
 }
 
 
-
+// Botón de solicitar compra
+const requestBtn = document.getElementById("request-purchase-btn");
+if (requestBtn) {
+  requestBtn.addEventListener("click", openWhatsAppCheckout);
+}
 
 
     });
