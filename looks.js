@@ -5,7 +5,6 @@ const WHATSAPP_NUMBER = "528671781272";
 // Caché persistente con localStorage
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
-
 function getCachedProducts() {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
