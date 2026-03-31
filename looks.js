@@ -846,10 +846,10 @@ async function openWhatsAppCheckout() {
   showLoader("Enviando solicitud...");
   
   // Generar ID único para esta solicitud
-  const requestId = generateRequestId();
+  const requestId = 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
-  // Guardar solicitud en localStorage para recuperar después
+  // Guardar solicitud en localStorage
   const purchaseRequest = {
     id: requestId,
     items: items.map(item => ({
@@ -868,7 +868,7 @@ async function openWhatsAppCheckout() {
   localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(purchaseRequest));
   
   try {
-    // Enviar notificación al admin (tu sistema existente)
+    // Enviar notificación al admin
     const notificationItems = items.map(item => ({
       productId: item.id,
       nombre: item.name,
@@ -881,7 +881,7 @@ async function openWhatsAppCheckout() {
       body: JSON.stringify({
         action: "createNotification",
         items: notificationItems,
-        requestId: requestId  // Añadir requestId a la notificación
+        requestId: requestId
       })
     });
     
@@ -891,14 +891,16 @@ async function openWhatsAppCheckout() {
     updateCartBadge();
     renderCart();
     
-    // Mostrar mensaje de espera
+    // Mostrar mensaje y empezar a esperar confirmación
     alert("✅ Solicitud enviada al administrador.\n\nEspera la confirmación, el link de pago aparecerá aquí automáticamente cuando sea aprobado.");
     
-    // Cerrar drawer y empezar a escuchar confirmación
     closeCartDrawer();
     
-    // Iniciar polling para verificar si la solicitud fue confirmada
-    startWaitingForConfirmation(requestId);
+    // Abrir carrito para mostrar estado de espera
+    setTimeout(() => {
+      openCartDrawer();
+      startWaitingForConfirmation(requestId);
+    }, 500);
     
   } catch(err) {
     console.error("Error:", err);
@@ -1478,3 +1480,5 @@ function removePendingRequest(requestId) {
   activeRequestId = null;
   renderCart();
 }
+
+
