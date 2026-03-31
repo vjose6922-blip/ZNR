@@ -197,6 +197,13 @@ function formatCurrency(value) {
   return `$${num.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`;
 }
 
+function escapeHtml(text) {
+  if (!text) return "";
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 function createImageObserver() {
   if ("IntersectionObserver" in window) {
     imageObserver = new IntersectionObserver((entries) => {
@@ -900,7 +907,7 @@ function renderCart() {
       row.className = "cart-item";
       row.innerHTML = `
         <div class="cart-item-info">
-          <div class="cart-item-title">${escapeHtml(item.name)}</div>
+          <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
           <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
           <div class="cart-item-actions">
             <button class="qty-btn" onclick="changeCartQty('${item.id}', -1)">−</button>
@@ -915,8 +922,10 @@ function renderCart() {
   }
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  document.getElementById("cart-subtotal").textContent = formatCurrency(subtotal);
-  document.getElementById("cart-total").textContent = formatCurrency(subtotal);
+  const subtotalEl = document.getElementById("cart-subtotal");
+  const totalEl = document.getElementById("cart-total");
+  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
+  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
 }
 
 function changeCartQty(id, delta) {
@@ -1168,7 +1177,7 @@ function getTotalFromRequest(requestId) {
   const stored = localStorage.getItem('pending_purchase_' + requestId);
   if (stored) {
     const request = JSON.parse(stored);
-    return request.total;
+    return request.total || 0;
   }
   return 0;
 }
