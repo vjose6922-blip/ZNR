@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Panel administrador</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+
+<!-- Precarga de recursos críticos -->
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+<link rel="dns-prefetch" href="https://script.google.com">
+<link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
+
+<!-- Precarga de estilos críticos -->
+<link rel="preload" href="styles.css" as="style">
+
+
+
+
+ <style>
+    /* Estilos adicionales para el admin mejorado */
+    .admin-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    
+    .admin-search {
+      flex: 1;
+      min-width: 200px;
+      padding: 8px 12px;
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-pill);
+      font-size: 14px;
+    }
+    
+    .admin-filter-select {
+      padding: 8px 12px;
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-pill);
+      font-size: 14px;
+      background: white;
+    }
+    
+    .admin-products-header {
+      display: grid;
+      grid-template-columns: 80px 1fr 100px 100px 120px;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #f5f5f8;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    
+    /* Lista de productos más compacta */
+    .admin-products-list {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    
+    .admin-product-row {
+      display: grid;
+      grid-template-columns: 70px 1fr 80px 60px 100px;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--color-border-subtle);
+      transition: background var(--transition-fast);
+    }
+    
+    .admin-product-row:hover {
+      background: #f5f5f8;
+    }
+    
+    .admin-product-id {
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+    
+    .admin-product-name {
+      font-weight: 500;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .admin-product-price {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--color-primary-soft);
+    }
+    
+    .admin-product-stock {
+      font-size: 12px;
+      text-align: center;
+      padding: 2px 6px;
+      border-radius: 20px;
+      display: inline-block;
+      width: fit-content;
+      background: #f0f0f0;
+    }
+    
+    .admin-product-stock.low-stock {
+      background: #fff3e0;
+      color: #f97316;
+    }
+    
+    .admin-product-stock.out-stock {
+      background: #ffe0e0;
+      color: #ef4444;
+    }
+    
+    .admin-product-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+  order: 4;
+}
+
+.admin-product-actions button {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+ width: auto;
+  min-width: 0;
+  display: block;
+}
+
+.admin-product-actions button:first-child {
+  background: #e8e8ff;
+  color: #3b1f5f;
+}
+
+.admin-product-actions button:last-child {
+  background: #ffe8e8;
+  color: #d32f2f;
+}
+    
+    .admin-product-actions button:hover {
+      background: #e0e0e0;
+    }
+    
+    .admin-pagination {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .admin-pagination button {
+      border: 1px solid var(--color-border-subtle);
+      background: white;
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .admin-pagination button:hover {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+    
+    .admin-pagination button.active-page {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+    
+    .admin-pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .admin-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .admin-stat-card {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-soft));
+      color: white;
+      padding: 16px;
+      border-radius: var(--radius-lg);
+      text-align: center;
+    }
+    
+    .admin-stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      display: block;
+    }
+    
+    .admin-stat-label {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-top: 4px;
+      display: block;
+    }
+    
+    /* Responsive móvil - VERSIÓN COMPACTA CON BOTONES 50% */
+    @media (max-width: 768px) {
+      .admin-products-header {
+        display: none;
+      }
+      
+      .admin-product-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      }
+      
+      .admin-product-id {
+        font-size: 10px;
+        color: #999;
+        background: #f0f0f0;
+        padding: 2px 8px;
+        border-radius: 20px;
+        order: 0;
+      }
+      
+      .admin-product-name {
+        font-size: 13px;
+        font-weight: 600;
+        flex: 1;
+        order: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      .admin-product-price {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--color-primary-soft);
+        order: 2;
+      }
+      
+      .admin-product-stock {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 20px;
+        background: #f0f0f0;
+        order: 3;
+        text-align: center;
+      }
+      
+      .admin-product-actions {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 6px;
+        order: 4;
+      }
+      
+      .admin-product-actions button {
+        flex: 1;
+        padding: 6px 8px;
+        font-size: 12px;
+        background: #f5f5f8;
+        border-radius: 8px;
+        text-align: center;
+      }
+      
+      .admin-product-actions button:first-child {
+        background: #e8e8ff;
+        color: #3b1f5f;
+      }
+      
+      .admin-product-actions button:last-child {
+        background: #ffe8e8;
+        color: #d32f2f;
+      }
+      
+      .admin-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      
+      .admin-stat-card {
+        padding: 10px 6px;
+      }
+      
+      .admin-stat-value {
+        font-size: 18px;
+      }
+      
+      .admin-stat-label {
+        font-size: 9px;
+      }
+      
+      .admin-controls {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .admin-search,
+      .admin-filter-select {
+        width: 100%;
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+      
+      .admin-pagination {
+        gap: 5px;
+      }
+      
+      .admin-pagination button {
+        padding: 4px 8px;
+        font-size: 11px;
+      }
+    }
+</style>
+</head>
+<body class="theme-aeromexico admin-body">
+  <header class="app-header admin-header">
+    <div class="header-left">
+      <h1 class="app-title">Admin catálogo</h1>
+      <p class="app-subtitle">Gestión de productos</p>
+    </div>
+    <div class="header-right">
+      <button class="icon-button" id="admin-logout-btn">Salir</button>
+    </div>
+  </header>
+
+  <!-- Login admin -->
+  <main class="admin-main" id="admin-login-view">
+    <section class="card admin-card">
+      <h2>Acceso administrador</h2>
+      <p class="helper-text">Ingresa la contraseña y el token.</p>
+      <form id="admin-login-form" class="form-grid">
+        <label>
+          <span>Contraseña</span>
+          <input type="password" id="admin-password" required />
+        </label>
+        <label>
+          <span>Token</span>
+          <input type="password" id="admin-token" required />
+        </label>
+        <button type="submit" class="primary-button full-width">Entrar</button>
+      </form>
+    </section>
+  </main>
+
+  <!-- Vista principal admin MEJORADA -->
+  <main class="admin-main" id="admin-panel-view" hidden>
+      <div class="admin-notification-bell" onclick="openNotifications()">Revisa los productos comprados🔔<span id="notif-badge">0</span></div>
+
+    <!-- Estadísticas mejoradas -->
+    <div class="admin-stats-grid">
+      <div class="admin-stat-card">
+        <span class="admin-stat-value" id="stat-total-products">0</span>
+        <span class="admin-stat-label">Total productos</span>
+      </div>
+      <div class="admin-stat-card">
+        <span class="admin-stat-value" id="stat-total-stock">$0</span>
+        <span class="admin-stat-label">Valor inventario</span>
+      </div>
+      <div class="admin-stat-card">
+        <span class="admin-stat-value" id="stat-out-of-stock">0</span>
+        <span class="admin-stat-label">Sin stock</span>
+      </div>
+      
+    </div>
+
+    <!-- Formulario producto (sin cambios) -->
+    <section class="card admin-card">
+      <div class="admin-card-header">
+        <h2 id="product-form-title">Crear producto</h2>
+        <button id="reset-form-btn" class="text-button">Nuevo</button>
+      </div>
+      <form id="product-form" class="form-grid">
+        <input type="hidden" id="product-id" name="id" />
+        <label>
+          <span>Nombre</span>
+          <input type="text" id="product-name" name="Nombre" required />
+        </label>
+        <label>
+          <span>Precio</span>
+          <input type="number" id="product-price" name="Precio" min="0" step="0.01" required />
+        </label>
+        <label>
+          <span>Stock</span>
+          <input type="number" id="product-stock" name="Stock" min="0" required />
+        </label>
+        <label>
+          <span>Descripcion</span>
+          <textarea id="product-description" name="Descripcion" rows="2"></textarea>
+        </label>
+        <label>
+          <span>Talla</span>
+          <input type="text" id="product-sizes" name="Talla" placeholder="Ej. S,M o 30,32" />
+        </label>
+        <label>
+          <span>Categoria</span>
+          <select id="product-category" name="Categoria">
+            <option value="">Ninguno</option>
+            <option value="Accesorios">Accesorios</option>
+            <option value="Playeras">Playeras</option>
+            <option value="Blusas">Blusas</option>
+            <option value="Pantalon para Dama">Pantalon para Dama</option>
+            <option value="Pantalon para Caballero">Pantalon para Caballero</option>
+            <option value="Short para Dama">Short para Dama</option>
+            <option value="Short para Caballero">Short para Caballero</option>
+            <option value="Vestidos">Vestidos</option>
+            <option value="Calzado para Dama">Calzado para Dama</option>
+            <option value="Calzado para Caballero">Calzado para Caballero</option>
+            <option value="Sueter para Caballero">Sueter para Caballero</option>
+            <option value="Sueter para Dama">Sueter para Dama</option>
+            <option value="Chamarra para Dama">Chamarra para Dama</option>
+            <option value="Chamarra para Caballero">Chamarra para Caballero</option>
+        </select>
+        </label>
+        <label>
+          <span>Badge</span>
+          <select id="product-badge" name="Badge">
+            <option value="">Ninguno</option>
+            <option value="Nuevo">Nuevo</option>
+            <option value="Popular">Popular</option>
+            <option value="Oferta">Oferta</option>
+          </select>
+        </label>
+        <label>
+          <span>Imagen 1</span>
+          <input type="file" id="image-upload-1" accept="image/*">
+          <input type="text" id="product-image1" name="Imagen1" readonly>
+          <img id="preview-image-upload-1" class="image-preview">
+          <div class="progress-bar">
+            <div id="progress-image-upload-1" class="upload-progress"></div>
+          </div>
+        </label>
+        <label>
+          <span>Imagen 2</span>
+          <input type="file" id="image-upload-2" accept="image/*">
+          <input type="text" id="product-image2" name="Imagen2" readonly>
+          <img id="preview-image-upload-2" class="image-preview">
+          <div class="progress-bar">
+            <div id="progress-image-upload-2" class="upload-progress"></div>
+          </div>
+        </label>
+        <label>
+          <span>Imagen 3</span>
+          <input type="file" id="image-upload-3" accept="image/*">
+          <input type="text" id="product-image3" name="Imagen3" readonly>
+          <img id="preview-image-upload-3" class="image-preview">
+          <div class="progress-bar">
+            <div id="progress-image-upload-3" class="upload-progress"></div>
+          </div>
+        </label>
+        <p class="helper-text">Las imágenes se guardan en Google Drive.</p>
+        <button type="submit" class="primary-button full-width">Guardar producto</button>
+      </form>
+    </section>
+
+    <!-- Lista de productos MEJORADA con búsqueda y filtros -->
+    <section class="card admin-card">
+      <div class="admin-card-header">
+        <h2>Productos</h2>
+        <button id="admin-refresh-btn" class="text-button">Actualizar</button>
+      </div>
+      
+      <!-- Controles de búsqueda y filtro -->
+      <div class="admin-controls">
+        <input type="text" id="admin-search-input" class="admin-search" placeholder="Buscar por nombre o ID..." />
+        <select id="admin-category-filter" class="admin-filter-select">
+          <option value="">Todas las categorías</option>
+        </select>
+        <select id="admin-stock-filter" class="admin-filter-select">
+          <option value="">Todos los stocks</option>
+          <option value="low">Stock bajo (≤5)</option>
+          <option value="out">Sin stock</option>
+          <option value="in">Con stock</option>
+        </select>
+      </div>
+      
+      <!-- Header de la tabla (visible en desktop) -->
+      <div class="admin-products-header">
+        <span>ID</span>
+        <span>Nombre</span>
+        <span>Precio</span>
+        <span>Stock</span>
+        <span>Acciones</span>
+      </div>
+      
+      <!-- Lista de productos -->
+      <div class="admin-products-list" id="admin-products-list">
+        <!-- Items generados por JS -->
+      </div>
+      
+      <!-- Paginación -->
+      <div class="admin-pagination" id="admin-pagination"></div>
+    </section>
+  </main>
+
+  <script src="admin.js"></script>
+  
+</body>
+</html>

@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Notificaciones</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="styles.css">
+
+<style>
+.notifications-wrapper {
+  padding: 20px;
+  max-width: 900px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.notification-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  transition: transform var(--transition-fast);
+}
+
+.notification-card.removing {
+  animation: fadeOut 0.3s ease forwards;
+}
+
+.notification-card:hover {
+  transform: translateY(-2px);
+}
+
+.notification-img {
+  width: 70px;
+  height: 70px;
+  border-radius: 12px;
+  object-fit: contain;  /* Muestra la imagen completa */
+  background-color: #f5f5f8; /* Fondo suave */
+  padding: 4px; /* Espacio alrededor de la imagen */
+}
+.notification-info {
+  flex: 1;
+  font-size: 14px;
+}
+
+.notification-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.notification-meta {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: var(--transition-fast);
+}
+
+.btn-confirm {
+  background: #22c55e;
+  color: white;
+}
+
+.btn-confirm:hover {
+  background: #16a34a;
+}
+
+.btn-confirm:disabled {
+  background: #86efac;
+  cursor: not-allowed;
+}
+
+.btn-cancel {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: #dc2626;
+}
+
+.btn-cancel:disabled {
+  background: #fca5a5;
+  cursor: not-allowed;
+}
+
+.empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 40px;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+
+/* Responsive para notificaciones */
+@media (max-width: 768px) {
+  .notification-card {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .notification-img {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto;
+  }
+
+  .notification-info {
+    text-align: center;
+  }
+
+  .notification-actions {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+  }
+}
+
+
+
+
+</style>
+</head>
+
+<body class="theme-aeromexico">
+<div id="global-loader" class="global-loader hidden">
+  <div class="loader-spinner"></div>
+  <div class="loader-text">Cargando...</div>
+</div>
+
+<header class="app-header">
+  <div class="header-left">
+    <div class="logo-touch-area">
+      <span class="logo-mark">Z&R</span>
+    </div>
+    <div class="header-text">
+      <h1 class="app-title">Notificaciones</h1>
+      <p class="app-subtitle">Solicitudes de compra</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="icon-button" onclick="window.location='admin.html'">⬅</button>
+    <button class="icon-button" onclick="location.reload()">⟳</button>
+  </div>
+
+
+<div id="debugConsole" style="
+    background:#111;
+    color:#0f0;
+    padding:10px;
+    font-family:monospace;
+    height:200px;
+    overflow-y:auto;
+    border:1px solid #444;
+">
+    <strong>Consola interna:</strong><br>
+</div>
+
+
+
+
+
+
+</header>
+
+<main class="notifications-wrapper" id="notifications"></main>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
+
+function showLoader(text = "Cargando...") {
+  const loader = document.getElementById("global-loader");
+  const txt = loader.querySelector(".loader-text");
+  if (txt) txt.textContent = text;
+  loader.classList.remove("hidden");
+}
+
+function hideLoader() {
+  const loader = document.getElementById("global-loader");
+  loader.classList.add("hidden");
+}
+
+// Función original que funcionaba - Cargar notificaciones
+async function loadNotifications() {
+  showLoader("Cargando notificaciones...");
+  
+  try {
+    const res = await fetch(API + "?action=notifications");
+    const data = await res.json();
+    
+    const container = document.getElementById("notifications");
+    
+    if (!data.notifications || data.notifications.length === 0) {
+      container.innerHTML = '<div class="empty">No hay notificaciones</div>';
+      return;
+    }
+    
+    container.innerHTML = "";
+    
+    data.notifications.forEach(notification => {
+      const div = document.createElement("div");
+      div.className = "notification-card";
+      div.setAttribute("data-id", notification.ID_NOTIF);
+      
+      const img = notification.IMAGEN || "img/no-image.png";
+      
+      div.innerHTML = `
+        <img class="notification-img" src="${img}" loading="lazy"
+          onerror="this.src='img/no-image.png'">
+        <div class="notification-info">
+          <div class="notification-title">${escapeHtml(notification.NOMBRE || "Producto")}</div>
+          <div class="notification-meta">
+            ID: ${notification.PRODUCT_ID}<br>
+            Cantidad: ${notification.CANTIDAD}
+          </div>
+        </div>
+        <div class="notification-actions">
+          <button class="btn btn-confirm" onclick="confirmPurchase('${notification.ID_NOTIF}', '${notification.PRODUCT_ID}', '${notification.CANTIDAD}', this)">
+            Confirmar
+          </button>
+          <button class="btn btn-cancel" onclick="cancelPurchase('${notification.ID_NOTIF}', this)">
+            Cancelar
+          </button>
+
+
+<button onclick="testEcho()" style="margin: 10px; padding: 8px; background: #3b1f5f; color: white; border: none; border-radius: 8px;">
+  🔧 Probar conexión
+</button>
+
+
+
+
+
+
+
+
+        </div>
+      `;
+      
+      container.appendChild(div);
+    });
+    
+  } catch (err) {
+    console.error("Error cargando notificaciones:", err);
+    const container = document.getElementById("notifications");
+    container.innerHTML = '<div class="empty">Error cargando notificaciones</div>';
+  } finally {
+    hideLoader();
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return "";
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+
+
+
+
+
+
+async function confirmPurchase(notifId, productId, cantidad, buttonElement) {
+  // Mostrar alerta con los datos que se van a enviar
+  alert(`📤 Enviando a confirmar:\nNotifID: ${notifId}\nProductID: ${productId} (tipo: ${typeof productId})\nCantidad: ${cantidad}`);
+  
+  if (!confirm(`¿Confirmar compra de ${cantidad} unidad(es)?`)) {
+    return;
+  }
+  
+  const card = buttonElement.closest(".notification-card");
+  const buttons = card.querySelectorAll("button");
+  buttons.forEach(btn => btn.disabled = true);
+  
+  showLoader("Verificando stock...");
+  
+  try {
+    // PRIMERO: Verificar stock
+    const stockCheckBody = {
+      action: "checkStock",
+      productId: Number(productId),
+      cantidad: Number(cantidad)
+    };
+    
+    alert(`📡 Enviando checkStock:\n${JSON.stringify(stockCheckBody)}`);
+    
+    const stockCheck = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify(stockCheckBody)
+    });
+    
+    const stockData = await stockCheck.json();
+    alert(`📥 Respuesta checkStock:\nok: ${stockData.ok}\nstock: ${stockData.currentStock}\nfound: ${stockData.productFound}\nrecibido: ${stockData.receivedId}`);
+    
+    if (!stockData.ok) {
+      alert(`❌ Stock insuficiente. Stock actual: ${stockData.currentStock || 0}`);
+      buttons.forEach(btn => btn.disabled = false);
+      hideLoader();
+      return;
+    }
+    
+    showLoader("Generando link de pago...");
+    
+    // SEGUNDO: Confirmar compra
+    const confirmBody = {
+      action: "confirmPurchase",
+      notifId: notifId,
+      productId: Number(productId),
+      cantidad: Number(cantidad)
+    };
+    
+    alert(`📡 Enviando confirmPurchase:\n${JSON.stringify(confirmBody)}`);
+    
+    const confirmResponse = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify(confirmBody)
+    });
+    
+    const confirmData = await confirmResponse.json();
+    alert(`📥 Respuesta confirmPurchase:\nok: ${confirmData.ok}\npago: ${confirmData.paymentLink ? "Generado" : "No"}\nerror: ${confirmData.error || "ninguno"}`);
+    
+    if (confirmData.ok) {
+      card.remove();
+      
+      if (confirmData.paymentLink) {
+        const linkContainer = document.createElement("div");
+        linkContainer.className = "payment-link-container";
+        linkContainer.innerHTML = `
+          <div style="background: #e8f5e9; border-radius: 12px; padding: 16px; margin: 16px 0;">
+            <strong>✅ Link de pago generado:</strong><br>
+            <a href="${confirmData.paymentLink}" target="_blank" style="word-break: break-all; font-size: 12px;">
+              ${confirmData.paymentLink}
+            </a>
+            <div style="margin-top: 12px; display: flex; gap: 8px;">
+              <button onclick="navigator.clipboard.writeText('${confirmData.paymentLink}')" 
+                      style="flex:1; padding: 8px; border-radius: 8px; border: none; background: #4caf50; color: white; cursor: pointer;">
+                📋 Copiar enlace
+              </button>
+              <button onclick="window.open('${confirmData.paymentLink}', '_blank')" 
+                      style="flex:1; padding: 8px; border-radius: 8px; border: none; background: #009ee3; color: white; cursor: pointer;">
+                💳 Abrir pago
+              </button>
+            </div>
+          </div>
+        `;
+        
+        card.parentNode.insertBefore(linkContainer, card.nextSibling);
+        
+        setTimeout(() => {
+          if (linkContainer.parentNode) linkContainer.remove();
+        }, 15000);
+      }
+      
+      alert(`✅ Compra confirmada y link de pago generado.`);
+      
+      const remainingCards = document.querySelectorAll(".notification-card");
+      if (remainingCards.length === 0) {
+        document.getElementById("notifications").innerHTML = '<div class="empty">No hay notificaciones</div>';
+      }
+      
+    } else {
+      throw new Error(confirmData.error || "Error al confirmar");
+    }
+    
+  } catch (err) {
+    alert(`❌ Error: ${err.message}`);
+    buttons.forEach(btn => btn.disabled = false);
+  } finally {
+    hideLoader();
+  }
+}
+
+
+
+async function testEcho() {
+  showLoader("Probando conexión...");
+  
+  try {
+    const response = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify({ 
+        action: "echo", 
+        productId: 1012, 
+        cantidad: 1,
+        test: "hola mundo"
+      })
+    });
+    
+    const data = await response.json();
+    alert("Respuesta del servidor:\n" + JSON.stringify(data, null, 2));
+    console.log("Echo response:", data);
+    
+  } catch (err) {
+    alert("Error: " + err.message);
+  } finally {
+    hideLoader();
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Función cancelar compra - Versión SIMPLE que funcionaba
+async function cancelPurchase(notifId, buttonElement) {
+  if (!confirm("¿Cancelar esta solicitud de compra?")) {
+    return;
+  }
+  
+  // Deshabilitar botón para evitar doble clic
+  const card = buttonElement.closest(".notification-card");
+  const buttons = card.querySelectorAll("button");
+  buttons.forEach(btn => btn.disabled = true);
+  
+  showLoader("Procesando...");
+  
+  try {
+    // Usar el mismo formato que funcionaba antes
+    const response = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "cancelPurchase",
+        notifId: notifId
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.ok) {
+      // Eliminar la tarjeta inmediatamente
+      card.remove();
+      
+      // Verificar si quedan notificaciones
+      const remainingCards = document.querySelectorAll(".notification-card");
+      if (remainingCards.length === 0) {
+        document.getElementById("notifications").innerHTML = '<div class="empty">No hay notificaciones</div>';
+      }
+      
+    } else {
+      throw new Error(data.error || "Error al cancelar");
+    }
+    
+  } catch (err) {
+    console.error("Error:", err);
+    alert("❌ Error al cancelar: " + err.message);
+    // Re-habilitar botones
+    buttons.forEach(btn => btn.disabled = false);
+  } finally {
+    hideLoader();
+  }
+}
+
+// Auto-refresh cada 5 segundos (igual que funcionaba antes)
+let refreshInterval;
+
+function startAutoRefresh() {
+  if (refreshInterval) clearInterval(refreshInterval);
+  refreshInterval = setInterval(() => {
+    // Solo recargar si la pestaña está visible
+    if (document.visibilityState === "visible") {
+      loadNotifications();
+    }
+  }, 5000);
+}
+
+// Inicializar
+document.addEventListener("DOMContentLoaded", () => {
+  loadNotifications();
+});
+
+// Limpiar intervalo al salir
+window.addEventListener("beforeunload", () => {
+  if (refreshInterval) clearInterval(refreshInterval);
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(function() {
+    const div = document.getElementById("debugConsole");
+
+    function printToDiv(type, args) {
+        const msg = document.createElement("div");
+        msg.textContent = `[${type}] ` + Array.from(args).join(" ");
+        div.appendChild(msg);
+        div.scrollTop = div.scrollHeight;
+    }
+
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+
+    console.log = function() {
+        printToDiv("LOG", arguments);
+        originalLog.apply(console, arguments);
+    };
+
+    console.error = function() {
+        printToDiv("ERROR", arguments);
+        originalError.apply(console, arguments);
+    };
+
+    console.warn = function() {
+        printToDiv("WARN", arguments);
+        originalWarn.apply(console, arguments);
+    };
+
+    window.onerror = function(msg, url, line, col, error) {
+        printToDiv("UNCAUGHT", [msg + " (" + url + ":" + line + ")"]);
+    };
+})();
+
+
+
+
+
+
+
+
+
+
+
+</script>
+</body>
+</html>

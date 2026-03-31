@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Z&R</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!-- Precarga de recursos críticos -->
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+<link rel="dns-prefetch" href="https://script.google.com">
+<link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
+
+<!-- Precarga de estilos críticos -->
+<link rel="preload" href="styles.css" as="style">
+
+
+
+</head>
+<div id="global-loader" class="global-loader hidden">
+  <div class="loader-spinner"></div>
+  <div class="loader-text">Cargando...</div>
+</div>
+<body class="theme-aeromexico">
+  <!-- Header principal -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-touch-area" id="secret-logo">
+        <span class="logo-mark">Z&R</span>
+      </div>
+      <div class="header-text">
+        <h1 class="app-title">Catálogo</h1>
+        <p class="app-subtitle">Colección actual</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-button" id="refresh-btn" aria-label="Actualizar catálogo">
+        ⟳
+      </button> 
+    </div>
+  </header>
+
+<div class="looks-nav">
+    <a href="index.html">🏠 Catálogo</a>
+    <a href="looks.html" style="background:#ff4f81; color:white;">✨ Looks</a>
+  </div>
+
+  <!-- Barra de búsqueda y filtros -->
+  <section class="filters-bar">
+    <!-- Fila superior: Búsqueda + Filtro de género -->
+    <div class="filters-row-top">
+      <div class="search-wrapper">
+        <input
+          type="search"
+          id="search-input"
+          placeholder="Buscar productos..."
+          autocomplete="off"
+        />
+      </div>
+      <select id="gender-filter" class="gender-select">
+        <option value="">Todos</option>
+        <option value="HOMBRE">👔 Caballero</option>
+        <option value="MUJER">👗 Dama</option>
+      </select>
+    </div>
+    
+    <!-- Fila inferior: Categoría y Orden -->
+    <div class="filters-row-bottom">
+      <select id="category-filter">
+        <option value="">Todas las categorías</option>
+      </select>
+      <select id="sort-select">
+        <option value="">Ordenar</option>
+        <option value="price-asc">Precio: menor a mayor</option>
+        <option value="price-desc">Precio: mayor a menor</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- Lista de productos -->
+  <main class="products-container" id="products-container">
+    <!-- Productos generados por JS -->
+  </main>
+
+  <!-- Paginación -->
+  <section class="pagination-section">
+    <div id="pagination"></div>
+  </section>
+
+  <!-- Carrito flotante -->
+  <button class="floating-cart" id="floating-cart-btn" aria-label="Ver carrito">
+    <span class="cart-icon">🛒</span>
+    <span class="cart-badge" id="cart-count">0</span>
+  </button>
+
+  <!-- Panel de carrito -->
+  <aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
+    <div class="cart-header">
+      <h2>Tu carrito</h2>
+      <button class="icon-button" id="close-cart-btn" aria-label="Cerrar carrito">✕</button>
+    </div>
+    <div class="cart-body" id="cart-items-container">
+      <!-- Items del carrito -->
+    </div>
+    <div class="cart-footer">
+      <div class="cart-summary-row">
+        <span>Subtotal</span>
+        <span id="cart-subtotal">$0</span>
+      </div>
+      <div class="cart-summary-row total">
+        <span>Total</span>
+        <span id="cart-total">$0</span>
+      </div>
+      <button id="whatsapp-checkout-btn" 
+class="primary-button full-width"
+onclick="openWhatsAppCheckout()">
+💬 Finalizar por WhatsApp
+</button>
+
+<!-- Dentro de cart-footer, después del botón de WhatsApp o antes -->
+<button id="mp-checkout-btn" class="primary-button full-width" style="background: linear-gradient(135deg, #009ee3, #00a3e8); margin-top: 8px;">
+  💳 Pagar con Mercado Pago
+</button>
+<div style="font-size: 11px; text-align: center; margin-top: 8px; color: #666;">
+  Acepta pagos a meses sin intereses con Mercado Crédito
+</div>
+
+
+
+
+
+
+    </div>
+  </aside>
+
+  <!-- Overlay para modales -->
+  <div class="overlay" id="overlay" aria-hidden="true"></div>
+
+  <!-- Modal de imagen completa tipo Instagram -->
+  <div class="image-modal" id="image-modal" aria-hidden="true">
+    <button class="icon-button close-image-modal" id="close-image-modal">✕</button>
+    <img id="image-modal-img" alt="Vista de producto" />
+  </div>
+
+
+
+
+
+<div id="debugConsole" style="
+    background:#111;
+    color:#0f0;
+    padding:10px;
+    font-family:monospace;
+    height:200px;
+    overflow-y:auto;
+    border:1px solid #444;
+">
+    <strong>Consola interna:</strong><br>
+</div>
+<script>
+(function() {
+    const div = document.getElementById("debugConsole");
+
+    function printToDiv(type, args) {
+        const msg = document.createElement("div");
+        msg.textContent = `[${type}] ` + Array.from(args).join(" ");
+        div.appendChild(msg);
+        div.scrollTop = div.scrollHeight;
+    }
+
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+
+    console.log = function() {
+        printToDiv("LOG", arguments);
+        originalLog.apply(console, arguments);
+    };
+
+    console.error = function() {
+        printToDiv("ERROR", arguments);
+        originalError.apply(console, arguments);
+    };
+
+    console.warn = function() {
+        printToDiv("WARN", arguments);
+        originalWarn.apply(console, arguments);
+    };
+
+    window.onerror = function(msg, url, line, col, error) {
+        printToDiv("UNCAUGHT", [msg + " (" + url + ":" + line + ")"]);
+    };
+})();
+</script>
+
+
+
+
+
+
+
+
+  <link rel="stylesheet" href="styles.css" />
+<script src="script.js"></script>
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
