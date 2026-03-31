@@ -103,26 +103,24 @@
       <!-- Items del carrito -->
     </div>
     <div class="cart-footer">
-      <div class="cart-summary-row">
-        <span>Subtotal</span>
-        <span id="cart-subtotal">$0</span>
-      </div>
-      <div class="cart-summary-row total">
-        <span>Total</span>
-        <span id="cart-total">$0</span>
-      </div>
-      <button id="whatsapp-checkout-btn" 
-class="primary-button full-width"
-onclick="openWhatsAppCheckout()">
-💬 Finalizar por WhatsApp
-</button>
-
-<!-- Dentro de cart-footer, después del botón de WhatsApp o antes -->
-<button id="mp-checkout-btn" class="primary-button full-width" style="background: linear-gradient(135deg, #009ee3, #00a3e8); margin-top: 8px;">
-  💳 Pagar con Mercado Pago
-</button>
-<div style="font-size: 11px; text-align: center; margin-top: 8px; color: #666;">
-  Acepta pagos a meses sin intereses con Mercado Crédito
+  <div class="cart-summary-row">
+    <span>Subtotal</span>
+    <span id="cart-subtotal">$0</span>
+  </div>
+  <div class="cart-summary-row total">
+    <span>Total</span>
+    <span id="cart-total">$0</span>
+  </div>
+  
+  <!-- Botón SOLICITAR COMPRA -->
+  <button id="request-purchase-btn" class="primary-button full-width" 
+          style="background: linear-gradient(135deg, #25D366, #128C7E); margin-top: 8px;">
+    📝 Solicitar compra (verificar stock)
+  </button>
+  
+  <div style="font-size: 11px; text-align: center; margin-top: 8px; color: #666;">
+    ① Solicita compra → ② Admin verifica stock → ③ Link de pago aparece aquí
+  </div>
 </div>
 
 
