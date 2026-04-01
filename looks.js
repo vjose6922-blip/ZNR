@@ -712,7 +712,7 @@ function addToCartLocal(product) {
   localCart[id].quantity += 1;
   saveCartToStorage();
   updateCartBadge();
-  renderCartLocal();
+  renderCart();
 }
 
 
@@ -721,7 +721,7 @@ function removeFromCartLocal(id) {
     delete localCart[id];
     saveCartToStorage();
     updateCartBadge();
-    renderCartLocal();
+    renderCart();
   }
 }
 
@@ -733,7 +733,7 @@ function changeCartQtyLocal(id, delta) {
   }
   saveCartToStorage();
   updateCartBadge();
-  renderCartLocal();
+  renderCart();
 }
 
 function renderCart() {
@@ -1354,7 +1354,7 @@ window.formatCurrency = formatCurrency;
 // Inicializar
 document.addEventListener("DOMContentLoaded", () => {
   loadCartFromStorage();
-  renderCartLocal();
+  renderCart();
   loadProducts();
   
   const cartBtn = document.getElementById("floating-cart-btn");
