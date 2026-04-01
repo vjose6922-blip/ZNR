@@ -1389,14 +1389,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
 
-
-// En script.js y looks.js - agregar:
-const requestBtn = document.getElementById("request-purchase-btn");
-if (requestBtn) {
-  requestBtn.addEventListener("click", openWhatsAppCheckout);
-}
-
-
 // Botón de solicitar compra
 const requestBtn = document.getElementById("request-purchase-btn");
 if (requestBtn) {
