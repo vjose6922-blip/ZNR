@@ -763,7 +763,7 @@ function renderCart() {
   
   // Si no hay solicitud aprobada, mostrar el carrito normal
   container.innerHTML = "";
-  const items = Object.values(Localcart);
+  const items = Object.values(localcart);
   
   if (items.length === 0) {
     container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
@@ -859,7 +859,7 @@ function generateRequestId() {
 }
 
 async function openWhatsAppCheckout() {
-  const items = Object.values(Localcart);
+  const items = Object.values(localcart);
   if (items.length === 0) {
     alert("No hay productos en el carrito");
     return;
