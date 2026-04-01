@@ -213,6 +213,7 @@ function hideLoader() {
   loader.classList.add("hidden");
 }
 
+// Función original que funcionaba - Cargar notificaciones
 async function loadNotifications() {
   showLoader("Cargando notificaciones...");
   
@@ -229,21 +230,10 @@ async function loadNotifications() {
     
     container.innerHTML = "";
     
-   // Filtrar SOLO notificaciones con STATUS "pending"
-const pendingNotifications = data.notifications.filter(notif => {
-  const status = notif.STATUS || "pending";
-  return status === "pending";  // Solo mostrar pendientes
-});
-    
-    if (pendingNotifications.length === 0) {
-      container.innerHTML = '<div class="empty">No hay solicitudes pendientes</div>';
-      return;
-    }
-    
-    pendingNotifications.forEach(notification => {
+    data.notifications.forEach(notification => {
       const div = document.createElement("div");
       div.className = "notification-card";
-      div.setAttribute("data-id", notification.ID);
+      div.setAttribute("data-id", notification.ID_NOTIF);
       
       const img = notification.IMAGEN || "img/no-image.png";
       
@@ -255,16 +245,28 @@ const pendingNotifications = data.notifications.filter(notif => {
           <div class="notification-meta">
             ID: ${notification.PRODUCT_ID}<br>
             Cantidad: ${notification.CANTIDAD}
-            ${notification.REQUEST_ID ? `<br>Solicitud: ${notification.REQUEST_ID}` : ''}
           </div>
         </div>
         <div class="notification-actions">
-          <button class="btn btn-confirm" onclick="confirmPurchase('${notification.ID}', '${notification.PRODUCT_ID}', '${notification.CANTIDAD}', this)">
+          <button class="btn btn-confirm" onclick="confirmPurchase('${notification.ID_NOTIF}', '${notification.PRODUCT_ID}', '${notification.CANTIDAD}', this)">
             Confirmar
           </button>
-          <button class="btn btn-cancel" onclick="cancelPurchase('${notification.ID}', this)">
+          <button class="btn btn-cancel" onclick="cancelPurchase('${notification.ID_NOTIF}', this)">
             Cancelar
           </button>
+
+
+<button onclick="testEcho()" style="margin: 10px; padding: 8px; background: #3b1f5f; color: white; border: none; border-radius: 8px;">
+  🔧 Probar conexión
+</button>
+
+
+
+
+
+
+
+
         </div>
       `;
       
@@ -280,10 +282,6 @@ const pendingNotifications = data.notifications.filter(notif => {
   }
 }
 
-
-
-
-
 function escapeHtml(text) {
   if (!text) return "";
   const div = document.createElement("div");
@@ -298,6 +296,9 @@ function escapeHtml(text) {
 
 
 async function confirmPurchase(notifId, productId, cantidad, buttonElement) {
+  // Mostrar alerta con los datos que se van a enviar
+  alert(`📤 Enviando a confirmar:\nNotifID: ${notifId}\nProductID: ${productId} (tipo: ${typeof productId})\nCantidad: ${cantidad}`);
+  
   if (!confirm(`¿Confirmar compra de ${cantidad} unidad(es)?`)) {
     return;
   }
@@ -316,12 +317,15 @@ async function confirmPurchase(notifId, productId, cantidad, buttonElement) {
       cantidad: Number(cantidad)
     };
     
+    alert(`📡 Enviando checkStock:\n${JSON.stringify(stockCheckBody)}`);
+    
     const stockCheck = await fetch(API, {
       method: "POST",
       body: JSON.stringify(stockCheckBody)
     });
     
     const stockData = await stockCheck.json();
+    alert(`📥 Respuesta checkStock:\nok: ${stockData.ok}\nstock: ${stockData.currentStock}\nfound: ${stockData.productFound}\nrecibido: ${stockData.receivedId}`);
     
     if (!stockData.ok) {
       alert(`❌ Stock insuficiente. Stock actual: ${stockData.currentStock || 0}`);
@@ -340,26 +344,18 @@ async function confirmPurchase(notifId, productId, cantidad, buttonElement) {
       cantidad: Number(cantidad)
     };
     
+    alert(`📡 Enviando confirmPurchase:\n${JSON.stringify(confirmBody)}`);
+    
     const confirmResponse = await fetch(API, {
       method: "POST",
       body: JSON.stringify(confirmBody)
     });
     
     const confirmData = await confirmResponse.json();
+    alert(`📥 Respuesta confirmPurchase:\nok: ${confirmData.ok}\npago: ${confirmData.paymentLink ? "Generado" : "No"}\nerror: ${confirmData.error || "ninguno"}`);
     
     if (confirmData.ok) {
-      // 🔥 En lugar de eliminar la tarjeta, ocultarla con animación
-      card.classList.add("removing");
-      
-      setTimeout(() => {
-        card.remove();
-        
-        // Verificar si quedan notificaciones pendientes
-        const remainingCards = document.querySelectorAll(".notification-card");
-        if (remainingCards.length === 0) {
-          document.getElementById("notifications").innerHTML = '<div class="empty">No hay solicitudes pendientes</div>';
-        }
-      }, 300);
+      card.remove();
       
       if (confirmData.paymentLink) {
         const linkContainer = document.createElement("div");
@@ -392,6 +388,11 @@ async function confirmPurchase(notifId, productId, cantidad, buttonElement) {
       
       alert(`✅ Compra confirmada y link de pago generado.`);
       
+      const remainingCards = document.querySelectorAll(".notification-card");
+      if (remainingCards.length === 0) {
+        document.getElementById("notifications").innerHTML = '<div class="empty">No hay notificaciones</div>';
+      }
+      
     } else {
       throw new Error(confirmData.error || "Error al confirmar");
     }
@@ -406,6 +407,30 @@ async function confirmPurchase(notifId, productId, cantidad, buttonElement) {
 
 
 
+async function testEcho() {
+  showLoader("Probando conexión...");
+  
+  try {
+    const response = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify({ 
+        action: "echo", 
+        productId: 1012, 
+        cantidad: 1,
+        test: "hola mundo"
+      })
+    });
+    
+    const data = await response.json();
+    alert("Respuesta del servidor:\n" + JSON.stringify(data, null, 2));
+    console.log("Echo response:", data);
+    
+  } catch (err) {
+    alert("Error: " + err.message);
+  } finally {
+    hideLoader();
+  }
+}
 
 
 
@@ -420,11 +445,14 @@ async function confirmPurchase(notifId, productId, cantidad, buttonElement) {
 
 
 
+
+// Función cancelar compra - Versión SIMPLE que funcionaba
 async function cancelPurchase(notifId, buttonElement) {
   if (!confirm("¿Cancelar esta solicitud de compra?")) {
     return;
   }
   
+  // Deshabilitar botón para evitar doble clic
   const card = buttonElement.closest(".notification-card");
   const buttons = card.querySelectorAll("button");
   buttons.forEach(btn => btn.disabled = true);
@@ -432,6 +460,7 @@ async function cancelPurchase(notifId, buttonElement) {
   showLoader("Procesando...");
   
   try {
+    // Usar el mismo formato que funcionaba antes
     const response = await fetch(API, {
       method: "POST",
       body: JSON.stringify({
@@ -443,17 +472,14 @@ async function cancelPurchase(notifId, buttonElement) {
     const data = await response.json();
     
     if (data.ok) {
-      // 🔥 Ocultar con animación en lugar de eliminar inmediatamente
-      card.classList.add("removing");
+      // Eliminar la tarjeta inmediatamente
+      card.remove();
       
-      setTimeout(() => {
-        card.remove();
-        
-        const remainingCards = document.querySelectorAll(".notification-card");
-        if (remainingCards.length === 0) {
-          document.getElementById("notifications").innerHTML = '<div class="empty">No hay solicitudes pendientes</div>';
-        }
-      }, 300);
+      // Verificar si quedan notificaciones
+      const remainingCards = document.querySelectorAll(".notification-card");
+      if (remainingCards.length === 0) {
+        document.getElementById("notifications").innerHTML = '<div class="empty">No hay notificaciones</div>';
+      }
       
     } else {
       throw new Error(data.error || "Error al cancelar");
@@ -462,15 +488,12 @@ async function cancelPurchase(notifId, buttonElement) {
   } catch (err) {
     console.error("Error:", err);
     alert("❌ Error al cancelar: " + err.message);
+    // Re-habilitar botones
     buttons.forEach(btn => btn.disabled = false);
   } finally {
     hideLoader();
   }
 }
-
-
-
-
 
 // Auto-refresh cada 5 segundos (igual que funcionaba antes)
 let refreshInterval;
