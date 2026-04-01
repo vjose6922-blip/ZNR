@@ -1,5 +1,3 @@
-
-
 const API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 const WHATSAPP_NUMBER = "528671781272";
 // Caché persistente con localStorage
@@ -101,6 +99,7 @@ const WEATHER_PRIORITY_SCORES = {
 
 let allProducts = [];
 let looks = [];
+let localCart = {}; // <-- CORREGIDO: variable global localCart
 
 // Definición de looks con estructura de 3 prendas: torso, piernas, pies
 const LOOKS_CONFIG = [
@@ -295,9 +294,6 @@ function getProductsForSlot(products, slot) {
   );
 }
 
-// Modifica la función selectProductsForLook (aproximadamente línea 210-230 en looks.js)
-// Asegúrate de incluir la talla al seleccionar productos:
-
 function selectProductsForLook(lookConfig, productsWithImages, currentSelection = {}) {
   const selected = {};
   const usedProductIds = [];
@@ -307,7 +303,7 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
     const currentProductId = currentSelection[slotKey]?.id;
     
     if (currentProductId && !currentSelection._reloading) {
-      const existingProduct = productsWithImages.find(p => p.ID === currentProductId);
+      const existingProduct = productsWithImages.find(p => p.ID == currentProductId);
       if (existingProduct && existingProduct.Stock > 0) {
         selected[slotKey] = {
           id: existingProduct.ID,
@@ -316,15 +312,15 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
           image: existingProduct.Imagen1 || existingProduct.Imagen2 || "",
           stock: existingProduct.Stock,
           category: existingProduct.Categoria,
-          size: existingProduct.Talla || "" // <- Agregar talla
+          size: existingProduct.Talla || ""
         };
-        usedProductIds.push(existingProduct.ID);
+        usedProductIds.push(String(existingProduct.ID));
         continue;
       }
     }
     
     const availableProducts = getProductsForSlot(productsWithImages, slot);
-    const freshProducts = availableProducts.filter(p => !usedProductIds.includes(p.ID));
+    const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
     
     if (freshProducts.length > 0) {
       const randomIndex = Math.floor(Math.random() * freshProducts.length);
@@ -336,19 +332,14 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
         image: product.Imagen1 || product.Imagen2 || "",
         stock: product.Stock,
         category: product.Categoria,
-        size: product.Talla || "" // <- Agregar talla
+        size: product.Talla || ""
       };
-      usedProductIds.push(product.ID);
+      usedProductIds.push(String(product.ID));
     }
   }
   
   return selected;
 }
-
-
-
-// Función para recargar un slot específico
-// Modifica reloadSlot en looks.js:
 
 function reloadSlot(lookId, slotType, event) {
   event.stopPropagation();
@@ -366,7 +357,7 @@ function reloadSlot(lookId, slotType, event) {
   const usedProductIds = [];
   for (const [key, product] of Object.entries(look.products)) {
     if (key !== slotType && product && product.id) {
-      usedProductIds.push(product.id);
+      usedProductIds.push(String(product.id));
     }
   }
   
@@ -374,7 +365,7 @@ function reloadSlot(lookId, slotType, event) {
   if (!slot) return;
   
   const availableProducts = getProductsForSlot(productsWithImages, slot);
-  const freshProducts = availableProducts.filter(p => !usedProductIds.includes(p.ID));
+  const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
   
   if (freshProducts.length > 0) {
     const randomIndex = Math.floor(Math.random() * freshProducts.length);
@@ -387,7 +378,7 @@ function reloadSlot(lookId, slotType, event) {
       image: newProduct.Imagen1 || newProduct.Imagen2 || "",
       stock: newProduct.Stock,
       category: newProduct.Categoria,
-      size: newProduct.Talla || "" // <- Agregar talla
+      size: newProduct.Talla || ""
     };
     
     if (slotType === "torso") {
@@ -410,14 +401,111 @@ function optimizeDriveUrl(url, size = 400) {
   return url;
 }
 
+async function getWeather() {
+  try {
+    const response = await fetch(`${WEATHER_API_URL}?action=getWeather`);
+    const data = await response.json();
+    
+    if (data.ok && data.weatherType) {
+      currentWeather = data;
+      console.log("Clima actual:", data.weatherType, data.temperature, data.city);
+      addWeatherNotification(data);
+      return data;
+    }
+  } catch (err) {
+    console.error("Error obteniendo clima:", err);
+  }
+  return null;
+}
+
+function addWeatherNotification(weather) {
+  const existing = document.querySelector('.weather-notification');
+  if (existing) existing.remove();
+  
+  let weatherIcon = "🌤️";
+  let weatherText = "";
+  let recommendation = "";
+  
+  switch(weather.weatherType) {
+    case 'calor':
+      weatherIcon = "☀️🔥";
+      weatherText = "¡Día caluroso!";
+      recommendation = "Te recomendamos looks frescos para el calor ☀️";
+      break;
+    case 'frio':
+      weatherIcon = "❄️🥶";
+      weatherText = "¡Día frío!";
+      recommendation = "Te recomendamos looks abrigadores 🧥";
+      break;
+    case 'lluvioso':
+      weatherIcon = "🌧️☔";
+      weatherText = "¡Día lluvioso!";
+      recommendation = "Te recomendamos looks con chamarra y calzado cerrado 🧥👟";
+      break;
+    default:
+      weatherIcon = "🌤️";
+      weatherText = "Clima templado";
+      recommendation = "Looks casuales y elegantes para hoy ✨";
+  }
+  
+  const notif = document.createElement('div');
+  notif.className = 'weather-notification';
+  notif.innerHTML = `
+    <div class="weather-notification-content">
+      <div class="weather-icon">${weatherIcon}</div>
+      <div class="weather-info">
+        <div class="weather-text">${weatherText} ${weather.temperature ? `${weather.temperature}°C` : ''}</div>
+        <div class="weather-recommendation">${recommendation}</div>
+      </div>
+      <button class="weather-close" onclick="this.closest('.weather-notification').remove()">✕</button>
+    </div>
+  `;
+  
+  document.body.insertBefore(notif, document.body.firstChild);
+  
+  setTimeout(() => {
+    if (notif && notif.parentNode) notif.remove();
+  }, 8000);
+}
+
+function addWeatherBadge() {
+  if (!currentWeather || !currentWeather.weatherType) return;
+  
+  const existingBadge = document.querySelector('.weather-order-badge');
+  if (existingBadge) existingBadge.remove();
+  
+  let orderText = "";
+  switch(currentWeather.weatherType) {
+    case 'calor': orderText = "🔥 Looks ordenados por prioridad: frescos primero"; break;
+    case 'frio': orderText = "❄️ Looks ordenados por prioridad: abrigadores primero"; break;
+    case 'lluvioso': orderText = "🌧️ Looks ordenados por prioridad: impermeables primero"; break;
+    default: orderText = "✨ Looks ordenados por popularidad";
+  }
+  
+  const badge = document.createElement('div');
+  badge.className = 'weather-order-badge';
+  badge.innerHTML = `
+    <div class="weather-order-content">
+      <span>${currentWeather.weatherType === 'calor' ? '☀️' : currentWeather.weatherType === 'frio' ? '❄️' : '🌡️'}</span>
+      <span>${orderText}</span>
+    </div>
+  `;
+  
+  const hero = document.querySelector('.looks-hero');
+  if (hero) {
+    hero.insertAdjacentElement('afterend', badge);
+  }
+}
+
 async function loadProducts() {
   // 1. Mostrar caché inmediatamente
   const cached = getCachedProducts();
   if (cached && cached.length > 0) {
     allProducts = cached;
-    await getWeather(); // Clima en paralelo
+    await getWeather();
     buildLooksFromProducts();
     renderLooks();
+    addWeatherBadge();
     // Actualizar en segundo plano
     loadLooksInBackground();
     return;
@@ -466,8 +554,6 @@ async function loadLooksInBackground() {
     console.error("Error en carga background:", err);
   }
 }
-
-
 
 // Construir looks - TODOS los looks disponibles, ordenados por prioridad según clima
 function buildLooksFromProducts() {
@@ -548,9 +634,9 @@ function renderLooks() {
     const slotOrder = ["torso", "piernas", "pies"];
     
     const slotNames = {
-      torso: " ",
-      piernas: " ",
-      pies: " "
+      torso: "Parte superior",
+      piernas: "Parte inferior",
+      pies: "Calzado"
     };
     
     const slotIcons = {
@@ -572,25 +658,25 @@ function renderLooks() {
       const slotIcon = slotIcons[slotKey] || "🛍️";
       
       productsHtml += `
-  <div class="look-product-item" data-slot="${slotKey}">
-    <div class="look-product-slot-badge">${slotIcon} ${slotName}</div>
-    <img class="look-product-img" src="${productImg}" alt="${escapeHtml(product.name)}" onerror="this.src='https://placehold.co/70x70/eee/999?text=No+img'">
-    <div class="look-product-info">
-      <div class="look-product-name">${escapeHtml(product.name)}</div>
-      <div class="look-product-price">${formatCurrency(product.price)}</div>
-      <div class="look-product-category">${escapeHtml(product.category || '')}</div>
-      <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
-    </div>
-    <div class="look-product-actions">
-      <button class="look-product-add" onclick="event.stopPropagation(); addSingleToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">
-        + Agregar
-      </button>
-      <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">
-        🔄
-      </button>
-    </div>
-  </div>
-`;
+        <div class="look-product-item" data-slot="${slotKey}">
+          <div class="look-product-slot-badge">${slotIcon} ${slotName}</div>
+          <img class="look-product-img" src="${productImg}" alt="${escapeHtml(product.name)}" onerror="this.src='https://placehold.co/70x70/eee/999?text=No+img'">
+          <div class="look-product-info">
+            <div class="look-product-name">${escapeHtml(product.name)}</div>
+            <div class="look-product-price">${formatCurrency(product.price)}</div>
+            <div class="look-product-category">${escapeHtml(product.category || '')}</div>
+            <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
+          </div>
+          <div class="look-product-actions">
+            <button class="look-product-add" onclick="event.stopPropagation(); addSingleToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">
+              + Agregar
+            </button>
+            <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">
+              🔄
+            </button>
+          </div>
+        </div>
+      `;
     }
     
     const card = document.createElement("div");
@@ -647,7 +733,8 @@ function addLookToCart(lookId) {
         ID: product.id,      
         Nombre: product.name,
         Precio: product.price,
-        Imagen1: product.image
+        Imagen1: product.image,
+        Talla: product.size
       });
       addedCount++;
     }
@@ -658,9 +745,7 @@ function addLookToCart(lookId) {
   }
 }
 
-
-// Funciones de carrito
-let localCart = {};
+// ========== FUNCIONES DE CARRITO CORREGIDAS ==========
 
 function loadCartFromStorage() {
   try {
@@ -684,10 +769,7 @@ function updateCartBadge() {
   }
 }
 
-// En looks.js, modifica addSingleToCart y addToCartLocal:
-
 function addSingleToCart(product) {
-  // product ya tiene formato {ID, Nombre, Precio, Imagen1, Talla}
   addToCartLocal(product);
   animateCartAdd();
 }
@@ -706,7 +788,7 @@ function addToCartLocal(product) {
       price: Number(product.Precio || 0),
       quantity: 0,
       Imagen1: product.Imagen1 || "",
-      Talla: product.Talla || "" // <- Agregar talla
+      Talla: product.Talla || ""
     };
   }
   localCart[id].quantity += 1;
@@ -714,7 +796,6 @@ function addToCartLocal(product) {
   updateCartBadge();
   renderCart();
 }
-
 
 function removeFromCartLocal(id) {
   if (localCart[id]) {
@@ -763,7 +844,7 @@ function renderCart() {
   
   // Si no hay solicitud aprobada, mostrar el carrito normal
   container.innerHTML = "";
-  const items = Object.values(localcart);
+  const items = Object.values(localCart);
   
   if (items.length === 0) {
     container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
@@ -794,8 +875,13 @@ function renderCart() {
   if (totalEl) totalEl.textContent = formatCurrency(subtotal);
 }
 
+function changeCartQty(id, delta) {
+  changeCartQtyLocal(id, delta);
+}
 
-
+function removeFromCart(id) {
+  removeFromCartLocal(id);
+}
 
 function animateCartAdd() {
   const btn = document.getElementById("floating-cart-btn");
@@ -853,17 +939,53 @@ function buildWhatsAppMessage() {
   return message;
 }
 
-// Agregar esta función para generar ID único
+// Función para generar ID único
 function generateRequestId() {
   return 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
 }
 
+let activeRequestId = null;
+let pollingInterval = null;
+
+function showLoader(text = "Cargando...") {
+  const loader = document.getElementById("global-loader");
+  if (!loader) return;
+  const txt = loader.querySelector(".loader-text");
+  if (txt) txt.textContent = text;
+  loader.classList.remove("hidden");
+}
+
+function hideLoader() {
+  const loader = document.getElementById("global-loader");
+  if (loader) loader.classList.add("hidden");
+}
+
 async function openWhatsAppCheckout() {
-  const items = Object.values(localcart);
+  const items = Object.values(localCart);
   if (items.length === 0) {
-    alert("No hay productos en el carrito");
+    showTemporaryMessage("No hay productos en el carrito", "error");
     return;
   }
+  
+  // Construir mensaje para WhatsApp
+  let message = "Hola quiero comprar:%0A%0A";
+  
+  items.forEach((item) => {
+    message += `📦 *${item.name}*%0A`;
+    message += `ID: ${item.id}%0A`;
+    message += `Cantidad: ${item.quantity}%0A`;
+    if (item.Talla) message += `Talla: ${item.Talla}%0A`;
+    message += `Subtotal: ${formatCurrency(item.price * item.quantity)}%0A`;
+    message += `------------------------%0A`;
+  });
+  
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  message += `%0A💰 *Total: ${formatCurrency(total)}*%0A%0A`;
+  message += `Puedes regresar a la tienda y revisar tu carrito para la confirmación del stock y el pago con tarjeta si deseas.`;
+  
+  // Abrir WhatsApp
+  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+  window.open(whatsappUrl, '_blank');
   
   // Limpiar solicitudes anteriores pendientes
   for (let i = 0; i < localStorage.length; i++) {
@@ -879,7 +1001,7 @@ async function openWhatsAppCheckout() {
   showLoader("Enviando solicitud...");
   
   const requestId = generateRequestId();
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
   const purchaseRequest = {
     id: requestId,
@@ -888,9 +1010,10 @@ async function openWhatsAppCheckout() {
       name: item.name,
       price: item.price,
       quantity: item.quantity,
-      image: item.Imagen1 || ""
+      image: item.Imagen1 || "",
+      talla: item.Talla || ""
     })),
-    total: total,
+    total: totalAmount,
     timestamp: Date.now(),
     status: 'pending',
     paymentLink: null
@@ -903,10 +1026,11 @@ async function openWhatsAppCheckout() {
       productId: item.id,
       nombre: item.name,
       cantidad: item.quantity,
-      imagen: item.Imagen1 || ""
+      imagen: item.Imagen1 || "",
+      talla: item.Talla || ""
     }));
     
-    await fetch(SHEET_API_URL, {
+    await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({
         action: "createNotification",
@@ -916,22 +1040,87 @@ async function openWhatsAppCheckout() {
     });
     
     // Limpiar carrito
-    cart = {};
+    localCart = {};
     saveCartToStorage();
     updateCartBadge();
     
-    alert("✅ Solicitud enviada al administrador.\n\nEspera la confirmación. Cuando sea aprobada, el link de pago aparecerá automáticamente en tu carrito.");
+    // ❌ ALERTA ELIMINADA - reemplazada por mensaje visual temporal
+    showTemporaryMessage("✅ Solicitud enviada al administrador. Espera la confirmación.", "success");
     
     closeCartDrawer();
     startWaitingForConfirmation(requestId);
     
   } catch(err) {
     console.error("Error:", err);
-    alert("Error al enviar la solicitud");
+    showTemporaryMessage("❌ Error al enviar la solicitud", "error");
   } finally {
     hideLoader();
   }
 }
+
+// Función auxiliar para mostrar mensajes temporales
+function showTemporaryMessage(text, type = "info") {
+  const existing = document.querySelector('.temporary-message');
+  if (existing) existing.remove();
+  
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `temporary-message ${type}`;
+  messageDiv.style.cssText = `
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: ${type === "error" ? "#ef4444" : "#22c55e"};
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: slideUp 0.3s ease;
+  `;
+  messageDiv.textContent = text;
+  document.body.appendChild(messageDiv);
+  
+  setTimeout(() => {
+    messageDiv.style.animation = "slideDown 0.3s ease";
+    setTimeout(() => {
+      messageDiv.remove();
+    }, 300);
+  }, 3000);
+}
+
+// Agregar estilos si no existen
+if (!document.querySelector('#toast-styles')) {
+  const style = document.createElement("style");
+  style.id = "toast-styles";
+  style.textContent = `
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function startWaitingForConfirmation(requestId) {
   activeRequestId = requestId;
   
@@ -956,7 +1145,7 @@ function startWaitingForConfirmation(requestId) {
     }
     
     try {
-      const response = await fetch(`${SHEET_API_URL}?action=checkRequestStatus&requestId=${activeRequestId}`);
+      const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${activeRequestId}`);
       const data = await response.json();
       
       console.log("Polling response:", data);
@@ -990,9 +1179,6 @@ function startWaitingForConfirmation(requestId) {
 function showWaitingStatusInCart(requestId) {
   const container = document.getElementById("cart-items-container");
   if (!container) return;
-  
-  // Guardar estado actual del carrito para restaurar después
-  const originalContent = container.innerHTML;
   
   container.innerHTML = `
     <div class="waiting-status" style="text-align: center; padding: 40px 20px;">
@@ -1058,7 +1244,6 @@ function showPaymentLinkInCart(paymentLink, requestId) {
   `;
 }
 
-// Función auxiliar para obtener el total de la solicitud
 function getTotalFromRequest(requestId) {
   const stored = localStorage.getItem('pending_purchase_' + requestId);
   if (stored) {
@@ -1089,13 +1274,12 @@ function showRejectedStatus() {
 function cancelRequest(requestId) {
   if (confirm("¿Cancelar esta solicitud de compra?")) {
     localStorage.removeItem('pending_purchase_' + requestId);
-    renderCart(); // Restaurar carrito vacío
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = null;
+    activeRequestId = null;
+    renderCart();
     alert("Solicitud cancelada");
   }
-}
-
-function removeWaitingStatus() {
-  renderCart();
 }
 
 function removePendingRequest(requestId) {
@@ -1103,19 +1287,32 @@ function removePendingRequest(requestId) {
   renderCart();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Inicialización
+document.addEventListener("DOMContentLoaded", () => {
+  loadCartFromStorage();
+  loadProducts();
+  renderCart();
+  
+  // Botones de carrito
+  const cartBtn = document.getElementById("floating-cart-btn");
+  if (cartBtn) cartBtn.addEventListener("click", openCartDrawer);
+  
+  const closeCartBtn = document.getElementById("close-cart-btn");
+  if (closeCartBtn) closeCartBtn.addEventListener("click", closeCartDrawer);
+  
+  const overlay = document.getElementById("overlay");
+  if (overlay) overlay.addEventListener("click", () => {
+    closeCartDrawer();
+    closeImageModal();
+  });
+  
+  const closeImageBtn = document.getElementById("close-image-modal");
+  if (closeImageBtn) closeImageBtn.addEventListener("click", closeImageModal);
+  
+  const refreshBtn = document.getElementById("refresh-looks");
+  if (refreshBtn) refreshBtn.addEventListener("click", () => loadProducts());
+  
+  // Botón solicitar compra
+  const requestBtn = document.getElementById("request-purchase-btn");
+  if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
+});
