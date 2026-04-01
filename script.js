@@ -977,6 +977,26 @@ async function openWhatsAppCheckout() {
     return;
   }
   
+  // Construir mensaje para WhatsApp
+  let message = "Hola quiero comprar:%0A%0A";
+  
+  items.forEach((item) => {
+    message += `📦 *${item.name}*%0A`;
+    message += `ID: ${item.id}%0A`;
+    message += `Cantidad: ${item.quantity}%0A`;
+    if (item.Talla) message += `Talla: ${item.Talla}%0A`;
+    message += `Subtotal: ${formatCurrency(item.price * item.quantity)}%0A`;
+    message += `------------------------%0A`;
+  });
+  
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  message += `%0A💰 *Total: ${formatCurrency(total)}*%0A%0A`;
+  message += `Puedes regresar a la tienda y revisar tu carrito para la confirmación del stock y el pago con tarjeta si deseas.`;
+  
+  // Abrir WhatsApp
+  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+  window.open(whatsappUrl, '_blank');
+  
   // Limpiar solicitudes anteriores pendientes
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -991,7 +1011,7 @@ async function openWhatsAppCheckout() {
   showLoader("Enviando solicitud...");
   
   const requestId = generateRequestId();
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
   const purchaseRequest = {
     id: requestId,
@@ -1000,9 +1020,10 @@ async function openWhatsAppCheckout() {
       name: item.name,
       price: item.price,
       quantity: item.quantity,
-      image: item.Imagen1 || ""
+      image: item.Imagen1 || "",
+      talla: item.Talla || ""
     })),
-    total: total,
+    total: totalAmount,
     timestamp: Date.now(),
     status: 'pending',
     paymentLink: null
@@ -1015,7 +1036,8 @@ async function openWhatsAppCheckout() {
       productId: item.id,
       nombre: item.name,
       cantidad: item.quantity,
-      imagen: item.Imagen1 || ""
+      imagen: item.Imagen1 || "",
+      talla: item.Talla || ""
     }));
     
     await fetch(SHEET_API_URL, {
@@ -1032,18 +1054,85 @@ async function openWhatsAppCheckout() {
     saveCartToStorage();
     updateCartBadge();
     
-    alert("✅ Solicitud enviada al administrador.\n\nEspera la confirmación. Cuando sea aprobada, el link de pago aparecerá automáticamente en tu carrito.");
+    // ❌ ALERTA ELIMINADA - reemplazada por mensaje visual temporal
+    showTemporaryMessage("✅ Solicitud enviada al administrador. Espera la confirmación.", "success");
     
     closeCartDrawer();
     startWaitingForConfirmation(requestId);
     
   } catch(err) {
     console.error("Error:", err);
-    alert("Error al enviar la solicitud");
+    showTemporaryMessage("❌ Error al enviar la solicitud", "error");
   } finally {
     hideLoader();
   }
 }
+
+// Función auxiliar para mostrar mensajes temporales
+function showTemporaryMessage(text, type = "info") {
+  // Remover mensajes existentes
+  const existing = document.querySelector('.temporary-message');
+  if (existing) existing.remove();
+  
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `temporary-message ${type}`;
+  messageDiv.style.cssText = `
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: ${type === "error" ? "#ef4444" : "#22c55e"};
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: slideUp 0.3s ease;
+  `;
+  messageDiv.textContent = text;
+  document.body.appendChild(messageDiv);
+  
+  setTimeout(() => {
+    messageDiv.style.animation = "slideDown 0.3s ease";
+    setTimeout(() => {
+      messageDiv.remove();
+    }, 300);
+  }, 3000);
+}
+
+// Agregar estilos para las animaciones (poner esto una sola vez al inicio)
+if (!document.querySelector('#toast-styles')) {
+  const style = document.createElement("style");
+  style.id = "toast-styles";
+  style.textContent = `
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+
 
 // Función para esperar confirmación del admin
 function startWaitingForConfirmation(requestId) {
