@@ -1387,16 +1387,13 @@ document.addEventListener("DOMContentLoaded", () => {
       if (tapCount >= 5) {
         window.location.href = "admin.html";
       }
-
-
-// Botón de solicitar compra
-const requestBtn = document.getElementById("request-purchase-btn");
-if (requestBtn) {
-  requestBtn.addEventListener("click", openWhatsAppCheckout);
-}
-
-
     });
+  }
+
+  // Botón de solicitar compra
+  const requestBtn = document.getElementById("request-purchase-btn");
+  if (requestBtn) {
+    requestBtn.addEventListener("click", openWhatsAppCheckout);
   }
 });
 
