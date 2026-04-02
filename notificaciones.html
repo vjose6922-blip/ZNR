@@ -377,18 +377,30 @@ async function confirmPurchase(notifId, productId, cantidad, buttonElement) {
           </div>
         `;
         
-        card.parentNode.insertBefore(linkContainer, card.nextSibling);
-        
-        setTimeout(() => {
-          if (linkContainer.parentNode) linkContainer.remove();
-        }, 15000);
+        // 🔥 VERIFICAR SI EL CARD AÚN EXISTE ANTES DE insertBefore
+        if (card.parentNode) {
+          card.parentNode.insertBefore(linkContainer, card.nextSibling);
+          
+          setTimeout(() => {
+            if (linkContainer.parentNode) linkContainer.remove();
+          }, 15000);
+        } else {
+          // Si la tarjeta ya no existe, agregar al contenedor principal
+          const container = document.getElementById("notifications");
+          if (container) {
+            container.appendChild(linkContainer);
+            setTimeout(() => {
+              if (linkContainer.parentNode) linkContainer.remove();
+            }, 15000);
+          }
+        }
       }
       
       alert(`✅ Compra confirmada y link de pago generado.`);
       
       const remainingCards = document.querySelectorAll(".notification-card");
       if (remainingCards.length === 0) {
-        document.getElementById("notifications").innerHTML = '<div class="empty">No hay notificaciones</div>';
+        document.getElementById("notifications").innerHTML = '<div class="empty">No hay notificaciones pendientes</div>';
       }
       
     } else {
