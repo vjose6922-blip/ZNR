@@ -213,7 +213,6 @@ function hideLoader() {
   loader.classList.add("hidden");
 }
 
-// Función original que funcionaba - Cargar notificaciones
 async function loadNotifications() {
   showLoader("Cargando notificaciones...");
   
@@ -228,9 +227,21 @@ async function loadNotifications() {
       return;
     }
     
+    // 🔥 FILTRO AQUÍ - Solo notificaciones con STATUS "pending"
+    const pendingNotifications = data.notifications.filter(notification => {
+      return notification.STATUS === "pending";
+    });
+    
+    // Verificar si hay pendientes después del filtro
+    if (pendingNotifications.length === 0) {
+      container.innerHTML = '<div class="empty">No hay notificaciones pendientes</div>';
+      return;
+    }
+    
     container.innerHTML = "";
     
-    data.notifications.forEach(notification => {
+    // Usar pendingNotifications en lugar de data.notifications
+    pendingNotifications.forEach(notification => {
       const div = document.createElement("div");
       div.className = "notification-card";
       div.setAttribute("data-id", notification.ID_NOTIF);
@@ -254,19 +265,6 @@ async function loadNotifications() {
           <button class="btn btn-cancel" onclick="cancelPurchase('${notification.ID_NOTIF}', this)">
             Cancelar
           </button>
-
-
-<button onclick="testEcho()" style="margin: 10px; padding: 8px; background: #3b1f5f; color: white; border: none; border-radius: 8px;">
-  🔧 Probar conexión
-</button>
-
-
-
-
-
-
-
-
         </div>
       `;
       
