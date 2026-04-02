@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Notificaciones</title>
+<title>Notificaciones - Z&R Admin</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="styles.css">
 
@@ -13,77 +13,142 @@
   margin: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
-.notification-card {
+.request-card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
-  padding: 16px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.request-header {
+  background: linear-gradient(135deg, #3b1f5f, #5a3b8a);
+  color: white;
+  padding: 16px 20px;
   display: flex;
-  gap: 16px;
+  justify-content: space-between;
   align-items: center;
-  transition: transform var(--transition-fast);
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.notification-card.removing {
-  animation: fadeOut 0.3s ease forwards;
+.request-id {
+  font-family: monospace;
+  font-size: 14px;
+  background: rgba(255,255,255,0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
 }
 
-.notification-card:hover {
-  transform: translateY(-2px);
+.request-date {
+  font-size: 12px;
+  opacity: 0.8;
 }
 
-.notification-img {
+.request-products {
+  padding: 0;
+}
+
+.request-product-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background 0.2s;
+}
+
+.request-product-item:hover {
+  background: #f9f9fc;
+}
+
+.request-product-item.out-of-stock {
+  background: #fff5f5;
+  opacity: 0.7;
+}
+
+.request-product-img {
   width: 70px;
   height: 70px;
+  object-fit: contain;
+  background: #f5f5f8;
   border-radius: 12px;
-  object-fit: contain;  /* Muestra la imagen completa */
-  background-color: #f5f5f8; /* Fondo suave */
-  padding: 4px; /* Espacio alrededor de la imagen */
-}
-.notification-info {
-  flex: 1;
-  font-size: 14px;
+  padding: 4px;
 }
 
-.notification-title {
+.request-product-info {
+  flex: 1;
+}
+
+.request-product-name {
   font-weight: 600;
+  font-size: 14px;
   margin-bottom: 4px;
 }
 
-.notification-meta {
+.request-product-meta {
+  font-size: 12px;
   color: var(--color-text-muted);
-  font-size: 13px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.notification-actions {
+.request-product-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-pending {
+  background: #fff3e0;
+  color: #f97316;
+}
+
+.status-outofstock {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.request-actions {
+  padding: 16px 20px;
+  background: #f8f8fc;
   display: flex;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .btn {
   border: none;
   border-radius: var(--radius-pill);
-  padding: 8px 14px;
+  padding: 10px 24px;
   cursor: pointer;
-  font-size: 13px;
-  transition: var(--transition-fast);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
 .btn-confirm {
-  background: #22c55e;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
   color: white;
 }
 
 .btn-confirm:hover {
-  background: #16a34a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34,197,94,0.3);
 }
 
 .btn-confirm:disabled {
-  background: #86efac;
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-cancel {
@@ -95,63 +160,64 @@
   background: #dc2626;
 }
 
-.btn-cancel:disabled {
-  background: #fca5a5;
-  cursor: not-allowed;
+.btn-secondary {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.payment-link-container {
+  background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.payment-link {
+  word-break: break-all;
+  font-size: 12px;
+  color: #1565c0;
+  margin: 8px 0;
 }
 
 .empty {
   text-align: center;
   color: var(--color-text-muted);
-  padding: 40px;
+  padding: 60px;
 }
 
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(100%);
-  }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-
-/* Responsive para notificaciones */
 @media (max-width: 768px) {
-  .notification-card {
+  .notifications-wrapper {
+    padding: 12px;
+  }
+  
+  .request-header {
     flex-direction: column;
-    text-align: center;
-    gap: 12px;
-    padding: 16px;
+    align-items: flex-start;
   }
-
-  .notification-img {
-    width: 100px;
-    height: 100px;
-    margin: 0 auto;
+  
+  .request-product-item {
+    flex-wrap: wrap;
   }
-
-  .notification-info {
-    text-align: center;
+  
+  .request-product-img {
+    width: 60px;
+    height: 60px;
   }
-
-  .notification-actions {
-    justify-content: center;
-    width: 100%;
+  
+  .request-actions {
+    flex-direction: column;
   }
-
+  
   .btn {
-    flex: 1;
-    padding: 10px;
     text-align: center;
   }
 }
-
-
-
-
 </style>
 </head>
 
@@ -168,32 +234,13 @@
     </div>
     <div class="header-text">
       <h1 class="app-title">Notificaciones</h1>
-      <p class="app-subtitle">Solicitudes de compra</p>
+      <p class="app-subtitle">Solicitudes de compra agrupadas</p>
     </div>
   </div>
   <div class="header-right">
     <button class="icon-button" onclick="window.location='admin.html'">⬅</button>
     <button class="icon-button" onclick="location.reload()">⟳</button>
   </div>
-
-
-<div id="debugConsole" style="
-    background:#111;
-    color:#0f0;
-    padding:10px;
-    font-family:monospace;
-    height:200px;
-    overflow-y:auto;
-    border:1px solid #444;
-">
-    <strong>Consola interna:</strong><br>
-</div>
-
-
-
-
-
-
 </header>
 
 <main class="notifications-wrapper" id="notifications"></main>
@@ -213,8 +260,34 @@ function hideLoader() {
   loader.classList.add("hidden");
 }
 
+function escapeHtml(text) {
+  if (!text) return "";
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Agrupar notificaciones por REQUEST_ID
+function groupNotificationsByRequest(notifications) {
+  const groups = new Map();
+  
+  notifications.forEach(notif => {
+    const requestId = notif.REQUEST_ID || notif.ID_NOTIF;
+    if (!groups.has(requestId)) {
+      groups.set(requestId, {
+        requestId: requestId,
+        notifications: [],
+        allPending: true
+      });
+    }
+    groups.get(requestId).notifications.push(notif);
+  });
+  
+  return Array.from(groups.values());
+}
+
 async function loadNotifications() {
-  showLoader("Cargando notificaciones...");
+  showLoader("Cargando solicitudes...");
   
   try {
     const res = await fetch(API + "?action=notifications");
@@ -223,374 +296,267 @@ async function loadNotifications() {
     const container = document.getElementById("notifications");
     
     if (!data.notifications || data.notifications.length === 0) {
-      container.innerHTML = '<div class="empty">No hay notificaciones</div>';
+      container.innerHTML = '<div class="empty">📭 No hay solicitudes pendientes</div>';
       return;
     }
     
-    // 🔥 FILTRO AQUÍ - Solo notificaciones con STATUS "pending"
-    const pendingNotifications = data.notifications.filter(notification => {
-      return notification.STATUS === "pending";
-    });
+    // Solo mostrar notificaciones con STATUS "pending"
+    const pendingNotifs = data.notifications.filter(n => n.STATUS === "pending");
     
-    // Verificar si hay pendientes después del filtro
-    if (pendingNotifications.length === 0) {
-      container.innerHTML = '<div class="empty">No hay notificaciones pendientes</div>';
+    if (pendingNotifs.length === 0) {
+      container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
       return;
     }
+    
+    // Agrupar por REQUEST_ID
+    const groups = groupNotificationsByRequest(pendingNotifs);
     
     container.innerHTML = "";
     
-    // Usar pendingNotifications en lugar de data.notifications
-    pendingNotifications.forEach(notification => {
-      const div = document.createElement("div");
-      div.className = "notification-card";
-      div.setAttribute("data-id", notification.ID_NOTIF);
+    for (const group of groups) {
+      const requestDiv = document.createElement("div");
+      requestDiv.className = "request-card";
+      requestDiv.setAttribute("data-request-id", group.requestId);
       
-      const img = notification.IMAGEN || "img/no-image.png";
+      // Verificar stock de cada producto
+      const stockStatus = await checkStockForGroup(group.notifications);
       
-      div.innerHTML = `
-        <img class="notification-img" src="${img}" loading="lazy"
-          onerror="this.src='img/no-image.png'">
-        <div class="notification-info">
-          <div class="notification-title">${escapeHtml(notification.NOMBRE || "Producto")}</div>
-          <div class="notification-meta">
-            ID: ${notification.PRODUCT_ID}<br>
-            Cantidad: ${notification.CANTIDAD}
+      // Calcular cantidad de productos con stock
+      const availableProducts = group.notifications.filter((n, idx) => stockStatus[idx].hasStock);
+      const unavailableProducts = group.notifications.filter((n, idx) => !stockStatus[idx].hasStock);
+      
+      requestDiv.innerHTML = `
+        <div class="request-header">
+          <div>
+            <strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span>
+          </div>
+          <div class="request-date">
+            📅 ${new Date(group.notifications[0].FECHA).toLocaleString()}
           </div>
         </div>
-        <div class="notification-actions">
-          <button class="btn btn-confirm" onclick="confirmPurchase('${notification.ID_NOTIF}', '${notification.PRODUCT_ID}', '${notification.CANTIDAD}', this)">
-            Confirmar
-          </button>
-          <button class="btn btn-cancel" onclick="cancelPurchase('${notification.ID_NOTIF}', this)">
-            Cancelar
+        <div class="request-products">
+          ${group.notifications.map((notif, idx) => {
+            const status = stockStatus[idx];
+            const isAvailable = status.hasStock;
+            const currentStock = status.currentStock;
+            
+            return `
+              <div class="request-product-item ${!isAvailable ? 'out-of-stock' : ''}">
+                <img class="request-product-img" src="${escapeHtml(notif.IMAGEN || '')}" 
+                     onerror="this.src='https://placehold.co/70x70/eee/999?text=No+img'">
+                <div class="request-product-info">
+                  <div class="request-product-name">${escapeHtml(notif.NOMBRE || 'Producto')}</div>
+                  <div class="request-product-meta">
+                    <span>ID: ${notif.PRODUCT_ID}</span>
+                    <span>Cantidad: ${notif.CANTIDAD}</span>
+                    ${!isAvailable ? `<span>📦 Stock actual: ${currentStock}</span>` : ''}
+                  </div>
+                </div>
+                <div class="request-product-status ${isAvailable ? 'status-pending' : 'status-outofstock'}">
+                  ${isAvailable ? '⏳ Pendiente' : '❌ Sin stock suficiente'}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="request-actions">
+          ${unavailableProducts.length > 0 ? `
+            <button class="btn btn-secondary" onclick="removeOutOfStockNotifications('${group.requestId}')">
+              🗑️ Eliminar ${unavailableProducts.length} producto(s) sin stock
+            </button>
+          ` : ''}
+          ${availableProducts.length > 0 ? `
+            <button class="btn btn-confirm" onclick="confirmGroupPurchase('${group.requestId}')">
+              ✅ Confirmar compra (${availableProducts.length} producto${availableProducts.length !== 1 ? 's' : ''})
+            </button>
+          ` : ''}
+          <button class="btn btn-cancel" onclick="cancelGroupPurchase('${group.requestId}')">
+            ❌ Cancelar toda la solicitud
           </button>
         </div>
       `;
       
-      container.appendChild(div);
-    });
-    
-  } catch (err) {
-    console.error("Error cargando notificaciones:", err);
-    const container = document.getElementById("notifications");
-    container.innerHTML = '<div class="empty">Error cargando notificaciones</div>';
-  } finally {
-    hideLoader();
-  }
-}
-
-function escapeHtml(text) {
-  if (!text) return "";
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-
-
-
-
-
-
-async function confirmPurchase(notifId, productId, cantidad, buttonElement) {
-  // Mostrar alerta con los datos que se van a enviar
-  alert(`📤 Enviando a confirmar:\nNotifID: ${notifId}\nProductID: ${productId} (tipo: ${typeof productId})\nCantidad: ${cantidad}`);
-  
-  if (!confirm(`¿Confirmar compra de ${cantidad} unidad(es)?`)) {
-    return;
-  }
-  
-  const card = buttonElement.closest(".notification-card");
-  const buttons = card.querySelectorAll("button");
-  buttons.forEach(btn => btn.disabled = true);
-  
-  showLoader("Verificando stock...");
-  
-  try {
-    // PRIMERO: Verificar stock
-    const stockCheckBody = {
-      action: "checkStock",
-      productId: Number(productId),
-      cantidad: Number(cantidad)
-    };
-    
-    alert(`📡 Enviando checkStock:\n${JSON.stringify(stockCheckBody)}`);
-    
-    const stockCheck = await fetch(API, {
-      method: "POST",
-      body: JSON.stringify(stockCheckBody)
-    });
-    
-    const stockData = await stockCheck.json();
-    alert(`📥 Respuesta checkStock:\nok: ${stockData.ok}\nstock: ${stockData.currentStock}\nfound: ${stockData.productFound}\nrecibido: ${stockData.receivedId}`);
-    
-    if (!stockData.ok) {
-      alert(`❌ Stock insuficiente. Stock actual: ${stockData.currentStock || 0}`);
-      buttons.forEach(btn => btn.disabled = false);
-      hideLoader();
-      return;
-    }
-    
-    showLoader("Generando link de pago...");
-    
-    // SEGUNDO: Confirmar compra
-    const confirmBody = {
-      action: "confirmPurchase",
-      notifId: notifId,
-      productId: Number(productId),
-      cantidad: Number(cantidad)
-    };
-    
-    alert(`📡 Enviando confirmPurchase:\n${JSON.stringify(confirmBody)}`);
-    
-    const confirmResponse = await fetch(API, {
-      method: "POST",
-      body: JSON.stringify(confirmBody)
-    });
-    
-    const confirmData = await confirmResponse.json();
-    alert(`📥 Respuesta confirmPurchase:\nok: ${confirmData.ok}\npago: ${confirmData.paymentLink ? "Generado" : "No"}\nerror: ${confirmData.error || "ninguno"}`);
-    
-    if (confirmData.ok) {
-      card.remove();
-      
-      if (confirmData.paymentLink) {
-        const linkContainer = document.createElement("div");
-        linkContainer.className = "payment-link-container";
-        linkContainer.innerHTML = `
-          <div style="background: #e8f5e9; border-radius: 12px; padding: 16px; margin: 16px 0;">
-            <strong>✅ Link de pago generado:</strong><br>
-            <a href="${confirmData.paymentLink}" target="_blank" style="word-break: break-all; font-size: 12px;">
-              ${confirmData.paymentLink}
-            </a>
-            <div style="margin-top: 12px; display: flex; gap: 8px;">
-              <button onclick="navigator.clipboard.writeText('${confirmData.paymentLink}')" 
-                      style="flex:1; padding: 8px; border-radius: 8px; border: none; background: #4caf50; color: white; cursor: pointer;">
-                📋 Copiar enlace
-              </button>
-              <button onclick="window.open('${confirmData.paymentLink}', '_blank')" 
-                      style="flex:1; padding: 8px; border-radius: 8px; border: none; background: #009ee3; color: white; cursor: pointer;">
-                💳 Abrir pago
-              </button>
-            </div>
-          </div>
-        `;
-        
-        // 🔥 VERIFICAR SI EL CARD AÚN EXISTE ANTES DE insertBefore
-        if (card.parentNode) {
-          card.parentNode.insertBefore(linkContainer, card.nextSibling);
-          
-          setTimeout(() => {
-            if (linkContainer.parentNode) linkContainer.remove();
-          }, 15000);
-        } else {
-          // Si la tarjeta ya no existe, agregar al contenedor principal
-          const container = document.getElementById("notifications");
-          if (container) {
-            container.appendChild(linkContainer);
-            setTimeout(() => {
-              if (linkContainer.parentNode) linkContainer.remove();
-            }, 15000);
-          }
-        }
-      }
-      
-      alert(`✅ Compra confirmada y link de pago generado.`);
-      
-      const remainingCards = document.querySelectorAll(".notification-card");
-      if (remainingCards.length === 0) {
-        document.getElementById("notifications").innerHTML = '<div class="empty">No hay notificaciones pendientes</div>';
-      }
-      
-    } else {
-      throw new Error(confirmData.error || "Error al confirmar");
+      container.appendChild(requestDiv);
     }
     
   } catch (err) {
-    alert(`❌ Error: ${err.message}`);
-    buttons.forEach(btn => btn.disabled = false);
+    console.error("Error:", err);
+    document.getElementById("notifications").innerHTML = '<div class="empty">❌ Error cargando solicitudes</div>';
   } finally {
     hideLoader();
   }
 }
 
-
-
-async function testEcho() {
-  showLoader("Probando conexión...");
+async function checkStockForGroup(notifications) {
+  const results = [];
   
-  try {
-    const response = await fetch(API, {
-      method: "POST",
-      body: JSON.stringify({ 
-        action: "echo", 
-        productId: 1012, 
-        cantidad: 1,
-        test: "hola mundo"
-      })
-    });
-    
-    const data = await response.json();
-    alert("Respuesta del servidor:\n" + JSON.stringify(data, null, 2));
-    console.log("Echo response:", data);
-    
-  } catch (err) {
-    alert("Error: " + err.message);
-  } finally {
-    hideLoader();
+  for (const notif of notifications) {
+    try {
+      const response = await fetch(API, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "checkStock",
+          productId: Number(notif.PRODUCT_ID),
+          cantidad: Number(notif.CANTIDAD)
+        })
+      });
+      const data = await response.json();
+      results.push({
+        hasStock: data.ok === true,
+        currentStock: data.currentStock || 0
+      });
+    } catch (err) {
+      results.push({ hasStock: false, currentStock: 0 });
+    }
   }
+  
+  return results;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Función cancelar compra - Versión SIMPLE que funcionaba
-async function cancelPurchase(notifId, buttonElement) {
-  if (!confirm("¿Cancelar esta solicitud de compra?")) {
+async function confirmGroupPurchase(requestId) {
+  if (!confirm(`¿Confirmar TODOS los productos con stock disponible de esta solicitud?\n\nLos productos sin stock serán rechazados automáticamente.`)) {
     return;
   }
   
-  // Deshabilitar botón para evitar doble clic
-  const card = buttonElement.closest(".notification-card");
-  const buttons = card.querySelectorAll("button");
-  buttons.forEach(btn => btn.disabled = true);
-  
-  showLoader("Procesando...");
+  showLoader("Verificando stock y procesando...");
   
   try {
-    // Usar el mismo formato que funcionaba antes
     const response = await fetch(API, {
       method: "POST",
       body: JSON.stringify({
-        action: "cancelPurchase",
-        notifId: notifId
+        action: "confirmGroupPurchase",
+        requestId: requestId
       })
     });
     
     const data = await response.json();
     
     if (data.ok) {
-      // Eliminar la tarjeta inmediatamente
-      card.remove();
+      alert(`✅ ${data.message}\n💰 Total: $${(data.totalAmount || 0).toLocaleString()}`);
       
-      // Verificar si quedan notificaciones
-      const remainingCards = document.querySelectorAll(".notification-card");
-      if (remainingCards.length === 0) {
-        document.getElementById("notifications").innerHTML = '<div class="empty">No hay notificaciones</div>';
+      if (data.paymentLink) {
+        // Mostrar el link de pago
+        const container = document.getElementById("notifications");
+        const paymentDiv = document.createElement("div");
+        paymentDiv.className = "payment-link-container";
+        paymentDiv.innerHTML = `
+          <strong>✅ Link de pago generado:</strong><br>
+          <div class="payment-link">${data.paymentLink}</div>
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button onclick="window.open('${data.paymentLink}', '_blank')" class="btn btn-confirm" style="flex:1;">
+              💳 Abrir pago
+            </button>
+            <button onclick="navigator.clipboard.writeText('${data.paymentLink}')" class="btn btn-secondary" style="flex:1;">
+              📋 Copiar
+            </button>
+          </div>
+        `;
+        
+        const requestCard = document.querySelector(`.request-card[data-request-id="${requestId}"]`);
+        if (requestCard) {
+          requestCard.insertAdjacentElement('afterend', paymentDiv);
+          setTimeout(() => paymentDiv.remove(), 15000);
+        }
       }
       
+      // Recargar notificaciones
+      setTimeout(() => loadNotifications(), 1000);
     } else {
-      throw new Error(data.error || "Error al cancelar");
+      throw new Error(data.error || "Error al confirmar");
     }
     
   } catch (err) {
-    console.error("Error:", err);
-    alert("❌ Error al cancelar: " + err.message);
-    // Re-habilitar botones
-    buttons.forEach(btn => btn.disabled = false);
+    alert(`❌ Error: ${err.message}`);
   } finally {
     hideLoader();
   }
 }
 
-// Auto-refresh cada 5 segundos (igual que funcionaba antes)
+async function removeOutOfStockNotifications(requestId) {
+  if (!confirm("¿Eliminar los productos sin stock de esta solicitud? Los productos con stock se mantendrán pendientes.")) {
+    return;
+  }
+  
+  showLoader("Eliminando productos sin stock...");
+  
+  try {
+    const response = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "removeOutOfStockNotifications",
+        requestId: requestId
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.ok) {
+      alert(`✅ Eliminados ${data.removedCount} producto(s) sin stock`);
+      loadNotifications();
+    } else {
+      throw new Error(data.error || "Error");
+    }
+    
+  } catch (err) {
+    alert(`❌ Error: ${err.message}`);
+  } finally {
+    hideLoader();
+  }
+}
+
+async function cancelGroupPurchase(requestId) {
+  if (!confirm("¿Cancelar TODA la solicitud de compra?")) {
+    return;
+  }
+  
+  showLoader("Cancelando solicitud...");
+  
+  try {
+    const response = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "cancelGroupPurchase",
+        requestId: requestId
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.ok) {
+      alert(`✅ Solicitud cancelada (${data.cancelledCount} productos)`);
+      loadNotifications();
+    } else {
+      throw new Error(data.error || "Error");
+    }
+    
+  } catch (err) {
+    alert(`❌ Error: ${err.message}`);
+  } finally {
+    hideLoader();
+  }
+}
+
+// Auto-refresh cada 10 segundos
 let refreshInterval;
 
 function startAutoRefresh() {
   if (refreshInterval) clearInterval(refreshInterval);
   refreshInterval = setInterval(() => {
-    // Solo recargar si la pestaña está visible
     if (document.visibilityState === "visible") {
       loadNotifications();
     }
-  }, 5000);
+  }, 100000);
 }
 
-// Inicializar
 document.addEventListener("DOMContentLoaded", () => {
   loadNotifications();
+  startAutoRefresh();
 });
 
-// Limpiar intervalo al salir
 window.addEventListener("beforeunload", () => {
   if (refreshInterval) clearInterval(refreshInterval);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(function() {
-    const div = document.getElementById("debugConsole");
-
-    function printToDiv(type, args) {
-        const msg = document.createElement("div");
-        msg.textContent = `[${type}] ` + Array.from(args).join(" ");
-        div.appendChild(msg);
-        div.scrollTop = div.scrollHeight;
-    }
-
-    const originalLog = console.log;
-    const originalError = console.error;
-    const originalWarn = console.warn;
-
-    console.log = function() {
-        printToDiv("LOG", arguments);
-        originalLog.apply(console, arguments);
-    };
-
-    console.error = function() {
-        printToDiv("ERROR", arguments);
-        originalError.apply(console, arguments);
-    };
-
-    console.warn = function() {
-        printToDiv("WARN", arguments);
-        originalWarn.apply(console, arguments);
-    };
-
-    window.onerror = function(msg, url, line, col, error) {
-        printToDiv("UNCAUGHT", [msg + " (" + url + ":" + line + ")"]);
-    };
-})();
-
-
-
-
-
-
-
-
-
-
-
 </script>
+
 </body>
 </html>
