@@ -1216,50 +1216,83 @@ function showPaymentLinkInCart(paymentLink, requestId) {
   const container = document.getElementById("cart-items-container");
   if (!container) return;
   
-  // Guardar el link en localStorage para que persista
+  // Obtener detalles de la solicitud
   const stored = localStorage.getItem('pending_purchase_' + requestId);
+  let approvedItems = [];
+  let rejectedItems = [];
+  let totalAmount = 0;
+  
   if (stored) {
     const request = JSON.parse(stored);
-    request.status = 'approved';
-    request.paymentLink = paymentLink;
-    localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(request));
+    approvedItems = request.approvedItems || [];
+    rejectedItems = request.rejectedItems || [];
+    totalAmount = request.total || 0;
   }
   
   container.innerHTML = `
-    <div style="text-align: center; padding: 30px 20px;">
+    <div style="text-align: center; padding: 20px;">
       <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
-      <h3 style="color: #22c55e;">¡Solicitud aprobada!</h3>
-      <p style="color: #666; margin: 16px 0;">
-        El administrador ha confirmado el stock. Tu pedido está listo para pagar.
-      </p>
-      <div style="background: #f0f0f8; border-radius: 12px; padding: 16px; margin: 16px 0;">
-        <p style="font-size: 12px; color: #666; margin-bottom: 8px;">💰 Total a pagar:</p>
-        <p style="font-size: 24px; font-weight: bold; color: #3b1f5f; margin: 8px 0;">
-          ${formatCurrency(getTotalFromRequest(requestId))}
+      <h3 style="color: #22c55e;">¡Solicitud procesada!</h3>
+      
+      ${approvedItems.length > 0 ? `
+        <div style="background: #e8f5e9; border-radius: 12px; padding: 16px; margin: 16px 0; text-align: left;">
+          <strong style="color: #2e7d32;">✅ Productos confirmados (${approvedItems.length}):</strong>
+          <ul style="margin: 8px 0 0 20px; font-size: 13px;">
+            ${approvedItems.map(item => `
+              <li>${escapeHtml(item.name)} x${item.quantity} - ${formatCurrency(item.price * item.quantity)}</li>
+            `).join('')}
+          </ul>
+        </div>
+      ` : ''}
+      
+      ${rejectedItems.length > 0 ? `
+        <div style="background: #ffebee; border-radius: 12px; padding: 16px; margin: 16px 0; text-align: left;">
+          <strong style="color: #c62828;">❌ Productos sin stock (${rejectedItems.length}):</strong>
+          <ul style="margin: 8px 0 0 20px; font-size: 13px;">
+            ${rejectedItems.map(item => `
+              <li>${escapeHtml(item.name)} x${item.quantity} - Motivo: Stock insuficiente</li>
+            `).join('')}
+          </ul>
+        </div>
+      ` : ''}
+      
+      ${approvedItems.length > 0 ? `
+        <div style="background: #f0f0f8; border-radius: 12px; padding: 16px; margin: 16px 0;">
+          <p style="font-size: 12px; color: #666; margin-bottom: 8px;">💰 Total a pagar:</p>
+          <p style="font-size: 28px; font-weight: bold; color: #3b1f5f; margin: 8px 0;">
+            ${formatCurrency(totalAmount)}
+          </p>
+          <p style="font-size: 12px; color: #666; margin-bottom: 8px;">🔗 Link de pago seguro:</p>
+          <a href="${paymentLink}" target="_blank" 
+             style="display: block; word-break: break-all; color: #009ee3; font-size: 12px; margin-bottom: 12px;">
+            ${paymentLink}
+          </a>
+          <button onclick="window.open('${paymentLink}', '_blank')" 
+                  class="primary-button" style="width: 100%; background: linear-gradient(135deg, #009ee3, #00a3e8); margin-bottom: 8px;">
+            💳 Pagar con Mercado Pago
+          </button>
+          <button onclick="navigator.clipboard.writeText('${paymentLink}')" 
+                  style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: white; cursor: pointer;">
+            📋 Copiar enlace
+          </button>
+        </div>
+        <p style="font-size: 11px; color: #999;">
+          ⚠️ El enlace expira en 30 minutos
         </p>
-        <p style="font-size: 12px; color: #666; margin-bottom: 8px;">🔗 Link de pago seguro:</p>
-        <a href="${paymentLink}" target="_blank" 
-           style="display: block; word-break: break-all; color: #009ee3; font-size: 12px; margin-bottom: 12px;">
-          ${paymentLink}
-        </a>
-        <button onclick="window.open('${paymentLink}', '_blank')" 
-                class="primary-button" style="width: 100%; background: linear-gradient(135deg, #009ee3, #00a3e8); margin-bottom: 8px;">
-          💳 Pagar con Mercado Pago
-        </button>
-        <button onclick="navigator.clipboard.writeText('${paymentLink}')" 
-                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: white; cursor: pointer;">
-          📋 Copiar enlace
-        </button>
-      </div>
-      <p style="font-size: 11px; color: #999;">
-        ⚠️ El enlace expira en 30 minutos. No cierres esta ventana hasta completar el pago.
-      </p>
-      <button onclick="closeCartDrawer()" class="text-button" style="margin-top: 12px;">
+      ` : ''}
+      
+      <button onclick="closeCartDrawer(); removePendingRequest('${requestId}')" class="text-button" style="margin-top: 12px;">
         Cerrar
       </button>
     </div>
   `;
 }
+
+
+
+
+
+
 
 // Función auxiliar para obtener el total de la solicitud
 function getTotalFromRequest(requestId) {
