@@ -973,48 +973,112 @@ function generateRequestId() {
 async function openWhatsAppCheckout() {
   const items = Object.values(cart);
   if (items.length === 0) {
-    alert("No hay productos en el carrito");
+    showTemporaryMessage("No hay productos en el carrito", "error");
     return;
   }
   
-  // Construir mensaje para WhatsApp
-  let message = "Hola quiero comprar:%0A%0A";
+  // Obtener número guardado o solicitar nuevo
+  let clientPhone = localStorage.getItem("client_phone");
+  let phoneConfirmed = false;
   
-  items.forEach((item) => {
-    message += `📦 *${item.name}*%0A`;
-    message += `ID: ${item.id}%0A`;
-    message += `Cantidad: ${item.quantity}%0A`;
-    if (item.Talla) message += `Talla: ${item.Talla}%0A`;
-    message += `Subtotal: ${formatCurrency(item.price * item.quantity)}%0A`;
-    message += `------------------------%0A`;
-  });
-  
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  message += `%0A💰 *Total: ${formatCurrency(total)}*%0A%0A`;
-  message += `Puedes regresar a la tienda y revisar tu carrito para la confirmación del stock y el pago con tarjeta si deseas.`;
-  
-  // Abrir WhatsApp
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
-  window.open(whatsappUrl, '_blank');
-  
-  // Limpiar solicitudes anteriores pendientes
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('pending_purchase_')) {
-      const request = JSON.parse(localStorage.getItem(key));
-      if (request.status !== 'approved') {
-        localStorage.removeItem(key);
+  if (!clientPhone) {
+    // Primera vez: solicitar número
+    clientPhone = prompt(
+      "📱 Por favor, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
+      "Ejemplo: 8671781272\n\n" +
+      "Recibirás el link de pago aquí cuando el admin confirme tu compra.",
+      ""
+    );
+    
+    if (!clientPhone) {
+      showTemporaryMessage("❌ Necesitamos tu número para enviarte el link de pago", "error");
+      return;
+    }
+    
+    // Validar formato básico
+    clientPhone = clientPhone.replace(/[^0-9]/g, '');
+    if (clientPhone.length !== 10 && clientPhone.length !== 11) {
+      showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos (ej: 8671781272)", "error");
+      return;
+    }
+    
+    // Asegurar formato correcto (sin código país)
+    if (clientPhone.length === 11 && clientPhone.startsWith('1')) {
+      clientPhone = clientPhone.substring(1);
+    }
+    
+    localStorage.setItem("client_phone", clientPhone);
+    phoneConfirmed = true;
+    
+  } else {
+    // Ya tiene número guardado, preguntar si desea usarlo
+    const useSaved = confirm(
+      `📱 Usar el número guardado: ${clientPhone}?\n\n` +
+      `✓ Presiona "Aceptar" para continuar\n` +
+      `✗ Presiona "Cancelar" para ingresar otro número`
+    );
+    
+    if (!useSaved) {
+      // Permitir cambiar el número
+      const newPhone = prompt(
+        "✏️ Ingresa tu nuevo número de WhatsApp (10 dígitos):\n\nEjemplo: 8671781272",
+        clientPhone
+      );
+      
+      if (newPhone) {
+        let cleanPhone = newPhone.replace(/[^0-9]/g, '');
+        if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+          if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) {
+            cleanPhone = cleanPhone.substring(1);
+          }
+          clientPhone = cleanPhone;
+          localStorage.setItem("client_phone", clientPhone);
+          phoneConfirmed = true;
+        } else {
+          showTemporaryMessage("❌ Número inválido. Usando el anterior.", "error");
+          phoneConfirmed = true;
+        }
+      } else {
+        phoneConfirmed = true;
       }
+    } else {
+      phoneConfirmed = true;
     }
   }
   
-  showLoader("Enviando solicitud...");
+  if (!phoneConfirmed) return;
+  
+  showLoader("Preparando solicitud...");
+  
+  // Construir mensaje para WhatsApp del ADMIN (incluye el número del cliente)
+  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n\n";
+  adminMessage += `*Cliente:* +52 ${clientPhone}\n`;
+  adminMessage += `*Número para confirmar:* ${clientPhone}\n`;
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += "*📦 Productos:*\n";
+  
+  items.forEach((item) => {
+    adminMessage += `• ${item.name}\n`;
+    adminMessage += `  Cantidad: ${item.quantity}\n`;
+    adminMessage += `  Precio: $${(item.price * item.quantity).toLocaleString()}\n`;
+  });
+  
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  adminMessage += `━━━━━━━━━━━━━━━━━━━━\n`;
+  adminMessage += `*💰 Total: $${total.toLocaleString()}*\n\n`;
+  adminMessage += `_✅ Para confirmar, ve al panel de admin > Notificaciones_\n`;
+  adminMessage += `_🔍 Busca la solicitud ID y haz clic en "Confirmar compra"_`;
+  
+  // Abrir WhatsApp con el mensaje al admin (INCLUYE EL NÚMERO DEL CLIENTE)
+  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
+  window.open(whatsappUrl, '_blank');
   
   const requestId = generateRequestId();
-  const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
+  // Guardar la solicitud
   const purchaseRequest = {
     id: requestId,
+    clientPhone: clientPhone,
     items: items.map(item => ({
       id: item.id,
       name: item.name,
@@ -1023,7 +1087,7 @@ async function openWhatsAppCheckout() {
       image: item.Imagen1 || "",
       talla: item.Talla || ""
     })),
-    total: totalAmount,
+    total: total,
     timestamp: Date.now(),
     status: 'pending',
     paymentLink: null
@@ -1032,6 +1096,17 @@ async function openWhatsAppCheckout() {
   localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(purchaseRequest));
   
   try {
+    // Guardar el número del cliente en Google Sheets
+    await fetch(SHEET_API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "saveClientPhone",
+        requestId: requestId,
+        phone: clientPhone
+      })
+    });
+    
+    // Crear notificaciones
     const notificationItems = items.map(item => ({
       productId: item.id,
       nombre: item.name,
@@ -1054,8 +1129,12 @@ async function openWhatsAppCheckout() {
     saveCartToStorage();
     updateCartBadge();
     
-    // ❌ ALERTA ELIMINADA - reemplazada por mensaje visual temporal
-    showTemporaryMessage("✅ Solicitud enviada al administrador. Espera la confirmación.", "success");
+    showTemporaryMessage(
+      `✅ ¡Solicitud enviada!\n\n` +
+      `📱 Te enviaremos el link de pago al ${clientPhone}\n` +
+      `⏳ Espera la confirmación del administrador.`,
+      "success"
+    );
     
     closeCartDrawer();
     startWaitingForConfirmation(requestId);
