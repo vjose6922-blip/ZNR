@@ -519,12 +519,12 @@ async function confirmGroupPurchase(requestId) {
       const requestCard = document.querySelector(`.request-card[data-request-id="${requestId}"]`);
       if (requestCard) {
         requestCard.insertAdjacentElement('afterend', paymentDiv);
-        setTimeout(() => paymentDiv.remove(), 30000);
+        setTimeout(() => paymentDiv.remove(), 300000);
       }
     }
 
     // Recargar notificaciones
-    setTimeout(() => loadNotifications(), 1000);
+    setTimeout(() => loadNotifications(), 300000);
 
   } catch (err) {
     alert(`❌ Error: ${err.message}`);
