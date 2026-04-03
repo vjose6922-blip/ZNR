@@ -977,76 +977,53 @@ async function openWhatsAppCheckout() {
     return;
   }
   
-  // Obtener número guardado o solicitar nuevo
+  // ========== OBTENER NÚMERO DEL CLIENTE ==========
   let clientPhone = localStorage.getItem("client_phone");
-  let phoneConfirmed = false;
   
   if (!clientPhone) {
     // Primera vez: solicitar número
     clientPhone = prompt(
-      "📱 Por favor, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
+      "📱 Para enviarte el link de pago, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
       "Ejemplo: 8671781272\n\n" +
-      "Recibirás el link de pago aquí cuando el admin confirme tu compra.",
+      "⚠️ Solo números, sin espacios ni código país.",
       ""
     );
     
     if (!clientPhone) {
-      showTemporaryMessage("❌ Necesitamos tu número para enviarte el link de pago", "error");
+      showTemporaryMessage("❌ Necesitamos tu número para procesar la compra", "error");
       return;
     }
     
-    // Validar formato básico
+    // Limpiar y validar
     clientPhone = clientPhone.replace(/[^0-9]/g, '');
-    if (clientPhone.length !== 10 && clientPhone.length !== 11) {
-      showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos (ej: 8671781272)", "error");
+    if (clientPhone.length !== 10) {
+      showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
       return;
-    }
-    
-    // Asegurar formato correcto (sin código país)
-    if (clientPhone.length === 11 && clientPhone.startsWith('1')) {
-      clientPhone = clientPhone.substring(1);
     }
     
     localStorage.setItem("client_phone", clientPhone);
-    phoneConfirmed = true;
-    
   } else {
-    // Ya tiene número guardado, preguntar si desea usarlo
+    // Ya tiene número, preguntar si desea usarlo
     const useSaved = confirm(
-      `📱 Usar el número guardado: ${clientPhone}?\n\n` +
-      `✓ Presiona "Aceptar" para continuar\n` +
-      `✗ Presiona "Cancelar" para ingresar otro número`
+      `📱 Usar número guardado: ${clientPhone}?\n\n` +
+      `✓ Aceptar para continuar\n` +
+      `✗ Cancelar para ingresar otro`
     );
     
     if (!useSaved) {
-      // Permitir cambiar el número
-      const newPhone = prompt(
-        "✏️ Ingresa tu nuevo número de WhatsApp (10 dígitos):\n\nEjemplo: 8671781272",
-        clientPhone
-      );
-      
+      const newPhone = prompt("✏️ Ingresa tu nuevo número (10 dígitos):", clientPhone);
       if (newPhone) {
         let cleanPhone = newPhone.replace(/[^0-9]/g, '');
-        if (cleanPhone.length === 10 || cleanPhone.length === 11) {
-          if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) {
-            cleanPhone = cleanPhone.substring(1);
-          }
+        if (cleanPhone.length === 10) {
           clientPhone = cleanPhone;
           localStorage.setItem("client_phone", clientPhone);
-          phoneConfirmed = true;
         } else {
-          showTemporaryMessage("❌ Número inválido. Usando el anterior.", "error");
-          phoneConfirmed = true;
+          showTemporaryMessage("❌ Número inválido, usando el anterior", "error");
         }
-      } else {
-        phoneConfirmed = true;
       }
-    } else {
-      phoneConfirmed = true;
     }
   }
-  
-  if (!phoneConfirmed) return;
+  // ================================================
   
   showLoader("Preparando solicitud...");
   
@@ -1069,13 +1046,13 @@ async function openWhatsAppCheckout() {
   adminMessage += `_✅ Para confirmar, ve al panel de admin > Notificaciones_\n`;
   adminMessage += `_🔍 Busca la solicitud ID y haz clic en "Confirmar compra"_`;
   
-  // Abrir WhatsApp con el mensaje al admin (INCLUYE EL NÚMERO DEL CLIENTE)
+  // Abrir WhatsApp con el mensaje al admin
   const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
   window.open(whatsappUrl, '_blank');
   
   const requestId = generateRequestId();
   
-  // Guardar la solicitud
+  // Guardar la solicitud en localStorage
   const purchaseRequest = {
     id: requestId,
     clientPhone: clientPhone,
@@ -1090,13 +1067,15 @@ async function openWhatsAppCheckout() {
     total: total,
     timestamp: Date.now(),
     status: 'pending',
-    paymentLink: null
+    paymentLink: null,
+    approvedItems: [],
+    rejectedItems: []
   };
   
   localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(purchaseRequest));
   
   try {
-    // Guardar el número del cliente en Google Sheets
+    // 🔥 IMPORTANTE: Guardar el número del cliente en Google Sheets
     await fetch(SHEET_API_URL, {
       method: "POST",
       body: JSON.stringify({
@@ -1146,6 +1125,8 @@ async function openWhatsAppCheckout() {
     hideLoader();
   }
 }
+
+
 
 // Función auxiliar para mostrar mensajes temporales
 function showTemporaryMessage(text, type = "info") {
