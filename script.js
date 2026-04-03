@@ -965,7 +965,8 @@ function buildWhatsAppMessage() {
   message += `%0ATotal: ${encodeURIComponent(formatCurrency(total))}`;
   return message;
 }
-// Agregar esta función para generar ID único
+
+
 function generateRequestId() {
   return 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
 }
@@ -981,7 +982,6 @@ async function openWhatsAppCheckout() {
   let clientPhone = localStorage.getItem("client_phone");
   
   if (!clientPhone) {
-    // Primera vez: solicitar número
     clientPhone = prompt(
       "📱 Para enviarte el link de pago, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
       "Ejemplo: 8671781272\n\n" +
@@ -994,7 +994,6 @@ async function openWhatsAppCheckout() {
       return;
     }
     
-    // Limpiar y validar
     clientPhone = clientPhone.replace(/[^0-9]/g, '');
     if (clientPhone.length !== 10) {
       showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
@@ -1002,55 +1001,35 @@ async function openWhatsAppCheckout() {
     }
     
     localStorage.setItem("client_phone", clientPhone);
-  } else {
-    // Ya tiene número, preguntar si desea usarlo
-    const useSaved = confirm(
-      `📱 Usar número guardado: ${clientPhone}?\n\n` +
-      `✓ Aceptar para continuar\n` +
-      `✗ Cancelar para ingresar otro`
-    );
-    
-    if (!useSaved) {
-      const newPhone = prompt("✏️ Ingresa tu nuevo número (10 dígitos):", clientPhone);
-      if (newPhone) {
-        let cleanPhone = newPhone.replace(/[^0-9]/g, '');
-        if (cleanPhone.length === 10) {
-          clientPhone = cleanPhone;
-          localStorage.setItem("client_phone", clientPhone);
-        } else {
-          showTemporaryMessage("❌ Número inválido, usando el anterior", "error");
-        }
-      }
-    }
   }
-  // ================================================
   
-  showLoader("Preparando solicitud...");
+  showLoader("Enviando solicitud...");
   
-  // Construir mensaje para WhatsApp del ADMIN (incluye el número del cliente)
+  const requestId = generateRequestId();
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  // Construir mensaje para WhatsApp del ADMIN
   let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n\n";
   adminMessage += `*Cliente:* +52 ${clientPhone}\n`;
-  adminMessage += `*Número para confirmar:* ${clientPhone}\n`;
+  adminMessage += `*Solicitud ID:* ${requestId}\n`;
   adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
   adminMessage += "*📦 Productos:*\n";
   
   items.forEach((item) => {
     adminMessage += `• ${item.name}\n`;
     adminMessage += `  Cantidad: ${item.quantity}\n`;
-    adminMessage += `  Precio: $${(item.price * item.quantity).toLocaleString()}\n`;
+    adminMessage += `  Precio unitario: $${item.price.toLocaleString()}\n`;
+    adminMessage += `  Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
+    adminMessage += "------------------------\n";
   });
   
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  adminMessage += `━━━━━━━━━━━━━━━━━━━━\n`;
-  adminMessage += `*💰 Total: $${total.toLocaleString()}*\n\n`;
+  adminMessage += `*💰 Total: $${total.toLocaleString()} MXN*\n\n`;
   adminMessage += `_✅ Para confirmar, ve al panel de admin > Notificaciones_\n`;
-  adminMessage += `_🔍 Busca la solicitud ID y haz clic en "Confirmar compra"_`;
+  adminMessage += `_🔍 Busca la solicitud ID: ${requestId}_`;
   
   // Abrir WhatsApp con el mensaje al admin
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
-  window.open(whatsappUrl, '_blank');
-  
-  const requestId = generateRequestId();
+  const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
+  window.open(whatsappAdminUrl, '_blank');
   
   // Guardar la solicitud en localStorage
   const purchaseRequest = {
@@ -1075,7 +1054,7 @@ async function openWhatsAppCheckout() {
   localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(purchaseRequest));
   
   try {
-    // 🔥 IMPORTANTE: Guardar el número del cliente en Google Sheets
+    // Guardar el número del cliente en Google Sheets
     await fetch(SHEET_API_URL, {
       method: "POST",
       body: JSON.stringify({
@@ -1107,6 +1086,7 @@ async function openWhatsAppCheckout() {
     cart = {};
     saveCartToStorage();
     updateCartBadge();
+    renderCart();
     
     showTemporaryMessage(
       `✅ ¡Solicitud enviada!\n\n` +
@@ -1198,16 +1178,6 @@ if (!document.querySelector('#toast-styles')) {
 function startWaitingForConfirmation(requestId) {
   activeRequestId = requestId;
   
-  // No mostrar estado de espera si ya está aprobada
-  const stored = localStorage.getItem('pending_purchase_' + requestId);
-  if (stored) {
-    const request = JSON.parse(stored);
-    if (request.status === 'approved' && request.paymentLink) {
-      showPaymentLinkInCart(request.paymentLink, requestId);
-      return;
-    }
-  }
-  
   showWaitingStatusInCart(requestId);
   
   if (pollingInterval) clearInterval(pollingInterval);
@@ -1247,28 +1217,33 @@ function startWaitingForConfirmation(requestId) {
     } catch (err) {
       console.error("Error checking request status:", err);
     }
-  }, 3000);
+  }, 5000);
 }
+
 
 function showWaitingStatusInCart(requestId) {
   const container = document.getElementById("cart-items-container");
   if (!container) return;
   
-  // Guardar estado actual del carrito para restaurar después
-  const originalContent = container.innerHTML;
-  
   container.innerHTML = `
     <div class="waiting-status" style="text-align: center; padding: 40px 20px;">
-      <div class="loader-spinner" style="margin: 0 auto 16px;"></div>
-      <h3>⏳ Esperando confirmación del administrador</h3>
+      <div class="loader-spinner" style="margin: 0 auto 16px; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #ff4f81; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <h3 style="color: #3b1f5f;">⏳ Esperando confirmación del administrador</h3>
       <p style="color: #666; font-size: 14px; margin-top: 8px;">
         Solicitud ID: <strong>${requestId}</strong><br>
-        El admin verificará el stock y te dará respuesta en unos momentos.
+        El admin verificará el stock y te dará respuesta en unos momentos.<br>
+        No cierres esta ventana.
       </p>
-      <button onclick="cancelRequest('${requestId}')" class="primary-button secondary" style="margin-top: 16px;">
+      <button onclick="cancelRequest('${requestId}')" style="margin-top: 16px; background: #ef4444; color: white; border: none; padding: 8px 24px; border-radius: 20px; cursor: pointer;">
         Cancelar solicitud
       </button>
     </div>
+    <style>
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   `;
 }
 
@@ -1281,25 +1256,27 @@ function showPaymentLinkInCart(paymentLink, requestId) {
   let approvedItems = [];
   let rejectedItems = [];
   let totalAmount = 0;
+  let clientPhone = "";
   
   if (stored) {
     const request = JSON.parse(stored);
     approvedItems = request.approvedItems || [];
     rejectedItems = request.rejectedItems || [];
     totalAmount = request.total || 0;
+    clientPhone = request.clientPhone || "";
   }
   
   container.innerHTML = `
     <div style="text-align: center; padding: 20px;">
       <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
-      <h3 style="color: #22c55e;">¡Solicitud procesada!</h3>
+      <h3 style="color: #22c55e;">¡Solicitud aprobada!</h3>
       
       ${approvedItems.length > 0 ? `
         <div style="background: #e8f5e9; border-radius: 12px; padding: 16px; margin: 16px 0; text-align: left;">
           <strong style="color: #2e7d32;">✅ Productos confirmados (${approvedItems.length}):</strong>
           <ul style="margin: 8px 0 0 20px; font-size: 13px;">
             ${approvedItems.map(item => `
-              <li>${escapeHtml(item.name)} x${item.quantity} - ${formatCurrency(item.price * item.quantity)}</li>
+              <li>${escapeHtml(item.title || item.name)} x${item.quantity} - ${formatCurrency((item.unit_price || item.price) * item.quantity)}</li>
             `).join('')}
           </ul>
         </div>
@@ -1335,6 +1312,12 @@ function showPaymentLinkInCart(paymentLink, requestId) {
                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: white; cursor: pointer;">
             📋 Copiar enlace
           </button>
+          ${clientPhone ? `
+            <button onclick="window.open('https://wa.me/52${clientPhone}?text=${encodeURIComponent('✅ Tu pago está listo: ' + paymentLink)}', '_blank')" 
+                    style="width: 100%; margin-top: 8px; padding: 10px; border-radius: 8px; background: linear-gradient(135deg, #25D366, #128C7E); color: white; border: none; cursor: pointer;">
+              📱 Enviar link por WhatsApp al cliente
+            </button>
+          ` : ''}
         </div>
         <p style="font-size: 11px; color: #999;">
           ⚠️ El enlace expira en 30 minutos
@@ -1353,8 +1336,6 @@ function showPaymentLinkInCart(paymentLink, requestId) {
 
 
 
-
-// Función auxiliar para obtener el total de la solicitud
 function getTotalFromRequest(requestId) {
   const stored = localStorage.getItem('pending_purchase_' + requestId);
   if (stored) {
@@ -1385,8 +1366,11 @@ function showRejectedStatus() {
 function cancelRequest(requestId) {
   if (confirm("¿Cancelar esta solicitud de compra?")) {
     localStorage.removeItem('pending_purchase_' + requestId);
-    renderCart(); // Restaurar carrito vacío
-    alert("Solicitud cancelada");
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = null;
+    activeRequestId = null;
+    renderCart();
+    showTemporaryMessage("Solicitud cancelada", "success");
   }
 }
 
