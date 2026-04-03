@@ -300,7 +300,6 @@ async function loadNotifications() {
       return;
     }
     
-    // Solo mostrar notificaciones con STATUS "pending"
     const pendingNotifs = data.notifications.filter(n => n.STATUS === "pending");
     
     if (pendingNotifs.length === 0) {
@@ -308,38 +307,40 @@ async function loadNotifications() {
       return;
     }
     
-    // Agrupar por REQUEST_ID
     const groups = groupNotificationsByRequest(pendingNotifs);
-    
     container.innerHTML = "";
     
     for (const group of groups) {
+      // Obtener número del cliente
+      let clientPhone = null;
+      try {
+        const phoneRes = await fetch(API + "?action=getClientPhone&requestId=" + group.requestId);
+        const phoneData = await phoneRes.json();
+        if (phoneData.ok) clientPhone = phoneData.phone;
+      } catch(e) {}
+      
       const requestDiv = document.createElement("div");
       requestDiv.className = "request-card";
       requestDiv.setAttribute("data-request-id", group.requestId);
       
-      // Verificar stock de cada producto
       const stockStatus = await checkStockForGroup(group.notifications);
-      
-      // Calcular cantidad de productos con stock
       const availableProducts = group.notifications.filter((n, idx) => stockStatus[idx].hasStock);
       const unavailableProducts = group.notifications.filter((n, idx) => !stockStatus[idx].hasStock);
       
       requestDiv.innerHTML = `
-        // Dentro del HTML de cada request, agregar:
-<div class="request-header">
-  <div>
-    <strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span>
-  </div>
-  <div class="request-date">
-    📅 ${new Date(group.notifications[0].FECHA).toLocaleString()}
-  </div>
-  ${group.clientPhone ? `
-  <div class="client-phone" style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px;">
-    📱 Cliente: +52 ${group.clientPhone}
-  </div>
-  ` : ''}
-</div>
+        <div class="request-header">
+          <div>
+            <strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span>
+          </div>
+          <div class="request-date">
+            📅 ${new Date(group.notifications[0].FECHA).toLocaleString()}
+          </div>
+          ${clientPhone ? `
+            <div class="client-phone" style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px;">
+              📱 Cliente: +52 ${clientPhone}
+            </div>
+          ` : ''}
+        </div>
         <div class="request-products">
           ${group.notifications.map((notif, idx) => {
             const status = stockStatus[idx];
