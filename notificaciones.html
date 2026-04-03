@@ -460,7 +460,7 @@ function openWhatsApp(phoneNumber, message) {
   }
   
   const encodedMessage = encodeURIComponent(message);
-  window.location.href = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+window.open(`https://wa.me/${cleanPhone}?text=${encodedMessage}`, '_blank');
 }
 
 async function confirmGroupPurchase(requestId) {
