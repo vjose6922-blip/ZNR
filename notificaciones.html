@@ -70,6 +70,11 @@
   opacity: 0.7;
 }
 
+.request-product-item.confirmed {
+  background: #e8f5e9;
+  opacity: 0.8;
+}
+
 .request-product-img {
   width: 70px;
   height: 70px;
@@ -110,6 +115,11 @@
 .status-pending {
   background: #fff3e0;
   color: #f97316;
+}
+
+.status-confirmed {
+  background: #e8f5e9;
+  color: #2e7d32;
 }
 
 .status-outofstock {
@@ -267,23 +277,34 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Agrupar notificaciones por REQUEST_ID
+// Agrupar notificaciones por REQUEST_ID (TODAS, no solo pendientes)
 function groupNotificationsByRequest(notifications) {
   const groups = new Map();
   
   notifications.forEach(notif => {
-    const requestId = notif.REQUEST_ID || notif.ID_NOTIF;
+    // Usar REQUEST_ID como clave principal
+    const requestId = notif.REQUEST_ID;
+    
+    // Saltar notificaciones sin REQUEST_ID
+    if (!requestId) return;
+    
     if (!groups.has(requestId)) {
       groups.set(requestId, {
         requestId: requestId,
         notifications: [],
-        allPending: true
+        hasPending: false
       });
     }
-    groups.get(requestId).notifications.push(notif);
+    
+    const group = groups.get(requestId);
+    group.notifications.push(notif);
+    if (notif.STATUS === "pending") {
+      group.hasPending = true;
+    }
   });
   
-  return Array.from(groups.values());
+  // Solo devolver grupos que tengan al menos una notificación pendiente
+  return Array.from(groups.values()).filter(group => group.hasPending);
 }
 
 async function loadNotifications() {
@@ -296,36 +317,47 @@ async function loadNotifications() {
     const container = document.getElementById("notifications");
     
     if (!data.notifications || data.notifications.length === 0) {
-      container.innerHTML = '<div class="empty">📭 No hay solicitudes pendientes</div>';
+      container.innerHTML = '<div class="empty">📭 No hay solicitudes</div>';
       return;
     }
     
-    const pendingNotifs = data.notifications.filter(n => n.STATUS === "pending");
+    // Agrupar TODAS las notificaciones (incluyendo confirmadas y rechazadas)
+    const groups = groupNotificationsByRequest(data.notifications);
     
-    if (pendingNotifs.length === 0) {
+    if (groups.length === 0) {
       container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
       return;
     }
     
-    const groups = groupNotificationsByRequest(pendingNotifs);
     container.innerHTML = "";
     
     for (const group of groups) {
+      // Solo mostrar productos PENDIENTES para cada grupo
+      const pendingNotifications = group.notifications.filter(n => n.STATUS === "pending");
+      
+      if (pendingNotifications.length === 0) continue;
+      
       // Obtener número del cliente
       let clientPhone = null;
       try {
         const phoneRes = await fetch(API + "?action=getClientPhone&requestId=" + group.requestId);
         const phoneData = await phoneRes.json();
         if (phoneData.ok) clientPhone = phoneData.phone;
-      } catch(e) {}
+      } catch(e) {
+        console.log("Error obteniendo teléfono:", e);
+      }
       
       const requestDiv = document.createElement("div");
       requestDiv.className = "request-card";
       requestDiv.setAttribute("data-request-id", group.requestId);
       
-      const stockStatus = await checkStockForGroup(group.notifications);
-      const availableProducts = group.notifications.filter((n, idx) => stockStatus[idx].hasStock);
-      const unavailableProducts = group.notifications.filter((n, idx) => !stockStatus[idx].hasStock);
+      // Verificar stock solo para productos pendientes
+      const stockStatus = await checkStockForGroup(pendingNotifications);
+      const availableProducts = pendingNotifications.filter((n, idx) => stockStatus[idx].hasStock);
+      const unavailableProducts = pendingNotifications.filter((n, idx) => !stockStatus[idx].hasStock);
+      
+      // Obtener fecha de la primera notificación pendiente
+      const firstDate = pendingNotifications[0]?.FECHA || new Date();
       
       requestDiv.innerHTML = `
         <div class="request-header">
@@ -333,16 +365,16 @@ async function loadNotifications() {
             <strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span>
           </div>
           <div class="request-date">
-            📅 ${new Date(group.notifications[0].FECHA).toLocaleString()}
+            📅 ${new Date(firstDate).toLocaleString()}
           </div>
           ${clientPhone ? `
             <div class="client-phone" style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px;">
-              📱 Cliente: +52 ${clientPhone}
+              📱 Cliente: +52 ${escapeHtml(clientPhone)}
             </div>
           ` : ''}
         </div>
         <div class="request-products">
-          ${group.notifications.map((notif, idx) => {
+          ${pendingNotifications.map((notif, idx) => {
             const status = stockStatus[idx];
             const isAvailable = status.hasStock;
             const currentStock = status.currentStock;
@@ -386,9 +418,13 @@ async function loadNotifications() {
       container.appendChild(requestDiv);
     }
     
+    if (container.children.length === 0) {
+      container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
+    }
+    
   } catch (err) {
     console.error("Error:", err);
-    document.getElementById("notifications").innerHTML = '<div class="empty">❌ Error cargando solicitudes</div>';
+    document.getElementById("notifications").innerHTML = '<div class="empty">❌ Error cargando solicitudes: ' + err.message + '</div>';
   } finally {
     hideLoader();
   }
@@ -413,6 +449,7 @@ async function checkStockForGroup(notifications) {
         currentStock: data.currentStock || 0
       });
     } catch (err) {
+      console.error("Error checking stock:", err);
       results.push({ hasStock: false, currentStock: 0 });
     }
   }
@@ -466,7 +503,7 @@ async function confirmGroupPurchase(requestId) {
         buttonsHtml += `
           <button onclick="window.open('${data.whatsappUrl}', '_blank')" 
                   style="flex:1; background: linear-gradient(135deg, #25D366, #128C7E); color: white; border: none; border-radius: 999px; padding: 10px 24px; cursor: pointer; font-weight: 600;">
-            📱 Enviar WhatsApp al cliente (+52 ${data.clientPhone})
+            📱 Enviar WhatsApp al cliente ${data.clientPhone ? '(+52 ' + data.clientPhone + ')' : ''}
           </button>
         `;
       }
@@ -475,19 +512,14 @@ async function confirmGroupPurchase(requestId) {
 
       paymentDiv.innerHTML = `
         <strong>✅ Link de pago generado:</strong><br>
-        <div class="payment-link">${data.paymentLink}</div>
+        <div class="payment-link">${escapeHtml(data.paymentLink)}</div>
         ${buttonsHtml}
       `;
 
-      const requestCard = document.querySelector(\`.request-card[data-request-id="${requestId}"]\`);
+      const requestCard = document.querySelector(`.request-card[data-request-id="${requestId}"]`);
       if (requestCard) {
         requestCard.insertAdjacentElement('afterend', paymentDiv);
         setTimeout(() => paymentDiv.remove(), 30000);
-      }
-
-      // Abrir WhatsApp automáticamente si existe
-      if (data.whatsappUrl) {
-        window.open(data.whatsappUrl, '_blank');
       }
     }
 
@@ -500,7 +532,6 @@ async function confirmGroupPurchase(requestId) {
     hideLoader();
   }
 }
-
 
 async function removeOutOfStockNotifications(requestId) {
   if (!confirm("¿Eliminar los productos sin stock de esta solicitud? Los productos con stock se mantendrán pendientes.")) {
@@ -534,23 +565,6 @@ async function removeOutOfStockNotifications(requestId) {
   }
 }
 
-
-// Obtener número del cliente para cada grupo
-async function getClientPhone(requestId) {
-  try {
-    const response = await fetch(API + "?action=getClientPhone&requestId=" + requestId);
-    const data = await response.json();
-    return data.ok ? data.phone : null;
-  } catch {
-    return null;
-  }
-}
-
-
-
-
-
-  
 async function cancelGroupPurchase(requestId) {
   if (!confirm("¿Cancelar TODA la solicitud de compra?")) {
     return;
@@ -592,7 +606,7 @@ function startAutoRefresh() {
     if (document.visibilityState === "visible") {
       loadNotifications();
     }
-  }, 100000);
+  }, 10000);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
