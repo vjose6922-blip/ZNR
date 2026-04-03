@@ -821,28 +821,31 @@ function renderCart() {
   const container = document.getElementById("cart-items-container");
   if (!container) return;
   
-  // Verificar si hay una solicitud pendiente o aprobada
-  const pendingRequests = [];
+  // Verificar si hay una solicitud pendiente (en espera de confirmación)
+  let hasPendingRequest = false;
+  let pendingRequestId = null;
+  
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key && key.startsWith('pending_purchase_')) {
       try {
         const request = JSON.parse(localStorage.getItem(key));
-        if (request.status === 'approved' && request.paymentLink) {
-          pendingRequests.push(request);
+        if (request.status === 'pending') {
+          hasPendingRequest = true;
+          pendingRequestId = request.id;
+          break;
         }
       } catch(e) {}
     }
   }
   
-  // Si hay una solicitud aprobada, mostrarla primero
-  if (pendingRequests.length > 0) {
-    const latestRequest = pendingRequests[pendingRequests.length - 1];
-    showPaymentLinkInCart(latestRequest.paymentLink, latestRequest.id);
+  // Si hay una solicitud pendiente, mostrar estado de espera
+  if (hasPendingRequest && pendingRequestId) {
+    showWaitingStatusInCart(pendingRequestId);
     return;
   }
   
-  // Si no hay solicitud aprobada, mostrar el carrito normal
+  // Si no hay solicitud pendiente, mostrar el carrito normal
   container.innerHTML = "";
   const items = Object.values(localCart);
   
@@ -1161,8 +1164,10 @@ if (!document.querySelector('#toast-styles')) {
 function startWaitingForConfirmation(requestId) {
   activeRequestId = requestId;
   
+  // Mostrar estado de espera en el carrito
   showWaitingStatusInCart(requestId);
   
+  // Iniciar polling cada 5 segundos
   if (pollingInterval) clearInterval(pollingInterval);
   
   pollingInterval = setInterval(async () => {
@@ -1179,20 +1184,26 @@ function startWaitingForConfirmation(requestId) {
         clearInterval(pollingInterval);
         pollingInterval = null;
         
-        const stored = localStorage.getItem('pending_purchase_' + activeRequestId);
-        if (stored) {
-          const request = JSON.parse(stored);
-          request.status = 'approved';
-          request.paymentLink = data.paymentLink;
-          localStorage.setItem('pending_purchase_' + activeRequestId, JSON.stringify(request));
-        }
+        // Limpiar la solicitud pendiente
+        localStorage.removeItem('pending_purchase_' + activeRequestId);
         
-        showPaymentLinkInCart(data.paymentLink, activeRequestId);
+        // Mostrar mensaje simple de que llegará el WhatsApp
+        showTemporaryMessage("✅ ¡Tu pedido ha sido confirmado! Revisa tu WhatsApp para el link de pago.", "success");
+        
+        // Limpiar carrito
+        localCart = {};
+        saveCartToStorage();
+        updateCartBadge();
+        renderCart();
+        
+        // Cerrar el carrito drawer
+        closeCartDrawer();
+        
         activeRequestId = null;
       } else if (data.ok && data.status === 'rejected') {
         clearInterval(pollingInterval);
         pollingInterval = null;
-        showRejectedStatus();
+        showTemporaryMessage("❌ Lo sentimos, tu pedido fue rechazado por falta de stock.", "error");
         activeRequestId = null;
       }
     } catch (err) {
@@ -1213,64 +1224,14 @@ function showWaitingStatusInCart(requestId) {
       <h3 style="color: #3b1f5f;">⏳ Esperando confirmación del administrador</h3>
       <p style="color: #666; font-size: 14px; margin-top: 8px;">
         Solicitud ID: <strong>${requestId}</strong><br>
-        El admin verificará el stock y te dará respuesta en unos momentos.
+        El administrador verificará el stock y te enviará el link de pago por WhatsApp.<br>
+        Recibirás una notificación en unos momentos.
       </p>
-      <button onclick="cancelRequest('${requestId}')" style="margin-top: 16px; background: #ef4444; color: white; border: none; padding: 8px 24px; border-radius: 20px; cursor: pointer;">
-        Cancelar solicitud
-      </button>
     </div>
   `;
 }
 
-function showPaymentLinkInCart(paymentLink, requestId) {
-  const container = document.getElementById("cart-items-container");
-  if (!container) return;
-  
-  const stored = localStorage.getItem('pending_purchase_' + requestId);
-  let totalAmount = 0;
-  let clientPhone = "";
-  
-  if (stored) {
-    const request = JSON.parse(stored);
-    totalAmount = request.total || 0;
-    clientPhone = request.clientPhone || "";
-  }
-  
-  container.innerHTML = `
-    <div style="text-align: center; padding: 20px;">
-      <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
-      <h3 style="color: #22c55e;">¡Solicitud aprobada!</h3>
-      <div style="background: #f0f0f8; border-radius: 12px; padding: 16px; margin: 16px 0;">
-        <p style="font-size: 12px; color: #666; margin-bottom: 8px;">💰 Total a pagar:</p>
-        <p style="font-size: 28px; font-weight: bold; color: #3b1f5f; margin: 8px 0;">
-          ${formatCurrency(totalAmount)}
-        </p>
-        <p style="font-size: 12px; color: #666; margin-bottom: 8px;">🔗 Link de pago seguro:</p>
-        <a href="${paymentLink}" target="_blank" 
-           style="display: block; word-break: break-all; color: #009ee3; font-size: 12px; margin-bottom: 12px;">
-          ${paymentLink}
-        </a>
-        <button onclick="window.open('${paymentLink}', '_blank')" 
-                class="primary-button" style="width: 100%; background: linear-gradient(135deg, #009ee3, #00a3e8); margin-bottom: 8px;">
-          💳 Pagar con Mercado Pago
-        </button>
-        <button onclick="navigator.clipboard.writeText('${paymentLink}')" 
-                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: white; cursor: pointer;">
-          📋 Copiar enlace
-        </button>
-        ${clientPhone ? `
-          <button onclick="window.open('https://wa.me/52${clientPhone}?text=${encodeURIComponent('✅ Tu pago está listo: ' + paymentLink)}', '_blank')" 
-                  style="width: 100%; margin-top: 8px; padding: 10px; border-radius: 8px; background: linear-gradient(135deg, #25D366, #128C7E); color: white; border: none; cursor: pointer;">
-            📱 Enviar link por WhatsApp al cliente
-          </button>
-        ` : ''}
-      </div>
-      <button onclick="closeCartDrawer(); removePendingRequest('${requestId}')" class="text-button" style="margin-top: 12px;">
-        Cerrar
-      </button>
-    </div>
-  `;
-}
+
 
 
 function getTotalFromRequest(requestId) {
