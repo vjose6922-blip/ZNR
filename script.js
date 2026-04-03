@@ -1174,11 +1174,11 @@ if (!document.querySelector('#toast-styles')) {
 
 
 
-// Función para esperar confirmación del admin
 function startWaitingForConfirmation(requestId) {
   activeRequestId = requestId;
   
-  showWaitingStatusInCart(requestId);
+  // NO mostrar nada en el carrito, solo esperar silenciosamente
+  // El cliente recibirá el WhatsApp automáticamente cuando el admin confirme
   
   if (pollingInterval) clearInterval(pollingInterval);
   
@@ -1192,26 +1192,27 @@ function startWaitingForConfirmation(requestId) {
       const response = await fetch(`${SHEET_API_URL}?action=checkRequestStatus&requestId=${activeRequestId}`);
       const data = await response.json();
       
-      console.log("Polling response:", data);
-      
       if (data.ok && data.status === 'approved' && data.paymentLink) {
         clearInterval(pollingInterval);
         pollingInterval = null;
         
-        const stored = localStorage.getItem('pending_purchase_' + activeRequestId);
-        if (stored) {
-          const request = JSON.parse(stored);
-          request.status = 'approved';
-          request.paymentLink = data.paymentLink;
-          localStorage.setItem('pending_purchase_' + activeRequestId, JSON.stringify(request));
-        }
+        // Limpiar la solicitud pendiente
+        localStorage.removeItem('pending_purchase_' + activeRequestId);
         
-        showPaymentLinkInCart(data.paymentLink, activeRequestId);
+        // Mostrar mensaje simple de que llegará el WhatsApp
+        showTemporaryMessage("✅ ¡Tu pedido ha sido confirmado! Revisa tu WhatsApp para el link de pago.", "success");
+        
+        // Limpiar carrito si es necesario
+        cart = {};
+        saveCartToStorage();
+        updateCartBadge();
+        renderCart();
+        
         activeRequestId = null;
       } else if (data.ok && data.status === 'rejected') {
         clearInterval(pollingInterval);
         pollingInterval = null;
-        showRejectedStatus();
+        showTemporaryMessage("❌ Lo sentimos, tu pedido fue rechazado por falta de stock.", "error");
         activeRequestId = null;
       }
     } catch (err) {
