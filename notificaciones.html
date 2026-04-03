@@ -185,27 +185,6 @@
   color: #2e7d32;
 }
 
-.whatsapp-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #25D366;
-  color: white;
-  border: none;
-  border-radius: 50px;
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 12px;
-  transition: all 0.2s;
-}
-
-.whatsapp-button:hover {
-  background: #128C7E;
-  transform: scale(1.02);
-}
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -259,7 +238,7 @@
   </div>
   <div class="header-right">
     <button class="icon-button" onclick="window.location='admin.html'">⬅</button>
-    <button class="icon-button" onclick="location.reload()">⟳</button>
+    <button class="icon-button" onclick="loadNotifications()">⟳</button>
   </div>
 </header>
 
@@ -287,8 +266,7 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Mostrar mensaje temporal de éxito
-function showSuccessMessage(message, duration = 5000) {
+function showSuccessMessage(message, duration = 3000) {
   const container = document.getElementById("notifications");
   const msgDiv = document.createElement("div");
   msgDiv.className = "success-message";
@@ -296,13 +274,14 @@ function showSuccessMessage(message, duration = 5000) {
   container.insertBefore(msgDiv, container.firstChild);
   
   setTimeout(() => {
-    msgDiv.style.opacity = "0";
-    msgDiv.style.transition = "opacity 0.3s";
-    setTimeout(() => msgDiv.remove(), 300);
+    if (msgDiv && msgDiv.parentNode) {
+      msgDiv.style.opacity = "0";
+      msgDiv.style.transition = "opacity 0.3s";
+      setTimeout(() => msgDiv.remove(), 300);
+    }
   }, duration);
 }
 
-// Agrupar notificaciones por REQUEST_ID
 function groupNotificationsByRequest(notifications) {
   const groups = new Map();
   
@@ -356,7 +335,6 @@ async function loadNotifications() {
       
       if (pendingNotifications.length === 0) continue;
       
-      // Obtener número del cliente
       let clientPhone = null;
       try {
         const phoneRes = await fetch(API + "?action=getClientPhone&requestId=" + group.requestId);
@@ -471,63 +449,26 @@ async function checkStockForGroup(notifications) {
   return results;
 }
 
-// Función para abrir WhatsApp de forma confiable
+// Abrir WhatsApp automáticamente - usa window.location.href (no es bloqueado)
 function openWhatsApp(phoneNumber, message) {
-  // Limpiar número
   let cleanPhone = String(phoneNumber).replace(/[^0-9]/g, '');
   
-  // Asegurar formato internacional
   if (cleanPhone.length === 10) {
     cleanPhone = "52" + cleanPhone;
   } else if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) {
     cleanPhone = "52" + cleanPhone.substring(1);
-  } else if (!cleanPhone.startsWith('52') && cleanPhone.length > 10) {
-    cleanPhone = "52" + cleanPhone;
   }
   
   const encodedMessage = encodeURIComponent(message);
-  
-  // Método 1: Usar href directo (más confiable)
-  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
-  
-  // Intentar abrir en nueva pestaña
-  window.open(whatsappUrl, '_blank');
-  
-  // Fallback: si el popup es bloqueado, mostrar un botón
-  setTimeout(() => {
-    // Verificar si la pestaña se abrió (no hay forma directa, así que mostramos alternativa)
-    const existingNotification = document.querySelector('.whatsapp-fallback');
-    if (!existingNotification) {
-      const fallbackDiv = document.createElement('div');
-      fallbackDiv.className = 'success-message whatsapp-fallback';
-      fallbackDiv.innerHTML = `
-        <p>✅ Solicitud confirmada exitosamente</p>
-        <p>📱 Si WhatsApp no se abrió automáticamente, haz clic aquí:</p>
-        <button class="whatsapp-button" onclick="window.open('${whatsappUrl}', '_blank')">
-          📲 Enviar link de pago por WhatsApp
-        </button>
-        <button class="btn btn-secondary" style="margin-left: 8px;" onclick="navigator.clipboard.writeText('${whatsappUrl.replace(/'/g, "\\'")}')">
-          📋 Copiar enlace
-        </button>
-      `;
-      document.getElementById("notifications").insertBefore(fallbackDiv, document.getElementById("notifications").firstChild);
-      
-      // Auto-eliminar después de 10 segundos
-      setTimeout(() => {
-        if (fallbackDiv && fallbackDiv.parentNode) {
-          fallbackDiv.remove();
-        }
-      }, 10000);
-    }
-  }, 1000);
+  window.location.href = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
 }
 
 async function confirmGroupPurchase(requestId) {
-  if (!confirm(`¿Confirmar TODOS los productos con stock disponible de esta solicitud?\n\nLos productos sin stock serán rechazos automáticamente.`)) {
+  if (!confirm(`¿Confirmar TODOS los productos con stock disponible de esta solicitud?\n\nLos productos sin stock serán rechazados automáticamente.`)) {
     return;
   }
 
-  showLoader("Verificando stock y procesando...");
+  showLoader("Procesando...");
 
   try {
     const response = await fetch(API, {
@@ -544,9 +485,6 @@ async function confirmGroupPurchase(requestId) {
       throw new Error(data.error || "Error al confirmar");
     }
 
-    // Mensaje de éxito en la interfaz
-    showSuccessMessage(`${data.message}\n💰 Total: $${(data.totalAmount || 0).toLocaleString()}`);
-    
     // Construir mensaje para WhatsApp
     let message = `✅ *¡TU PEDIDO HA SIDO CONFIRMADO!*\n\n`;
     message += `*Solicitud ID:* ${requestId}\n`;
@@ -555,11 +493,10 @@ async function confirmGroupPurchase(requestId) {
     
     if (data.approvedItems && data.approvedItems.length > 0) {
       for (const item of data.approvedItems) {
+        const subtotal = (item.unit_price || 0) * item.quantity;
         message += `• ${item.title}\n`;
-        message += `  Cantidad: ${item.quantity} x $${(item.unit_price || 0).toLocaleString()} = $${((item.unit_price || 0) * item.quantity).toLocaleString()}\n`;
+        message += `  Cantidad: ${item.quantity} x $${(item.unit_price || 0).toLocaleString()} = $${subtotal.toLocaleString()}\n`;
       }
-    } else if (data.paymentLink) {
-      message += `Tu pedido ha sido confirmado.\n`;
     }
     
     if (data.rejectedItems && data.rejectedItems.length > 0) {
@@ -570,38 +507,26 @@ async function confirmGroupPurchase(requestId) {
     }
     
     message += `\n*💰 TOTAL A PAGAR: $${(data.totalAmount || 0).toLocaleString()} MXN*\n\n`;
-    message += `🔗 *LINK DE PAGO SEGURO:*\n${data.paymentLink || "Link generado"}\n\n`;
+    message += `🔗 *LINK DE PAGO SEGURO:*\n${data.paymentLink}\n\n`;
     message += `⚠️ *El enlace expira en 30 minutos*\n`;
     message += `💳 Puedes pagar con tarjeta de crédito/débito o Mercado Pago.\n\n`;
     message += `¡Gracias por tu compra! 🛍️\n`;
     message += `Z&R Store - Tu estilo, nuestra pasión`;
     
-    // ABRIR WHATSAPP de forma confiable
+    // ABRIR WHATSAPP AUTOMÁTICAMENTE
     if (data.clientPhone) {
       openWhatsApp(data.clientPhone, message);
-    } else if (data.whatsappUrl) {
-      window.open(data.whatsappUrl, '_blank');
-    } else {
-      // Mostrar mensaje con enlace copiable
-      const fallbackDiv = document.createElement('div');
-      fallbackDiv.className = 'success-message';
-      fallbackDiv.innerHTML = `
-        <p>✅ Solicitud confirmada exitosamente</p>
-        <p>💰 Total: $${(data.totalAmount || 0).toLocaleString()}</p>
-        <p>🔗 Link de pago: <a href="${data.paymentLink}" target="_blank">${data.paymentLink}</a></p>
-        <button class="whatsapp-button" onclick="navigator.clipboard.writeText('${data.paymentLink}')">
-          📋 Copiar link de pago
-        </button>
-      `;
-      document.getElementById("notifications").insertBefore(fallbackDiv, document.getElementById("notifications").firstChild);
     }
-
-    // Recargar notificaciones después de 3 segundos (no 200 segundos!)
-    setTimeout(() => loadNotifications(), 3000);
+    
+    showSuccessMessage(`${data.message}\n💰 Total: $${(data.totalAmount || 0).toLocaleString()}`);
+    
+    // Recargar notificaciones después de 2 segundos
+    setTimeout(() => {
+      loadNotifications();
+    }, 2000);
 
   } catch (err) {
     alert(`❌ Error: ${err.message}`);
-  } finally {
     hideLoader();
   }
 }
@@ -611,7 +536,7 @@ async function removeOutOfStockNotifications(requestId) {
     return;
   }
   
-  showLoader("Eliminando productos sin stock...");
+  showLoader("Eliminando...");
   
   try {
     const response = await fetch(API, {
@@ -625,7 +550,7 @@ async function removeOutOfStockNotifications(requestId) {
     const data = await response.json();
     
     if (data.ok) {
-      alert(`✅ Eliminados ${data.removedCount} producto(s) sin stock`);
+      showSuccessMessage(`Eliminados ${data.removedCount} producto(s) sin stock`);
       loadNotifications();
     } else {
       throw new Error(data.error || "Error");
@@ -643,7 +568,7 @@ async function cancelGroupPurchase(requestId) {
     return;
   }
   
-  showLoader("Cancelando solicitud...");
+  showLoader("Cancelando...");
   
   try {
     const response = await fetch(API, {
@@ -657,7 +582,7 @@ async function cancelGroupPurchase(requestId) {
     const data = await response.json();
     
     if (data.ok) {
-      alert(`✅ Solicitud cancelada (${data.cancelledCount} productos)`);
+      showSuccessMessage(`Solicitud cancelada (${data.cancelledCount} productos)`);
       loadNotifications();
     } else {
       throw new Error(data.error || "Error");
@@ -670,25 +595,9 @@ async function cancelGroupPurchase(requestId) {
   }
 }
 
-// Auto-refresh cada 10 segundos
-let refreshInterval;
-
-function startAutoRefresh() {
-  if (refreshInterval) clearInterval(refreshInterval);
-  refreshInterval = setInterval(() => {
-    if (document.visibilityState === "visible") {
-      loadNotifications();
-    }
-  }, 10000); // 10 segundos, no 100 segundos
-}
-
+// Cargar al inicio - SIN auto-refresh automático
 document.addEventListener("DOMContentLoaded", () => {
   loadNotifications();
-  startAutoRefresh();
-});
-
-window.addEventListener("beforeunload", () => {
-  if (refreshInterval) clearInterval(refreshInterval);
 });
 </script>
 
