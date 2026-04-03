@@ -70,11 +70,6 @@
   opacity: 0.7;
 }
 
-.request-product-item.confirmed {
-  background: #e8f5e9;
-  opacity: 0.8;
-}
-
 .request-product-img {
   width: 70px;
   height: 70px;
@@ -115,11 +110,6 @@
 .status-pending {
   background: #fff3e0;
   color: #f97316;
-}
-
-.status-confirmed {
-  background: #e8f5e9;
-  color: #2e7d32;
 }
 
 .status-outofstock {
@@ -175,25 +165,24 @@
   color: #333;
 }
 
-.payment-link-container {
-  background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-  border-radius: 12px;
-  padding: 16px;
-  margin: 16px 20px;
-  animation: fadeIn 0.3s ease;
-}
-
-.payment-link {
-  word-break: break-all;
-  font-size: 12px;
-  color: #1565c0;
-  margin: 8px 0;
-}
-
 .empty {
   text-align: center;
   color: var(--color-text-muted);
   padding: 60px;
+}
+
+.success-message {
+  background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 20px;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.success-message p {
+  margin: 8px 0;
+  color: #2e7d32;
 }
 
 @keyframes fadeIn {
@@ -277,15 +266,27 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Agrupar notificaciones por REQUEST_ID (TODAS, no solo pendientes)
+// Mostrar mensaje temporal de éxito
+function showSuccessMessage(message, duration = 5000) {
+  const container = document.getElementById("notifications");
+  const msgDiv = document.createElement("div");
+  msgDiv.className = "success-message";
+  msgDiv.innerHTML = `<p>✅ ${escapeHtml(message)}</p>`;
+  container.insertBefore(msgDiv, container.firstChild);
+  
+  setTimeout(() => {
+    msgDiv.style.opacity = "0";
+    msgDiv.style.transition = "opacity 0.3s";
+    setTimeout(() => msgDiv.remove(), 300);
+  }, duration);
+}
+
+// Agrupar notificaciones por REQUEST_ID
 function groupNotificationsByRequest(notifications) {
   const groups = new Map();
   
   notifications.forEach(notif => {
-    // Usar REQUEST_ID como clave principal
     const requestId = notif.REQUEST_ID;
-    
-    // Saltar notificaciones sin REQUEST_ID
     if (!requestId) return;
     
     if (!groups.has(requestId)) {
@@ -303,7 +304,6 @@ function groupNotificationsByRequest(notifications) {
     }
   });
   
-  // Solo devolver grupos que tengan al menos una notificación pendiente
   return Array.from(groups.values()).filter(group => group.hasPending);
 }
 
@@ -321,7 +321,6 @@ async function loadNotifications() {
       return;
     }
     
-    // Agrupar TODAS las notificaciones (incluyendo confirmadas y rechazadas)
     const groups = groupNotificationsByRequest(data.notifications);
     
     if (groups.length === 0) {
@@ -332,7 +331,6 @@ async function loadNotifications() {
     container.innerHTML = "";
     
     for (const group of groups) {
-      // Solo mostrar productos PENDIENTES para cada grupo
       const pendingNotifications = group.notifications.filter(n => n.STATUS === "pending");
       
       if (pendingNotifications.length === 0) continue;
@@ -343,20 +341,16 @@ async function loadNotifications() {
         const phoneRes = await fetch(API + "?action=getClientPhone&requestId=" + group.requestId);
         const phoneData = await phoneRes.json();
         if (phoneData.ok) clientPhone = phoneData.phone;
-      } catch(e) {
-        console.log("Error obteniendo teléfono:", e);
-      }
+      } catch(e) {}
       
       const requestDiv = document.createElement("div");
       requestDiv.className = "request-card";
       requestDiv.setAttribute("data-request-id", group.requestId);
       
-      // Verificar stock solo para productos pendientes
       const stockStatus = await checkStockForGroup(pendingNotifications);
       const availableProducts = pendingNotifications.filter((n, idx) => stockStatus[idx].hasStock);
       const unavailableProducts = pendingNotifications.filter((n, idx) => !stockStatus[idx].hasStock);
       
-      // Obtener fecha de la primera notificación pendiente
       const firstDate = pendingNotifications[0]?.FECHA || new Date();
       
       requestDiv.innerHTML = `
@@ -449,7 +443,6 @@ async function checkStockForGroup(notifications) {
         currentStock: data.currentStock || 0
       });
     } catch (err) {
-      console.error("Error checking stock:", err);
       results.push({ hasStock: false, currentStock: 0 });
     }
   }
@@ -479,52 +472,28 @@ async function confirmGroupPurchase(requestId) {
       throw new Error(data.error || "Error al confirmar");
     }
 
-    // Mensaje de éxito
-    alert(`✅ ${data.message}\n💰 Total: $${(data.totalAmount || 0).toLocaleString()}`);
-
-    // Si hay link de pago, mostrarlo
-    if (data.paymentLink) {
-      const container = document.getElementById("notifications");
-      const paymentDiv = document.createElement("div");
-      paymentDiv.className = "payment-link-container";
-
-      let buttonsHtml = `
-        <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
-          <button onclick="window.open('${data.paymentLink}', '_blank')" class="btn btn-confirm" style="flex:1;">
-            💳 Abrir pago
-          </button>
-          <button onclick="navigator.clipboard.writeText('${data.paymentLink}')" class="btn btn-secondary" style="flex:1;">
-            📋 Copiar link
-          </button>
-      `;
-
-      // Botón de WhatsApp
-      if (data.whatsappUrl) {
-        buttonsHtml += `
-          <button onclick="window.open('${data.whatsappUrl}', '_blank')" 
-                  style="flex:1; background: linear-gradient(135deg, #25D366, #128C7E); color: white; border: none; border-radius: 999px; padding: 10px 24px; cursor: pointer; font-weight: 600;">
-            📱 Enviar WhatsApp al cliente ${data.clientPhone ? '(+52 ' + data.clientPhone + ')' : ''}
-          </button>
-        `;
-      }
-
-      buttonsHtml += `</div>`;
-
-      paymentDiv.innerHTML = `
-        <strong>✅ Link de pago generado:</strong><br>
-        <div class="payment-link">${escapeHtml(data.paymentLink)}</div>
-        ${buttonsHtml}
-      `;
-
-      const requestCard = document.querySelector(`.request-card[data-request-id="${requestId}"]`);
-      if (requestCard) {
-        requestCard.insertAdjacentElement('afterend', paymentDiv);
-        setTimeout(() => paymentDiv.remove(), 300000);
-      }
+    // Mensaje de éxito en la interfaz
+    showSuccessMessage(`${data.message}\n💰 Total: $${(data.totalAmount || 0).toLocaleString()}`);
+    
+    // ABRIR WHATSAPP AUTOMÁTICAMENTE si hay link
+    if (data.whatsappUrl) {
+      // Pequeño delay para que el usuario vea el mensaje de éxito
+      setTimeout(() => {
+        window.open(data.whatsappUrl, '_blank');
+      }, 500);
+    } else if (data.paymentLink && data.clientPhone) {
+      // Fallback: construir mensaje manualmente si no vino whatsappUrl
+      const cleanPhone = String(data.clientPhone).replace(/[^0-9]/g, '');
+      const formattedPhone = cleanPhone.length === 10 ? "52" + cleanPhone : cleanPhone;
+      const message = `✅ *¡TU PEDIDO HA SIDO CONFIRMADO!*\n\n*💰 TOTAL A PAGAR: $${(data.totalAmount || 0).toLocaleString()} MXN*\n\n🔗 *LINK DE PAGO:*\n${data.paymentLink}\n\n⚠️ El enlace expira en 30 minutos`;
+      const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank');
+      }, 500);
     }
 
-    // Recargar notificaciones
-    setTimeout(() => loadNotifications(), 300000);
+    // Recargar notificaciones después de un momento
+    setTimeout(() => loadNotifications(), 2000);
 
   } catch (err) {
     alert(`❌ Error: ${err.message}`);
@@ -606,7 +575,7 @@ function startAutoRefresh() {
     if (document.visibilityState === "visible") {
       loadNotifications();
     }
-  }, 100000);
+  }, 10000);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
