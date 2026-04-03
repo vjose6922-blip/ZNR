@@ -326,14 +326,20 @@ async function loadNotifications() {
       const unavailableProducts = group.notifications.filter((n, idx) => !stockStatus[idx].hasStock);
       
       requestDiv.innerHTML = `
-        <div class="request-header">
-          <div>
-            <strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span>
-          </div>
-          <div class="request-date">
-            📅 ${new Date(group.notifications[0].FECHA).toLocaleString()}
-          </div>
-        </div>
+        // Dentro del HTML de cada request, agregar:
+<div class="request-header">
+  <div>
+    <strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span>
+  </div>
+  <div class="request-date">
+    📅 ${new Date(group.notifications[0].FECHA).toLocaleString()}
+  </div>
+  ${group.clientPhone ? `
+  <div class="client-phone" style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px;">
+    📱 Cliente: +52 ${group.clientPhone}
+  </div>
+  ` : ''}
+</div>
         <div class="request-products">
           ${group.notifications.map((notif, idx) => {
             const status = stockStatus[idx];
@@ -504,6 +510,23 @@ async function removeOutOfStockNotifications(requestId) {
   }
 }
 
+
+// Obtener número del cliente para cada grupo
+async function getClientPhone(requestId) {
+  try {
+    const response = await fetch(API + "?action=getClientPhone&requestId=" + requestId);
+    const data = await response.json();
+    return data.ok ? data.phone : null;
+  } catch {
+    return null;
+  }
+}
+
+
+
+
+
+  
 async function cancelGroupPurchase(requestId) {
   if (!confirm("¿Cancelar TODA la solicitud de compra?")) {
     return;
