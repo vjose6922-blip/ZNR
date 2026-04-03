@@ -493,7 +493,7 @@ async function confirmGroupPurchase(requestId) {
     }
 
     // Recargar notificaciones después de un momento
-    setTimeout(() => loadNotifications(), 2000);
+    setTimeout(() => loadNotifications(), 200000);
 
   } catch (err) {
     alert(`❌ Error: ${err.message}`);
