@@ -967,44 +967,63 @@ async function openWhatsAppCheckout() {
     return;
   }
   
-  // Construir mensaje para WhatsApp
-  let message = "Hola quiero comprar:%0A%0A";
+  // Obtener número del cliente
+  let clientPhone = localStorage.getItem("client_phone");
   
-  items.forEach((item) => {
-    message += `📦 *${item.name}*%0A`;
-    message += `ID: ${item.id}%0A`;
-    message += `Cantidad: ${item.quantity}%0A`;
-    if (item.Talla) message += `Talla: ${item.Talla}%0A`;
-    message += `Subtotal: ${formatCurrency(item.price * item.quantity)}%0A`;
-    message += `------------------------%0A`;
-  });
-  
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  message += `%0A💰 *Total: ${formatCurrency(total)}*%0A%0A`;
-  message += `Puedes regresar a la tienda y revisar tu carrito para la confirmación del stock y el pago con tarjeta si deseas.`;
-  
-  // Abrir WhatsApp
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
-  window.open(whatsappUrl, '_blank');
-  
-  // Limpiar solicitudes anteriores pendientes
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('pending_purchase_')) {
-      const request = JSON.parse(localStorage.getItem(key));
-      if (request.status !== 'approved') {
-        localStorage.removeItem(key);
-      }
+  if (!clientPhone) {
+    clientPhone = prompt(
+      "📱 Para enviarte el link de pago, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
+      "Ejemplo: 8671781272\n\n" +
+      "⚠️ Solo números, sin espacios ni código país.",
+      ""
+    );
+    
+    if (!clientPhone) {
+      showTemporaryMessage("❌ Necesitamos tu número para procesar la compra", "error");
+      return;
     }
+    
+    clientPhone = clientPhone.replace(/[^0-9]/g, '');
+    if (clientPhone.length !== 10) {
+      showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
+      return;
+    }
+    
+    localStorage.setItem("client_phone", clientPhone);
   }
   
   showLoader("Enviando solicitud...");
   
   const requestId = generateRequestId();
-  const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
+  // Construir mensaje para WhatsApp del ADMIN
+  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA (LOOKS)*\n\n";
+  adminMessage += `*Cliente:* +52 ${clientPhone}\n`;
+  adminMessage += `*Solicitud ID:* ${requestId}\n`;
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += "*📦 Productos:*\n";
+  
+  items.forEach((item) => {
+    adminMessage += `• ${item.name}\n`;
+    adminMessage += `  Cantidad: ${item.quantity}\n`;
+    adminMessage += `  Precio unitario: $${item.price.toLocaleString()}\n`;
+    adminMessage += `  Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
+    adminMessage += "------------------------\n";
+  });
+  
+  adminMessage += `*💰 Total: $${total.toLocaleString()} MXN*\n\n`;
+  adminMessage += `_✅ Para confirmar, ve al panel de admin > Notificaciones_\n`;
+  adminMessage += `_🔍 Busca la solicitud ID: ${requestId}_`;
+  
+  // Abrir WhatsApp con el mensaje al admin
+  const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
+  window.open(whatsappAdminUrl, '_blank');
+  
+  // Guardar la solicitud en localStorage
   const purchaseRequest = {
     id: requestId,
+    clientPhone: clientPhone,
     items: items.map(item => ({
       id: item.id,
       name: item.name,
@@ -1013,15 +1032,28 @@ async function openWhatsAppCheckout() {
       image: item.Imagen1 || "",
       talla: item.Talla || ""
     })),
-    total: totalAmount,
+    total: total,
     timestamp: Date.now(),
     status: 'pending',
-    paymentLink: null
+    paymentLink: null,
+    approvedItems: [],
+    rejectedItems: []
   };
   
   localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(purchaseRequest));
   
   try {
+    // Guardar el número del cliente
+    await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "saveClientPhone",
+        requestId: requestId,
+        phone: clientPhone
+      })
+    });
+    
+    // Crear notificaciones
     const notificationItems = items.map(item => ({
       productId: item.id,
       nombre: item.name,
@@ -1043,9 +1075,14 @@ async function openWhatsAppCheckout() {
     localCart = {};
     saveCartToStorage();
     updateCartBadge();
+    renderCart();
     
-    // ❌ ALERTA ELIMINADA - reemplazada por mensaje visual temporal
-    showTemporaryMessage("✅ Solicitud enviada al administrador. Espera la confirmación.", "success");
+    showTemporaryMessage(
+      `✅ ¡Solicitud enviada!\n\n` +
+      `📱 Te enviaremos el link de pago al ${clientPhone}\n` +
+      `⏳ Espera la confirmación del administrador.`,
+      "success"
+    );
     
     closeCartDrawer();
     startWaitingForConfirmation(requestId);
@@ -1057,6 +1094,7 @@ async function openWhatsAppCheckout() {
     hideLoader();
   }
 }
+
 
 // Función auxiliar para mostrar mensajes temporales
 function showTemporaryMessage(text, type = "info") {
@@ -1085,11 +1123,10 @@ function showTemporaryMessage(text, type = "info") {
   
   setTimeout(() => {
     messageDiv.style.animation = "slideDown 0.3s ease";
-    setTimeout(() => {
-      messageDiv.remove();
-    }, 300);
+    setTimeout(() => messageDiv.remove(), 300);
   }, 3000);
 }
+
 
 // Agregar estilos si no existen
 if (!document.querySelector('#toast-styles')) {
@@ -1124,16 +1161,6 @@ if (!document.querySelector('#toast-styles')) {
 function startWaitingForConfirmation(requestId) {
   activeRequestId = requestId;
   
-  // No mostrar estado de espera si ya está aprobada
-  const stored = localStorage.getItem('pending_purchase_' + requestId);
-  if (stored) {
-    const request = JSON.parse(stored);
-    if (request.status === 'approved' && request.paymentLink) {
-      showPaymentLinkInCart(request.paymentLink, requestId);
-      return;
-    }
-  }
-  
   showWaitingStatusInCart(requestId);
   
   if (pollingInterval) clearInterval(pollingInterval);
@@ -1147,8 +1174,6 @@ function startWaitingForConfirmation(requestId) {
     try {
       const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${activeRequestId}`);
       const data = await response.json();
-      
-      console.log("Polling response:", data);
       
       if (data.ok && data.status === 'approved' && data.paymentLink) {
         clearInterval(pollingInterval);
@@ -1173,8 +1198,10 @@ function startWaitingForConfirmation(requestId) {
     } catch (err) {
       console.error("Error checking request status:", err);
     }
-  }, 3000);
+  }, 5000);
 }
+
+
 
 function showWaitingStatusInCart(requestId) {
   const container = document.getElementById("cart-items-container");
@@ -1182,13 +1209,13 @@ function showWaitingStatusInCart(requestId) {
   
   container.innerHTML = `
     <div class="waiting-status" style="text-align: center; padding: 40px 20px;">
-      <div class="loader-spinner" style="margin: 0 auto 16px;"></div>
-      <h3>⏳ Esperando confirmación del administrador</h3>
+      <div class="loader-spinner" style="margin: 0 auto 16px; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #ff4f81; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <h3 style="color: #3b1f5f;">⏳ Esperando confirmación del administrador</h3>
       <p style="color: #666; font-size: 14px; margin-top: 8px;">
         Solicitud ID: <strong>${requestId}</strong><br>
         El admin verificará el stock y te dará respuesta en unos momentos.
       </p>
-      <button onclick="cancelRequest('${requestId}')" class="primary-button secondary" style="margin-top: 16px;">
+      <button onclick="cancelRequest('${requestId}')" style="margin-top: 16px; background: #ef4444; color: white; border: none; padding: 8px 24px; border-radius: 20px; cursor: pointer;">
         Cancelar solicitud
       </button>
     </div>
@@ -1199,26 +1226,24 @@ function showPaymentLinkInCart(paymentLink, requestId) {
   const container = document.getElementById("cart-items-container");
   if (!container) return;
   
-  // Guardar el link en localStorage para que persista
   const stored = localStorage.getItem('pending_purchase_' + requestId);
+  let totalAmount = 0;
+  let clientPhone = "";
+  
   if (stored) {
     const request = JSON.parse(stored);
-    request.status = 'approved';
-    request.paymentLink = paymentLink;
-    localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(request));
+    totalAmount = request.total || 0;
+    clientPhone = request.clientPhone || "";
   }
   
   container.innerHTML = `
-    <div style="text-align: center; padding: 30px 20px;">
+    <div style="text-align: center; padding: 20px;">
       <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
       <h3 style="color: #22c55e;">¡Solicitud aprobada!</h3>
-      <p style="color: #666; margin: 16px 0;">
-        El administrador ha confirmado el stock. Tu pedido está listo para pagar.
-      </p>
       <div style="background: #f0f0f8; border-radius: 12px; padding: 16px; margin: 16px 0;">
         <p style="font-size: 12px; color: #666; margin-bottom: 8px;">💰 Total a pagar:</p>
-        <p style="font-size: 24px; font-weight: bold; color: #3b1f5f; margin: 8px 0;">
-          ${formatCurrency(getTotalFromRequest(requestId))}
+        <p style="font-size: 28px; font-weight: bold; color: #3b1f5f; margin: 8px 0;">
+          ${formatCurrency(totalAmount)}
         </p>
         <p style="font-size: 12px; color: #666; margin-bottom: 8px;">🔗 Link de pago seguro:</p>
         <a href="${paymentLink}" target="_blank" 
@@ -1233,16 +1258,20 @@ function showPaymentLinkInCart(paymentLink, requestId) {
                 style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: white; cursor: pointer;">
           📋 Copiar enlace
         </button>
+        ${clientPhone ? `
+          <button onclick="window.open('https://wa.me/52${clientPhone}?text=${encodeURIComponent('✅ Tu pago está listo: ' + paymentLink)}', '_blank')" 
+                  style="width: 100%; margin-top: 8px; padding: 10px; border-radius: 8px; background: linear-gradient(135deg, #25D366, #128C7E); color: white; border: none; cursor: pointer;">
+            📱 Enviar link por WhatsApp al cliente
+          </button>
+        ` : ''}
       </div>
-      <p style="font-size: 11px; color: #999;">
-        ⚠️ El enlace expira en 30 minutos. No cierres esta ventana hasta completar el pago.
-      </p>
-      <button onclick="closeCartDrawer()" class="text-button" style="margin-top: 12px;">
+      <button onclick="closeCartDrawer(); removePendingRequest('${requestId}')" class="text-button" style="margin-top: 12px;">
         Cerrar
       </button>
     </div>
   `;
 }
+
 
 function getTotalFromRequest(requestId) {
   const stored = localStorage.getItem('pending_purchase_' + requestId);
@@ -1278,12 +1307,15 @@ function cancelRequest(requestId) {
     pollingInterval = null;
     activeRequestId = null;
     renderCart();
-    alert("Solicitud cancelada");
+    showTemporaryMessage("Solicitud cancelada", "success");
   }
 }
 
 function removePendingRequest(requestId) {
   localStorage.removeItem('pending_purchase_' + requestId);
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = null;
+  activeRequestId = null;
   renderCart();
 }
 
