@@ -922,12 +922,11 @@ async function openWhatsAppCheckout() {
     return;
   }
   
-  // ========== OBTENER NÚMERO DEL CLIENTE ==========
   let clientPhone = localStorage.getItem("client_phone");
   
   if (!clientPhone) {
     clientPhone = prompt(
-      "📱 Para enviarte el link de pago, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
+      "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
       "Ejemplo: 8671781272\n\n" +
       "⚠️ Solo números, sin espacios ni código país.",
       ""
@@ -949,10 +948,9 @@ async function openWhatsAppCheckout() {
   
   showLoader("Enviando solicitud...");
   
-  const requestId = generateRequestId();
+  const requestId = 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
-  // Construir mensaje para WhatsApp del ADMIN
   let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n\n";
   adminMessage += `*Cliente:* +52 ${clientPhone}\n`;
   adminMessage += `*Solicitud ID:* ${requestId}\n`;
@@ -971,34 +969,10 @@ async function openWhatsAppCheckout() {
   adminMessage += `_✅ Para confirmar, ve al panel de admin > Notificaciones_\n`;
   adminMessage += `_🔍 Busca la solicitud ID: ${requestId}_`;
   
-  // Abrir WhatsApp con el mensaje al admin
   const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
   window.open(whatsappAdminUrl, '_blank');
   
-  // Guardar la solicitud en localStorage
-  const purchaseRequest = {
-    id: requestId,
-    clientPhone: clientPhone,
-    items: items.map(item => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      image: item.Imagen1 || "",
-      talla: item.Talla || ""
-    })),
-    total: total,
-    timestamp: Date.now(),
-    status: 'pending',
-    paymentLink: null,
-    approvedItems: [],
-    rejectedItems: []
-  };
-  
-  localStorage.setItem('pending_purchase_' + requestId, JSON.stringify(purchaseRequest));
-  
   try {
-    // Guardar el número del cliente en Google Sheets
     await fetch(SHEET_API_URL, {
       method: "POST",
       body: JSON.stringify({
@@ -1008,7 +982,6 @@ async function openWhatsAppCheckout() {
       })
     });
     
-    // Crear notificaciones
     const notificationItems = items.map(item => ({
       productId: item.id,
       nombre: item.name,
@@ -1026,21 +999,18 @@ async function openWhatsAppCheckout() {
       })
     });
     
-    // Limpiar carrito
+    // LIMPIAR CARRITO INMEDIATAMENTE
     cart = {};
     saveCartToStorage();
     updateCartBadge();
     renderCart();
     
-    showTemporaryMessage(
-      `✅ ¡Solicitud enviada!\n\n` +
-      `📱 Te enviaremos el link de pago al ${clientPhone}\n` +
-      `⏳ Espera la confirmación del administrador.`,
-      "success"
-    );
+    showTemporaryMessage(`✅ ¡Solicitud enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`, "success");
     
     closeCartDrawer();
-    startWaitingForConfirmation(requestId);
+    
+    // Polling silencioso (solo para abrir WhatsApp cuando admin confirme)
+    startSilentPolling(requestId, clientPhone);
     
   } catch(err) {
     console.error("Error:", err);
@@ -1050,7 +1020,42 @@ async function openWhatsAppCheckout() {
   }
 }
 
-
+// Polling silencioso - NO muestra nada en el carrito, solo abre WhatsApp cuando el admin confirma
+function startSilentPolling(requestId, clientPhone) {
+  let interval = setInterval(async () => {
+    try {
+      const response = await fetch(`${SHEET_API_URL}?action=checkRequestStatus&requestId=${requestId}`);
+      const data = await response.json();
+      
+      if (data.ok && data.status === 'approved' && data.paymentLink) {
+        clearInterval(interval);
+        
+        // Construir mensaje para el cliente
+        let message = `✅ *¡TU PEDIDO HA SIDO CONFIRMADO!*\n\n`;
+        message += `*💰 TOTAL A PAGAR: $${(data.totalAmount || 0).toLocaleString()} MXN*\n\n`;
+        message += `🔗 *LINK DE PAGO SEGURO:*\n${data.paymentLink}\n\n`;
+        message += `⚠️ *El enlace expira en 30 minutos*\n`;
+        message += `¡Gracias por tu compra! 🛍️`;
+        
+        // Abrir WhatsApp automáticamente
+        let cleanPhone = String(clientPhone).replace(/[^0-9]/g, '');
+        if (cleanPhone.length === 10) cleanPhone = "52" + cleanPhone;
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+        
+        // Limpiar
+        localStorage.removeItem('pending_purchase_' + requestId);
+      }
+    } catch (err) {
+      console.error("Error:", err);
+    }
+  }, 5000);
+  
+  // Limpiar después de 10 minutos
+  setTimeout(() => {
+    clearInterval(interval);
+    localStorage.removeItem('pending_purchase_' + requestId);
+  }, 600000);
+}
 
 // Función auxiliar para mostrar mensajes temporales
 function showTemporaryMessage(text, type = "info") {
@@ -1166,31 +1171,6 @@ function startWaitingForConfirmation(requestId) {
 }
 
 
-function showWaitingStatusInCart(requestId) {
-  const container = document.getElementById("cart-items-container");
-  if (!container) return;
-  
-  container.innerHTML = `
-    <div class="waiting-status" style="text-align: center; padding: 40px 20px;">
-      <div class="loader-spinner" style="margin: 0 auto 16px; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #ff4f81; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-      <h3 style="color: #3b1f5f;">⏳ Esperando confirmación del administrador</h3>
-      <p style="color: #666; font-size: 14px; margin-top: 8px;">
-        Solicitud ID: <strong>${requestId}</strong><br>
-        El admin verificará el stock y te dará respuesta en unos momentos.<br>
-        No cierres esta ventana.
-      </p>
-      <button onclick="cancelRequest('${requestId}')" style="margin-top: 16px; background: #ef4444; color: white; border: none; padding: 8px 24px; border-radius: 20px; cursor: pointer;">
-        Cancelar solicitud
-      </button>
-    </div>
-    <style>
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    </style>
-  `;
-}
 
 
 
@@ -1423,7 +1403,6 @@ function startWaitingForConfirmation(requestId) {
   activeRequestId = requestId;
   
   // Mostrar estado de espera en el carrito
-  showWaitingStatusInCart(requestId);
   
   // Iniciar polling cada 3 segundos
   if (pollingInterval) clearInterval(pollingInterval);
@@ -1473,32 +1452,7 @@ function startWaitingForConfirmation(requestId) {
   }, 5000);
 }
 
-// Reemplazar showWaitingStatusInCart (sin el botón de cancelar que no funciona bien)
-function showWaitingStatusInCart(requestId) {
-  const container = document.getElementById("cart-items-container");
-  if (!container) return;
-  
-  container.innerHTML = `
-    <div class="waiting-status" style="text-align: center; padding: 40px 20px;">
-      <div class="loader-spinner" style="margin: 0 auto 16px; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #ff4f81; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-      <h3 style="color: #3b1f5f;">⏳ Esperando confirmación del administrador</h3>
-      <p style="color: #666; font-size: 14px; margin-top: 8px;">
-        Solicitud ID: <strong>${requestId}</strong><br>
-        El administrador verificará el stock y te enviará el link de pago por WhatsApp.<br>
-        Recibirás una notificación en unos momentos.
-      </p>
-    </div>
-    <style>
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    </style>
-  `;
-}
 
-// Eliminar la función showPaymentLinkInCart (ya no se usa)
-// Si quieres mantenerla por si acaso, pero no se llamará, puedes comentarla o dejarla
 
 // Modificar renderCart para que no muestre solicitudes aprobadas en el carrito
 function renderCart() {
@@ -1525,7 +1479,6 @@ function renderCart() {
   
   // Si hay una solicitud pendiente, mostrar estado de espera
   if (hasPendingRequest && pendingRequestId) {
-    showWaitingStatusInCart(pendingRequestId);
     return;
   }
   
