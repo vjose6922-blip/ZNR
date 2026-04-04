@@ -950,7 +950,6 @@ async function openWhatsAppCheckout() {
   if (!clientPhone) {
     clientPhone = prompt(
       "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
-      "Ejemplo: 8671781272\n\n" +
       "⚠️ Solo números, sin espacios ni código país.",
       ""
     );
