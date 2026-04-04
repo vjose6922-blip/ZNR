@@ -460,7 +460,7 @@ function openWhatsApp(phoneNumber, message) {
   }
   
   const encodedMessage = encodeURIComponent(message);
-window.open(`https://wa.me/${cleanPhone}?text=${encodedMessage}`, '_blank');
+window.location.href = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
 }
 
 async function confirmGroupPurchase(requestId) {
@@ -511,7 +511,6 @@ async function confirmGroupPurchase(requestId) {
     message += `⚠️ *El enlace expira en 30 minutos*\n`;
     message += `💳 Puedes pagar con tarjeta de crédito/débito o Mercado Pago.\n\n`;
     message += `¡Gracias por tu compra! 🛍️\n`;
-    message += `Z&R Store - Tu estilo, nuestra pasión`;
     
     // ABRIR WHATSAPP AUTOMÁTICAMENTE
     if (data.clientPhone) {
