@@ -989,8 +989,7 @@ async function openWhatsAppCheckout() {
   });
   
   adminMessage += `*💰 Total: $${total.toLocaleString()} MXN*\n\n`;
-  adminMessage += `_✅ Para confirmar, ve al panel de admin > Notificaciones_\n`;
-  adminMessage += `_🔍 Busca la solicitud ID: ${requestId}_`;
+  adminMessage += `_✅ Para continuar con el pago espera el mensaje de confirmacion\n`;
   
   const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
   window.open(whatsappAdminUrl, '_blank');
