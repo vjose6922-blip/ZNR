@@ -834,7 +834,7 @@ function renderLooks() {
       totalPrice += product.price;
       
       const productImg = optimizeDriveUrl(product.image, 150);
-      const slotName = slotNames[slotKey] || slotKey;
+      const slotName = slotNames[slotKey] || "";
       const slotIcon = slotIcons[slotKey] || "🛍️";
       
       productsHtml += `
