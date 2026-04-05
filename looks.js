@@ -814,9 +814,9 @@ function renderLooks() {
     const slotOrder = ["torso", "piernas", "pies"];
     
     const slotNames = {
-      : "",
-      : "",
-      : ""
+      torso: "",
+      piernas: "",
+      pies: ""
     };
     
     const slotIcons = {
