@@ -389,7 +389,7 @@ const LOOKS_CONFIG = [
     description: "Ideal para días frescos",
     category: "Mujer",
     slots: [
-      { type: "torso", categories: ["Chamarra para dama"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
+      { type: "torso", categories: ["Chamarra para dama"], keywords: [Chamarra], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants"], excludeKeywords: ["vestir", "formal", "short"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacón"], required: true }
     ]
