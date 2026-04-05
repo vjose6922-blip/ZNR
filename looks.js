@@ -1,8 +1,14 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 const WHATSAPP_NUMBER = "528671781272";
+
+// ========== IMPORTAR/CONSISTENCIA CON script.js ==========
+// Estas funciones DEBEN ser las mismas que en script.js
+// Si script.js ya las define globalmente, no es necesario redefinirlas aquí
+
 // Caché persistente con localStorage
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
+
 function getCachedProducts() {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
@@ -29,13 +35,235 @@ function setCachedProducts(products) {
     console.warn("No se pudo guardar en caché:", e);
   }
 }
-// Configuración de clima
+
+// ========== FUNCIONES DE UTILIDAD (deben ser idénticas a script.js) ==========
+function formatCurrency(value) {
+  const num = Number(value) || 0;
+  return `$${num.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`;
+}
+
+function escapeHtml(text) {
+  if (!text) return "";
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function optimizeDriveUrl(url, size = 400) {
+  if (!url) return "";
+  const match = url.match(/[-\w]{25,}/);
+  if (match) {
+    const id = match[0];
+    return `https://drive.google.com/thumbnail?id=${id}&sz=w${size}`;
+  }
+  return url;
+}
+
+function showLoader(text = "Cargando...") {
+  let loader = document.getElementById("global-loader");
+  if (!loader) {
+    loader = document.createElement("div");
+    loader.id = "global-loader";
+    loader.className = "global-loader";
+    loader.innerHTML = `<div class="loader-spinner"></div><div class="loader-text">${text}</div>`;
+    document.body.appendChild(loader);
+  } else {
+    const txt = loader.querySelector(".loader-text");
+    if (txt) txt.textContent = text;
+    loader.classList.remove("hidden");
+  }
+}
+
+function hideLoader() {
+  const loader = document.getElementById("global-loader");
+  if (loader) loader.classList.add("hidden");
+}
+
+function showTemporaryMessage(text, type = "info") {
+  const existing = document.querySelector('.temporary-message');
+  if (existing) existing.remove();
+  
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `temporary-message ${type}`;
+  messageDiv.style.cssText = `
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: ${type === "error" ? "#ef4444" : "#22c55e"};
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: slideUp 0.3s ease;
+  `;
+  messageDiv.textContent = text;
+  document.body.appendChild(messageDiv);
+  
+  setTimeout(() => {
+    messageDiv.style.animation = "slideDown 0.3s ease";
+    setTimeout(() => messageDiv.remove(), 300);
+  }, 3000);
+}
+
+// ========== FUNCIONES DE CARRITO (IDÉNTICAS A script.js) ==========
+// Estas funciones DEBEN ser exactamente iguales a las de script.js
+// para mantener la consistencia del carrito
+
+let localCart = {};
+
+function loadCartFromStorage() {
+  try {
+    const raw = localStorage.getItem("cart");
+    localCart = raw ? JSON.parse(raw) : {};
+  } catch {
+    localCart = {};
+  }
+  updateCartBadge();
+}
+
+function saveCartToStorage() {
+  localStorage.setItem("cart", JSON.stringify(localCart));
+}
+
+function updateCartBadge() {
+  const countEl = document.getElementById("cart-count");
+  if (countEl) {
+    const totalQty = Object.values(localCart).reduce((sum, item) => sum + (item.quantity || 0), 0);
+    countEl.textContent = totalQty;
+  }
+}
+
+// Función principal para agregar al carrito (idéntica a script.js)
+function addToCart(product) {
+  const id = product.ID;
+  if (!id) {
+    console.error("Producto sin ID:", product);
+    return;
+  }
+  
+  if (!localCart[id]) {
+    localCart[id] = {
+      id: id,
+      name: product.Nombre || "Producto",
+      price: Number(product.Precio || 0),
+      quantity: 0,
+      Imagen1: product.Imagen1 || "",
+      Talla: product.Talla || ""
+    };
+  }
+  localCart[id].quantity += 1;
+  saveCartToStorage();
+  updateCartBadge();
+  animateCartAdd();
+  renderCart();
+}
+
+// Funciones globales para que funcionen los onclick
+window.changeCartQty = function(id, delta) {
+  if (!localCart[id]) return;
+  localCart[id].quantity += delta;
+  if (localCart[id].quantity <= 0) {
+    delete localCart[id];
+  }
+  saveCartToStorage();
+  updateCartBadge();
+  renderCart();
+};
+
+window.removeFromCart = function(id) {
+  if (localCart[id]) {
+    delete localCart[id];
+    saveCartToStorage();
+    updateCartBadge();
+    renderCart();
+  }
+};
+
+function renderCart() {
+  const container = document.getElementById("cart-items-container");
+  if (!container) return;
+  
+  container.innerHTML = "";
+  const items = Object.values(localCart);
+  
+  if (items.length === 0) {
+    container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
+  } else {
+    items.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "cart-item";
+      row.innerHTML = `
+        <div class="cart-item-info">
+          <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
+          <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
+          <div class="cart-item-actions">
+            <button class="qty-btn" onclick="changeCartQty('${item.id}', -1)">−</button>
+            <span class="qty-value">${item.quantity}</span>
+            <button class="qty-btn" onclick="changeCartQty('${item.id}', 1)">+</button>
+            <button class="cart-item-remove" onclick="removeFromCart('${item.id}')">Eliminar</button>
+          </div>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotalEl = document.getElementById("cart-subtotal");
+  const totalEl = document.getElementById("cart-total");
+  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
+  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
+}
+
+function animateCartAdd() {
+  const btn = document.getElementById("floating-cart-btn");
+  if (btn) {
+    btn.style.transform = "translateY(-4px) scale(1.05)";
+    setTimeout(() => btn.style.transform = "", 180);
+  }
+}
+
+function openCartDrawer() {
+  const drawer = document.getElementById("cart-drawer");
+  const overlay = document.getElementById("overlay");
+  if (drawer) drawer.classList.add("open");
+  if (overlay) overlay.classList.add("visible");
+}
+
+function closeCartDrawer() {
+  const drawer = document.getElementById("cart-drawer");
+  const overlay = document.getElementById("overlay");
+  if (drawer) drawer.classList.remove("open");
+  if (overlay) overlay.classList.remove("visible");
+}
+
+function openImageModal(url) {
+  const modal = document.getElementById("image-modal");
+  const img = document.getElementById("image-modal-img");
+  const overlay = document.getElementById("overlay");
+  if (modal && img) {
+    img.src = url;
+    modal.classList.add("open");
+    if (overlay) overlay.classList.add("visible");
+  }
+}
+
+function closeImageModal() {
+  const modal = document.getElementById("image-modal");
+  const overlay = document.getElementById("overlay");
+  if (modal) modal.classList.remove("open");
+  if (overlay) overlay.classList.remove("visible");
+}
+
+// ========== CONFIGURACIÓN DE LOOKS ==========
 const WEATHER_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 let currentWeather = null;
 
-// Puntuación de prioridad por tipo de clima (más alto = más prioridad)
 const WEATHER_PRIORITY_SCORES = {
-  // Looks para clima cálido (verano)
   calor: {
     "look_verano_dama": 100,
     "look_verano_caballero": 100,
@@ -50,7 +278,6 @@ const WEATHER_PRIORITY_SCORES = {
     "look_chamarra_dama": 10,
     "look_chamarra_caballero": 10
   },
-  // Looks para clima frío (invierno)
   frio: {
     "look_chamarra_dama": 100,
     "look_chamarra_caballero": 100,
@@ -65,7 +292,6 @@ const WEATHER_PRIORITY_SCORES = {
     "look_verano_caballero": 10,
     "look_falda_dama": 30
   },
-  // Looks para clima templado (primavera/otoño)
   templado: {
     "look_casual_dama": 100,
     "look_casual_caballero": 100,
@@ -80,7 +306,6 @@ const WEATHER_PRIORITY_SCORES = {
     "look_chamarra_dama": 50,
     "look_chamarra_caballero": 50
   },
-  // Looks para clima lluvioso
   lluvioso: {
     "look_chamarra_dama": 100,
     "look_chamarra_caballero": 100,
@@ -99,9 +324,7 @@ const WEATHER_PRIORITY_SCORES = {
 
 let allProducts = [];
 let looks = [];
-let localCart = {}; // <-- CORREGIDO: variable global localCart
 
-// Definición de looks con estructura de 3 prendas: torso, piernas, pies
 const LOOKS_CONFIG = [
   // MUJER
   {
@@ -239,20 +462,7 @@ const LOOKS_CONFIG = [
   }
 ];
 
-// Función para formatear moneda
-function formatCurrency(value) {
-  const num = Number(value) || 0;
-  return `$${num.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`;
-}
-
-function escapeHtml(text) {
-  if (!text) return "";
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Función para verificar si un producto coincide con los criterios
+// ========== FUNCIONES DE PRODUCTOS Y LOOKS ==========
 function matchesProductCriteria(product, categories, keywords, excludeKeywords = []) {
   if (!product) return false;
   
@@ -263,30 +473,25 @@ function matchesProductCriteria(product, categories, keywords, excludeKeywords =
   const parenthesisMatch = productName.match(/\(([^)]+)\)/);
   const textInParenthesis = parenthesisMatch ? parenthesisMatch[1].toLowerCase() : "";
   
-  // Verificar keywords requeridas
   if (keywords && keywords.length > 0 && keywords[0] !== "") {
     const matchesKeyword = keywords.some(keyword => 
       productName.includes(keyword.toLowerCase()) || 
       textInParenthesis.includes(keyword.toLowerCase())
     );
-    
     if (!matchesKeyword) return false;
   }
   
-  // Verificar keywords de exclusión (si alguna coincide, se excluye el producto)
   if (excludeKeywords && excludeKeywords.length > 0) {
     const isExcluded = excludeKeywords.some(exclude => 
       productName.includes(exclude.toLowerCase()) || 
       textInParenthesis.includes(exclude.toLowerCase())
     );
-    
     if (isExcluded) return false;
   }
   
   return true;
 }
 
-// Función para obtener productos que coinciden con un slot específico
 function getProductsForSlot(products, slot) {
   return products.filter(p => 
     p.Stock > 0 && 
@@ -341,7 +546,7 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   return selected;
 }
 
-function reloadSlot(lookId, slotType, event) {
+window.reloadSlot = function(lookId, slotType, event) {
   event.stopPropagation();
   
   const lookIndex = looks.findIndex(l => l.id === lookId);
@@ -353,7 +558,6 @@ function reloadSlot(lookId, slotType, event) {
   
   const productsWithImages = allProducts.filter(p => (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0);
   
-  // Obtener los IDs de productos ya usados en otros slots
   const usedProductIds = [];
   for (const [key, product] of Object.entries(look.products)) {
     if (key !== slotType && product && product.id) {
@@ -389,18 +593,9 @@ function reloadSlot(lookId, slotType, event) {
   } else {
     alert(`No hay más productos disponibles para esta prenda.`);
   }
-}
+};
 
-function optimizeDriveUrl(url, size = 400) {
-  if (!url) return "";
-  const match = url.match(/[-\w]{25,}/);
-  if (match) {
-    const id = match[0];
-    return `https://drive.google.com/thumbnail?id=${id}&sz=w${size}`;
-  }
-  return url;
-}
-
+// ========== FUNCIONES DE CLIMA ==========
 async function getWeather() {
   try {
     const response = await fetch(`${WEATHER_API_URL}?action=getWeather`);
@@ -497,8 +692,8 @@ function addWeatherBadge() {
   }
 }
 
+// ========== CARGA DE PRODUCTOS Y CONSTRUCCIÓN DE LOOKS ==========
 async function loadProducts() {
-  // 1. Mostrar caché inmediatamente
   const cached = getCachedProducts();
   if (cached && cached.length > 0) {
     allProducts = cached;
@@ -506,12 +701,10 @@ async function loadProducts() {
     buildLooksFromProducts();
     renderLooks();
     addWeatherBadge();
-    // Actualizar en segundo plano
     loadLooksInBackground();
     return;
   }
   
-  // 2. Si no hay caché, cargar completo
   showLoader("Cargando productos...");
   
   try {
@@ -555,24 +748,19 @@ async function loadLooksInBackground() {
   }
 }
 
-// Construir looks - TODOS los looks disponibles, ordenados por prioridad según clima
 function buildLooksFromProducts() {
   if (allProducts.length === 0) return;
   
   const productsWithImages = allProducts.filter(p => (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0);
   
-  // Construir TODOS los looks disponibles
   const allBuiltLooks = [];
   
   for (const config of LOOKS_CONFIG) {
     const selectedProducts = selectProductsForLook(config, productsWithImages);
     
-    // Contar cuántos productos tiene este look
     const productCount = Object.keys(selectedProducts).length;
     
-    // Solo crear el look si tiene al menos 1 producto
     if (productCount > 0) {
-      // Obtener imagen principal (primer producto disponible)
       const firstProductKey = Object.keys(selectedProducts)[0];
       let lookImage = "https://placehold.co/600x800/3b1f5f/ffffff?text=Z&R";
       
@@ -593,7 +781,6 @@ function buildLooksFromProducts() {
     }
   }
   
-  // Ordenar según prioridad del clima (mayor prioridad primero)
   if (currentWeather && currentWeather.weatherType) {
     const priorityScores = WEATHER_PRIORITY_SCORES[currentWeather.weatherType];
     
@@ -601,7 +788,7 @@ function buildLooksFromProducts() {
       allBuiltLooks.sort((a, b) => {
         const scoreA = priorityScores[a.id] || 0;
         const scoreB = priorityScores[b.id] || 0;
-        return scoreB - scoreA; // Mayor prioridad primero
+        return scoreB - scoreA;
       });
     }
   }
@@ -630,7 +817,6 @@ function renderLooks() {
     let productsHtml = '';
     let productCount = 0;
     
-    // Orden: torso → piernas → pies (solo los que existen)
     const slotOrder = ["torso", "piernas", "pies"];
     
     const slotNames = {
@@ -668,7 +854,7 @@ function renderLooks() {
             <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
           </div>
           <div class="look-product-actions">
-            <button class="look-product-add" onclick="event.stopPropagation(); addSingleToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">
+            <button class="look-product-add" onclick="addToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">
               + Agregar
             </button>
             <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">
@@ -715,7 +901,7 @@ function renderLooks() {
   });
 }
 
-function addLookToCart(lookId) {
+window.addLookToCart = function(lookId) {
   const look = looks.find(l => l.id === lookId);
   if (!look) return;
   
@@ -729,7 +915,7 @@ function addLookToCart(lookId) {
   
   products.forEach(product => {
     if (product.stock > 0) {
-      addToCartLocal({
+      addToCart({
         ID: product.id,      
         Nombre: product.name,
         Precio: product.price,
@@ -743,165 +929,10 @@ function addLookToCart(lookId) {
   if (addedCount > 0) {
     animateCartAdd();
   }
-}
+};
 
-// ========== FUNCIONES DE CARRITO CORREGIDAS ==========
-
-function loadCartFromStorage() {
-  try {
-    const raw = localStorage.getItem("cart");
-    localCart = raw ? JSON.parse(raw) : {};
-  } catch {
-    localCart = {};
-  }
-  updateCartBadge();
-}
-
-function saveCartToStorage() {
-  localStorage.setItem("cart", JSON.stringify(localCart));
-}
-
-function updateCartBadge() {
-  const countEl = document.getElementById("cart-count");
-  if (countEl) {
-    const totalQty = Object.values(localCart).reduce((sum, item) => sum + (item.quantity || 0), 0);
-    countEl.textContent = totalQty;
-  }
-}
-
-function addSingleToCart(product) {
-  addToCartLocal(product);
-  animateCartAdd();
-}
-
-function addToCartLocal(product) {
-  const id = product.ID;
-  if (!id) {
-    console.error("Producto sin ID:", product);
-    return;
-  }
-  
-  if (!localCart[id]) {
-    localCart[id] = {
-      id: id,
-      name: product.Nombre || "Producto",
-      price: Number(product.Precio || 0),
-      quantity: 0,
-      Imagen1: product.Imagen1 || "",
-      Talla: product.Talla || ""
-    };
-  }
-  localCart[id].quantity += 1;
-  saveCartToStorage();
-  updateCartBadge();
-  renderCart();
-}
-
-function removeFromCartLocal(id) {
-  if (localCart[id]) {
-    delete localCart[id];
-    saveCartToStorage();
-    updateCartBadge();
-    renderCart();
-  }
-}
-
-function changeCartQtyLocal(id, delta) {
-  if (!localCart[id]) return;
-  localCart[id].quantity += delta;
-  if (localCart[id].quantity <= 0) {
-    delete localCart[id];
-  }
-  saveCartToStorage();
-  updateCartBadge();
-  renderCart();
-}
-
-function renderCart() {
-  const container = document.getElementById("cart-items-container");
-  if (!container) return;
-  
-  container.innerHTML = "";
-  const items = Object.values(localCart);
-  
-  if (items.length === 0) {
-    container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
-  } else {
-    items.forEach((item) => {
-      const row = document.createElement("div");
-      row.className = "cart-item";
-      row.innerHTML = `
-        <div class="cart-item-info">
-          <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
-          <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
-          <div class="cart-item-actions">
-            <button class="qty-btn" onclick="changeCartQty('${item.id}', -1)">−</button>
-            <span class="qty-value">${item.quantity}</span>
-            <button class="qty-btn" onclick="changeCartQty('${item.id}', 1)">+</button>
-            <button class="cart-item-remove" onclick="removeFromCart('${item.id}')">Eliminar</button>
-          </div>
-        </div>
-      `;
-      container.appendChild(row);
-    });
-  }
-
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const subtotalEl = document.getElementById("cart-subtotal");
-  const totalEl = document.getElementById("cart-total");
-  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
-}
-
-function changeCartQty(id, delta) {
-  changeCartQtyLocal(id, delta);
-}
-
-function removeFromCart(id) {
-  removeFromCartLocal(id);
-}
-
-function animateCartAdd() {
-  const btn = document.getElementById("floating-cart-btn");
-  if (btn) {
-    btn.style.transform = "translateY(-4px) scale(1.05)";
-    setTimeout(() => {
-      btn.style.transform = "";
-    }, 180);
-  }
-}
-
-function openCartDrawer() {
-  const drawer = document.getElementById("cart-drawer");
-  const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.add("open");
-  if (overlay) overlay.classList.add("visible");
-}
-
-function closeCartDrawer() {
-  const drawer = document.getElementById("cart-drawer");
-  const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.remove("open");
-  if (overlay) overlay.classList.remove("visible");
-}
-
-function openImageModal(url) {
-  const modal = document.getElementById("image-modal");
-  const img = document.getElementById("image-modal-img");
-  const overlay = document.getElementById("overlay");
-  if (modal && img) {
-    img.src = url;
-    modal.classList.add("open");
-    if (overlay) overlay.classList.add("visible");
-  }
-}
-
-function closeImageModal() {
-  const modal = document.getElementById("image-modal");
-  const overlay = document.getElementById("overlay");
-  if (modal) modal.classList.remove("open");
-  if (overlay) overlay.classList.remove("visible");
-}
+// ========== FUNCIONES DE WHATSAPP (MANTENER CONSISTENCIA) ==========
+// Nota: Estas funciones también deberían ser consistentes con script.js
 
 function buildWhatsAppMessage() {
   const items = Object.values(localCart);
@@ -909,7 +940,7 @@ function buildWhatsAppMessage() {
   
   let message = "Hola, quiero comprar:%0A%0A";
   items.forEach((item) => {
-    message += `ID ${encodeURIComponent(item.id)} - ${item.quantity} pieza${item.quantity > 1 ? "s" : ""}%0A`;
+    message += `${encodeURIComponent(item.name)} - ${item.quantity} pieza${item.quantity > 1 ? "s" : ""}%0A`;
   });
   
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -917,7 +948,6 @@ function buildWhatsAppMessage() {
   return message;
 }
 
-// Función para generar ID único
 function generateRequestId() {
   return 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
 }
@@ -925,21 +955,8 @@ function generateRequestId() {
 let activeRequestId = null;
 let pollingInterval = null;
 
-function showLoader(text = "Cargando...") {
-  const loader = document.getElementById("global-loader");
-  if (!loader) return;
-  const txt = loader.querySelector(".loader-text");
-  if (txt) txt.textContent = text;
-  loader.classList.remove("hidden");
-}
-
-function hideLoader() {
-  const loader = document.getElementById("global-loader");
-  if (loader) loader.classList.add("hidden");
-}
-
-async function openWhatsAppCheckout() {
-  const items = Object.values(cart);
+window.openWhatsAppCheckout = async function() {
+  const items = Object.values(localCart);
   if (items.length === 0) {
     showTemporaryMessage("No hay productos en el carrito", "error");
     return;
@@ -970,7 +987,7 @@ async function openWhatsAppCheckout() {
   
   showLoader("Enviando solicitud...");
   
-  const requestId = 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
+  const requestId = generateRequestId();
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
   let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n\n";
@@ -994,7 +1011,7 @@ async function openWhatsAppCheckout() {
   window.open(whatsappAdminUrl, '_blank');
   
   try {
-    await fetch(SHEET_API_URL, {
+    await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({
         action: "saveClientPhone",
@@ -1011,7 +1028,7 @@ async function openWhatsAppCheckout() {
       talla: item.Talla || ""
     }));
     
-    await fetch(SHEET_API_URL, {
+    await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({
         action: "createNotification",
@@ -1021,7 +1038,7 @@ async function openWhatsAppCheckout() {
     });
     
     // LIMPIAR CARRITO INMEDIATAMENTE
-    cart = {};
+    localCart = {};
     saveCartToStorage();
     updateCartBadge();
     renderCart();
@@ -1030,7 +1047,6 @@ async function openWhatsAppCheckout() {
     
     closeCartDrawer();
     
-    // Polling silencioso (solo para abrir WhatsApp cuando admin confirme)
     startSilentPolling(requestId, clientPhone);
     
   } catch(err) {
@@ -1039,30 +1055,27 @@ async function openWhatsAppCheckout() {
   } finally {
     hideLoader();
   }
-}
-// Polling silencioso - NO muestra nada en el carrito, solo abre WhatsApp cuando el admin confirma
+};
+
 function startSilentPolling(requestId, clientPhone) {
   let interval = setInterval(async () => {
     try {
-      const response = await fetch(`${SHEET_API_URL}?action=checkRequestStatus&requestId=${requestId}`);
+      const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${requestId}`);
       const data = await response.json();
       
       if (data.ok && data.status === 'approved' && data.paymentLink) {
         clearInterval(interval);
         
-        // Construir mensaje para el cliente
         let message = `✅ *¡TU PEDIDO HA SIDO CONFIRMADO!*\n\n`;
         message += `*💰 TOTAL A PAGAR: $${(data.totalAmount || 0).toLocaleString()} MXN*\n\n`;
         message += `🔗 *LINK DE PAGO SEGURO:*\n${data.paymentLink}\n\n`;
         message += `⚠️ *El enlace expira en 30 minutos*\n`;
         message += `¡Gracias por tu compra! 🛍️`;
         
-        // Abrir WhatsApp automáticamente
         let cleanPhone = String(clientPhone).replace(/[^0-9]/g, '');
         if (cleanPhone.length === 10) cleanPhone = "52" + cleanPhone;
         window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
         
-        // Limpiar
         localStorage.removeItem('pending_purchase_' + requestId);
       }
     } catch (err) {
@@ -1070,184 +1083,18 @@ function startSilentPolling(requestId, clientPhone) {
     }
   }, 5000);
   
-  // Limpiar después de 10 minutos
   setTimeout(() => {
     clearInterval(interval);
     localStorage.removeItem('pending_purchase_' + requestId);
   }, 600000);
 }
 
-// Función auxiliar para mostrar mensajes temporales
-function showTemporaryMessage(text, type = "info") {
-  const existing = document.querySelector('.temporary-message');
-  if (existing) existing.remove();
-  
-  const messageDiv = document.createElement("div");
-  messageDiv.className = `temporary-message ${type}`;
-  messageDiv.style.cssText = `
-    position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: ${type === "error" ? "#ef4444" : "#22c55e"};
-    color: white;
-    padding: 12px 24px;
-    border-radius: 50px;
-    font-size: 14px;
-    font-weight: 500;
-    z-index: 10000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    animation: slideUp 0.3s ease;
-  `;
-  messageDiv.textContent = text;
-  document.body.appendChild(messageDiv);
-  
-  setTimeout(() => {
-    messageDiv.style.animation = "slideDown 0.3s ease";
-    setTimeout(() => messageDiv.remove(), 300);
-  }, 3000);
-}
-
-
-// Agregar estilos si no existen
-if (!document.querySelector('#toast-styles')) {
-  const style = document.createElement("style");
-  style.id = "toast-styles";
-  style.textContent = `
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateX(-50%) translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-      }
-    }
-    
-    @keyframes slideDown {
-      from {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-      }
-      to {
-        opacity: 0;
-        transform: translateX(-50%) translateY(20px);
-      }
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-function startWaitingForConfirmation(requestId) {
-  activeRequestId = requestId;
-  
-  // Mostrar estado de espera en el carrito
-  
-  // Iniciar polling cada 5 segundos
-  if (pollingInterval) clearInterval(pollingInterval);
-  
-  pollingInterval = setInterval(async () => {
-    if (!activeRequestId) {
-      if (pollingInterval) clearInterval(pollingInterval);
-      return;
-    }
-    
-    try {
-      const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${activeRequestId}`);
-      const data = await response.json();
-      
-      if (data.ok && data.status === 'approved' && data.paymentLink) {
-        clearInterval(pollingInterval);
-        pollingInterval = null;
-        
-        // Limpiar la solicitud pendiente
-        localStorage.removeItem('pending_purchase_' + activeRequestId);
-        
-        // Mostrar mensaje simple de que llegará el WhatsApp
-        showTemporaryMessage("✅ ¡Tu pedido ha sido confirmado! Revisa tu WhatsApp para el link de pago.", "success");
-        
-        // Limpiar carrito
-        localCart = {};
-        saveCartToStorage();
-        updateCartBadge();
-        renderCart();
-        
-        // Cerrar el carrito drawer
-        closeCartDrawer();
-        
-        activeRequestId = null;
-      } else if (data.ok && data.status === 'rejected') {
-        clearInterval(pollingInterval);
-        pollingInterval = null;
-        showTemporaryMessage("❌ Lo sentimos, tu pedido fue rechazado por falta de stock.", "error");
-        activeRequestId = null;
-      }
-    } catch (err) {
-      console.error("Error checking request status:", err);
-    }
-  }, 5000);
-}
-
-
-
-
-
-
-
-function getTotalFromRequest(requestId) {
-  const stored = localStorage.getItem('pending_purchase_' + requestId);
-  if (stored) {
-    const request = JSON.parse(stored);
-    return request.total || 0;
-  }
-  return 0;
-}
-
-function showRejectedStatus() {
-  const container = document.getElementById("cart-items-container");
-  if (!container) return;
-  
-  container.innerHTML = `
-    <div style="text-align: center; padding: 40px 20px;">
-      <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
-      <h3 style="color: #ef4444;">Solicitud rechazada</h3>
-      <p style="color: #666; margin: 16px 0;">
-        Lo sentimos, no hay suficiente stock para completar tu compra.
-      </p>
-      <button onclick="location.reload()" class="primary-button">
-        Volver al catálogo
-      </button>
-    </div>
-  `;
-}
-
-function cancelRequest(requestId) {
-  if (confirm("¿Cancelar esta solicitud de compra?")) {
-    localStorage.removeItem('pending_purchase_' + requestId);
-    if (pollingInterval) clearInterval(pollingInterval);
-    pollingInterval = null;
-    activeRequestId = null;
-    renderCart();
-    showTemporaryMessage("Solicitud cancelada", "success");
-  }
-}
-
-function removePendingRequest(requestId) {
-  localStorage.removeItem('pending_purchase_' + requestId);
-  if (pollingInterval) clearInterval(pollingInterval);
-  pollingInterval = null;
-  activeRequestId = null;
-  renderCart();
-}
-
-// Inicialización
+// ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
   loadCartFromStorage();
   loadProducts();
   renderCart();
   
-  // Botones de carrito
   const cartBtn = document.getElementById("floating-cart-btn");
   if (cartBtn) cartBtn.addEventListener("click", openCartDrawer);
   
@@ -1266,7 +1113,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const refreshBtn = document.getElementById("refresh-looks");
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadProducts());
   
-  // Botón solicitar compra
   const requestBtn = document.getElementById("request-purchase-btn");
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 });
+
+// Estilos toast
+if (!document.querySelector('#toast-styles')) {
+  const style = document.createElement("style");
+  style.id = "toast-styles";
+  style.textContent = `
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    @keyframes slideDown {
+      from { opacity: 1; transform: translateX(-50%) translateY(0); }
+      to { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    }
+  `;
+  document.head.appendChild(style);
+}
