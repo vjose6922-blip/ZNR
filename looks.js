@@ -2,10 +2,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36kt
 const WHATSAPP_NUMBER = "528671781272";
 
 // ========== IMPORTAR/CONSISTENCIA CON script.js ==========
-// Estas funciones DEBEN ser las mismas que en script.js
-// Si script.js ya las define globalmente, no es necesario redefinirlas aquí
-
-// Caché persistente con localStorage
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
 
@@ -36,7 +32,6 @@ function setCachedProducts(products) {
   }
 }
 
-// ========== FUNCIONES DE UTILIDAD (deben ser idénticas a script.js) ==========
 function formatCurrency(value) {
   const num = Number(value) || 0;
   return `$${num.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`;
@@ -109,10 +104,7 @@ function showTemporaryMessage(text, type = "info") {
   }, 3000);
 }
 
-// ========== FUNCIONES DE CARRITO (IDÉNTICAS A script.js) ==========
-// Estas funciones DEBEN ser exactamente iguales a las de script.js
-// para mantener la consistencia del carrito
-
+// ========== FUNCIONES DE CARRITO ==========
 let localCart = {};
 
 function loadCartFromStorage() {
@@ -137,7 +129,6 @@ function updateCartBadge() {
   }
 }
 
-// Función principal para agregar al carrito (idéntica a script.js)
 function addToCart(product) {
   const id = product.ID;
   if (!id) {
@@ -162,7 +153,6 @@ function addToCart(product) {
   renderCart();
 }
 
-// Funciones globales para que funcionen los onclick
 window.changeCartQty = function(id, delta) {
   if (!localCart[id]) return;
   localCart[id].quantity += delta;
@@ -263,14 +253,15 @@ function closeImageModal() {
 const WEATHER_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 let currentWeather = null;
 
+// MAPA DE PRIORIDADES POR CLIMA - COMPLETO Y CORREGIDO
 const WEATHER_PRIORITY_SCORES = {
   calor: {
     "look_verano_dama": 100,
     "look_verano_caballero": 100,
     "look_falda_dama": 95,
+    "look_vestido_dama": 90,
     "look_casual_dama": 80,
     "look_casual_caballero": 80,
-    "look_vestido_dama": 85,
     "look_elegante_dama": 60,
     "look_elegante_caballero": 60,
     "look_confort_dama": 40,
@@ -288,9 +279,9 @@ const WEATHER_PRIORITY_SCORES = {
     "look_elegante_dama": 65,
     "look_elegante_caballero": 65,
     "look_vestido_dama": 50,
+    "look_falda_dama": 40,
     "look_verano_dama": 10,
-    "look_verano_caballero": 10,
-    "look_falda_dama": 30
+    "look_verano_caballero": 10
   },
   templado: {
     "look_casual_dama": 100,
@@ -316,9 +307,9 @@ const WEATHER_PRIORITY_SCORES = {
     "look_elegante_dama": 60,
     "look_elegante_caballero": 60,
     "look_vestido_dama": 50,
+    "look_falda_dama": 40,
     "look_verano_dama": 20,
-    "look_verano_caballero": 20,
-    "look_falda_dama": 40
+    "look_verano_caballero": 20
   }
 };
 
@@ -440,7 +431,7 @@ const LOOKS_CONFIG = [
   },
   {
     id: "look_chamarra_caballero",
-    name: "🧥 Abrigate",
+    name: "🧥 Abrigate Hombre",
     description: "Luce tu chamarra",
     category: "Hombre",
     slots: [
@@ -603,14 +594,21 @@ async function getWeather() {
     
     if (data.ok && data.weatherType) {
       currentWeather = data;
-      console.log("Clima actual:", data.weatherType, data.temperature, data.city);
+      console.log("🌤️ Clima actual:", data.weatherType, data.temperature, data.city);
       addWeatherNotification(data);
       return data;
+    } else {
+      // Si no hay clima, usar templado por defecto
+      currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
+      console.log("⚠️ No se pudo obtener clima, usando 'templado' por defecto");
+      return currentWeather;
     }
   } catch (err) {
     console.error("Error obteniendo clima:", err);
+    // Usar templado por defecto si hay error
+    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
+    return currentWeather;
   }
-  return null;
 }
 
 function addWeatherNotification(weather) {
@@ -670,19 +668,32 @@ function addWeatherBadge() {
   if (existingBadge) existingBadge.remove();
   
   let orderText = "";
+  let orderIcon = "";
   switch(currentWeather.weatherType) {
-    case 'calor': orderText = "🔥 Looks ordenados por prioridad: frescos primero"; break;
-    case 'frio': orderText = "❄️ Looks ordenados por prioridad: abrigadores primero"; break;
-    case 'lluvioso': orderText = "🌧️ Looks ordenados por prioridad: impermeables primero"; break;
-    default: orderText = "✨ Looks ordenados por popularidad";
+    case 'calor': 
+      orderText = "🔥 Looks ordenados por prioridad: frescos primero"; 
+      orderIcon = "☀️";
+      break;
+    case 'frio': 
+      orderText = "❄️ Looks ordenados por prioridad: abrigadores primero"; 
+      orderIcon = "🧥";
+      break;
+    case 'lluvioso': 
+      orderText = "🌧️ Looks ordenados por prioridad: impermeables primero"; 
+      orderIcon = "☔";
+      break;
+    default: 
+      orderText = "✨ Looks ordenados por popularidad";
+      orderIcon = "🌡️";
   }
   
   const badge = document.createElement('div');
   badge.className = 'weather-order-badge';
   badge.innerHTML = `
     <div class="weather-order-content">
-      <span>${currentWeather.weatherType === 'calor' ? '☀️' : currentWeather.weatherType === 'frio' ? '❄️' : '🌡️'}</span>
+      <span>${orderIcon}</span>
       <span>${orderText}</span>
+      <span>${currentWeather.temperature ? `${currentWeather.temperature}°C` : ''}</span>
     </div>
   `;
   
@@ -692,15 +703,42 @@ function addWeatherBadge() {
   }
 }
 
+// ========== FUNCIÓN PRINCIPAL DE ORDENAMIENTO ==========
+function sortLooksByWeather(looksArray) {
+  if (!currentWeather || !currentWeather.weatherType) {
+    console.log("No hay clima disponible, mostrando looks sin ordenar");
+    return looksArray;
+  }
+  
+  const weatherType = currentWeather.weatherType;
+  const priorityScores = WEATHER_PRIORITY_SCORES[weatherType];
+  
+  if (!priorityScores) {
+    console.log(`No hay puntuaciones para clima: ${weatherType}`);
+    return looksArray;
+  }
+  
+  console.log(`🎯 Ordenando looks para clima: ${weatherType}`);
+  console.log("Puntuaciones:", priorityScores);
+  
+  const sortedLooks = [...looksArray].sort((a, b) => {
+    const scoreA = priorityScores[a.id] || 0;
+    const scoreB = priorityScores[b.id] || 0;
+    console.log(`  ${a.id}: ${scoreA} | ${b.id}: ${scoreB}`);
+    return scoreB - scoreA;
+  });
+  
+  return sortedLooks;
+}
+
 // ========== CARGA DE PRODUCTOS Y CONSTRUCCIÓN DE LOOKS ==========
 async function loadProducts() {
   const cached = getCachedProducts();
   if (cached && cached.length > 0) {
     allProducts = cached;
-    await getWeather();
+    await getWeather();  // Esperar a tener el clima
     buildLooksFromProducts();
-    renderLooks();
-    addWeatherBadge();
+    // No renderizar aquí, se hace al final
     loadLooksInBackground();
     return;
   }
@@ -708,7 +746,7 @@ async function loadProducts() {
   showLoader("Cargando productos...");
   
   try {
-    await getWeather();
+    await getWeather();  // Esperar a tener el clima ANTES de construir looks
     
     const res = await fetch(API_URL);
     const data = await res.json();
@@ -717,8 +755,6 @@ async function loadProducts() {
     setCachedProducts(allProducts);
     
     buildLooksFromProducts();
-    renderLooks();
-    addWeatherBadge();
     
   } catch (err) {
     console.error("Error cargando productos:", err);
@@ -781,19 +817,18 @@ function buildLooksFromProducts() {
     }
   }
   
-  if (currentWeather && currentWeather.weatherType) {
-    const priorityScores = WEATHER_PRIORITY_SCORES[currentWeather.weatherType];
-    
-    if (priorityScores) {
-      allBuiltLooks.sort((a, b) => {
-        const scoreA = priorityScores[a.id] || 0;
-        const scoreB = priorityScores[b.id] || 0;
-        return scoreB - scoreA;
-      });
-    }
-  }
+  // APLICAR ORDENAMIENTO POR CLIMA
+  console.log(`🌡️ Clima actual para ordenamiento: ${currentWeather?.weatherType || 'no disponible'}`);
+  looks = sortLooksByWeather(allBuiltLooks);
   
-  looks = allBuiltLooks;
+  console.log(`📋 Looks ordenados (${looks.length} totales):`);
+  looks.forEach((look, idx) => {
+    console.log(`  ${idx + 1}. ${look.name} (${look.id})`);
+  });
+  
+  // Renderizar después de ordenar
+  renderLooks();
+  addWeatherBadge();
 }
 
 function renderLooks() {
@@ -931,9 +966,7 @@ window.addLookToCart = function(lookId) {
   }
 };
 
-// ========== FUNCIONES DE WHATSAPP (MANTENER CONSISTENCIA) ==========
-// Nota: Estas funciones también deberían ser consistentes con script.js
-
+// ========== FUNCIONES DE WHATSAPP ==========
 function buildWhatsAppMessage() {
   const items = Object.values(localCart);
   if (items.length === 0) return "";
@@ -1037,7 +1070,6 @@ window.openWhatsAppCheckout = async function() {
       })
     });
     
-    // LIMPIAR CARRITO INMEDIATAMENTE
     localCart = {};
     saveCartToStorage();
     updateCartBadge();
@@ -1132,4 +1164,4 @@ if (!document.querySelector('#toast-styles')) {
     }
   `;
   document.head.appendChild(style);
-}
+    }
