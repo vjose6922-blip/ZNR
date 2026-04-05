@@ -811,7 +811,7 @@ function renderLooks() {
     let productsHtml = '';
     let productCount = 0;
     
-    const slotOrder = ["torso", "piernas", "pies"];
+    const slotOrder = ["", "", ""];
     
     const slotNames = {
       torso: "",
