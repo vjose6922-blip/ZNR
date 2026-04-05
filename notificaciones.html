@@ -491,14 +491,18 @@ async function confirmGroupPurchase(requestId) {
       summary += `💰 Total a pagar: $${(data.totalAmount || 0).toLocaleString()}\n`;
     }
     if (data.paymentLink) {
-      summary += `\n🔗 Link de pago generado. Se enviará al cliente por WhatsApp.`;
+      summary += `\n🔗 Link de pago generado.`;
     }
     
     alert(summary);
     
-    // Abrir WhatsApp automáticamente si hay link de pago
+    // ========== ABRIR WHATSAPP AUTOMÁTICAMENTE ==========
     if (data.whatsappUrl) {
+      console.log("Abriendo WhatsApp:", data.whatsappUrl);
+      // Abrir en una nueva pestaña/ventana
       window.open(data.whatsappUrl, '_blank');
+    } else {
+      console.log("No hay whatsappUrl en la respuesta", data);
     }
     
     // Recargar notificaciones
