@@ -398,8 +398,8 @@ async function loadNotifications() {
             </button>
           ` : ''}
           ${availableProducts.length > 0 ? `
-            <button class="btn btn-confirm" onclick="confirmGroupPurchase('${group.requestId}')">
-              ✅ Confirmar compra (${availableProducts.length} producto${availableProducts.length !== 1 ? 's' : ''})
+            <button class="btn btn-" onclick="GroupPurchase('${group.requestId}')">
+              ✅ ar compra (${availableProducts.length} producto${availableProducts.length !== 1 ? 's' : ''})
             </button>
           ` : ''}
           <button class="btn btn-cancel" onclick="cancelGroupPurchase('${group.requestId}')">
@@ -491,18 +491,14 @@ async function confirmGroupPurchase(requestId) {
       summary += `💰 Total a pagar: $${(data.totalAmount || 0).toLocaleString()}\n`;
     }
     if (data.paymentLink) {
-      summary += `\n🔗 Link de pago generado.`;
+      summary += `\n🔗 Link de pago generado. Se enviará al cliente por WhatsApp.`;
     }
     
     alert(summary);
     
-    // ========== ABRIR WHATSAPP AUTOMÁTICAMENTE ==========
+    // ABRIR WHATSAPP AUTOMÁTICAMENTE CON EL MENSAJE COMPLETO
     if (data.whatsappUrl) {
-      console.log("Abriendo WhatsApp:", data.whatsappUrl);
-      // Abrir en una nueva pestaña/ventana
       window.open(data.whatsappUrl, '_blank');
-    } else {
-      console.log("No hay whatsappUrl en la respuesta", data);
     }
     
     // Recargar notificaciones
