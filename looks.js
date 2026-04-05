@@ -661,47 +661,7 @@ function addWeatherNotification(weather) {
   }, 8000);
 }
 
-function addWeatherBadge() {
-  if (!currentWeather || !currentWeather.weatherType) return;
-  
-  const existingBadge = document.querySelector('.weather-order-badge');
-  if (existingBadge) existingBadge.remove();
-  
-  let orderText = "";
-  let orderIcon = "";
-  switch(currentWeather.weatherType) {
-    case 'calor': 
-      orderText = "🔥 Looks ordenados por prioridad: frescos primero"; 
-      orderIcon = "☀️";
-      break;
-    case 'frio': 
-      orderText = "❄️ Looks ordenados por prioridad: abrigadores primero"; 
-      orderIcon = "🧥";
-      break;
-    case 'lluvioso': 
-      orderText = "🌧️ Looks ordenados por prioridad: impermeables primero"; 
-      orderIcon = "☔";
-      break;
-    default: 
-      orderText = "✨ Looks ordenados por popularidad";
-      orderIcon = "🌡️";
-  }
-  
-  const badge = document.createElement('div');
-  badge.className = 'weather-order-badge';
-  badge.innerHTML = `
-    <div class="weather-order-content">
-      <span>${orderIcon}</span>
-      <span>${orderText}</span>
-      <span>${currentWeather.temperature ? `${currentWeather.temperature}°C` : ''}</span>
-    </div>
-  `;
-  
-  const hero = document.querySelector('.looks-hero');
-  if (hero) {
-    hero.insertAdjacentElement('afterend', badge);
-  }
-}
+
 
 // ========== FUNCIÓN PRINCIPAL DE ORDENAMIENTO ==========
 function sortLooksByWeather(looksArray) {
@@ -828,7 +788,6 @@ function buildLooksFromProducts() {
   
   // Renderizar después de ordenar
   renderLooks();
-  addWeatherBadge();
 }
 
 function renderLooks() {
