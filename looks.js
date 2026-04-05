@@ -811,12 +811,12 @@ function renderLooks() {
     let productsHtml = '';
     let productCount = 0;
     
-    const slotOrder = ["", "", ""];
+    const slotOrder = ["torso", "piernas", "pies"];
     
     const slotNames = {
-      torso: "",
-      piernas: "",
-      pies: ""
+      : "",
+      : "",
+      : ""
     };
     
     const slotIcons = {
