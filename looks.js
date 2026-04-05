@@ -820,9 +820,9 @@ function renderLooks() {
     };
     
     const slotIcons = {
-      torso: "👕",
-      piernas: "👖",
-      pies: "👟"
+      torso: "",
+      piernas: "",
+      pies: ""
     };
     
     for (const slotKey of slotOrder) {
