@@ -981,23 +981,29 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   return selected;
 }
 
-window.reloadSlot = async function(lookId, slotType, event) {
+  window.reloadSlot = async function(lookId, slotType, event) {
   if (event) event.stopPropagation();
   
-  console.log("🔄 Recargando prenda - Look:", lookId, "Slot:", slotType);
+  console.log("🔄 Recargando prenda - Look ID recibido:", lookId, "Slot:", slotType);
+  console.log("Looks disponibles:", looks.map(l => ({ id: l.id, name: l.name })));
   
-  // Buscar el look en el array global
-  const lookIndex = looks.findIndex(l => l.id === lookId);
+  // Buscar el look en el array global - comparación más flexible
+  const lookIndex = looks.findIndex(l => String(l.id) === String(lookId));
+  
   if (lookIndex === -1) {
-    console.error("❌ Look no encontrado:", lookId);
-    alert("Error: No se encontró el look");
+    console.error("❌ Look no encontrado. Buscado:", lookId);
+    console.log("IDs disponibles:", looks.map(l => l.id));
+    showTemporaryMessage("Error: No se encontró el look", "error");
     return;
   }
   
   const look = looks[lookIndex];
   const lookConfig = LOOKS_CONFIG.find(c => c.id === lookId);
+  
   if (!lookConfig) {
-    console.error("❌ Configuración no encontrada:", lookId);
+    console.error("❌ Configuración no encontrada para:", lookId);
+    console.log("Configuraciones disponibles:", LOOKS_CONFIG.map(c => c.id));
+    showTemporaryMessage("Error: Configuración del look no encontrada", "error");
     return;
   }
   
@@ -1005,6 +1011,7 @@ window.reloadSlot = async function(lookId, slotType, event) {
   const slot = lookConfig.slots.find(s => s.type === slotType);
   if (!slot) {
     console.error("❌ Slot no encontrado:", slotType);
+    showTemporaryMessage(`Error: Slot "${slotType}" no encontrado`, "error");
     return;
   }
   
@@ -1016,7 +1023,7 @@ window.reloadSlot = async function(lookId, slotType, event) {
   );
   
   if (productsWithImages.length === 0) {
-    alert("⚠️ No hay productos disponibles en este momento");
+    showTemporaryMessage("⚠️ No hay productos disponibles", "error");
     return;
   }
   
@@ -1028,12 +1035,12 @@ window.reloadSlot = async function(lookId, slotType, event) {
     }
   }
   
-  // Productos disponibles para este slot (excluyendo los ya usados)
+  // Productos disponibles para este slot
   const availableProducts = getProductsForSlot(productsWithImages, slot);
   const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
   
   if (freshProducts.length === 0) {
-    alert("⚠️ No hay más productos disponibles para esta prenda.");
+    showTemporaryMessage("⚠️ No hay más productos disponibles para esta prenda", "error");
     return;
   }
   
@@ -1060,13 +1067,14 @@ window.reloadSlot = async function(lookId, slotType, event) {
     look.image = optimizeDriveUrl(updatedProduct.image, 500);
   }
   
-  // IMPORTANTE: Actualizar el array looks con el objeto modificado
+  // Actualizar el array looks
   looks[lookIndex] = { ...look };
+  allLooks = [...looks]; // Sincronizar allLooks con looks
   
-  // Re-renderizar todos los looks para reflejar los cambios
+  // Re-renderizar
   renderLooks();
   
-  console.log("✅ Prenda actualizada correctamente:", newProduct.Nombre);
+  console.log("✅ Prenda actualizada:", newProduct.Nombre);
   showTemporaryMessage(`✓ Prenda actualizada: ${newProduct.Nombre}`, "success");
 };
 
@@ -1232,12 +1240,10 @@ function buildLooksFromProducts() {
   if (allProducts.length === 0) return;
   
   const productsWithImages = allProducts.filter(p => (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0);
-  
   const allBuiltLooks = [];
   
   for (const config of LOOKS_CONFIG) {
     const selectedProducts = selectProductsForLook(config, productsWithImages);
-    
     const productCount = Object.keys(selectedProducts).length;
     
     if (productCount > 0) {
@@ -1249,7 +1255,7 @@ function buildLooksFromProducts() {
       }
       
       allBuiltLooks.push({
-        id: config.id,
+        id: config.id,  // Asegurar que el ID es el string correcto
         name: config.name,
         description: config.description,
         category: config.category,
@@ -1261,21 +1267,15 @@ function buildLooksFromProducts() {
     }
   }
   
-  // APLICAR ORDENAMIENTO POR CLIMA
-  console.log(`🌡️ Clima actual para ordenamiento: ${currentWeather?.weatherType || 'no disponible'}`);
+  // Ordenar y asignar
   allLooks = sortLooksByWeather(allBuiltLooks);
+  looks = [...allLooks]; // Sincronizar ambos arrays
   
-  console.log(`📋 Looks ordenados (${allLooks.length} totales):`);
-  allLooks.forEach((look, idx) => {
-    console.log(`  ${idx + 1}. ${look.name} (${look.id})`);
-  });
+  console.log("✅ Looks construidos:", looks.map(l => ({ id: l.id, name: l.name })));
   
-  // Resetear página al recargar looks
   currentLooksPage = 1;
-  
-  // Renderizar después de ordenar
   renderLooks();
-}
+      }
 
 function renderLooks() {
   const container = document.getElementById("looks-container");
@@ -1351,8 +1351,8 @@ function renderLooks() {
               + Agregar
             </button>
             <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">
-              🔄
-            </button>
+  🔄
+</button>
           </div>
         </div>
       `;
