@@ -1161,41 +1161,116 @@ function updateSavedPhoneDisplay() {
   }
 }
 
-// Función para cambiar el número
+// Función para cambiar el número (con modal personalizado)
 function changePhoneNumber() {
+  const modal = document.getElementById("change-phone-modal");
+  const currentPhoneDisplay = document.getElementById("current-phone-display");
+  const newPhoneInput = document.getElementById("new-phone-input");
+  const errorMessage = document.getElementById("phone-error-message");
+  const saveBtn = document.getElementById("save-phone-btn");
+  const closeBtn = document.getElementById("close-phone-modal-btn");
+  
+  if (!modal) return;
+  
+  // Obtener número actual y formatearlo
   const currentPhone = localStorage.getItem("client_phone") || "";
   const formattedCurrent = currentPhone && currentPhone.length === 10 
     ? `${currentPhone.slice(0,2)}-${currentPhone.slice(2,6)}-${currentPhone.slice(6)}` 
-    : "no guardado";
+    : "No guardado";
   
-  const newPhone = prompt(
-    "📱 Cambiar número de WhatsApp:\n\n" +
-    `Número actual: ${formattedCurrent}\n\n` +
-    "Ingresa tu nuevo número (10 dígitos):\n" +
-    "Ejemplo: 8671234567\n\n" +
-    "⚠️ Solo números, sin espacios ni código país.",
-    currentPhone || ""
-  );
+  // Mostrar número actual
+  if (currentPhoneDisplay) {
+    currentPhoneDisplay.value = formattedCurrent;
+  }
   
-  if (newPhone === null) return; // Usuario canceló
+  // Limpiar input y errores
+  if (newPhoneInput) {
+    newPhoneInput.value = "";
+    newPhoneInput.focus();
+  }
+  if (errorMessage) {
+    errorMessage.style.display = "none";
+    errorMessage.textContent = "";
+  }
   
-  if (newPhone === "") {
-    // Si está vacío, preguntar si quiere eliminar
-    if (confirm("¿Eliminar tu número guardado? Deberás ingresarlo nuevamente en tu próxima compra.")) {
-      localStorage.removeItem("client_phone");
-      updateSavedPhoneDisplay();
-      showTemporaryMessage("📱 Número eliminado", "success");
+  // Mostrar modal
+  modal.style.display = "flex";
+  
+  // Función para guardar
+  const handleSave = () => {
+    const newPhone = newPhoneInput.value.trim();
+    
+    // Validar que no esté vacío
+    if (newPhone === "") {
+      if (errorMessage) {
+        errorMessage.textContent = "❌ Por favor ingresa un número de teléfono";
+        errorMessage.style.display = "block";
+      }
+      return;
     }
-    return;
-  }
+    
+    // Limpiar solo números
+    let cleanPhone = newPhone.replace(/[^0-9]/g, '');
+    
+    // Validar longitud
+    if (cleanPhone.length !== 10) {
+      if (errorMessage) {
+        errorMessage.textContent = "❌ Número inválido. Debe tener exactamente 10 dígitos.";
+        errorMessage.style.display = "block";
+      }
+      return;
+    }
+    
+    // Guardar número
+    localStorage.setItem("client_phone", cleanPhone);
+    updateSavedPhoneDisplay();
+    showTemporaryMessage("✅ ¡Número actualizado correctamente!", "success");
+    
+    // Cerrar modal
+    modal.style.display = "none";
+    cleanup();
+  };
   
-  let cleanPhone = newPhone.replace(/[^0-9]/g, '');
-  if (cleanPhone.length !== 10) {
-    showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
-    return;
-  }
+  // Función para cerrar sin guardar
+  const handleClose = () => {
+    modal.style.display = "none";
+    cleanup();
+  };
   
-  localStorage.setItem("client_phone", cleanPhone);
-  updateSavedPhoneDisplay();
-  showTemporaryMessage("✅ ¡Número actualizado correctamente!", "success");
+  // Limpiar event listeners
+  const cleanup = () => {
+    saveBtn.removeEventListener("click", handleSave);
+    closeBtn.removeEventListener("click", handleClose);
+    // También remover el evento de tecla Enter
+    newPhoneInput.removeEventListener("keypress", handleKeyPress);
+  };
+  
+  // Evento de tecla Enter
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+  
+  // Agregar event listeners
+  saveBtn.addEventListener("click", handleSave);
+  closeBtn.addEventListener("click", handleClose);
+  newPhoneInput.addEventListener("keypress", handleKeyPress);
+  
+  // Cerrar al hacer clic fuera del modal
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      handleClose();
+    }
+  }, { once: true });
+}
+
+// Función para eliminar el número (opcional, si quieres mantener la opción)
+function deletePhoneNumber() {
+  if (confirm("¿Eliminar tu número guardado? Deberás ingresarlo nuevamente en tu próxima compra.")) {
+    localStorage.removeItem("client_phone");
+    updateSavedPhoneDisplay();
+    showTemporaryMessage("📱 Número eliminado", "success");
+  }
 }
