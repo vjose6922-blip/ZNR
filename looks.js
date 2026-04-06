@@ -228,6 +228,9 @@ function openCartDrawer() {
   const overlay = document.getElementById("overlay");
   if (drawer) drawer.classList.add("open");
   if (overlay) overlay.classList.add("visible");
+  
+  // 🔥 Actualizar display cada vez que se abre el carrito
+  updateSavedPhoneDisplay();
 }
 
 function closeCartDrawer() {
@@ -1184,6 +1187,15 @@ document.addEventListener("DOMContentLoaded", () => {
   
   const requestBtn = document.getElementById("request-purchase-btn");
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
+
+  // 🔥 MOVIDO AQUÍ: Botón para cambiar número dentro del carrito
+  const changePhoneBtn = document.getElementById("change-phone-btn");
+  if (changePhoneBtn) {
+    changePhoneBtn.addEventListener("click", changePhoneNumber);
+  }
+
+  // 🔥 MOVIDO AQUÍ: Actualizar display al cargar la página
+  updateSavedPhoneDisplay();
 });
 
 // Estilos toast
@@ -1201,4 +1213,72 @@ if (!document.querySelector('#toast-styles')) {
     }
   `;
   document.head.appendChild(style);
+}
+
+
+
+
+
+
+
+
+// ========== FUNCIONES PARA CAMBIAR NÚMERO DE TELÉFONO ==========
+
+// Función para mostrar el número guardado en el carrito
+function updateSavedPhoneDisplay() {
+  const container = document.getElementById("saved-phone-container");
+  const display = document.getElementById("saved-phone-display");
+  const savedPhone = localStorage.getItem("client_phone");
+  
+  if (container && display) {
+    if (savedPhone && savedPhone.length === 10) {
+      // Formatear número: XX-XXXX-XXXX
+      const formatted = `${savedPhone.slice(0,2)}-${savedPhone.slice(2,6)}-${savedPhone.slice(6)}`;
+      display.textContent = formatted;
+      container.style.display = "block";
+    } else {
+      container.style.display = "none";
     }
+  }
+}
+
+// Función para cambiar el número
+function changePhoneNumber() {
+  const currentPhone = localStorage.getItem("client_phone") || "";
+  const formattedCurrent = currentPhone && currentPhone.length === 10 
+    ? `${currentPhone.slice(0,2)}-${currentPhone.slice(2,6)}-${currentPhone.slice(6)}` 
+    : "no guardado";
+  
+  const newPhone = prompt(
+    "📱 Cambiar número de WhatsApp:\n\n" +
+    `Número actual: ${formattedCurrent}\n\n` +
+    "Ingresa tu nuevo número (10 dígitos):\n" +
+    "Ejemplo: 8671234567\n\n" +
+    "⚠️ Solo números, sin espacios ni código país.",
+    currentPhone || ""
+  );
+  
+  if (newPhone === null) return; // Usuario canceló
+  
+  if (newPhone === "") {
+    // Si está vacío, preguntar si quiere eliminar
+    if (confirm("¿Eliminar tu número guardado? Deberás ingresarlo nuevamente en tu próxima compra.")) {
+      localStorage.removeItem("client_phone");
+      updateSavedPhoneDisplay();
+      showTemporaryMessage("📱 Número eliminado", "success");
+    }
+    return;
+  }
+  
+  let cleanPhone = newPhone.replace(/[^0-9]/g, '');
+  if (cleanPhone.length !== 10) {
+    showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
+    return;
+  }
+  
+  localStorage.setItem("client_phone", cleanPhone);
+  updateSavedPhoneDisplay();
+  showTemporaryMessage("✅ ¡Número actualizado correctamente!", "success");
+}
+
+
