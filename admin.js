@@ -524,18 +524,18 @@ const NOTIF_API = ADMIN_API_URL + "?action=notifications";
 let lastNotifCount = 0;
 
 async function checkNotifications(){
-
   try{
-
     const res = await fetch(NOTIF_API);
     const data = await res.json();
 
-    console.log("NOTIF DATA:", data); // para debug
+    console.log("NOTIF DATA:", data);
 
     if(!data.ok) return;
 
     const notifications = data.notifications || [];
-    const count = notifications.length;
+    // 🔥 FILTRAR SOLO LOS QUE ESTÁN "pending"
+    const pendingNotifications = notifications.filter(n => n.STATUS === "pending");
+    const count = pendingNotifications.length;
 
     const badge = document.getElementById("notif-badge");
     if(!badge) return;
@@ -551,7 +551,6 @@ async function checkNotifications(){
   }catch(err){
     console.log("notif error",err);
   }
-
 }
 
 
