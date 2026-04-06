@@ -105,7 +105,7 @@
     <div class="cart-body" id="cart-items-container">
       <!-- Items del carrito -->
     </div>
-    <div class="cart-footer">
+   <div class="cart-footer">
   <div class="cart-summary-row">
     <span>Subtotal</span>
     <span id="cart-subtotal">$0</span>
@@ -115,16 +115,20 @@
     <span id="cart-total">$0</span>
   </div>
   
+  <!-- 🔥 Mostrar número guardado y botón para cambiar -->
+  <div id="saved-phone-container" style="font-size: 11px; text-align: center; margin: 8px 0; color: #666; display: none;">
+    📱 Número guardado: <span id="saved-phone-display"></span>
+    <button id="change-phone-btn" style="background: none; border: none; color: #ff4f81; cursor: pointer; text-decoration: underline; margin-left: 5px;">
+      Cambiar
+    </button>
+  </div>
+  
   <!-- Botón SOLICITAR COMPRA -->
   <button id="request-purchase-btn" class="primary-button full-width" 
           style="background: linear-gradient(135deg, #25D366, #128C7E); margin-top: 8px;">
     📝 Solicitar compra (verificar stock)
   </button>
-  
-  <div style="font-size: 11px; text-align: center; margin-top: 8px; color: #666;">
-    ① Solicita compra → ② Admin verifica stock → ③ Link de pago aparece aquí
   </div>
-</div>
 
 
 
