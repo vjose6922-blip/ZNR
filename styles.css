@@ -401,7 +401,7 @@ body {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
-  padding: 5px;
+  padding: 2px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1247,7 +1247,7 @@ body {
 
 .products-container.layout-grid .product-card {
   margin: 0;
-  padding: 4px;
+  padding: 1px;
 }
 
 .products-container.layout-grid .product-slider {
@@ -1331,8 +1331,8 @@ body {
 .app-footer {
   background: linear-gradient(135deg, #0b0714, #05030a);
   color: white;
-  margin-top: 40px;
-  padding: 30px 20px 20px;
+  margin-top: 30px;
+  padding: 20px 150px 15px;
   border-top: 1px solid rgba(255,255,255,0.1);
 }
 
