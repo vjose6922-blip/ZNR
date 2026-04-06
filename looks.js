@@ -875,7 +875,7 @@ function renderLooks() {
         <p class="look-description">${escapeHtml(look.description)}</p>
         <div class="look-products">
           <div class="look-products-title">
-            <span>🛍️ Este look incluye:</span>
+            <span>Este look incluye:</span>
           </div>
           <div class="look-products-list">
             ${productsHtml}
