@@ -1002,3 +1002,26 @@ if (!document.querySelector('#toast-styles')) {
   `;
   document.head.appendChild(style);
 }
+
+
+// Botón para cambiar layout en móvil (2 columnas)
+const layoutBtn = document.getElementById("layout-toggle-btn");
+const productsContainer = document.getElementById("products-container");
+
+if (layoutBtn && productsContainer) {
+  // Cargar preferencia guardada
+  const savedLayout = localStorage.getItem("products_layout");
+  if (savedLayout === "grid") {
+  productsContainer.classList.add("layout-grid");
+  layoutBtn.textContent = "🟦🟦";
+} else {
+  layoutBtn.textContent = "📱";
+}
+
+layoutBtn.addEventListener("click", () => {
+  productsContainer.classList.toggle("layout-grid");
+  const isGrid = productsContainer.classList.contains("layout-grid");
+  localStorage.setItem("products_layout", isGrid ? "grid" : "list");
+  layoutBtn.textContent = isGrid ? "🟦🟦" : "📱";
+});
+}
