@@ -693,7 +693,8 @@ function closeCartDrawer() {
   if (overlay) overlay.classList.remove("visible");
 }
 
-// ========== CHECKOUT Y WHATSAPP ==========
+let privacyModalInstance = null;
+
 async function openWhatsAppCheckout() {
   const items = Object.values(localCart);
   if (items.length === 0) {
@@ -701,12 +702,33 @@ async function openWhatsAppCheckout() {
     return;
   }
   
+  // 🔥 VERIFICAR SI YA ACEPTÓ EL AVISO DE PRIVACIDAD
+  const hasAcceptedPrivacy = localStorage.getItem("privacy_accepted") === "true";
+  
+  if (!hasAcceptedPrivacy) {
+    // Mostrar modal de privacidad
+    showPrivacyModal(() => {
+      // Después de aceptar, continuar con el checkout
+      continueCheckout();
+    });
+    return;
+  }
+  
+  continueCheckout();
+}
+
+// Función que continúa con el checkout después de aceptar privacidad
+async function continueCheckout() {
+  const items = Object.values(localCart);
+  if (items.length === 0) return;
+  
   let clientPhone = localStorage.getItem("client_phone");
   
   if (!clientPhone) {
     clientPhone = prompt(
       "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
-      "⚠️ Solo números, sin espacios ni código país.",
+      "⚠️ Solo números, sin espacios ni código país.\n" +
+      "🔒 Tus datos están protegidos (aceptaste el aviso de privacidad)",
       ""
     );
     
@@ -795,6 +817,83 @@ async function openWhatsAppCheckout() {
   } finally {
     hideLoader();
   }
+}
+
+// Función para mostrar el modal de privacidad
+function showPrivacyModal(onAccept) {
+  // Verificar si ya existe el modal en el DOM
+  let modal = document.getElementById("privacy-modal");
+  
+  if (!modal) {
+    // Crear el modal dinámicamente
+    modal = document.createElement("div");
+    modal.id = "privacy-modal";
+    modal.className = "privacy-modal";
+    modal.innerHTML = `
+      <div class="privacy-modal-content">
+        <div class="privacy-modal-header">
+          <span class="privacy-icon">🔒</span>
+          <h2>Aviso de Privacidad</h2>
+        </div>
+        <div class="privacy-modal-body">
+          <p><strong>Z&R</strong>, con responsabilidad en el tratamiento de sus datos personales, le informa lo siguiente:</p>
+          
+          <h3>📱 Datos recopilados</h3>
+          <p>Para procesar tus compras, recopilamos tu <strong>número de teléfono</strong> (WhatsApp).</p>
+          
+          <h3>🎯 Finalidad</h3>
+          <p>Tu número será utilizado EXCLUSIVAMENTE para:</p>
+          <ul>
+            <li>✓ Confirmar tu identidad en las solicitudes de compra</li>
+            <li>✓ Enviarte el link de pago cuando el administrador confirme tu pedido</li>
+            <li>✓ Comunicarme contigo sobre el estado de tu compra</li>
+          </ul>
+          
+          <h3>🚫 No compartimos tus datos</h3>
+          <p>Tu número de teléfono NO será vendido, cedido ni compartido con terceros. Solo será visible para el administrador de Z&R para procesar tu pedido.</p>
+          
+          <h3>⏰ Conservación</h3>
+          <p>Tus datos se conservarán únicamente durante el tiempo necesario para cumplir con las finalidades descritas.</p>
+          
+          <h3>✋ Tus derechos (ARCO)</h3>
+          <p>Puedes solicitar acceso, rectificación, cancelación u oposición de tus datos escribiendo a: <strong>zrstore@email.com</strong></p>
+          
+          <p class="privacy-date">Última actualización: Abril 2026</p>
+        </div>
+        <div class="privacy-modal-footer">
+          <button id="reject-privacy-btn" class="privacy-btn reject">❌ Rechazar</button>
+          <button id="accept-privacy-btn" class="privacy-btn accept">✅ Aceptar y continuar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  
+  modal.style.display = "flex";
+  
+  const acceptBtn = document.getElementById("accept-privacy-btn");
+  const rejectBtn = document.getElementById("reject-privacy-btn");
+  
+  const handleAccept = () => {
+    localStorage.setItem("privacy_accepted", "true");
+    modal.style.display = "none";
+    if (onAccept) onAccept();
+    cleanup();
+  };
+  
+  const handleReject = () => {
+    modal.style.display = "none";
+    showTemporaryMessage("❌ Debes aceptar el aviso de privacidad para continuar", "error");
+    cleanup();
+  };
+  
+  const cleanup = () => {
+    if (acceptBtn) acceptBtn.removeEventListener("click", handleAccept);
+    if (rejectBtn) rejectBtn.removeEventListener("click", handleReject);
+  };
+  
+  if (acceptBtn) acceptBtn.addEventListener("click", handleAccept);
+  if (rejectBtn) rejectBtn.addEventListener("click", handleReject);
 }
 
 function startSilentPolling(requestId, clientPhone) {
