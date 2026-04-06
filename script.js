@@ -16,6 +16,336 @@ let secretTapTimeout = null;
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000;
 
+// ============================================
+// INTERCEPTOR DE ALERTAS DEL NAVEGADOR
+// ============================================
+
+// Crear estilos para los modales personalizados
+const modalStyles = `
+  .custom-alert-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  .custom-alert-content {
+    background: white;
+    border-radius: 28px;
+    max-width: 380px;
+    width: 85%;
+    overflow: hidden;
+    animation: slideUp 0.3s ease;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+  
+  .custom-alert-header {
+    background: linear-gradient(135deg, #3b1f5f, #ff4f81);
+    color: white;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .custom-alert-icon {
+    font-size: 40px;
+    display: block;
+    margin-bottom: 8px;
+  }
+  
+  .custom-alert-header h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+  
+  .custom-alert-body {
+    padding: 24px 20px;
+    text-align: center;
+    font-size: 15px;
+    color: #333;
+    line-height: 1.5;
+  }
+  
+  .custom-alert-footer {
+    padding: 16px 20px 24px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    border-top: 1px solid #eee;
+  }
+  
+  .custom-alert-btn {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 100px;
+  }
+  
+  .custom-alert-btn.confirm {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+  }
+  
+  .custom-alert-btn.cancel {
+    background: #f5f5f8;
+    color: #666;
+    border: 1px solid #e0e0e0;
+  }
+  
+  .custom-alert-btn.confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+  }
+  
+  .custom-alert-btn.cancel:hover {
+    background: #ffebee;
+    color: #c62828;
+    border-color: #ef9a9a;
+  }
+  
+  .custom-alert-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 14px;
+    margin-top: 12px;
+    box-sizing: border-box;
+  }
+  
+  .custom-alert-input:focus {
+    outline: none;
+    border-color: #ff4f81;
+    box-shadow: 0 0 0 3px rgba(255, 79, 129, 0.1);
+  }
+`;
+
+// Agregar estilos al documento
+if (!document.querySelector("#custom-alert-styles")) {
+  const styleSheet = document.createElement("style");
+  styleSheet.id = "custom-alert-styles";
+  styleSheet.textContent = modalStyles;
+  document.head.appendChild(styleSheet);
+}
+
+// Interceptar alert()
+window.originalAlert = window.alert;
+window.alert = function(message) {
+  return new Promise((resolve) => {
+    showCustomAlert({
+      title: "Aviso",
+      message: String(message),
+      icon: "ℹ️",
+      confirmText: "Aceptar",
+      onConfirm: resolve
+    });
+  });
+};
+
+// Interceptar confirm()
+window.originalConfirm = window.confirm;
+window.confirm = function(message) {
+  return new Promise((resolve) => {
+    showCustomConfirm({
+      title: "Confirmar",
+      message: String(message),
+      icon: "❓",
+      confirmText: "Aceptar",
+      cancelText: "Cancelar",
+      onConfirm: () => resolve(true),
+      onCancel: () => resolve(false)
+    });
+  });
+};
+
+// Interceptar prompt()
+window.originalPrompt = window.prompt;
+window.prompt = function(message, defaultValue = "") {
+  return new Promise((resolve) => {
+    showCustomPrompt({
+      title: "Ingresar información",
+      message: String(message),
+      icon: "📝",
+      defaultValue: defaultValue,
+      confirmText: "Aceptar",
+      cancelText: "Cancelar",
+      onConfirm: (value) => resolve(value),
+      onCancel: () => resolve(null)
+    });
+  });
+};
+
+// Función para mostrar alert personalizada
+function showCustomAlert(options) {
+  const { title, message, icon = "ℹ️", confirmText = "Aceptar", onConfirm } = options;
+  
+  const modal = document.createElement("div");
+  modal.className = "custom-alert-modal";
+  modal.innerHTML = `
+    <div class="custom-alert-content">
+      <div class="custom-alert-header">
+        <span class="custom-alert-icon">${icon}</span>
+        <h3>${escapeHtml(title)}</h3>
+      </div>
+      <div class="custom-alert-body">
+        <p>${escapeHtml(message)}</p>
+      </div>
+      <div class="custom-alert-footer">
+        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
+  
+  const close = () => {
+    modal.style.animation = "fadeOut 0.2s ease";
+    setTimeout(() => {
+      if (modal.parentNode) modal.remove();
+      if (onConfirm) onConfirm();
+    }, 200);
+  };
+  
+  confirmBtn.addEventListener("click", close);
+  
+  // Cerrar al hacer clic fuera
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) close();
+  });
+}
+
+// Función para mostrar confirm personalizada
+function showCustomConfirm(options) {
+  const { title, message, icon = "❓", confirmText = "Aceptar", cancelText = "Cancelar", onConfirm, onCancel } = options;
+  
+  const modal = document.createElement("div");
+  modal.className = "custom-alert-modal";
+  modal.innerHTML = `
+    <div class="custom-alert-content">
+      <div class="custom-alert-header">
+        <span class="custom-alert-icon">${icon}</span>
+        <h3>${escapeHtml(title)}</h3>
+      </div>
+      <div class="custom-alert-body">
+        <p>${escapeHtml(message)}</p>
+      </div>
+      <div class="custom-alert-footer">
+        <button class="custom-alert-btn cancel">${escapeHtml(cancelText)}</button>
+        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
+  const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
+  
+  const close = (callback) => {
+    modal.style.animation = "fadeOut 0.2s ease";
+    setTimeout(() => {
+      if (modal.parentNode) modal.remove();
+      if (callback) callback();
+    }, 200);
+  };
+  
+  confirmBtn.addEventListener("click", () => close(onConfirm));
+  cancelBtn.addEventListener("click", () => close(onCancel));
+  
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) close(onCancel);
+  });
+}
+
+// Función para mostrar prompt personalizado
+function showCustomPrompt(options) {
+  const { title, message, icon = "📝", defaultValue = "", confirmText = "Aceptar", cancelText = "Cancelar", onConfirm, onCancel } = options;
+  
+  const modal = document.createElement("div");
+  modal.className = "custom-alert-modal";
+  modal.innerHTML = `
+    <div class="custom-alert-content">
+      <div class="custom-alert-header">
+        <span class="custom-alert-icon">${icon}</span>
+        <h3>${escapeHtml(title)}</h3>
+      </div>
+      <div class="custom-alert-body">
+        <p>${escapeHtml(message)}</p>
+        <input type="text" class="custom-alert-input" id="custom-prompt-input" value="${escapeHtml(defaultValue)}" autocomplete="off">
+      </div>
+      <div class="custom-alert-footer">
+        <button class="custom-alert-btn cancel">${escapeHtml(cancelText)}</button>
+        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  const input = modal.querySelector("#custom-prompt-input");
+  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
+  const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
+  
+  // Enfocar el input
+  setTimeout(() => input.focus(), 100);
+  
+  const close = (callback, value = null) => {
+    modal.style.animation = "fadeOut 0.2s ease";
+    setTimeout(() => {
+      if (modal.parentNode) modal.remove();
+      if (callback) callback(value);
+    }, 200);
+  };
+  
+  confirmBtn.addEventListener("click", () => close(onConfirm, input.value));
+  cancelBtn.addEventListener("click", () => close(onCancel, null));
+  
+  input.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      close(onConfirm, input.value);
+    }
+  });
+  
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) close(onCancel, null);
+  });
+}
+
+// Agregar animación fadeOut si no existe
+if (!document.querySelector("#fadeOut-animation")) {
+  const fadeOutStyle = document.createElement("style");
+  fadeOutStyle.textContent = `
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+  `;
+  document.head.appendChild(fadeOutStyle);
+}
+
+
+
+
+
+
+
+
+
+
 // ========== FUNCIONES DE CACHÉ ==========
 function getCachedProducts() {
   try {
