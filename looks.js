@@ -887,10 +887,13 @@ function matchesProductCriteria(product, categories, keywords, excludeKeywords =
 }
 
 function getProductsForSlot(products, slot) {
-  return products.filter(p => 
+  console.log("🔍 Buscando productos para slot:", slot);
+  const filtered = products.filter(p => 
     p.Stock > 0 && 
     matchesProductCriteria(p, slot.categories, slot.keywords, slot.excludeKeywords || [])
   );
+  console.log("📦 Encontrados:", filtered.length);
+  return filtered;
 }
 
 function selectProductsForLook(lookConfig, productsWithImages, currentSelection = {}) {
