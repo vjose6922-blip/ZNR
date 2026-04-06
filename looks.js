@@ -382,7 +382,7 @@ const LOOKS_CONFIG = [
   },
   {
     id: "look_chamarra_dama",
-    name: "🧥 Abrigate",
+    name: "🧥🟣 Abrigate",
     description: "Ideal para días frescos",
     category: "Mujer",
     slots: [
@@ -427,7 +427,7 @@ const LOOKS_CONFIG = [
   },
   {
     id: "look_chamarra_caballero",
-    name: "🧥 Abrigate Hombre",
+    name: "🧥🔵 Abrigate",
     description: "Luce tu chamarra",
     category: "Hombre",
     slots: [
@@ -870,7 +870,7 @@ function renderLooks() {
         <p class="look-description">${escapeHtml(look.description)}</p>
         <div class="look-products">
           <div class="look-products-title">
-            <span>Este look incluye:</span>
+            <span>Este outfit incluye:</span>
           </div>
           <div class="look-products-list">
             ${productsHtml}
@@ -881,7 +881,7 @@ function renderLooks() {
           </div>
         </div>
         <button class="buy-look-btn" onclick="addLookToCart('${look.id}')">
-          🛒 Comprar este look
+          🛒 Comprar todo
         </button>
       </div>
     `;
