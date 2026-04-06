@@ -6,9 +6,8 @@ const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
 let currentLooksPage = 1;
 let looksPerPage = 10;
 let allLooks = [];
-
 // ============================================
-// INTERCEPTOR DE ALERTAS DEL NAVEGADOR
+// INTERCEPTOR DE ALERTAS DEL NAVEGADOR - SIN PARPADEOS
 // ============================================
 
 // Crear estilos para los modales personalizados
@@ -25,7 +24,13 @@ const modalStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: fadeIn 0.3s ease;
+    opacity: 0;
+    animation: modalFadeIn 0.2s ease forwards;
+  }
+  
+  .custom-alert-modal.closing {
+    animation: modalFadeOut 0.15s ease forwards;
+    pointer-events: none;
   }
   
   .custom-alert-content {
@@ -34,8 +39,14 @@ const modalStyles = `
     max-width: 380px;
     width: 85%;
     overflow: hidden;
-    animation: slideUp 0.3s ease;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    transform: scale(0.95);
+    opacity: 0;
+    animation: contentScaleIn 0.2s ease forwards;
+  }
+  
+  .custom-alert-modal.closing .custom-alert-content {
+    animation: contentScaleOut 0.15s ease forwards;
   }
   
   .custom-alert-header {
@@ -120,6 +131,38 @@ const modalStyles = `
     border-color: #ff4f81;
     box-shadow: 0 0 0 3px rgba(255, 79, 129, 0.1);
   }
+  
+  @keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes modalFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  
+  @keyframes contentScaleIn {
+    from {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes contentScaleOut {
+    from {
+      transform: scale(1);
+      opacity: 1;
+    }
+    to {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+  }
 `;
 
 // Agregar estilos al documento
@@ -130,16 +173,40 @@ if (!document.querySelector("#custom-alert-styles")) {
   document.head.appendChild(styleSheet);
 }
 
+// Variable para evitar múltiples modales simultáneos
+let activeModal = null;
+
+// Función para cerrar modal actual de forma segura
+function closeCurrentModal() {
+  if (activeModal) {
+    // Marcar como cerrando para evitar animaciones conflictivas
+    activeModal.classList.add("closing");
+    
+    // Esperar a que termine la animación antes de remover
+    setTimeout(() => {
+      if (activeModal && activeModal.parentNode) {
+        activeModal.remove();
+      }
+      activeModal = null;
+    }, 150);
+  }
+}
+
 // Interceptar alert()
 window.originalAlert = window.alert;
 window.alert = function(message) {
   return new Promise((resolve) => {
+    // Cerrar modal anterior si existe
+    closeCurrentModal();
+    
     showCustomAlert({
       title: "Aviso",
       message: String(message),
       icon: "ℹ️",
       confirmText: "Aceptar",
-      onConfirm: resolve
+      onConfirm: () => {
+        resolve();
+      }
     });
   });
 };
@@ -148,6 +215,8 @@ window.alert = function(message) {
 window.originalConfirm = window.confirm;
 window.confirm = function(message) {
   return new Promise((resolve) => {
+    closeCurrentModal();
+    
     showCustomConfirm({
       title: "Confirmar",
       message: String(message),
@@ -164,6 +233,8 @@ window.confirm = function(message) {
 window.originalPrompt = window.prompt;
 window.prompt = function(message, defaultValue = "") {
   return new Promise((resolve) => {
+    closeCurrentModal();
+    
     showCustomPrompt({
       title: "Ingresar información",
       message: String(message),
@@ -186,7 +257,7 @@ function showCustomAlert(options) {
   modal.innerHTML = `
     <div class="custom-alert-content">
       <div class="custom-alert-header">
-        <span class="custom-alert-icon">${icon}</span>
+        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
         <h3>${escapeHtml(title)}</h3>
       </div>
       <div class="custom-alert-body">
@@ -199,22 +270,28 @@ function showCustomAlert(options) {
   `;
   
   document.body.appendChild(modal);
+  activeModal = modal;
   
   const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
   
   const close = () => {
-    modal.style.animation = "fadeOut 0.2s ease";
+    if (!modal.parentNode) return;
+    
+    modal.classList.add("closing");
     setTimeout(() => {
       if (modal.parentNode) modal.remove();
+      if (activeModal === modal) activeModal = null;
       if (onConfirm) onConfirm();
-    }, 200);
+    }, 150);
   };
   
   confirmBtn.addEventListener("click", close);
   
-  // Cerrar al hacer clic fuera
+  // Cerrar al hacer clic fuera (solo si no está cerrando)
   modal.addEventListener("click", (e) => {
-    if (e.target === modal) close();
+    if (e.target === modal && !modal.classList.contains("closing")) {
+      close();
+    }
   });
 }
 
@@ -227,7 +304,7 @@ function showCustomConfirm(options) {
   modal.innerHTML = `
     <div class="custom-alert-content">
       <div class="custom-alert-header">
-        <span class="custom-alert-icon">${icon}</span>
+        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
         <h3>${escapeHtml(title)}</h3>
       </div>
       <div class="custom-alert-body">
@@ -241,23 +318,29 @@ function showCustomConfirm(options) {
   `;
   
   document.body.appendChild(modal);
+  activeModal = modal;
   
   const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
   const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
   
   const close = (callback) => {
-    modal.style.animation = "fadeOut 0.2s ease";
+    if (!modal.parentNode) return;
+    
+    modal.classList.add("closing");
     setTimeout(() => {
       if (modal.parentNode) modal.remove();
+      if (activeModal === modal) activeModal = null;
       if (callback) callback();
-    }, 200);
+    }, 150);
   };
   
   confirmBtn.addEventListener("click", () => close(onConfirm));
   cancelBtn.addEventListener("click", () => close(onCancel));
   
   modal.addEventListener("click", (e) => {
-    if (e.target === modal) close(onCancel);
+    if (e.target === modal && !modal.classList.contains("closing")) {
+      close(onCancel);
+    }
   });
 }
 
@@ -270,7 +353,7 @@ function showCustomPrompt(options) {
   modal.innerHTML = `
     <div class="custom-alert-content">
       <div class="custom-alert-header">
-        <span class="custom-alert-icon">${icon}</span>
+        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
         <h3>${escapeHtml(title)}</h3>
       </div>
       <div class="custom-alert-body">
@@ -285,20 +368,23 @@ function showCustomPrompt(options) {
   `;
   
   document.body.appendChild(modal);
+  activeModal = modal;
   
   const input = modal.querySelector("#custom-prompt-input");
   const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
   const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
   
-  // Enfocar el input
   setTimeout(() => input.focus(), 100);
   
   const close = (callback, value = null) => {
-    modal.style.animation = "fadeOut 0.2s ease";
+    if (!modal.parentNode) return;
+    
+    modal.classList.add("closing");
     setTimeout(() => {
       if (modal.parentNode) modal.remove();
+      if (activeModal === modal) activeModal = null;
       if (callback) callback(value);
-    }, 200);
+    }, 150);
   };
   
   confirmBtn.addEventListener("click", () => close(onConfirm, input.value));
@@ -312,21 +398,13 @@ function showCustomPrompt(options) {
   });
   
   modal.addEventListener("click", (e) => {
-    if (e.target === modal) close(onCancel, null);
+    if (e.target === modal && !modal.classList.contains("closing")) {
+      close(onCancel, null);
+    }
   });
 }
 
-// Agregar animación fadeOut si no existe
-if (!document.querySelector("#fadeOut-animation")) {
-  const fadeOutStyle = document.createElement("style");
-  fadeOutStyle.textContent = `
-    @keyframes fadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-  `;
-  document.head.appendChild(fadeOutStyle);
-}
+
 
 
 
