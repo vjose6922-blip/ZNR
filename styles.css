@@ -1544,3 +1544,21 @@ body {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+
+
+
+
+/* Mejoras para el input del modal */
+#new-phone-input:focus {
+  outline: none;
+  border-color: #ff4f81;
+  box-shadow: 0 0 0 3px rgba(255, 79, 129, 0.1);
+}
+
+#current-phone-display {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 500;
+  color: #3b1f5f;
+}
