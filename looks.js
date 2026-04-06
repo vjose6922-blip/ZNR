@@ -1,7 +1,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 const WHATSAPP_NUMBER = "528671781272";
 
-// ========== IMPORTAR/CONSISTENCIA CON script.js ==========
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
 
@@ -104,7 +103,6 @@ function showTemporaryMessage(text, type = "info") {
   }, 3000);
 }
 
-// ========== FUNCIONES DE CARRITO ==========
 let localCart = {};
 
 function loadCartFromStorage() {
@@ -317,7 +315,6 @@ let allProducts = [];
 let looks = [];
 
 const LOOKS_CONFIG = [
-  // MUJER
   {
     id: "look_casual_dama",
     name: "👟 Casual",
@@ -395,7 +392,6 @@ const LOOKS_CONFIG = [
     ]
   },
   
-  // HOMBRE
   {
     id: "look_casual_caballero",
     name: "👔 Casual Hombre",
@@ -453,7 +449,6 @@ const LOOKS_CONFIG = [
   }
 ];
 
-// ========== FUNCIONES DE PRODUCTOS Y LOOKS ==========
 function matchesProductCriteria(product, categories, keywords, excludeKeywords = []) {
   if (!product) return false;
   
@@ -508,7 +503,7 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
           image: existingProduct.Imagen1 || existingProduct.Imagen2 || "",
           stock: existingProduct.Stock,
           category: existingProduct.Categoria,
-          size: existingProduct.Talla || ""
+          size: existingProduct.Talla || "Talla:"
         };
         usedProductIds.push(String(existingProduct.ID));
         continue;
