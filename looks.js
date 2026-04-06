@@ -1,8 +1,16 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 const WHATSAPP_NUMBER = "528671781272";
-
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
+// Variables para paginación en looks
+let currentLooksPage = 1;
+let looksPerPage = 10;
+let allLooks = [];
+
+
+
+
+
 
 function getCachedProducts() {
   try {
@@ -774,12 +782,15 @@ function buildLooksFromProducts() {
   
   // APLICAR ORDENAMIENTO POR CLIMA
   console.log(`🌡️ Clima actual para ordenamiento: ${currentWeather?.weatherType || 'no disponible'}`);
-  looks = sortLooksByWeather(allBuiltLooks);
+  allLooks = sortLooksByWeather(allBuiltLooks);
   
-  console.log(`📋 Looks ordenados (${looks.length} totales):`);
-  looks.forEach((look, idx) => {
+  console.log(`📋 Looks ordenados (${allLooks.length} totales):`);
+  allLooks.forEach((look, idx) => {
     console.log(`  ${idx + 1}. ${look.name} (${look.id})`);
   });
+  
+  // Resetear página al recargar looks
+  currentLooksPage = 1;
   
   // Renderizar después de ordenar
   renderLooks();
@@ -789,19 +800,26 @@ function renderLooks() {
   const container = document.getElementById("looks-container");
   if (!container) return;
   
-  if (looks.length === 0) {
+  if (allLooks.length === 0) {
     container.innerHTML = `
       <div class="empty-looks">
         <p>✨ No disponibles en este momento.</p>
         <p>Visita el <a href="index.html" style="color:#ff4f81;">catálogo</a> para ver nuestros productos.</p>
       </div>
     `;
+    renderLooksPagination(); // Limpiar paginación
     return;
   }
   
+  // Calcular paginación
+  const totalPages = Math.ceil(allLooks.length / looksPerPage);
+  const start = (currentLooksPage - 1) * looksPerPage;
+  const end = start + looksPerPage;
+  const looksToRender = allLooks.slice(start, end);
+  
   container.innerHTML = "";
   
-  looks.forEach(look => {
+  looksToRender.forEach(look => {
     let totalPrice = 0;
     let productsHtml = '';
     let productCount = 0;
@@ -888,6 +906,71 @@ function renderLooks() {
     
     container.appendChild(card);
   });
+  
+  // Renderizar paginación
+  renderLooksPagination(totalPages);
+}
+
+// Nueva función para renderizar paginación de looks
+function renderLooksPagination(totalPages) {
+  const container = document.getElementById("looks-container");
+  if (!container) return;
+  
+  // Eliminar paginación anterior si existe
+  const existingPagination = document.querySelector(".looks-pagination");
+  if (existingPagination) existingPagination.remove();
+  
+  if (totalPages <= 1) return;
+  
+  const paginationDiv = document.createElement("div");
+  paginationDiv.className = "looks-pagination admin-pagination";
+  paginationDiv.style.cssText = "display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap;";
+  
+  // Botón anterior
+  if (currentLooksPage > 1) {
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "← Anterior";
+    prevBtn.onclick = () => {
+      currentLooksPage--;
+      renderLooks();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    paginationDiv.appendChild(prevBtn);
+  }
+  
+  // Números de página
+  let startPage = Math.max(1, currentLooksPage - 2);
+  let endPage = Math.min(totalPages, startPage + 4);
+  
+  if (endPage - startPage < 4 && startPage > 1) {
+    startPage = Math.max(1, endPage - 4);
+  }
+  
+  for (let i = startPage; i <= endPage; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = i;
+    if (i === currentLooksPage) btn.classList.add("active-page");
+    btn.onclick = () => {
+      currentLooksPage = i;
+      renderLooks();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    paginationDiv.appendChild(btn);
+  }
+  
+  // Botón siguiente
+  if (currentLooksPage < totalPages) {
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Siguiente →";
+    nextBtn.onclick = () => {
+      currentLooksPage++;
+      renderLooks();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    paginationDiv.appendChild(nextBtn);
+  }
+  
+  container.parentNode.insertBefore(paginationDiv, container.nextSibling);
 }
 
 window.addLookToCart = function(lookId) {
