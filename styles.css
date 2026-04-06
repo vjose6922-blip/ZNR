@@ -1268,19 +1268,30 @@ body {
   display: none;
 }
 
+/* Versión 50/50 - ambos botones mismo tamaño */
 .products-container.layout-grid .product-actions {
-  flex-direction: column;
+  flex-direction: row !important;
   gap: 6px;
 }
 
+.products-container.layout-grid .product-actions-left {
+  flex: 1;
+}
+
 .products-container.layout-grid .share-button {
-  padding: 6px 8px;
+  padding: 8px 4px;
   font-size: 11px;
+  width: 100%;
+  text-align: center;
+  display: block;
 }
 
 .products-container.layout-grid .primary-button {
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: 8px 4px;
+  font-size: 11px;
+  flex: 1;
+  text-align: center;
+  margin: 0;
 }
 
 /* Desktop: mantener 4 columnas aunque esté en grid */
