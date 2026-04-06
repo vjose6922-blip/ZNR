@@ -503,7 +503,7 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
           image: existingProduct.Imagen1 || existingProduct.Imagen2 || "",
           stock: existingProduct.Stock,
           category: existingProduct.Categoria,
-          size: existingProduct.Talla || "Talla:"
+          size: existingProduct.Talla || ""
         };
         usedProductIds.push(String(existingProduct.ID));
         continue;
@@ -523,7 +523,7 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
         image: product.Imagen1 || product.Imagen2 || "",
         stock: product.Stock,
         category: product.Categoria,
-        size: product.Talla || ""
+        size: product.Talla ? "Talla: " + product.Talla : "Talla:"
       };
       usedProductIds.push(String(product.ID));
     }
