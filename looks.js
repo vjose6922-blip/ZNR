@@ -887,14 +887,52 @@ function matchesProductCriteria(product, categories, keywords, excludeKeywords =
 }
 
 function getProductsForSlot(products, slot) {
-  console.log("🔍 Buscando productos para slot:", slot);
-  const filtered = products.filter(p => 
-    p.Stock > 0 && 
-    matchesProductCriteria(p, slot.categories, slot.keywords, slot.excludeKeywords || [])
-  );
-  console.log("📦 Encontrados:", filtered.length);
+  console.log(`🔍 Buscando productos para slot ${slot.type}:`, {
+    categories: slot.categories,
+    keywords: slot.keywords,
+    excludeKeywords: slot.excludeKeywords || []
+  });
+  
+  const filtered = products.filter(p => {
+    // Verificar stock
+    if (!p.Stock || p.Stock <= 0 || p.Stock === "0") return false;
+    
+    // Verificar categoría
+    const matchesCategory = slot.categories.length === 0 || slot.categories.includes(p.Categoria);
+    if (!matchesCategory) return false;
+    
+    // Verificar keywords
+    const productName = (p.Nombre || "").toLowerCase();
+    const parenthesisMatch = productName.match(/\(([^)]+)\)/);
+    const textInParenthesis = parenthesisMatch ? parenthesisMatch[1].toLowerCase() : "";
+    
+    if (slot.keywords && slot.keywords.length > 0 && slot.keywords[0] !== "") {
+      const matchesKeyword = slot.keywords.some(keyword => 
+        productName.includes(keyword.toLowerCase()) || 
+        textInParenthesis.includes(keyword.toLowerCase())
+      );
+      if (!matchesKeyword) return false;
+    }
+    
+    // Verificar excludeKeywords
+    if (slot.excludeKeywords && slot.excludeKeywords.length > 0) {
+      const isExcluded = slot.excludeKeywords.some(exclude => 
+        productName.includes(exclude.toLowerCase()) || 
+        textInParenthesis.includes(exclude.toLowerCase())
+      );
+      if (isExcluded) return false;
+    }
+    
+    return true;
+  });
+  
+  console.log(`📦 Encontrados ${filtered.length} productos para slot ${slot.type}`);
+  if (filtered.length > 0) {
+    console.log("Ejemplos:", filtered.slice(0, 3).map(p => p.Nombre));
+  }
+  
   return filtered;
-}
+  }
 
 function selectProductsForLook(lookConfig, productsWithImages, currentSelection = {}) {
   const selected = {};
@@ -946,26 +984,43 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
 window.reloadSlot = async function(lookId, slotType, event) {
   if (event) event.stopPropagation();
   
-  console.log("🔄 Recargando:", lookId, slotType);
+  console.log("🔄 Recargando prenda - Look:", lookId, "Slot:", slotType);
   
   // Buscar el look en el array global
-  const look = looks.find(l => l.id === lookId);
-  if (!look) {
+  const lookIndex = looks.findIndex(l => l.id === lookId);
+  if (lookIndex === -1) {
     console.error("❌ Look no encontrado:", lookId);
     alert("Error: No se encontró el look");
     return;
   }
   
+  const look = looks[lookIndex];
   const lookConfig = LOOKS_CONFIG.find(c => c.id === lookId);
   if (!lookConfig) {
     console.error("❌ Configuración no encontrada:", lookId);
     return;
   }
   
-  // Productos disponibles con stock
-  const productsWithImages = allProducts.filter(p => (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0);
+  // Verificar que el slot exista en la configuración
+  const slot = lookConfig.slots.find(s => s.type === slotType);
+  if (!slot) {
+    console.error("❌ Slot no encontrado:", slotType);
+    return;
+  }
   
-  // IDs ya usados en otros slots
+  // Productos disponibles con stock e imágenes
+  const productsWithImages = allProducts.filter(p => 
+    (p.Imagen1 || p.Imagen2 || p.Imagen3) && 
+    p.Stock > 0 && 
+    p.Stock !== "0"
+  );
+  
+  if (productsWithImages.length === 0) {
+    alert("⚠️ No hay productos disponibles en este momento");
+    return;
+  }
+  
+  // IDs ya usados en otros slots del mismo look (excluyendo el slot actual)
   const usedProductIds = [];
   for (const [key, product] of Object.entries(look.products)) {
     if (key !== slotType && product && product.id) {
@@ -973,10 +1028,7 @@ window.reloadSlot = async function(lookId, slotType, event) {
     }
   }
   
-  const slot = lookConfig.slots.find(s => s.type === slotType);
-  if (!slot) return;
-  
-  // Productos disponibles para este slot
+  // Productos disponibles para este slot (excluyendo los ya usados)
   const availableProducts = getProductsForSlot(productsWithImages, slot);
   const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
   
@@ -989,25 +1041,33 @@ window.reloadSlot = async function(lookId, slotType, event) {
   const randomIndex = Math.floor(Math.random() * freshProducts.length);
   const newProduct = freshProducts[randomIndex];
   
-  // Actualizar el look
-  look.products[slotType] = {
+  // Actualizar el producto en el look
+  const updatedProduct = {
     id: newProduct.ID,
     name: newProduct.Nombre,
     price: Number(newProduct.Precio || 0),
-    image: newProduct.Imagen1 || newProduct.Imagen2 || "",
+    image: newProduct.Imagen1 || newProduct.Imagen2 || newProduct.Imagen3 || "",
     stock: newProduct.Stock,
     category: newProduct.Categoria,
-    size: newProduct.Talla || ""
+    size: newProduct.Talla ? "Talla: " + newProduct.Talla : "Talla no especificada"
   };
   
-  if (slotType === "torso") {
-    look.image = optimizeDriveUrl(newProduct.Imagen1 || newProduct.Imagen2 || "", 500);
+  // Actualizar el producto en el look
+  look.products[slotType] = updatedProduct;
+  
+  // Si es el slot torso, actualizar también la imagen principal del look
+  if (slotType === "torso" && updatedProduct.image) {
+    look.image = optimizeDriveUrl(updatedProduct.image, 500);
   }
   
-  // Volver a renderizar todo (esto asegura que la UI se actualice)
+  // IMPORTANTE: Actualizar el array looks con el objeto modificado
+  looks[lookIndex] = { ...look };
+  
+  // Re-renderizar todos los looks para reflejar los cambios
   renderLooks();
   
-  console.log("✅ Producto actualizado:", newProduct.Nombre);
+  console.log("✅ Prenda actualizada correctamente:", newProduct.Nombre);
+  showTemporaryMessage(`✓ Prenda actualizada: ${newProduct.Nombre}`, "success");
 };
 
 // ========== FUNCIONES DE CLIMA ==========
@@ -1220,6 +1280,11 @@ function buildLooksFromProducts() {
 function renderLooks() {
   const container = document.getElementById("looks-container");
   if (!container) return;
+  
+  // Asegurar que los datos estén actualizados
+  if (allLooks.length === 0 && looks.length > 0) {
+    allLooks = looks;
+  }
   
   if (allLooks.length === 0) {
     container.innerHTML = `
