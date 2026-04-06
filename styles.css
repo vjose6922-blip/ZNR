@@ -1294,6 +1294,21 @@ body {
   margin: 0;
 }
 
+/* Ajustar badge en vista grid */
+.products-container.layout-grid .product-badge {
+  font-size: 8px;
+  padding: 3px 8px;
+  top: 6px;
+  left: 6px;
+}
+
+/* Si el badge está dentro del slider */
+.products-container.layout-grid .product-slider .product-badge {
+  font-size: 8px;
+  padding: 3px 8px;
+}
+
+
 /* Desktop: mantener 4 columnas aunque esté en grid */
 @media (min-width: 768px) {
   .products-container.layout-grid {
