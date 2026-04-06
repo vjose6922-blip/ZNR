@@ -835,7 +835,7 @@ function renderLooks() {
       
       const productImg = optimizeDriveUrl(product.image, 150);
       const slotName = slotNames[slotKey] || "";
-      const slotIcon = slotIcons[slotKey] || "🛍️";
+      const slotIcon = slotIcons[slotKey] || "";
       
       productsHtml += `
         <div class="look-product-item" data-slot="${slotKey}">
