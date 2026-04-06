@@ -940,18 +940,29 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   return selected;
 }
 
-window.reloadSlot = function(lookId, slotType, event) {
-  event.stopPropagation();
+window.reloadSlot = async function(lookId, slotType, event) {
+  if (event) event.stopPropagation();
   
-  const lookIndex = looks.findIndex(l => l.id === lookId);
-  if (lookIndex === -1) return;
+  console.log("🔄 Recargando:", lookId, slotType);
   
-  const look = looks[lookIndex];
+  // Buscar el look en el array global
+  const look = looks.find(l => l.id === lookId);
+  if (!look) {
+    console.error("❌ Look no encontrado:", lookId);
+    alert("Error: No se encontró el look");
+    return;
+  }
+  
   const lookConfig = LOOKS_CONFIG.find(c => c.id === lookId);
-  if (!lookConfig) return;
+  if (!lookConfig) {
+    console.error("❌ Configuración no encontrada:", lookId);
+    return;
+  }
   
+  // Productos disponibles con stock
   const productsWithImages = allProducts.filter(p => (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0);
   
+  // IDs ya usados en otros slots
   const usedProductIds = [];
   for (const [key, product] of Object.entries(look.products)) {
     if (key !== slotType && product && product.id) {
@@ -962,31 +973,38 @@ window.reloadSlot = function(lookId, slotType, event) {
   const slot = lookConfig.slots.find(s => s.type === slotType);
   if (!slot) return;
   
+  // Productos disponibles para este slot
   const availableProducts = getProductsForSlot(productsWithImages, slot);
   const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
   
-  if (freshProducts.length > 0) {
-    const randomIndex = Math.floor(Math.random() * freshProducts.length);
-    const newProduct = freshProducts[randomIndex];
-    
-    look.products[slotType] = {
-      id: newProduct.ID,
-      name: newProduct.Nombre,
-      price: Number(newProduct.Precio || 0),
-      image: newProduct.Imagen1 || newProduct.Imagen2 || "",
-      stock: newProduct.Stock,
-      category: newProduct.Categoria,
-      size: newProduct.Talla || ""
-    };
-    
-    if (slotType === "torso") {
-      look.image = optimizeDriveUrl(newProduct.Imagen1 || newProduct.Imagen2 || "", 500);
-    }
-    
-    renderLooks();
-  } else {
-    alert(`No hay más productos disponibles para esta prenda.`);
+  if (freshProducts.length === 0) {
+    alert("⚠️ No hay más productos disponibles para esta prenda.");
+    return;
   }
+  
+  // Seleccionar producto aleatorio
+  const randomIndex = Math.floor(Math.random() * freshProducts.length);
+  const newProduct = freshProducts[randomIndex];
+  
+  // Actualizar el look
+  look.products[slotType] = {
+    id: newProduct.ID,
+    name: newProduct.Nombre,
+    price: Number(newProduct.Precio || 0),
+    image: newProduct.Imagen1 || newProduct.Imagen2 || "",
+    stock: newProduct.Stock,
+    category: newProduct.Categoria,
+    size: newProduct.Talla || ""
+  };
+  
+  if (slotType === "torso") {
+    look.image = optimizeDriveUrl(newProduct.Imagen1 || newProduct.Imagen2 || "", 500);
+  }
+  
+  // Volver a renderizar todo (esto asegura que la UI se actualice)
+  renderLooks();
+  
+  console.log("✅ Producto actualizado:", newProduct.Nombre);
 };
 
 // ========== FUNCIONES DE CLIMA ==========
