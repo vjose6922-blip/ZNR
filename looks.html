@@ -19,7 +19,40 @@
     margin-bottom: 8px;
   }
 
+/* Estilos para paginación en looks */
+.looks-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
 
+.looks-pagination button {
+  border: 1px solid var(--color-border-subtle);
+  background: white;
+  padding: 6px 12px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.looks-pagination button:hover {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.looks-pagination button.active-page {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.looks-pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 
 
