@@ -564,6 +564,117 @@
       height: 380px;
     }
   }
+
+
+/* Layout grid para looks en móvil */
+.looks-grid.layout-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 12px !important;
+  padding: 12px 12px 80px !important;
+}
+
+.looks-grid.layout-grid .look-card {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.looks-grid.layout-grid .look-image {
+  height: 180px;
+  object-fit: cover;
+}
+
+.looks-grid.layout-grid .look-info {
+  padding: 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.looks-grid.layout-grid .look-title {
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+.looks-grid.layout-grid .look-description {
+  font-size: 11px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.looks-grid.layout-grid .look-category {
+  font-size: 9px;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+}
+
+.looks-grid.layout-grid .look-item-count {
+  font-size: 9px;
+  padding: 2px 8px;
+}
+
+.looks-grid.layout-grid .look-products {
+  display: none;
+}
+
+.looks-grid.layout-grid .look-total {
+  display: none;
+}
+
+.looks-grid.layout-grid .buy-look-btn {
+  padding: 8px;
+  font-size: 11px;
+  margin-top: 8px;
+}
+
+.looks-grid.layout-grid .look-header {
+  margin-bottom: 4px;
+}
+
+/* Botón de layout */
+.layout-toggle-looks-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  border-radius: 30px;
+  padding: 6px 10px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.layout-toggle-looks-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+@media (min-width: 768px) {
+  .looks-grid.layout-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    max-width: 800px;
+  }
+  
+  .looks-grid.layout-grid .look-image {
+    height: 240px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .looks-grid.layout-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    max-width: 1000px;
+  }
+}
+
+
+
+
+
+    
 </style>
 </head>
 <body class="theme-aeromexico">
@@ -583,9 +694,10 @@
       </div>
     </div>
     <div class="header-right">
-      <button class="icon-button" onclick="window.location='index.html'" aria-label="Volver al catálogo">←</button>
-      <button class="icon-button" id="refresh-looks" aria-label="Actualizar">⟳</button>
-    </div>
+  <button class="icon-button" id="layout-toggle-looks" aria-label="Cambiar layout">📱</button>
+  <button class="icon-button" onclick="window.location='index.html'" aria-label="Volver al catálogo">←</button>
+  <button class="icon-button" id="refresh-looks" aria-label="Actualizar">⟳</button>
+</div>
   </header>
 
   <div class="looks-nav">
