@@ -941,17 +941,27 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   return selected;
 }
 
- window.reloadSlot = async function(lookId, slotType, event) {
+window.reloadSlot = async function(lookId, slotType, event) {
   if (event) event.stopPropagation();
   
-  console.log("🔄 Recargando prenda - Look ID:", lookId, "Slot:", slotType);
+  // Capturar el botón que fue presionado
+  const clickedButton = event.currentTarget;
+  
+  // Aplicar efecto de flash al botón
+  if (clickedButton) {
+    clickedButton.classList.add('reload-btn-flash');
+  }
+  
+  // Pequeña pausa para que el flash sea visible antes de recargar
+  await new Promise(resolve => setTimeout(resolve, 150));
   
   // Buscar el look (case-insensitive)
   const lookIndex = looks.findIndex(l => String(l.id).toLowerCase() === String(lookId).toLowerCase());
   
   if (lookIndex === -1) {
-    console.error("❌ Look no encontrado:", lookId);
-    showTemporaryMessage("Error: No se encontró el look", "error");
+    if (clickedButton) {
+      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
+    }
     return;
   }
   
@@ -959,23 +969,23 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   const lookConfig = LOOKS_CONFIG.find(c => c.id.toLowerCase() === lookId.toLowerCase());
   
   if (!lookConfig) {
-    console.error("❌ Configuración no encontrada para:", lookId);
-    showTemporaryMessage("Error: Configuración del look no encontrada", "error");
+    if (clickedButton) {
+      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
+    }
     return;
   }
   
   const slot = lookConfig.slots.find(s => s.type === slotType);
   if (!slot) {
-    console.error("❌ Slot no encontrado:", slotType);
-    showTemporaryMessage(`Error: Slot "${slotType}" no encontrado`, "error");
+    if (clickedButton) {
+      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
+    }
     return;
   }
   
   // Obtener el producto ACTUAL para excluirlo
   const currentProduct = look.products[slotType];
   const currentProductId = currentProduct ? String(currentProduct.id) : null;
-  
-  console.log(`📌 Producto actual en slot ${slotType}:`, currentProductId, currentProduct?.name);
   
   const productsWithImages = allProducts.filter(p => 
     (p.Imagen1 || p.Imagen2 || p.Imagen3) && 
@@ -984,7 +994,9 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   );
   
   if (productsWithImages.length === 0) {
-    showTemporaryMessage("⚠️ No hay productos disponibles", "error");
+    if (clickedButton) {
+      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
+    }
     return;
   }
   
@@ -994,7 +1006,6 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   // 1. Excluir el producto actual del slot que estamos recargando
   if (currentProductId) {
     excludedProductIds.push(currentProductId);
-    console.log(`🚫 Excluyendo producto actual: ${currentProductId}`);
   }
   
   // 2. Excluir productos de OTROS slots en el mismo look (para evitar duplicados en el mismo outfit)
@@ -1003,12 +1014,9 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
       const productId = String(product.id);
       if (!excludedProductIds.includes(productId)) {
         excludedProductIds.push(productId);
-        console.log(`🚫 Excluyendo producto de otro slot (${key}): ${productId}`);
       }
     }
   }
-  
-  console.log(`🚫 Total productos excluidos: ${excludedProductIds.length}`);
   
   // Obtener productos disponibles para el slot
   let availableProducts = getProductsForSlot(productsWithImages, slot);
@@ -1016,19 +1024,17 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   // Filtrar para excluir los IDs prohibidos
   let freshProducts = availableProducts.filter(p => !excludedProductIds.includes(String(p.ID)));
   
-  console.log(`📊 Productos disponibles totales: ${availableProducts.length}`);
-  console.log(`📊 Productos después de excluir: ${freshProducts.length}`);
-  
   // Si no hay productos después de excluir, intentar solo excluyendo el actual
   if (freshProducts.length === 0 && currentProductId) {
-    console.log("⚠️ No hay productos al excluir todos, intentando solo excluir el actual...");
     freshProducts = availableProducts.filter(p => String(p.ID) !== currentProductId);
-    console.log(`📊 Después de excluir solo actual: ${freshProducts.length}`);
   }
   
   // Si aún no hay productos, mostrar mensaje
   if (freshProducts.length === 0) {
-    showTemporaryMessage("⚠️ No hay más productos disponibles diferentes", "error");
+    if (clickedButton) {
+      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
+    }
+    showTemporaryMessage("⚠️ No hay más productos disponibles", "error");
     return;
   }
   
@@ -1036,17 +1042,13 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   const randomIndex = Math.floor(Math.random() * freshProducts.length);
   const newProduct = freshProducts[randomIndex];
   
-  console.log(`✨ Nuevo producto seleccionado: ${newProduct.Nombre} (ID: ${newProduct.ID})`);
-  
   // Verificar que realmente sea diferente al actual
   if (currentProductId && String(newProduct.ID) === currentProductId) {
-    console.warn("⚠️ ADVERTENCIA: El nuevo producto es igual al actual. Esto no debería ocurrir.");
     // Intentar una vez más con un producto diferente
     const otherProducts = freshProducts.filter(p => String(p.ID) !== currentProductId);
     if (otherProducts.length > 0) {
       const newRandomIndex = Math.floor(Math.random() * otherProducts.length);
       const finalProduct = otherProducts[newRandomIndex];
-      console.log(`🔄 Segunda selección (diferente): ${finalProduct.Nombre}`);
       
       const updatedProduct = {
         id: finalProduct.ID,
@@ -1068,7 +1070,11 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
       allLooks = [...looks];
       renderLooks();
       
-      showTemporaryMessage(`✓ Prenda cambiada: ${finalProduct.Nombre}`, "success");
+      // Remover la clase de flash después de renderizar
+      setTimeout(() => {
+        if (clickedButton) clickedButton.classList.remove('reload-btn-flash');
+      }, 400);
+      
       return;
     }
   }
@@ -1099,9 +1105,14 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   // Re-renderizar
   renderLooks();
   
-  console.log("✅ Prenda actualizada exitosamente:", newProduct.Nombre);
-  showTemporaryMessage(`✓ Prenda cambiada: ${newProduct.Nombre}`, "success");
+  // Remover la clase de flash después de renderizar
+  setTimeout(() => {
+    if (clickedButton) clickedButton.classList.remove('reload-btn-flash');
+  }, 400);
 };
+
+
+
 
 // ========== FUNCIONES DE CLIMA ==========
 async function getWeather() {
