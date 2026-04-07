@@ -613,6 +613,45 @@ function closeImageModal() {
   if (overlay) overlay.classList.remove("visible");
 }
 
+
+
+
+
+
+
+
+// ========== FUNCIÓN PARA CAMBIO DE LAYOUT EN LOOKS ==========
+function initLooksLayoutToggle() {
+  const looksContainer = document.getElementById("looks-container");
+  const toggleBtn = document.getElementById("layout-toggle-looks");
+  
+  if (!looksContainer || !toggleBtn) return;
+  
+  // Cargar preferencia guardada
+  const savedLayout = localStorage.getItem("looks_layout");
+  if (savedLayout === "grid") {
+    looksContainer.classList.add("layout-grid");
+    toggleBtn.textContent = "🟦🟦";
+  } else {
+    toggleBtn.textContent = "📱";
+  }
+  
+  // Evento click
+  toggleBtn.addEventListener("click", () => {
+    looksContainer.classList.toggle("layout-grid");
+    const isGrid = looksContainer.classList.contains("layout-grid");
+    localStorage.setItem("looks_layout", isGrid ? "grid" : "list");
+    toggleBtn.textContent = isGrid ? "🟦🟦" : "📱";
+  });
+}
+
+
+
+
+
+
+
+
 const WEATHER_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 let currentWeather = null;
 
@@ -1753,7 +1792,18 @@ if (!document.querySelector('#toast-styles')) {
   document.head.appendChild(style);
 }
 
-
+document.addEventListener("DOMContentLoaded", () => {
+  loadCartFromStorage();
+  loadProducts();
+  renderCart();
+  
+  // ... (código existente)
+  
+  // 🔥 AGREGAR ESTA LÍNEA
+  initLooksLayoutToggle();
+  
+  // ... (resto del código)
+});
 
 
 
