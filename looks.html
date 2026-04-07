@@ -186,7 +186,27 @@
 
 
 
+.reload-btn-flash {
+  animation: btnPulse 0.4s ease-in-out;
+}
 
+@keyframes btnPulse {
+  0% { 
+    transform: scale(1);
+    background: linear-gradient(135deg, #3b1f5f, #ff4f81);
+    box-shadow: 0 0 0 0 rgba(59, 31, 95, 0.7);
+  }
+  50% { 
+    transform: scale(1.2);
+    background: linear-gradient(135deg, #ff4f81, #ff6b9d);
+    box-shadow: 0 0 0 6px rgba(255, 79, 129, 0.4);
+  }
+  100% { 
+    transform: scale(1);
+    background: linear-gradient(135deg, #3b1f5f, #ff4f81);
+    box-shadow: 0 0 0 0 rgba(59, 31, 95, 0);
+  }
+}
 
 
 
@@ -665,18 +685,12 @@
       <p>Moda y estilo para todos</p>
     </div>
     <div class="footer-social">
-      <a href="https://www.instagram.com/tu_usuario" target="_blank" class="social-link" aria-label="Instagram">
-        📷 Instagram
-      </a>
       <a href="https://www.facebook.com/tu_pagina" target="_blank" class="social-link" aria-label="Facebook">
-        📘 Facebook
+        Facebook
       </a>
-      <a href="https://www.tiktok.com/@tu_usuario" target="_blank" class="social-link" aria-label="TikTok">
-        🎵 TikTok
-      </a>
-    </div>
+      </div>
     <div class="footer-copyright">
-      <p>© 2024 Z&R - Todos los derechos reservados</p>
+      <p>© 2026 Z&R - Todos los derechos reservados</p>
     </div>
   </div>
 </footer>
