@@ -194,25 +194,20 @@
   .notifications-wrapper {
     padding: 12px;
   }
-  
   .request-header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
   .request-product-item {
     flex-wrap: wrap;
   }
-  
   .request-product-img {
     width: 60px;
     height: 60px;
   }
-  
   .request-actions {
     flex-direction: column;
   }
-  
   .btn {
     text-align: center;
   }
@@ -244,436 +239,11 @@
 
 <main class="notifications-wrapper" id="notifications"></main>
 
+<!-- Cargar common.js primero -->
+<script src="common.js"></script>
+
 <script>
 const API = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
-// ============================================
-// INTERCEPTOR DE ALERTAS DEL NAVEGADOR - SIN PARPADEOS
-// ============================================
-
-// Crear estilos para los modales personalizados
-const modalStyles = `
-  .custom-alert-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(8px);
-    z-index: 10001;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    animation: modalFadeIn 0.2s ease forwards;
-  }
-  
-  .custom-alert-modal.closing {
-    animation: modalFadeOut 0.15s ease forwards;
-    pointer-events: none;
-  }
-  
-  .custom-alert-content {
-    background: white;
-    border-radius: 28px;
-    max-width: 380px;
-    width: 85%;
-    overflow: hidden;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    transform: scale(0.95);
-    opacity: 0;
-    animation: contentScaleIn 0.2s ease forwards;
-  }
-  
-  .custom-alert-modal.closing .custom-alert-content {
-    animation: contentScaleOut 0.15s ease forwards;
-  }
-  
-  .custom-alert-header {
-    background: linear-gradient(135deg, #3b1f5f, #ff4f81);
-    color: white;
-    padding: 20px;
-    text-align: center;
-  }
-  
-  .custom-alert-icon {
-    font-size: 40px;
-    display: block;
-    margin-bottom: 8px;
-  }
-  
-  .custom-alert-header h3 {
-    margin: 0;
-    font-size: 18px;
-  }
-  
-  .custom-alert-body {
-    padding: 24px 20px;
-    text-align: center;
-    font-size: 15px;
-    color: #333;
-    line-height: 1.5;
-  }
-  
-  .custom-alert-footer {
-    padding: 16px 20px 24px;
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    border-top: 1px solid #eee;
-  }
-  
-  .custom-alert-btn {
-    padding: 12px 28px;
-    border: none;
-    border-radius: 40px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 100px;
-  }
-  
-  .custom-alert-btn.confirm {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: white;
-  }
-  
-  .custom-alert-btn.cancel {
-    background: #f5f5f8;
-    color: #666;
-    border: 1px solid #e0e0e0;
-  }
-  
-  .custom-alert-btn.confirm:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
-  }
-  
-  .custom-alert-btn.cancel:hover {
-    background: #ffebee;
-    color: #c62828;
-    border-color: #ef9a9a;
-  }
-  
-  .custom-alert-input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    font-size: 14px;
-    margin-top: 12px;
-    box-sizing: border-box;
-  }
-  
-  .custom-alert-input:focus {
-    outline: none;
-    border-color: #ff4f81;
-    box-shadow: 0 0 0 3px rgba(255, 79, 129, 0.1);
-  }
-  
-  @keyframes modalFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes modalFadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  
-  @keyframes contentScaleIn {
-    from {
-      transform: scale(0.95);
-      opacity: 0;
-    }
-    to {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes contentScaleOut {
-    from {
-      transform: scale(1);
-      opacity: 1;
-    }
-    to {
-      transform: scale(0.95);
-      opacity: 0;
-    }
-  }
-`;
-
-// Agregar estilos al documento
-if (!document.querySelector("#custom-alert-styles")) {
-  const styleSheet = document.createElement("style");
-  styleSheet.id = "custom-alert-styles";
-  styleSheet.textContent = modalStyles;
-  document.head.appendChild(styleSheet);
-}
-
-// Variable para evitar múltiples modales simultáneos
-let activeModal = null;
-
-// Función para cerrar modal actual de forma segura
-function closeCurrentModal() {
-  if (activeModal) {
-    // Marcar como cerrando para evitar animaciones conflictivas
-    activeModal.classList.add("closing");
-    
-    // Esperar a que termine la animación antes de remover
-    setTimeout(() => {
-      if (activeModal && activeModal.parentNode) {
-        activeModal.remove();
-      }
-      activeModal = null;
-    }, 150);
-  }
-}
-
-// Interceptar alert()
-window.originalAlert = window.alert;
-window.alert = function(message) {
-  return new Promise((resolve) => {
-    // Cerrar modal anterior si existe
-    closeCurrentModal();
-    
-    showCustomAlert({
-      title: "Aviso",
-      message: String(message),
-      icon: "ℹ️",
-      confirmText: "Aceptar",
-      onConfirm: () => {
-        resolve();
-      }
-    });
-  });
-};
-
-// Interceptar confirm()
-window.originalConfirm = window.confirm;
-window.confirm = function(message) {
-  return new Promise((resolve) => {
-    closeCurrentModal();
-    
-    showCustomConfirm({
-      title: "Confirmar",
-      message: String(message),
-      icon: "❓",
-      confirmText: "Aceptar",
-      cancelText: "Cancelar",
-      onConfirm: () => resolve(true),
-      onCancel: () => resolve(false)
-    });
-  });
-};
-
-// Interceptar prompt()
-window.originalPrompt = window.prompt;
-window.prompt = function(message, defaultValue = "") {
-  return new Promise((resolve) => {
-    closeCurrentModal();
-    
-    showCustomPrompt({
-      title: "Ingresar información",
-      message: String(message),
-      icon: "📝",
-      defaultValue: defaultValue,
-      confirmText: "Aceptar",
-      cancelText: "Cancelar",
-      onConfirm: (value) => resolve(value),
-      onCancel: () => resolve(null)
-    });
-  });
-};
-
-// Función para mostrar alert personalizada
-function showCustomAlert(options) {
-  const { title, message, icon = "ℹ️", confirmText = "Aceptar", onConfirm } = options;
-  
-  const modal = document.createElement("div");
-  modal.className = "custom-alert-modal";
-  modal.innerHTML = `
-    <div class="custom-alert-content">
-      <div class="custom-alert-header">
-        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
-        <h3>${escapeHtml(title)}</h3>
-      </div>
-      <div class="custom-alert-body">
-        <p>${escapeHtml(message)}</p>
-      </div>
-      <div class="custom-alert-footer">
-        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  activeModal = modal;
-  
-  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
-  
-  const close = () => {
-    if (!modal.parentNode) return;
-    
-    modal.classList.add("closing");
-    setTimeout(() => {
-      if (modal.parentNode) modal.remove();
-      if (activeModal === modal) activeModal = null;
-      if (onConfirm) onConfirm();
-    }, 150);
-  };
-  
-  confirmBtn.addEventListener("click", close);
-  
-  // Cerrar al hacer clic fuera (solo si no está cerrando)
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal && !modal.classList.contains("closing")) {
-      close();
-    }
-  });
-}
-
-// Función para mostrar confirm personalizada
-function showCustomConfirm(options) {
-  const { title, message, icon = "❓", confirmText = "Aceptar", cancelText = "Cancelar", onConfirm, onCancel } = options;
-  
-  const modal = document.createElement("div");
-  modal.className = "custom-alert-modal";
-  modal.innerHTML = `
-    <div class="custom-alert-content">
-      <div class="custom-alert-header">
-        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
-        <h3>${escapeHtml(title)}</h3>
-      </div>
-      <div class="custom-alert-body">
-        <p>${escapeHtml(message)}</p>
-      </div>
-      <div class="custom-alert-footer">
-        <button class="custom-alert-btn cancel">${escapeHtml(cancelText)}</button>
-        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  activeModal = modal;
-  
-  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
-  const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
-  
-  const close = (callback) => {
-    if (!modal.parentNode) return;
-    
-    modal.classList.add("closing");
-    setTimeout(() => {
-      if (modal.parentNode) modal.remove();
-      if (activeModal === modal) activeModal = null;
-      if (callback) callback();
-    }, 150);
-  };
-  
-  confirmBtn.addEventListener("click", () => close(onConfirm));
-  cancelBtn.addEventListener("click", () => close(onCancel));
-  
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal && !modal.classList.contains("closing")) {
-      close(onCancel);
-    }
-  });
-}
-
-// Función para mostrar prompt personalizado
-function showCustomPrompt(options) {
-  const { title, message, icon = "📝", defaultValue = "", confirmText = "Aceptar", cancelText = "Cancelar", onConfirm, onCancel } = options;
-  
-  const modal = document.createElement("div");
-  modal.className = "custom-alert-modal";
-  modal.innerHTML = `
-    <div class="custom-alert-content">
-      <div class="custom-alert-header">
-        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
-        <h3>${escapeHtml(title)}</h3>
-      </div>
-      <div class="custom-alert-body">
-        <p>${escapeHtml(message)}</p>
-        <input type="text" class="custom-alert-input" id="custom-prompt-input" value="${escapeHtml(defaultValue)}" autocomplete="off">
-      </div>
-      <div class="custom-alert-footer">
-        <button class="custom-alert-btn cancel">${escapeHtml(cancelText)}</button>
-        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  activeModal = modal;
-  
-  const input = modal.querySelector("#custom-prompt-input");
-  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
-  const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
-  
-  setTimeout(() => input.focus(), 100);
-  
-  const close = (callback, value = null) => {
-    if (!modal.parentNode) return;
-    
-    modal.classList.add("closing");
-    setTimeout(() => {
-      if (modal.parentNode) modal.remove();
-      if (activeModal === modal) activeModal = null;
-      if (callback) callback(value);
-    }, 150);
-  };
-  
-  confirmBtn.addEventListener("click", () => close(onConfirm, input.value));
-  cancelBtn.addEventListener("click", () => close(onCancel, null));
-  
-  input.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      close(onConfirm, input.value);
-    }
-  });
-  
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal && !modal.classList.contains("closing")) {
-      close(onCancel, null);
-    }
-  });
-}
-
-
-
-
-
-
-
-
-
-
-
-
-  
-function showLoader(text = "Cargando...") {
-  const loader = document.getElementById("global-loader");
-  const txt = loader.querySelector(".loader-text");
-  if (txt) txt.textContent = text;
-  loader.classList.remove("hidden");
-}
-
-function hideLoader() {
-  const loader = document.getElementById("global-loader");
-  loader.classList.add("hidden");
-}
-
-function escapeHtml(text) {
-  if (!text) return "";
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 function showSuccessMessage(message, duration = 3000) {
   const container = document.getElementById("notifications");
@@ -681,7 +251,6 @@ function showSuccessMessage(message, duration = 3000) {
   msgDiv.className = "success-message";
   msgDiv.innerHTML = `<p>✅ ${escapeHtml(message)}</p>`;
   container.insertBefore(msgDiv, container.firstChild);
-  
   setTimeout(() => {
     if (msgDiv && msgDiv.parentNode) {
       msgDiv.style.opacity = "0";
@@ -693,98 +262,65 @@ function showSuccessMessage(message, duration = 3000) {
 
 function groupNotificationsByRequest(notifications) {
   const groups = new Map();
-  
   notifications.forEach(notif => {
     const requestId = notif.REQUEST_ID;
     if (!requestId) return;
-    
     if (!groups.has(requestId)) {
-      groups.set(requestId, {
-        requestId: requestId,
-        notifications: [],
-        hasPending: false
-      });
+      groups.set(requestId, { requestId: requestId, notifications: [], hasPending: false });
     }
-    
     const group = groups.get(requestId);
     group.notifications.push(notif);
-    if (notif.STATUS === "pending") {
-      group.hasPending = true;
-    }
+    if (notif.STATUS === "pending") group.hasPending = true;
   });
-  
   return Array.from(groups.values()).filter(group => group.hasPending);
 }
 
 async function loadNotifications() {
   showLoader("Cargando solicitudes...");
-  
   try {
     const res = await fetch(API + "?action=notifications");
     const data = await res.json();
-    
     const container = document.getElementById("notifications");
-    
     if (!data.notifications || data.notifications.length === 0) {
       container.innerHTML = '<div class="empty">📭 No hay solicitudes</div>';
       return;
     }
-    
     const groups = groupNotificationsByRequest(data.notifications);
-    
     if (groups.length === 0) {
       container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
       return;
     }
-    
     container.innerHTML = "";
-    
     for (const group of groups) {
       const pendingNotifications = group.notifications.filter(n => n.STATUS === "pending");
-      
       if (pendingNotifications.length === 0) continue;
-      
       let clientPhone = null;
       try {
         const phoneRes = await fetch(API + "?action=getClientPhone&requestId=" + group.requestId);
         const phoneData = await phoneRes.json();
         if (phoneData.ok) clientPhone = phoneData.phone;
       } catch(e) {}
-      
-      const requestDiv = document.createElement("div");
-      requestDiv.className = "request-card";
-      requestDiv.setAttribute("data-request-id", group.requestId);
-      
       const stockStatus = await checkStockForGroup(pendingNotifications);
       const availableProducts = pendingNotifications.filter((n, idx) => stockStatus[idx].hasStock);
       const unavailableProducts = pendingNotifications.filter((n, idx) => !stockStatus[idx].hasStock);
-      
       const firstDate = pendingNotifications[0]?.FECHA || new Date();
-      
+      const requestDiv = document.createElement("div");
+      requestDiv.className = "request-card";
+      requestDiv.setAttribute("data-request-id", group.requestId);
       requestDiv.innerHTML = `
         <div class="request-header">
-          <div>
-            <strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span>
-          </div>
-          <div class="request-date">
-            📅 ${new Date(firstDate).toLocaleString()}
-          </div>
-          ${clientPhone ? `
-            <div class="client-phone" style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px;">
-              📱 Cliente: +52 ${escapeHtml(clientPhone)}
-            </div>
-          ` : ''}
+          <div><strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span></div>
+          <div class="request-date">📅 ${new Date(firstDate).toLocaleString()}</div>
+          ${clientPhone ? `<div class="client-phone" style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px;">📱 Cliente: +52 ${escapeHtml(clientPhone)}</div>` : ''}
         </div>
         <div class="request-products">
           ${pendingNotifications.map((notif, idx) => {
             const status = stockStatus[idx];
             const isAvailable = status.hasStock;
             const currentStock = status.currentStock;
-            
             return `
               <div class="request-product-item ${!isAvailable ? 'out-of-stock' : ''}">
-                <img class="request-product-img" src="${escapeHtml(notif.IMAGEN || '')}" 
-                     onerror="this.src='https://placehold.co/70x70/eee/999?text=No+img'">
+                <img class="request-product-img" src="${escapeHtml(notif.IMAGEN || '')}" onerror="this.src='https://placehold.co/70x70/eee/999?text=No+img'">
                 <div class="request-product-info">
                   <div class="request-product-name">${escapeHtml(notif.NOMBRE || 'Producto')}</div>
                   <div class="request-product-meta">
@@ -801,30 +337,14 @@ async function loadNotifications() {
           }).join('')}
         </div>
         <div class="request-actions">
-          ${unavailableProducts.length > 0 ? `
-            <button class="btn btn-secondary" onclick="removeOutOfStockNotifications('${group.requestId}')">
-              🗑️ Eliminar ${unavailableProducts.length} producto(s) sin stock
-            </button>
-          ` : ''}
-          ${availableProducts.length > 0 ? `
-            
-<button class="btn btn-confirm" onclick="confirmGroupPurchase('${group.requestId}')">
-  ✅ Confirmar compra (${availableProducts.length} producto${availableProducts.length !== 1 ? 's' : ''})
-</button>
-          ` : ''}
-          <button class="btn btn-cancel" onclick="cancelGroupPurchase('${group.requestId}')">
-            ❌ Cancelar toda la solicitud
-          </button>
+          ${unavailableProducts.length > 0 ? `<button class="btn btn-secondary" onclick="removeOutOfStockNotifications('${group.requestId}')">🗑️ Eliminar ${unavailableProducts.length} producto(s) sin stock</button>` : ''}
+          ${availableProducts.length > 0 ? `<button class="btn btn-confirm" onclick="confirmGroupPurchase('${group.requestId}')">✅ Confirmar compra (${availableProducts.length} producto${availableProducts.length !== 1 ? 's' : ''})</button>` : ''}
+          <button class="btn btn-cancel" onclick="cancelGroupPurchase('${group.requestId}')">❌ Cancelar toda la solicitud</button>
         </div>
       `;
-      
       container.appendChild(requestDiv);
     }
-    
-    if (container.children.length === 0) {
-      container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
-    }
-    
+    if (container.children.length === 0) container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
   } catch (err) {
     console.error("Error:", err);
     document.getElementById("notifications").innerHTML = '<div class="empty">❌ Error cargando solicitudes: ' + err.message + '</div>';
@@ -835,87 +355,44 @@ async function loadNotifications() {
 
 async function checkStockForGroup(notifications) {
   const results = [];
-  
   for (const notif of notifications) {
     try {
       const response = await fetch(API, {
         method: "POST",
-        body: JSON.stringify({
-          action: "checkStock",
-          productId: Number(notif.PRODUCT_ID),
-          cantidad: Number(notif.CANTIDAD)
-        })
+        body: JSON.stringify({ action: "checkStock", productId: Number(notif.PRODUCT_ID), cantidad: Number(notif.CANTIDAD) })
       });
       const data = await response.json();
-      results.push({
-        hasStock: data.ok === true,
-        currentStock: data.currentStock || 0
-      });
+      results.push({ hasStock: data.ok === true, currentStock: data.currentStock || 0 });
     } catch (err) {
       results.push({ hasStock: false, currentStock: 0 });
     }
   }
-  
   return results;
 }
 
-// Abrir WhatsApp automáticamente - usa window.location.href (no es bloqueado)
 function openWhatsApp(phoneNumber, message) {
   let cleanPhone = String(phoneNumber).replace(/[^0-9]/g, '');
-  
-  if (cleanPhone.length === 10) {
-    cleanPhone = "52" + cleanPhone;
-  } else if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) {
-    cleanPhone = "52" + cleanPhone.substring(1);
-  }
-  
-  const encodedMessage = encodeURIComponent(message);
-window.location.href = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+  if (cleanPhone.length === 10) cleanPhone = "52" + cleanPhone;
+  else if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) cleanPhone = "52" + cleanPhone.substring(1);
+  window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }
 
 async function confirmGroupPurchase(requestId) {
-  if (!confirm(`¿Confirmar TODOS los productos con stock disponible de esta solicitud?\n\nLos productos sin stock serán rechazos automáticamente.`)) {
-    return;
-  }
-
+  if (!confirm(`¿Confirmar TODOS los productos con stock disponible de esta solicitud?\n\nLos productos sin stock serán rechazos automáticamente.`)) return;
   showLoader("Procesando solicitud completa...");
-
   try {
     const response = await fetch(API, {
       method: "POST",
-      body: JSON.stringify({
-        action: "confirmGroupPurchase",
-        requestId: requestId
-      })
+      body: JSON.stringify({ action: "confirmGroupPurchase", requestId: requestId })
     });
-
     const data = await response.json();
-
-    if (!data.ok) {
-      throw new Error(data.error || "Error al confirmar");
-    }
-
-    // Mostrar resumen
+    if (!data.ok) throw new Error(data.error || "Error al confirmar");
     let summary = `✅ ${data.message}\n\n`;
-    if (data.approvedCount > 0) {
-      summary += `💰 Total a pagar: $${(data.totalAmount || 0).toLocaleString()}\n`;
-    }
-    if (data.paymentLink) {
-      summary += `\n🔗 Link de pago generado. Se enviará al cliente por WhatsApp.`;
-    }
-    
+    if (data.approvedCount > 0) summary += `💰 Total a pagar: $${(data.totalAmount || 0).toLocaleString()}\n`;
+    if (data.paymentLink) summary += `\n🔗 Link de pago generado. Se enviará al cliente por WhatsApp.`;
     alert(summary);
-    
-    // ABRIR WHATSAPP AUTOMÁTICAMENTE CON EL MENSAJE COMPLETO
-    if (data.whatsappUrl) {
-      window.open(data.whatsappUrl, '_blank');
-    }
-    
-    // Recargar notificaciones
-    setTimeout(() => {
-      loadNotifications();
-    }, 2000);
-
+    if (data.whatsappUrl) window.open(data.whatsappUrl, '_blank');
+    setTimeout(() => loadNotifications(), 2000);
   } catch (err) {
     alert(`❌ Error: ${err.message}`);
     hideLoader();
@@ -923,30 +400,20 @@ async function confirmGroupPurchase(requestId) {
 }
 
 async function removeOutOfStockNotifications(requestId) {
-  if (!confirm("¿Eliminar los productos sin stock de esta solicitud? Los productos con stock se mantendrán pendientes.")) {
-    return;
-  }
-  
+  if (!confirm("¿Eliminar los productos sin stock de esta solicitud? Los productos con stock se mantendrán pendientes.")) return;
   showLoader("Eliminando...");
-  
   try {
     const response = await fetch(API, {
       method: "POST",
-      body: JSON.stringify({
-        action: "removeOutOfStockNotifications",
-        requestId: requestId
-      })
+      body: JSON.stringify({ action: "removeOutOfStockNotifications", requestId: requestId })
     });
-    
     const data = await response.json();
-    
     if (data.ok) {
       showSuccessMessage(`Eliminados ${data.removedCount} producto(s) sin stock`);
       loadNotifications();
     } else {
       throw new Error(data.error || "Error");
     }
-    
   } catch (err) {
     alert(`❌ Error: ${err.message}`);
   } finally {
@@ -955,30 +422,20 @@ async function removeOutOfStockNotifications(requestId) {
 }
 
 async function cancelGroupPurchase(requestId) {
-  if (!confirm("¿Cancelar TODA la solicitud de compra?")) {
-    return;
-  }
-  
+  if (!confirm("¿Cancelar TODA la solicitud de compra?")) return;
   showLoader("Cancelando...");
-  
   try {
     const response = await fetch(API, {
       method: "POST",
-      body: JSON.stringify({
-        action: "cancelGroupPurchase",
-        requestId: requestId
-      })
+      body: JSON.stringify({ action: "cancelGroupPurchase", requestId: requestId })
     });
-    
     const data = await response.json();
-    
     if (data.ok) {
       showSuccessMessage(`Solicitud cancelada (${data.cancelledCount} productos)`);
       loadNotifications();
     } else {
       throw new Error(data.error || "Error");
     }
-    
   } catch (err) {
     alert(`❌ Error: ${err.message}`);
   } finally {
@@ -986,7 +443,6 @@ async function cancelGroupPurchase(requestId) {
   }
 }
 
-// Cargar al inicio - SIN auto-refresh automático
 document.addEventListener("DOMContentLoaded", () => {
   loadNotifications();
 });
