@@ -1,1196 +1,143 @@
+// ============================================
+// LOOKS.JS - Página de looks/outfits
+// ============================================
+
 const API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
-const WHATSAPP_NUMBER = "528671781272";
-const CACHE_KEY = 'zr_products_cache';
-const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
-let currentLooksPage = 1;
-let looksPerPage = 10;
-let allLooks = [];
+const WEATHER_API_URL = API_URL;
 
-const modalStyles = `
-  .custom-alert-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(8px);
-    z-index: 10001;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    animation: modalFadeIn 0.2s ease forwards;
-  }
-  
-  .custom-alert-modal.closing {
-    animation: modalFadeOut 0.15s ease forwards;
-    pointer-events: none;
-  }
-  
-  .custom-alert-content {
-    background: white;
-    border-radius: 28px;
-    max-width: 380px;
-    width: 85%;
-    overflow: hidden;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    transform: scale(0.95);
-    opacity: 0;
-    animation: contentScaleIn 0.2s ease forwards;
-  }
-  
-  .custom-alert-modal.closing .custom-alert-content {
-    animation: contentScaleOut 0.15s ease forwards;
-  }
-  
-  .custom-alert-header {
-    background: linear-gradient(135deg, #3b1f5f, #ff4f81);
-    color: white;
-    padding: 20px;
-    text-align: center;
-  }
-  
-  .custom-alert-icon {
-    font-size: 40px;
-    display: block;
-    margin-bottom: 8px;
-  }
-  
-  .custom-alert-header h3 {
-    margin: 0;
-    font-size: 18px;
-  }
-  
-  .custom-alert-body {
-    padding: 24px 20px;
-    text-align: center;
-    font-size: 15px;
-    color: #333;
-    line-height: 1.5;
-  }
-  
-  .custom-alert-footer {
-    padding: 16px 20px 24px;
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    border-top: 1px solid #eee;
-  }
-  
-  .custom-alert-btn {
-    padding: 12px 28px;
-    border: none;
-    border-radius: 40px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 100px;
-  }
-  
-  .custom-alert-btn.confirm {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: white;
-  }
-  
-  .custom-alert-btn.cancel {
-    background: #f5f5f8;
-    color: #666;
-    border: 1px solid #e0e0e0;
-  }
-  
-  .custom-alert-btn.confirm:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
-  }
-  
-  .custom-alert-btn.cancel:hover {
-    background: #ffebee;
-    color: #c62828;
-    border-color: #ef9a9a;
-  }
-  
-  .custom-alert-input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    font-size: 14px;
-    margin-top: 12px;
-    box-sizing: border-box;
-  }
-  
-  .custom-alert-input:focus {
-    outline: none;
-    border-color: #ff4f81;
-    box-shadow: 0 0 0 3px rgba(255, 79, 129, 0.1);
-  }
-  
-  @keyframes modalFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes modalFadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  
-  @keyframes contentScaleIn {
-    from {
-      transform: scale(0.95);
-      opacity: 0;
-    }
-    to {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes contentScaleOut {
-    from {
-      transform: scale(1);
-      opacity: 1;
-    }
-    to {
-      transform: scale(0.95);
-      opacity: 0;
-    }
-  }
-`;
-if (!document.querySelector("#custom-alert-styles")) {
-  const styleSheet = document.createElement("style");
-  styleSheet.id = "custom-alert-styles";
-  styleSheet.textContent = modalStyles;
-  document.head.appendChild(styleSheet);
-}
-let activeModal = null;
-function closeCurrentModal() {
-  if (activeModal) {
-    activeModal.classList.add("closing");
-    setTimeout(() => {
-      if (activeModal && activeModal.parentNode) {
-        activeModal.remove();
-      }
-      activeModal = null;
-    }, 150);
-  }
-}
-window.originalAlert = window.alert;
-window.alert = function(message) {
-  return new Promise((resolve) => {
-    closeCurrentModal();
-    showCustomAlert({
-      title: "Aviso",
-      message: String(message),
-      icon: "ℹ️",
-      confirmText: "Aceptar",
-      onConfirm: () => {
-        resolve();
-      }
-    });
-  });
-};
-window.originalConfirm = window.confirm;
-window.confirm = function(message) {
-  return new Promise((resolve) => {
-    closeCurrentModal();
-    showCustomConfirm({
-      title: "Confirmar",
-      message: String(message),
-      icon: "❓",
-      confirmText: "Aceptar",
-      cancelText: "Cancelar",
-      onConfirm: () => resolve(true),
-      onCancel: () => resolve(false)
-    });
-  });
-};
-window.originalPrompt = window.prompt;
-window.prompt = function(message, defaultValue = "") {
-  return new Promise((resolve) => {
-    closeCurrentModal();
-    
-    showCustomPrompt({
-      title: "Ingresar información",
-      message: String(message),
-      icon: "📝",
-      defaultValue: defaultValue,
-      confirmText: "Aceptar",
-      cancelText: "Cancelar",
-      onConfirm: (value) => resolve(value),
-      onCancel: () => resolve(null)
-    });
-  });
-};
-function showCustomAlert(options) {
-  const { title, message, icon = "ℹ️", confirmText = "Aceptar", onConfirm } = options;
-  const modal = document.createElement("div");
-  modal.className = "custom-alert-modal";
-  modal.innerHTML = `
-    <div class="custom-alert-content">
-      <div class="custom-alert-header">
-        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
-        <h3>${escapeHtml(title)}</h3>
-      </div>
-      <div class="custom-alert-body">
-        <p>${escapeHtml(message)}</p>
-      </div>
-      <div class="custom-alert-footer">
-        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  activeModal = modal;
-  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
-  const close = () => {
-    if (!modal.parentNode) return;
-    modal.classList.add("closing");
-    setTimeout(() => {
-      if (modal.parentNode) modal.remove();
-      if (activeModal === modal) activeModal = null;
-      if (onConfirm) onConfirm();
-    }, 150);
-  };
-  confirmBtn.addEventListener("click", close);
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal && !modal.classList.contains("closing")) {
-      close();
-    }
-  });
-}
-function showCustomConfirm(options) {
-  const { title, message, icon = "❓", confirmText = "Aceptar", cancelText = "Cancelar", onConfirm, onCancel } = options;
-  
-  const modal = document.createElement("div");
-  modal.className = "custom-alert-modal";
-  modal.innerHTML = `
-    <div class="custom-alert-content">
-      <div class="custom-alert-header">
-        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
-        <h3>${escapeHtml(title)}</h3>
-      </div>
-      <div class="custom-alert-body">
-        <p>${escapeHtml(message)}</p>
-      </div>
-      <div class="custom-alert-footer">
-        <button class="custom-alert-btn cancel">${escapeHtml(cancelText)}</button>
-        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  activeModal = modal;
-  
-  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
-  const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
-  
-  const close = (callback) => {
-    if (!modal.parentNode) return;
-    
-    modal.classList.add("closing");
-    setTimeout(() => {
-      if (modal.parentNode) modal.remove();
-      if (activeModal === modal) activeModal = null;
-      if (callback) callback();
-    }, 150);
-  };
-  
-  confirmBtn.addEventListener("click", () => close(onConfirm));
-  cancelBtn.addEventListener("click", () => close(onCancel));
-  
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal && !modal.classList.contains("closing")) {
-      close(onCancel);
-    }
-  });
-}
-
-function showCustomPrompt(options) {
-  const { title, message, icon = "📝", defaultValue = "", confirmText = "Aceptar", cancelText = "Cancelar", onConfirm, onCancel } = options;
-  
-  const modal = document.createElement("div");
-  modal.className = "custom-alert-modal";
-  modal.innerHTML = `
-    <div class="custom-alert-content">
-      <div class="custom-alert-header">
-        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
-        <h3>${escapeHtml(title)}</h3>
-      </div>
-      <div class="custom-alert-body">
-        <p>${escapeHtml(message)}</p>
-        <input type="text" class="custom-alert-input" id="custom-prompt-input" value="${escapeHtml(defaultValue)}" autocomplete="off">
-      </div>
-      <div class="custom-alert-footer">
-        <button class="custom-alert-btn cancel">${escapeHtml(cancelText)}</button>
-        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  activeModal = modal;
-  
-  const input = modal.querySelector("#custom-prompt-input");
-  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
-  const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
-  
-  setTimeout(() => input.focus(), 100);
-  
-  const close = (callback, value = null) => {
-    if (!modal.parentNode) return;
-    
-    modal.classList.add("closing");
-    setTimeout(() => {
-      if (modal.parentNode) modal.remove();
-      if (activeModal === modal) activeModal = null;
-      if (callback) callback(value);
-    }, 150);
-  };
-  
-  confirmBtn.addEventListener("click", () => close(onConfirm, input.value));
-  cancelBtn.addEventListener("click", () => close(onCancel, null));
-  
-  input.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      close(onConfirm, input.value);
-    }
-  });
-  
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal && !modal.classList.contains("closing")) {
-      close(onCancel, null);
-    }
-  });
-}
-
-function getCachedProducts() {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    
-    const { data, timestamp } = JSON.parse(cached);
-    if (Date.now() - timestamp > CACHE_EXPIRY) {
-      localStorage.removeItem(CACHE_KEY);
-      return null;
-    }
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function setCachedProducts(products) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      data: products,
-      timestamp: Date.now()
-    }));
-  } catch (e) {
-    console.warn("No se pudo guardar en caché:", e);
-  }
-}
-
-function formatCurrency(value) {
-  const num = Number(value) || 0;
-  return `$${num.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`;
-}
-
-function escapeHtml(text) {
-  if (!text) return "";
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-function optimizeDriveUrl(url, size = 400) {
-  if (!url) return "";
-  const match = url.match(/[-\w]{25,}/);
-  if (match) {
-    const id = match[0];
-    return `https://drive.google.com/thumbnail?id=${id}&sz=w${size}`;
-  }
-  return url;
-}
-
-function showLoader(text = "Cargando...") {
-  let loader = document.getElementById("global-loader");
-  if (!loader) {
-    loader = document.createElement("div");
-    loader.id = "global-loader";
-    loader.className = "global-loader";
-    loader.innerHTML = `<div class="loader-spinner"></div><div class="loader-text">${text}</div>`;
-    document.body.appendChild(loader);
-  } else {
-    const txt = loader.querySelector(".loader-text");
-    if (txt) txt.textContent = text;
-    loader.classList.remove("hidden");
-  }
-}
-
-function hideLoader() {
-  const loader = document.getElementById("global-loader");
-  if (loader) loader.classList.add("hidden");
-}
-
-function showTemporaryMessage(text, type = "info") {
-  const existing = document.querySelector('.temporary-message');
-  if (existing) existing.remove();
-  
-  const messageDiv = document.createElement("div");
-  messageDiv.className = `temporary-message ${type}`;
-  messageDiv.style.cssText = `
-    position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: ${type === "error" ? "#ef4444" : "#22c55e"};
-    color: white;
-    padding: 12px 24px;
-    border-radius: 50px;
-    font-size: 14px;
-    font-weight: 500;
-    z-index: 10000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    animation: slideUp 0.3s ease;
-  `;
-  messageDiv.textContent = text;
-  document.body.appendChild(messageDiv);
-  
-  setTimeout(() => {
-    messageDiv.style.animation = "slideDown 0.3s ease";
-    setTimeout(() => messageDiv.remove(), 300);
-  }, 3000);
-}
-
-let localCart = {};
-
-function loadCartFromStorage() {
-  try {
-    const raw = localStorage.getItem("cart");
-    localCart = raw ? JSON.parse(raw) : {};
-  } catch {
-    localCart = {};
-  }
-  updateCartBadge();
-}
-
-function saveCartToStorage() {
-  localStorage.setItem("cart", JSON.stringify(localCart));
-}
-
-function updateCartBadge() {
-  const countEl = document.getElementById("cart-count");
-  if (countEl) {
-    const totalQty = Object.values(localCart).reduce((sum, item) => sum + (item.quantity || 0), 0);
-    countEl.textContent = totalQty;
-  }
-}
-
-function addToCart(product) {
-  const id = product.ID;
-  if (!id) {
-    console.error("Producto sin ID:", product);
-    return;
-  }
-  
-  if (!localCart[id]) {
-    localCart[id] = {
-      id: id,
-      name: product.Nombre || "Producto",
-      price: Number(product.Precio || 0),
-      quantity: 0,
-      Imagen1: product.Imagen1 || "",
-      Talla: product.Talla || ""
-    };
-  }
-  localCart[id].quantity += 1;
-  saveCartToStorage();
-  updateCartBadge();
-  animateCartAdd();
-  renderCart();
-}
-
-window.changeCartQty = function(id, delta) {
-  if (!localCart[id]) return;
-  localCart[id].quantity += delta;
-  if (localCart[id].quantity <= 0) {
-    delete localCart[id];
-  }
-  saveCartToStorage();
-  updateCartBadge();
-  renderCart();
-};
-
-window.removeFromCart = function(id) {
-  if (localCart[id]) {
-    delete localCart[id];
-    saveCartToStorage();
-    updateCartBadge();
-    renderCart();
-  }
-};
-
-function renderCart() {
-  const container = document.getElementById("cart-items-container");
-  if (!container) return;
-  
-  container.innerHTML = "";
-  const items = Object.values(localCart);
-  
-  if (items.length === 0) {
-    container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
-  } else {
-    items.forEach((item) => {
-      const row = document.createElement("div");
-      row.className = "cart-item";
-      row.innerHTML = `
-        <div class="cart-item-info">
-          <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
-          <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
-          <div class="cart-item-actions">
-            <button class="qty-btn" onclick="changeCartQty('${item.id}', -1)">−</button>
-            <span class="qty-value">${item.quantity}</span>
-            <button class="qty-btn" onclick="changeCartQty('${item.id}', 1)">+</button>
-            <button class="cart-item-remove" onclick="removeFromCart('${item.id}')">Eliminar</button>
-          </div>
-        </div>
-      `;
-      container.appendChild(row);
-    });
-  }
-
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const subtotalEl = document.getElementById("cart-subtotal");
-  const totalEl = document.getElementById("cart-total");
-  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
-}
-
-function animateCartAdd() {
-  const btn = document.getElementById("floating-cart-btn");
-  if (btn) {
-    btn.style.transform = "translateY(-4px) scale(1.05)";
-    setTimeout(() => btn.style.transform = "", 180);
-  }
-}
-
-function openCartDrawer() {
-  const drawer = document.getElementById("cart-drawer");
-  const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.add("open");
-  if (overlay) overlay.classList.add("visible");
-  
-  updateSavedPhoneDisplay();
-}
-
-function closeCartDrawer() {
-  const drawer = document.getElementById("cart-drawer");
-  const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.remove("open");
-  if (overlay) overlay.classList.remove("visible");
-}
-
-function openImageModal(url) {
-  const modal = document.getElementById("image-modal");
-  const img = document.getElementById("image-modal-img");
-  const overlay = document.getElementById("overlay");
-  if (modal && img) {
-    img.src = url;
-    modal.classList.add("open");
-    if (overlay) overlay.classList.add("visible");
-  }
-}
-
-function closeImageModal() {
-  const modal = document.getElementById("image-modal");
-  const overlay = document.getElementById("overlay");
-  if (modal) modal.classList.remove("open");
-  if (overlay) overlay.classList.remove("visible");
-}
-
-
-
-
-
-
-
-
-// ========== FUNCIÓN PARA CAMBIO DE LAYOUT EN LOOKS ==========
-function initLooksLayoutToggle() {
-  const looksContainer = document.getElementById("looks-container");
-  const toggleBtn = document.getElementById("layout-toggle-looks");
-  
-  if (!looksContainer || !toggleBtn) return;
-  
-  // Cargar preferencia guardada
-  const savedLayout = localStorage.getItem("looks_layout");
-  if (savedLayout === "grid") {
-    looksContainer.classList.add("layout-grid");
-    toggleBtn.textContent = "🟦🟦";
-  } else {
-    toggleBtn.textContent = "📱";
-  }
-  
-  // Evento click
-  toggleBtn.addEventListener("click", () => {
-    looksContainer.classList.toggle("layout-grid");
-    const isGrid = looksContainer.classList.contains("layout-grid");
-    localStorage.setItem("looks_layout", isGrid ? "grid" : "list");
-    toggleBtn.textContent = isGrid ? "🟦🟦" : "📱";
-  });
-}
-
-
-
-
-
-
-
-
-const WEATHER_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 let currentWeather = null;
-
-const WEATHER_PRIORITY_SCORES = {
-  calor: {
-    "look_verano_dama": 100,
-    "look_verano_caballero": 100,
-    "look_falda_dama": 95,
-    "look_vestido_dama": 90,
-    "look_casual_dama": 80,
-    "look_casual_caballero": 80,
-    "look_elegante_dama": 60,
-    "look_elegante_caballero": 60,
-    "look_confort_dama": 40,
-    "look_confort_caballero": 40,
-    "look_chamarra_dama": 10,
-    "look_chamarra_caballero": 10
-  },
-  frio: {
-    "look_chamarra_dama": 100,
-    "look_chamarra_caballero": 100,
-    "look_confort_dama": 95,
-    "look_confort_caballero": 95,
-    "look_casual_dama": 70,
-    "look_casual_caballero": 70,
-    "look_elegante_dama": 65,
-    "look_elegante_caballero": 65,
-    "look_vestido_dama": 50,
-    "look_falda_dama": 40,
-    "look_verano_dama": 10,
-    "look_verano_caballero": 10
-  },
-  templado: {
-    "look_casual_dama": 100,
-    "look_casual_caballero": 100,
-    "look_elegante_dama": 95,
-    "look_elegante_caballero": 95,
-    "look_vestido_dama": 90,
-    "look_falda_dama": 85,
-    "look_verano_dama": 70,
-    "look_verano_caballero": 70,
-    "look_confort_dama": 60,
-    "look_confort_caballero": 60,
-    "look_chamarra_dama": 50,
-    "look_chamarra_caballero": 50
-  },
-  lluvioso: {
-    "look_chamarra_dama": 100,
-    "look_chamarra_caballero": 100,
-    "look_confort_dama": 90,
-    "look_confort_caballero": 90,
-    "look_casual_dama": 70,
-    "look_casual_caballero": 70,
-    "look_elegante_dama": 60,
-    "look_elegante_caballero": 60,
-    "look_vestido_dama": 50,
-    "look_falda_dama": 40,
-    "look_verano_dama": 20,
-    "look_verano_caballero": 20
-  }
-};
-
 let allProducts = [];
 let looks = [];
+let allLooks = [];
+let currentLooksPage = 1;
+let looksPerPage = 10;
+
+// ========== CONFIGURACIÓN DE LOOKS ==========
+const WEATHER_PRIORITY_SCORES = {
+  calor: {
+    "look_verano_dama": 100, "look_verano_caballero": 100,
+    "look_falda_dama": 95, "look_vestido_dama": 90,
+    "look_casual_dama": 80, "look_casual_caballero": 80,
+    "look_elegante_dama": 60, "look_elegante_caballero": 60,
+    "look_confort_dama": 40, "look_confort_caballero": 40,
+    "look_chamarra_dama": 10, "look_chamarra_caballero": 10
+  },
+  frio: {
+    "look_chamarra_dama": 100, "look_chamarra_caballero": 100,
+    "look_confort_dama": 95, "look_confort_caballero": 95,
+    "look_casual_dama": 70, "look_casual_caballero": 70,
+    "look_elegante_dama": 65, "look_elegante_caballero": 65,
+    "look_vestido_dama": 50, "look_falda_dama": 40,
+    "look_verano_dama": 10, "look_verano_caballero": 10
+  },
+  templado: {
+    "look_casual_dama": 100, "look_casual_caballero": 100,
+    "look_elegante_dama": 95, "look_elegante_caballero": 95,
+    "look_vestido_dama": 90, "look_falda_dama": 85,
+    "look_verano_dama": 70, "look_verano_caballero": 70,
+    "look_confort_dama": 60, "look_confort_caballero": 60,
+    "look_chamarra_dama": 50, "look_chamarra_caballero": 50
+  },
+  lluvioso: {
+    "look_chamarra_dama": 100, "look_chamarra_caballero": 100,
+    "look_confort_dama": 90, "look_confort_caballero": 90,
+    "look_casual_dama": 70, "look_casual_caballero": 70,
+    "look_elegante_dama": 60, "look_elegante_caballero": 60,
+    "look_vestido_dama": 50, "look_falda_dama": 40,
+    "look_verano_dama": 20, "look_verano_caballero": 20
+  }
+};
 
 const LOOKS_CONFIG = [
-  {
-    id: "look_casual_dama",
-    name: "👟 Casual",
-    description: "Para tu día a día",
-    category: "Mujer",
+  { id: "look_casual_dama", name: "👟 Casual", description: "Para tu día a día", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["vestir", "formal", "gala"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: [], excludeKeywords: ["formal", "vestir"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis"], excludeKeywords: ["formal", "tacón", "zapato"], required: true }
-    ]
-  },
-  {
-    id: "look_elegante_dama",
-    name: "👗 Elegancia Femenina",
-    description: "Para ocasiones especiales",
-    category: "Mujer",
+    ] },
+  { id: "look_elegante_dama", name: "👗 Elegancia Femenina", description: "Para ocasiones especiales", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: ["Vestir"], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["Vestir"], excludeKeywords: ["short", "jeans", "mezclilla"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Zapatos"], excludeKeywords: ["tenis", "sandalias", "deportivo"], required: true }
-    ]
-  },
-  {
-    id: "look_verano_dama",
-    name: "☀️ Verano Fresco",
-    description: "Fresco para días calurosos",
-    category: "Mujer",
+    ] },
+  { id: "look_verano_dama", name: "☀️ Verano Fresco", description: "Fresco para días calurosos", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["vestir", "formal", "abrigo"], required: true },
       { type: "piernas", categories: ["Short para Dama"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalón"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacón"], required: true }
-    ]
-  },
-  {
-    id: "look_falda_dama",
-    name: "🌸 Luce una Falda",
-    description: "Look fresco con falda",
-    category: "Mujer",
+    ] },
+  { id: "look_falda_dama", name: "🌸 Luce una Falda", description: "Look fresco con falda", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["deportivo", "abrigo"], required: true },
       { type: "piernas", categories: ["Faldas"], keywords: [], excludeKeywords: ["short", "pantalón"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacón"], required: true }
-    ]
-  },
-  {
-    id: "look_vestido_dama",
-    name: "💃 Vestido Elegante",
-    description: "Perfecto para citas",
-    category: "Mujer",
+    ] },
+  { id: "look_vestido_dama", name: "💃 Vestido Elegante", description: "Perfecto para citas", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Vestidos"], keywords: [], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["tacones"], excludeKeywords: ["tenis", "deportivo", "sandalias"], required: true }
-    ]
-  },
-  {
-    id: "look_confort_dama",
-    name: "🛋️ Confort en Casa",
-    description: "Comodidad en casa",
-    category: "Mujer",
+    ] },
+  { id: "look_confort_dama", name: "🛋️ Confort en Casa", description: "Comodidad en casa", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Sueter para Dama"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants"], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacón"], required: true }
-    ]
-  },
-  {
-    id: "look_chamarra_dama",
-    name: "🧥🟣 Abrigate",
-    description: "Ideal para días frescos",
-    category: "Mujer",
+    ] },
+  { id: "look_chamarra_dama", name: "🧥🟣 Abrigate", description: "Ideal para días frescos", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Chamarra para Dama"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants", "pantalon"], excludeKeywords: ["vestir", "formal", "short"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacón"], required: true }
-    ]
-  },
-  
-  {
-    id: "look_casual_caballero",
-    name: "👔 Casual Hombre",
-    description: "Para el día a día",
-    category: "Hombre",
+    ] },
+  { id: "look_casual_caballero", name: "👔 Casual Hombre", description: "Para el día a día", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: [], excludeKeywords: ["vestir", "formal", "camisa"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "short"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis", "Botas"], excludeKeywords: ["formal", "zapato"], required: true }
-    ]
-  },
-  {
-    id: "look_elegante_caballero",
-    name: "🤵 Elegancia Masculina",
-    description: "Formal para ocasiones especiales",
-    category: "Hombre",
+    ] },
+  { id: "look_elegante_caballero", name: "🤵 Elegancia Masculina", description: "Formal para ocasiones especiales", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: ["Vestir"], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["Vestir"], excludeKeywords: ["short", "jeans", "mezclilla"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Zapatos"], excludeKeywords: ["tenis", "deportivo", "botas"], required: true }
-    ]
-  },
-  {
-    id: "look_verano_caballero",
-    name: "🏖️ Verano Hombre",
-    description: "Fresco para el calor",
-    category: "Hombre",
+    ] },
+  { id: "look_verano_caballero", name: "🏖️ Verano Hombre", description: "Fresco para el calor", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: [], excludeKeywords: ["vestir", "formal", "camisa"], required: true },
       { type: "piernas", categories: ["Short para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalón"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "zapato"], required: true }
-    ]
-  },
-  {
-    id: "look_chamarra_caballero",
-    name: "🧥🔵 Abrigate",
-    description: "Luce tu chamarra",
-    category: "Hombre",
+    ] },
+  { id: "look_chamarra_caballero", name: "🧥🔵 Abrigate", description: "Luce tu chamarra", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Chamarra para Caballero"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["pants", "pantalon"], excludeKeywords: ["vestir", "formal", "short"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis"], excludeKeywords: ["formal", "zapato"], required: true }
-    ]
-  },
-  {
-    id: "look_confort_caballero",
-    name: "🛋️ Confort Hombre",
-    description: "Comodidad para el hogar",
-    category: "Hombre",
+    ] },
+  { id: "look_confort_caballero", name: "🛋️ Confort Hombre", description: "Comodidad para el hogar", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Sueter para Caballero"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["pants"], excludeKeywords: ["vestir", "formal", "short"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis", "pantunflas"], excludeKeywords: ["formal", "zapato"], required: true }
-    ]
-  }
+    ] }
 ];
-
-function matchesProductCriteria(product, categories, keywords, excludeKeywords = []) {
-  if (!product) return false;
-  
-  // Convertir categoría del producto a minúsculas
-  const productCategory = (product.Categoria || "").toLowerCase();
-  
-  // Comparar categorías en minúsculas
-  const matchesCategory = categories.length === 0 || 
-    categories.some(cat => cat.toLowerCase() === productCategory);
-  
-  if (!matchesCategory) return false;
-  
-  const productName = (product.Nombre || "").toLowerCase();
-  const parenthesisMatch = productName.match(/\(([^)]+)\)/);
-  const textInParenthesis = parenthesisMatch ? parenthesisMatch[1].toLowerCase() : "";
-  
-  // Keywords - ya es case-insensitive por el toLowerCase()
-  if (keywords && keywords.length > 0 && keywords[0] !== "") {
-    const matchesKeyword = keywords.some(keyword => 
-      productName.includes(keyword.toLowerCase()) || 
-      textInParenthesis.includes(keyword.toLowerCase())
-    );
-    if (!matchesKeyword) return false;
-  }
-  
-  // Exclude keywords - ya es case-insensitive por el toLowerCase()
-  if (excludeKeywords && excludeKeywords.length > 0) {
-    const isExcluded = excludeKeywords.some(exclude => 
-      productName.includes(exclude.toLowerCase()) || 
-      textInParenthesis.includes(exclude.toLowerCase())
-    );
-    if (isExcluded) return false;
-  }
-  
-  return true;
-}
-
-function getProductsForSlot(products, slot) {
-  console.log(`🔍 Buscando productos para slot ${slot.type}:`, {
-    categories: slot.categories,
-    keywords: slot.keywords,
-    excludeKeywords: slot.excludeKeywords || []
-  });
-  
-  const filtered = products.filter(p => {
-    if (!p.Stock || p.Stock <= 0 || p.Stock === "0") return false;
-    
-    const matchesCategory = slot.categories.length === 0 || slot.categories.includes(p.Categoria);
-    if (!matchesCategory) return false;
-    
-    const productName = (p.Nombre || "").toLowerCase();
-    const parenthesisMatch = productName.match(/\(([^)]+)\)/);
-    const textInParenthesis = parenthesisMatch ? parenthesisMatch[1].toLowerCase() : "";
-    
-    if (slot.keywords && slot.keywords.length > 0 && slot.keywords[0] !== "") {
-      const matchesKeyword = slot.keywords.some(keyword => 
-        productName.includes(keyword.toLowerCase()) || 
-        textInParenthesis.includes(keyword.toLowerCase())
-      );
-      if (!matchesKeyword) return false;
-    }
-    
-    if (slot.excludeKeywords && slot.excludeKeywords.length > 0) {
-      const isExcluded = slot.excludeKeywords.some(exclude => 
-        productName.includes(exclude.toLowerCase()) || 
-        textInParenthesis.includes(exclude.toLowerCase())
-      );
-      if (isExcluded) return false;
-    }
-    
-    return true;
-  });
-  
-  console.log(`📦 Encontrados ${filtered.length} productos para slot ${slot.type}`);
-  if (filtered.length > 0) {
-    console.log("Ejemplos:", filtered.slice(0, 3).map(p => p.Nombre));
-  }
-  
-  return filtered;
-  }
-
-function selectProductsForLook(lookConfig, productsWithImages, currentSelection = {}) {
-  const selected = {};
-  const usedProductIds = [];
-  
-  for (const slot of lookConfig.slots) {
-    const slotKey = slot.type;
-    const currentProductId = currentSelection[slotKey]?.id;
-    
-    if (currentProductId && !currentSelection._reloading) {
-      const existingProduct = productsWithImages.find(p => p.ID == currentProductId);
-      if (existingProduct && existingProduct.Stock > 0) {
-        selected[slotKey] = {
-          id: existingProduct.ID,
-          name: existingProduct.Nombre,
-          price: Number(existingProduct.Precio || 0),
-          image: existingProduct.Imagen1 || existingProduct.Imagen2 || "",
-          stock: existingProduct.Stock,
-          category: existingProduct.Categoria,
-          size: existingProduct.Talla || ""
-        };
-        usedProductIds.push(String(existingProduct.ID));
-        continue;
-      }
-    }
-    
-    const availableProducts = getProductsForSlot(productsWithImages, slot);
-    const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
-    
-    if (freshProducts.length > 0) {
-      const randomIndex = Math.floor(Math.random() * freshProducts.length);
-      const product = freshProducts[randomIndex];
-      selected[slotKey] = {
-        id: product.ID,
-        name: product.Nombre,
-        price: Number(product.Precio || 0),
-        image: product.Imagen1 || product.Imagen2 || "",
-        stock: product.Stock,
-        category: product.Categoria,
-        size: product.Talla ? "Talla: " + product.Talla : "Talla:"
-      };
-      usedProductIds.push(String(product.ID));
-    }
-  }
-  
-  return selected;
-}
-
-window.reloadSlot = async function(lookId, slotType, event) {
-  if (event) event.stopPropagation();
-  
-  // Buscar el look (case-insensitive)
-  const lookIndex = looks.findIndex(l => String(l.id).toLowerCase() === String(lookId).toLowerCase());
-  if (lookIndex === -1) return;
-  
-  const look = looks[lookIndex];
-  const lookConfig = LOOKS_CONFIG.find(c => c.id.toLowerCase() === lookId.toLowerCase());
-  if (!lookConfig) return;
-  
-  const slot = lookConfig.slots.find(s => s.type === slotType);
-  if (!slot) return;
-  
-  // Obtener el producto ACTUAL para excluirlo
-  const currentProduct = look.products[slotType];
-  const currentProductId = currentProduct ? String(currentProduct.id) : null;
-  
-  const productsWithImages = allProducts.filter(p => 
-    (p.Imagen1 || p.Imagen2 || p.Imagen3) && 
-    p.Stock > 0 && 
-    p.Stock !== "0"
-  );
-  
-  if (productsWithImages.length === 0) return;
-  
-  // Recopilar TODOS los IDs que deben ser excluidos:
-  const excludedProductIds = [];
-  
-  // 1. Excluir el producto actual del slot que estamos recargando
-  if (currentProductId) {
-    excludedProductIds.push(currentProductId);
-  }
-  
-  // 2. Excluir productos de OTROS slots en el mismo look
-  for (const [key, product] of Object.entries(look.products)) {
-    if (key !== slotType && product && product.id) {
-      const productId = String(product.id);
-      if (!excludedProductIds.includes(productId)) {
-        excludedProductIds.push(productId);
-      }
-    }
-  }
-  
-  // Obtener productos disponibles para el slot
-  let availableProducts = getProductsForSlot(productsWithImages, slot);
-  let freshProducts = availableProducts.filter(p => !excludedProductIds.includes(String(p.ID)));
-  
-  if (freshProducts.length === 0 && currentProductId) {
-    freshProducts = availableProducts.filter(p => String(p.ID) !== currentProductId);
-  }
-  
-  if (freshProducts.length === 0) {
-    showTemporaryMessage("⚠️ No hay más productos disponibles", "error");
-    return;
-  }
-  
-  // Seleccionar un producto aleatorio
-  const randomIndex = Math.floor(Math.random() * freshProducts.length);
-  let newProduct = freshProducts[randomIndex];
-  
-  // Verificar que sea diferente al actual
-  if (currentProductId && String(newProduct.ID) === currentProductId) {
-    const otherProducts = freshProducts.filter(p => String(p.ID) !== currentProductId);
-    if (otherProducts.length > 0) {
-      const newRandomIndex = Math.floor(Math.random() * otherProducts.length);
-      newProduct = otherProducts[newRandomIndex];
-    }
-  }
-  
-  // Construir el producto actualizado
-  const updatedProduct = {
-    id: newProduct.ID,
-    name: newProduct.Nombre,
-    price: Number(newProduct.Precio || 0),
-    image: newProduct.Imagen1 || newProduct.Imagen2 || newProduct.Imagen3 || "",
-    stock: newProduct.Stock,
-    category: newProduct.Categoria,
-    size: newProduct.Talla ? "Talla: " + newProduct.Talla : "Talla no especificada"
-  };
-  
-  // Guardar en el array de datos
-  look.products[slotType] = updatedProduct;
-  
-  // Si es torso, actualizar imagen principal del look
-  if (slotType === "torso" && updatedProduct.image) {
-    look.image = optimizeDriveUrl(updatedProduct.image, 500);
-  }
-  
-  looks[lookIndex] = { ...look };
-  allLooks = [...looks];
-  
-  // ========== ACTUALIZACIÓN ESPECÍFICA DEL DOM (SIN RE-RENDER COMPLETO) ==========
-  
-  // Encontrar el card del look específico
-  const lookCards = document.querySelectorAll('.look-card');
-  let targetCard = null;
-  
-  for (const card of lookCards) {
-    const titleEl = card.querySelector('.look-title');
-    if (titleEl && titleEl.textContent.toLowerCase().includes(look.name.toLowerCase())) {
-      targetCard = card;
-      break;
-    }
-  }
-  
-  if (!targetCard) {
-    // Fallback: re-renderizar todo si no encuentra el card
-    renderLooks();
-    return;
-  }
-  
-  // Encontrar el producto específico dentro del card
-  const productItem = targetCard.querySelector(`.look-product-item[data-slot="${slotType}"]`);
-  
-  if (!productItem) {
-    renderLooks();
-    return;
-  }
-  
-  // Actualizar la imagen
-  const productImg = productItem.querySelector('.look-product-img');
-  const newImgUrl = optimizeDriveUrl(updatedProduct.image, 150);
-  if (productImg) {
-    productImg.src = newImgUrl;
-    productImg.alt = updatedProduct.name;
-  }
-  
-  // Actualizar nombre
-  const productName = productItem.querySelector('.look-product-name');
-  if (productName) productName.textContent = updatedProduct.name;
-  
-  // Actualizar precio
-  const productPrice = productItem.querySelector('.look-product-price');
-  if (productPrice) productPrice.textContent = formatCurrency(updatedProduct.price);
-  
-  // Actualizar categoría
-  const productCategory = productItem.querySelector('.look-product-category');
-  if (productCategory) productCategory.textContent = updatedProduct.category || '';
-  
-  // Actualizar talla
-  const productSize = productItem.querySelector('.look-product-size');
-  if (productSize) productSize.textContent = updatedProduct.size || 'Talla no especificada';
-  
-  // Actualizar el botón "Agregar" con los nuevos datos
-  const addButton = productItem.querySelector('.look-product-add');
-  if (addButton) {
-    const escapedName = updatedProduct.name.replace(/'/g, "\\'");
-    addButton.setAttribute('onclick', `addToCart({ID:'${updatedProduct.id}', Nombre:'${escapedName}', Precio:${updatedProduct.price}, Imagen1:'${updatedProduct.image}', Talla:'${updatedProduct.size || ''}'})`);
-  }
-  
-  // Si es torso, actualizar la imagen principal del look
-  if (slotType === "torso") {
-    const lookImage = targetCard.querySelector('.look-image');
-    if (lookImage) {
-      lookImage.src = optimizeDriveUrl(updatedProduct.image, 500);
-      lookImage.alt = updatedProduct.name;
-    }
-  }
-  
-  // Recalcular y actualizar el precio total del look
-  let newTotalPrice = 0;
-  for (const [key, product] of Object.entries(look.products)) {
-    if (product && product.price) {
-      newTotalPrice += product.price;
-    }
-  }
-  
-  const totalPriceElement = targetCard.querySelector('.look-total-price');
-  if (totalPriceElement) {
-    totalPriceElement.textContent = formatCurrency(newTotalPrice);
-  }
-  
-  // Actualizar el contador de prendas
-  const productCountElement = targetCard.querySelector('.look-item-count');
-  const productCount = Object.values(look.products).filter(p => p !== null).length;
-  if (productCountElement) {
-    productCountElement.textContent = `${productCount} prenda${productCount !== 1 ? 's' : ''}`;
-  }
-  
-  // Pequeño feedback visual (opcional - un sutil cambio de color)
-  productItem.style.transition = 'background-color 0.3s ease';
-  productItem.style.backgroundColor = '#e8f5e9';
-  setTimeout(() => {
-    productItem.style.backgroundColor = '';
-  }, 300);
-};
-
-
-
 
 // ========== FUNCIONES DE CLIMA ==========
 async function getWeather() {
   try {
     const response = await fetch(`${WEATHER_API_URL}?action=getWeather`);
     const data = await response.json();
-    
     if (data.ok && data.weatherType) {
       currentWeather = data;
       console.log("🌤️ Clima actual:", data.weatherType, data.temperature, data.city);
       addWeatherNotification(data);
       return data;
     } else {
-      // Si no hay clima, usar templado por defecto
       currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
-      console.log("⚠️ No se pudo obtener clima, usando 'templado' por defecto");
       return currentWeather;
     }
   } catch (err) {
     console.error("Error obteniendo clima:", err);
-    // Usar templado por defecto si hay error
     currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
     return currentWeather;
   }
@@ -1199,11 +146,9 @@ async function getWeather() {
 function addWeatherNotification(weather) {
   const existing = document.querySelector('.weather-notification');
   if (existing) existing.remove();
-  
   let weatherIcon = "🌤️";
   let weatherText = "";
   let recommendation = "";
-  
   switch(weather.weatherType) {
     case 'calor':
       weatherIcon = "☀️🔥";
@@ -1225,7 +170,6 @@ function addWeatherNotification(weather) {
       weatherText = "Clima templado";
       recommendation = "Looks casuales y elegantes para hoy ✨";
   }
-  
   const notif = document.createElement('div');
   notif.className = 'weather-notification';
   notif.innerHTML = `
@@ -1238,76 +182,122 @@ function addWeatherNotification(weather) {
       <button class="weather-close" onclick="this.closest('.weather-notification').remove()">✕</button>
     </div>
   `;
-  
   document.body.insertBefore(notif, document.body.firstChild);
-  
-  setTimeout(() => {
-    if (notif && notif.parentNode) notif.remove();
-  }, 8000);
+  setTimeout(() => { if (notif && notif.parentNode) notif.remove(); }, 8000);
 }
 
-
-
-// ========== FUNCIÓN PRINCIPAL DE ORDENAMIENTO ==========
 function sortLooksByWeather(looksArray) {
-  if (!currentWeather || !currentWeather.weatherType) {
-    console.log("No hay clima disponible, mostrando looks sin ordenar");
-    return looksArray;
-  }
-  
-  const weatherType = currentWeather.weatherType.toLowerCase(); // 🔥 Normalizar
+  if (!currentWeather || !currentWeather.weatherType) return looksArray;
+  const weatherType = currentWeather.weatherType.toLowerCase();
   const priorityScores = WEATHER_PRIORITY_SCORES[weatherType];
-  
-  if (!priorityScores) {
-    console.log(`No hay puntuaciones para clima: ${weatherType}`);
-    return looksArray;
-  }
-  
-  console.log(`🎯 Ordenando looks para clima: ${weatherType}`);
-  console.log("Puntuaciones:", priorityScores);
-  
-  const sortedLooks = [...looksArray].sort((a, b) => {
-    // 🔥 Normalizar IDs para comparación
-    const scoreA = priorityScores[a.id?.toLowerCase()] || 0;
-    const scoreB = priorityScores[b.id?.toLowerCase()] || 0;
-    console.log(`  ${a.id}: ${scoreA} | ${b.id}: ${scoreB}`);
-    return scoreB - scoreA;
-  });
-  
-  return sortedLooks;
+  if (!priorityScores) return looksArray;
+  return [...looksArray].sort((a, b) => (priorityScores[b.id?.toLowerCase()] || 0) - (priorityScores[a.id?.toLowerCase()] || 0));
 }
 
-// ========== CARGA DE PRODUCTOS Y CONSTRUCCIÓN DE LOOKS ==========
+// ========== FUNCIONES DE PRODUCTOS PARA LOOKS ==========
+function matchesProductCriteria(product, categories, keywords, excludeKeywords = []) {
+  if (!product) return false;
+  const productCategory = (product.Categoria || "").toLowerCase();
+  const matchesCategory = categories.length === 0 || categories.some(cat => cat.toLowerCase() === productCategory);
+  if (!matchesCategory) return false;
+  const productName = (product.Nombre || "").toLowerCase();
+  const parenthesisMatch = productName.match(/\(([^)]+)\)/);
+  const textInParenthesis = parenthesisMatch ? parenthesisMatch[1].toLowerCase() : "";
+  if (keywords && keywords.length > 0 && keywords[0] !== "") {
+    const matchesKeyword = keywords.some(keyword => productName.includes(keyword.toLowerCase()) || textInParenthesis.includes(keyword.toLowerCase()));
+    if (!matchesKeyword) return false;
+  }
+  if (excludeKeywords && excludeKeywords.length > 0) {
+    const isExcluded = excludeKeywords.some(exclude => productName.includes(exclude.toLowerCase()) || textInParenthesis.includes(exclude.toLowerCase()));
+    if (isExcluded) return false;
+  }
+  return true;
+}
+
+function getProductsForSlot(products, slot) {
+  return products.filter(p => {
+    if (!p.Stock || p.Stock <= 0 || p.Stock === "0") return false;
+    const matchesCategory = slot.categories.length === 0 || slot.categories.includes(p.Categoria);
+    if (!matchesCategory) return false;
+    const productName = (p.Nombre || "").toLowerCase();
+    const parenthesisMatch = productName.match(/\(([^)]+)\)/);
+    const textInParenthesis = parenthesisMatch ? parenthesisMatch[1].toLowerCase() : "";
+    if (slot.keywords && slot.keywords.length > 0 && slot.keywords[0] !== "") {
+      const matchesKeyword = slot.keywords.some(keyword => productName.includes(keyword.toLowerCase()) || textInParenthesis.includes(keyword.toLowerCase()));
+      if (!matchesKeyword) return false;
+    }
+    if (slot.excludeKeywords && slot.excludeKeywords.length > 0) {
+      const isExcluded = slot.excludeKeywords.some(exclude => productName.includes(exclude.toLowerCase()) || textInParenthesis.includes(exclude.toLowerCase()));
+      if (isExcluded) return false;
+    }
+    return true;
+  });
+}
+
+function selectProductsForLook(lookConfig, productsWithImages, currentSelection = {}) {
+  const selected = {};
+  const usedProductIds = [];
+  for (const slot of lookConfig.slots) {
+    const slotKey = slot.type;
+    const currentProductId = currentSelection[slotKey]?.id;
+    if (currentProductId && !currentSelection._reloading) {
+      const existingProduct = productsWithImages.find(p => p.ID == currentProductId);
+      if (existingProduct && existingProduct.Stock > 0) {
+        selected[slotKey] = {
+          id: existingProduct.ID,
+          name: existingProduct.Nombre,
+          price: Number(existingProduct.Precio || 0),
+          image: existingProduct.Imagen1 || existingProduct.Imagen2 || "",
+          stock: existingProduct.Stock,
+          category: existingProduct.Categoria,
+          size: existingProduct.Talla || ""
+        };
+        usedProductIds.push(String(existingProduct.ID));
+        continue;
+      }
+    }
+    const availableProducts = getProductsForSlot(productsWithImages, slot);
+    const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
+    if (freshProducts.length > 0) {
+      const randomIndex = Math.floor(Math.random() * freshProducts.length);
+      const product = freshProducts[randomIndex];
+      selected[slotKey] = {
+        id: product.ID,
+        name: product.Nombre,
+        price: Number(product.Precio || 0),
+        image: product.Imagen1 || product.Imagen2 || "",
+        stock: product.Stock,
+        category: product.Categoria,
+        size: product.Talla ? "Talla: " + product.Talla : "Talla:"
+      };
+      usedProductIds.push(String(product.ID));
+    }
+  }
+  return selected;
+}
+
+// ========== CARGA Y RENDERIZADO DE LOOKS ==========
 async function loadProducts() {
   const cached = getCachedProducts();
   if (cached && cached.length > 0) {
     allProducts = cached;
-    await getWeather();  // Esperar a tener el clima
+    await getWeather();
     buildLooksFromProducts();
-    // No renderizar aquí, se hace al final
     loadLooksInBackground();
     return;
   }
-  
   showLoader("Cargando productos...");
-  
   try {
-    await getWeather();  // Esperar a tener el clima ANTES de construir looks
-    
+    await getWeather();
     const res = await fetch(API_URL);
     const data = await res.json();
     allProducts = data.products || data || [];
-    
     setCachedProducts(allProducts);
-    
     buildLooksFromProducts();
-    
   } catch (err) {
     console.error("Error cargando productos:", err);
     const container = document.getElementById("looks-container");
-    if (container) {
-      container.innerHTML = '<div class="empty-looks">❌ Error al cargar los productos. Intenta de nuevo.</div>';
-    }
+    if (container) container.innerHTML = '<div class="empty-looks">❌ Error al cargar los productos. Intenta de nuevo.</div>';
   } finally {
     hideLoader();
   }
@@ -1318,7 +308,6 @@ async function loadLooksInBackground() {
     const res = await fetch(API_URL);
     const data = await res.json();
     const freshProducts = data.products || data || [];
-    
     if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
       allProducts = freshProducts;
       setCachedProducts(allProducts);
@@ -1332,24 +321,19 @@ async function loadLooksInBackground() {
 
 function buildLooksFromProducts() {
   if (allProducts.length === 0) return;
-  
   const productsWithImages = allProducts.filter(p => (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0);
   const allBuiltLooks = [];
-  
   for (const config of LOOKS_CONFIG) {
     const selectedProducts = selectProductsForLook(config, productsWithImages);
     const productCount = Object.keys(selectedProducts).length;
-    
     if (productCount > 0) {
       const firstProductKey = Object.keys(selectedProducts)[0];
       let lookImage = "https://placehold.co/600x800/3b1f5f/ffffff?text=Z&R";
-      
       if (selectedProducts[firstProductKey] && selectedProducts[firstProductKey].image) {
         lookImage = optimizeDriveUrl(selectedProducts[firstProductKey].image, 500);
       }
-      
       allBuiltLooks.push({
-        id: config.id.toLowerCase(), // 🔥 Normalizar ID a minúsculas
+        id: config.id.toLowerCase(),
         name: config.name,
         description: config.description,
         category: config.category,
@@ -1360,13 +344,8 @@ function buildLooksFromProducts() {
       });
     }
   }
-  
-  // Ordenar y asignar
   allLooks = sortLooksByWeather(allBuiltLooks);
   looks = [...allLooks];
-  
-  console.log("✅ Looks construidos:", looks.map(l => ({ id: l.id, name: l.name })));
-  
   currentLooksPage = 1;
   renderLooks();
 }
@@ -1374,65 +353,29 @@ function buildLooksFromProducts() {
 function renderLooks() {
   const container = document.getElementById("looks-container");
   if (!container) return;
-  
-  // Asegurar que los datos estén actualizados
-  if (allLooks.length === 0 && looks.length > 0) {
-    allLooks = looks;
-  }
-  
   if (allLooks.length === 0) {
-    container.innerHTML = `
-      <div class="empty-looks">
-        <p>✨ No disponibles en este momento.</p>
-        <p>Visita el <a href="index.html" style="color:#ff4f81;">catálogo</a> para ver nuestros productos.</p>
-      </div>
-    `;
-    renderLooksPagination(); // Limpiar paginación
+    container.innerHTML = `<div class="empty-looks"><p>✨ No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">catálogo</a> para ver nuestros productos.</p></div>`;
+    renderLooksPagination();
     return;
   }
-  
-  // Calcular paginación
   const totalPages = Math.ceil(allLooks.length / looksPerPage);
   const start = (currentLooksPage - 1) * looksPerPage;
   const end = start + looksPerPage;
   const looksToRender = allLooks.slice(start, end);
-  
   container.innerHTML = "";
-  
   looksToRender.forEach(look => {
     let totalPrice = 0;
     let productsHtml = '';
     let productCount = 0;
-    
     const slotOrder = ["torso", "piernas", "pies"];
-    
-    const slotNames = {
-      torso: "",
-      piernas: "",
-      pies: ""
-    };
-    
-    const slotIcons = {
-      torso: "",
-      piernas: "",
-      pies: ""
-    };
-    
     for (const slotKey of slotOrder) {
       const product = look.products[slotKey];
-      
       if (!product) continue;
-      
       productCount++;
       totalPrice += product.price;
-      
       const productImg = optimizeDriveUrl(product.image, 150);
-      const slotName = slotNames[slotKey] || "";
-      const slotIcon = slotIcons[slotKey] || "";
-      
       productsHtml += `
         <div class="look-product-item" data-slot="${slotKey}">
-          <div class="look-product-slot-badge">${slotIcon} ${slotName}</div>
           <img class="look-product-img" src="${productImg}" alt="${escapeHtml(product.name)}" onerror="this.src='https://placehold.co/70x70/eee/999?text=No+img'">
           <div class="look-product-info">
             <div class="look-product-name">${escapeHtml(product.name)}</div>
@@ -1444,17 +387,13 @@ function renderLooks() {
             <button class="look-product-add" onclick="addToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">
               + Agregar
             </button>
-            <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">
-  🔄
-</button>
+            <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">🔄</button>
           </div>
         </div>
       `;
     }
-    
     const card = document.createElement("div");
     card.className = "look-card";
-    
     card.innerHTML = `
       <div class="look-image-container" onclick="openImageModal('${optimizeDriveUrl(look.image, 800)}')">
         <img class="look-image" src="${optimizeDriveUrl(look.image, 500)}" alt="${escapeHtml(look.name)}">
@@ -1467,401 +406,145 @@ function renderLooks() {
         <h2 class="look-title">${escapeHtml(look.name)}</h2>
         <p class="look-description">${escapeHtml(look.description)}</p>
         <div class="look-products">
-          <div class="look-products-title">
-            <span>Este outfit incluye:</span>
-          </div>
-          <div class="look-products-list">
-            ${productsHtml}
-          </div>
+          <div class="look-products-title"><span>Este outfit incluye:</span></div>
+          <div class="look-products-list">${productsHtml}</div>
           <div class="look-total">
             <span class="look-total-label">Precio total:</span>
             <span class="look-total-price">${formatCurrency(totalPrice)}</span>
           </div>
         </div>
-        <button class="buy-look-btn" onclick="addLookToCart('${look.id}')">
-          🛒 Comprar todo
-        </button>
+        <button class="buy-look-btn" onclick="addLookToCart('${look.id}')">🛒 Comprar todo</button>
       </div>
     `;
-    
     container.appendChild(card);
   });
-  
-  // Renderizar paginación
   renderLooksPagination(totalPages);
 }
 
-// Nueva función para renderizar paginación de looks
 function renderLooksPagination(totalPages) {
   const container = document.getElementById("looks-container");
   if (!container) return;
-  
-  // Eliminar paginación anterior si existe
   const existingPagination = document.querySelector(".looks-pagination");
   if (existingPagination) existingPagination.remove();
-  
   if (totalPages <= 1) return;
-  
   const paginationDiv = document.createElement("div");
   paginationDiv.className = "looks-pagination admin-pagination";
   paginationDiv.style.cssText = "display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap;";
-  
-  // Botón anterior
   if (currentLooksPage > 1) {
     const prevBtn = document.createElement("button");
     prevBtn.textContent = "← Anterior";
-    prevBtn.onclick = () => {
-      currentLooksPage--;
-      renderLooks();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    prevBtn.onclick = () => { currentLooksPage--; renderLooks(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     paginationDiv.appendChild(prevBtn);
   }
-  
-  // Números de página
   let startPage = Math.max(1, currentLooksPage - 2);
   let endPage = Math.min(totalPages, startPage + 4);
-  
-  if (endPage - startPage < 4 && startPage > 1) {
-    startPage = Math.max(1, endPage - 4);
-  }
-  
+  if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
   for (let i = startPage; i <= endPage; i++) {
     const btn = document.createElement("button");
     btn.textContent = i;
     if (i === currentLooksPage) btn.classList.add("active-page");
-    btn.onclick = () => {
-      currentLooksPage = i;
-      renderLooks();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    btn.onclick = () => { currentLooksPage = i; renderLooks(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     paginationDiv.appendChild(btn);
   }
-  
-  // Botón siguiente
   if (currentLooksPage < totalPages) {
     const nextBtn = document.createElement("button");
     nextBtn.textContent = "Siguiente →";
-    nextBtn.onclick = () => {
-      currentLooksPage++;
-      renderLooks();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    nextBtn.onclick = () => { currentLooksPage++; renderLooks(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     paginationDiv.appendChild(nextBtn);
   }
-  
   container.parentNode.insertBefore(paginationDiv, container.nextSibling);
 }
 
+// ========== FUNCIONES DE RECARGA DE SLOTS ==========
+window.reloadSlot = async function(lookId, slotType, event) {
+  if (event) event.stopPropagation();
+  const lookIndex = looks.findIndex(l => String(l.id).toLowerCase() === String(lookId).toLowerCase());
+  if (lookIndex === -1) return;
+  const look = looks[lookIndex];
+  const lookConfig = LOOKS_CONFIG.find(c => c.id.toLowerCase() === lookId.toLowerCase());
+  if (!lookConfig) return;
+  const slot = lookConfig.slots.find(s => s.type === slotType);
+  if (!slot) return;
+  const currentProduct = look.products[slotType];
+  const currentProductId = currentProduct ? String(currentProduct.id) : null;
+  const productsWithImages = allProducts.filter(p => (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0 && p.Stock !== "0");
+  if (productsWithImages.length === 0) return;
+  const excludedProductIds = [];
+  if (currentProductId) excludedProductIds.push(currentProductId);
+  for (const [key, product] of Object.entries(look.products)) {
+    if (key !== slotType && product && product.id) {
+      const productId = String(product.id);
+      if (!excludedProductIds.includes(productId)) excludedProductIds.push(productId);
+    }
+  }
+  let availableProducts = getProductsForSlot(productsWithImages, slot);
+  let freshProducts = availableProducts.filter(p => !excludedProductIds.includes(String(p.ID)));
+  if (freshProducts.length === 0 && currentProductId) {
+    freshProducts = availableProducts.filter(p => String(p.ID) !== currentProductId);
+  }
+  if (freshProducts.length === 0) {
+    showTemporaryMessage("⚠️ No hay más productos disponibles", "error");
+    return;
+  }
+  let randomIndex = Math.floor(Math.random() * freshProducts.length);
+  let newProduct = freshProducts[randomIndex];
+  if (currentProductId && String(newProduct.ID) === currentProductId) {
+    const otherProducts = freshProducts.filter(p => String(p.ID) !== currentProductId);
+    if (otherProducts.length > 0) newProduct = otherProducts[Math.floor(Math.random() * otherProducts.length)];
+  }
+  const updatedProduct = {
+    id: newProduct.ID,
+    name: newProduct.Nombre,
+    price: Number(newProduct.Precio || 0),
+    image: newProduct.Imagen1 || newProduct.Imagen2 || newProduct.Imagen3 || "",
+    stock: newProduct.Stock,
+    category: newProduct.Categoria,
+    size: newProduct.Talla ? "Talla: " + newProduct.Talla : "Talla no especificada"
+  };
+  look.products[slotType] = updatedProduct;
+  if (slotType === "torso" && updatedProduct.image) look.image = optimizeDriveUrl(updatedProduct.image, 500);
+  looks[lookIndex] = { ...look };
+  allLooks = [...looks];
+  renderLooks();
+};
+
 window.addLookToCart = function(lookId) {
-  // 🔥 MODIFICADO: Búsqueda case-insensitive
   const look = looks.find(l => l.id.toLowerCase() === lookId.toLowerCase());
   if (!look) return;
-  
-  let addedCount = 0;
   const products = Object.values(look.products).filter(p => p !== null);
-  
-  if (products.length === 0) {
-    alert("❌ No hay prendas disponibles.");
-    return;
-  }
-  
-  products.forEach(product => {
-    if (product.stock > 0) {
-      addToCart({
-        ID: product.id,      
-        Nombre: product.name,
-        Precio: product.price,
-        Imagen1: product.image,
-        Talla: product.size
-      });
-      addedCount++;
-    }
-  });
-  
-  if (addedCount > 0) {
-    animateCartAdd();
-  }
-};
-// ========== FUNCIONES DE WHATSAPP ==========
-function buildWhatsAppMessage() {
-  const items = Object.values(localCart);
-  if (items.length === 0) return "";
-  
-  let message = "Hola, quiero comprar:%0A%0A";
-  items.forEach((item) => {
-    message += `${encodeURIComponent(item.name)} - ${item.quantity} pieza${item.quantity > 1 ? "s" : ""}%0A`;
-  });
-  
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  message += `%0ATotal: ${encodeURIComponent(formatCurrency(total))}`;
-  return message;
-}
-
-function generateRequestId() {
-  return 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
-}
-
-let activeRequestId = null;
-let pollingInterval = null;
-
-window.openWhatsAppCheckout = async function() {
-  const items = Object.values(localCart);
-  if (items.length === 0) {
-    showTemporaryMessage("No hay productos en el carrito", "error");
-    return;
-  }
-  
-  let clientPhone = localStorage.getItem("client_phone");
-  
-  if (!clientPhone) {
-    clientPhone = prompt(
-      "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n" +
-      "⚠️ Solo números, sin espacios ni código país.",
-      ""
-    );
-    
-    if (!clientPhone) {
-      showTemporaryMessage("❌ Necesitamos tu número para procesar la compra", "error");
-      return;
-    }
-    
-    clientPhone = clientPhone.replace(/[^0-9]/g, '');
-    if (clientPhone.length !== 10) {
-      showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
-      return;
-    }
-    
-    localStorage.setItem("client_phone", clientPhone);
-  }
-  
-  showLoader("Enviando solicitud...");
-  
-  const requestId = generateRequestId();
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n\n";
-  adminMessage += `*Cliente:* +52 ${clientPhone}\n`;
-  adminMessage += `*Solicitud ID:* ${requestId}\n`;
-  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += "*📦 Productos:*\n";
-  
-  items.forEach((item) => {
-    adminMessage += `• ${item.name}\n`;
-    adminMessage += `  Cantidad: ${item.quantity}\n`;
-    adminMessage += `  Precio unitario: $${item.price.toLocaleString()}\n`;
-    adminMessage += `  Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
-    adminMessage += "------------------------\n";
-  });
-  
-  adminMessage += `*💰 Total: $${total.toLocaleString()} MXN*\n\n`;
-  adminMessage += `_✅ Para continuar con el pago espera el mensaje de confirmacion\n`;
-  
-  const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
-  window.open(whatsappAdminUrl, '_blank');
-  
-  try {
-    await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "saveClientPhone",
-        requestId: requestId,
-        phone: clientPhone
-      })
-    });
-    
-    const notificationItems = items.map(item => ({
-      productId: item.id,
-      nombre: item.name,
-      cantidad: item.quantity,
-      imagen: item.Imagen1 || "",
-      talla: item.Talla || ""
-    }));
-    
-    await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "createNotification",
-        items: notificationItems,
-        requestId: requestId
-      })
-    });
-    
-    localCart = {};
-    saveCartToStorage();
-    updateCartBadge();
-    renderCart();
-    
-    showTemporaryMessage(`✅ ¡Solicitud enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`, "success");
-    
-    closeCartDrawer();
-    
-    startSilentPolling(requestId, clientPhone);
-    
-  } catch(err) {
-    console.error("Error:", err);
-    showTemporaryMessage("❌ Error al enviar la solicitud", "error");
-  } finally {
-    hideLoader();
-  }
+  if (products.length === 0) { alert("❌ No hay prendas disponibles."); return; }
+  products.forEach(product => { if (product.stock > 0) addToCart({ ID: product.id, Nombre: product.name, Precio: product.price, Imagen1: product.image, Talla: product.size }); });
+  animateCartAdd();
 };
 
-function startSilentPolling(requestId, clientPhone) {
-  let interval = setInterval(async () => {
-    try {
-      const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${requestId}`);
-      const data = await response.json();
-      
-      if (data.ok && data.status === 'approved' && data.paymentLink) {
-        clearInterval(interval);
-        
-        let message = `✅ *¡TU PEDIDO HA SIDO CONFIRMADO!*\n\n`;
-        message += `*💰 TOTAL A PAGAR: $${(data.totalAmount || 0).toLocaleString()} MXN*\n\n`;
-        message += `🔗 *LINK DE PAGO SEGURO:*\n${data.paymentLink}\n\n`;
-        message += `⚠️ *El enlace expira en 30 minutos*\n`;
-        message += `¡Gracias por tu compra! 🛍️`;
-        
-        let cleanPhone = String(clientPhone).replace(/[^0-9]/g, '');
-        if (cleanPhone.length === 10) cleanPhone = "52" + cleanPhone;
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
-        
-        localStorage.removeItem('pending_purchase_' + requestId);
-      }
-    } catch (err) {
-      console.error("Error:", err);
-    }
-  }, 5000);
-  
-  setTimeout(() => {
-    clearInterval(interval);
-    localStorage.removeItem('pending_purchase_' + requestId);
-  }, 600000);
+function initLooksLayoutToggle() {
+  const looksContainer = document.getElementById("looks-container");
+  const toggleBtn = document.getElementById("layout-toggle-looks");
+  if (!looksContainer || !toggleBtn) return;
+  const savedLayout = localStorage.getItem("looks_layout");
+  if (savedLayout === "grid") {
+    looksContainer.classList.add("layout-grid");
+    toggleBtn.textContent = "🟦🟦";
+  } else {
+    toggleBtn.textContent = "📱";
+  }
+  toggleBtn.addEventListener("click", () => {
+    looksContainer.classList.toggle("layout-grid");
+    const isGrid = looksContainer.classList.contains("layout-grid");
+    localStorage.setItem("looks_layout", isGrid ? "grid" : "list");
+    toggleBtn.textContent = isGrid ? "🟦🟦" : "📱";
+  });
 }
 
 // ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
-  loadCartFromStorage();
   loadProducts();
-  renderCart();
-  
-  const cartBtn = document.getElementById("floating-cart-btn");
-  if (cartBtn) cartBtn.addEventListener("click", openCartDrawer);
-  
-  const closeCartBtn = document.getElementById("close-cart-btn");
-  if (closeCartBtn) closeCartBtn.addEventListener("click", closeCartDrawer);
-  
-  const overlay = document.getElementById("overlay");
-  if (overlay) overlay.addEventListener("click", () => {
-    closeCartDrawer();
-    closeImageModal();
-  });
-  
-  const closeImageBtn = document.getElementById("close-image-modal");
-  if (closeImageBtn) closeImageBtn.addEventListener("click", closeImageModal);
   
   const refreshBtn = document.getElementById("refresh-looks");
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadProducts());
   
-  const requestBtn = document.getElementById("request-purchase-btn");
-  if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
-
-  // 🔥 MOVIDO AQUÍ: Botón para cambiar número dentro del carrito
-  const changePhoneBtn = document.getElementById("change-phone-btn");
-  if (changePhoneBtn) {
-    changePhoneBtn.addEventListener("click", changePhoneNumber);
-  }
-
-  // 🔥 MOVIDO AQUÍ: Actualizar display al cargar la página
-  updateSavedPhoneDisplay();
-});
-
-// Estilos toast
-if (!document.querySelector('#toast-styles')) {
-  const style = document.createElement("style");
-  style.id = "toast-styles";
-  style.textContent = `
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-      to { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-    @keyframes slideDown {
-      from { opacity: 1; transform: translateX(-50%) translateY(0); }
-      to { opacity: 0; transform: translateX(-50%) translateY(20px); }
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  loadCartFromStorage();
-  loadProducts();
-  renderCart();
-  
-  // ... (código existente)
-  
-  // 🔥 AGREGAR ESTA LÍNEA
   initLooksLayoutToggle();
   
-  // ... (resto del código)
+  // Escuchar cambios en el carrito
+  window.addEventListener('cartUpdated', () => updateCartBadge());
 });
-
-
-
-
-
-
-// ========== FUNCIONES PARA CAMBIAR NÚMERO DE TELÉFONO ==========
-
-// Función para mostrar el número guardado en el carrito
-function updateSavedPhoneDisplay() {
-  const container = document.getElementById("saved-phone-container");
-  const display = document.getElementById("saved-phone-display");
-  const savedPhone = localStorage.getItem("client_phone");
-  
-  if (container && display) {
-    if (savedPhone && savedPhone.length === 10) {
-      // Formatear número: XX-XXXX-XXXX
-      const formatted = `${savedPhone.slice(0,2)}-${savedPhone.slice(2,6)}-${savedPhone.slice(6)}`;
-      display.textContent = formatted;
-      container.style.display = "block";
-    } else {
-      container.style.display = "none";
-    }
-  }
-}
-
-// Función para cambiar el número (ahora usa el prompt personalizado)
-async function changePhoneNumber() {
-  const currentPhone = localStorage.getItem("client_phone") || "";
-  const formattedCurrent = currentPhone && currentPhone.length === 10 
-    ? `${currentPhone.slice(0,2)}-${currentPhone.slice(2,6)}-${currentPhone.slice(6)}` 
-    : "no guardado";
-  
-  // Esto ahora mostrará un modal bonito en lugar del prompt feo
-  const newPhone = await prompt(
-    `Número actual: ${formattedCurrent}\n\nIngresa tu nuevo número (10 dígitos):\nEjemplo: 8671234567\n\n⚠️ Solo números, sin espacios ni código país.`,
-    currentPhone || ""
-  );
-  
-  if (newPhone === null) return; // Usuario canceló
-  
-  if (newPhone === "") {
-    if (await confirm("¿Eliminar tu número guardado? Deberás ingresarlo nuevamente en tu próxima compra.")) {
-      localStorage.removeItem("client_phone");
-      updateSavedPhoneDisplay();
-      await alert("📱 Número eliminado");
-    }
-    return;
-  }
-  
-  let cleanPhone = newPhone.replace(/[^0-9]/g, '');
-  if (cleanPhone.length !== 10) {
-    await alert("❌ Número inválido. Debe tener 10 dígitos.");
-    return;
-  }
-  
-  localStorage.setItem("client_phone", cleanPhone);
-  updateSavedPhoneDisplay();
-  await alert("✅ ¡Número actualizado correctamente!");
-}
-
