@@ -944,44 +944,16 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
 window.reloadSlot = async function(lookId, slotType, event) {
   if (event) event.stopPropagation();
   
-  // Capturar el botón que fue presionado
-  const clickedButton = event.currentTarget;
-  
-  // Aplicar efecto de flash al botón
-  if (clickedButton) {
-    clickedButton.classList.add('reload-btn-flash');
-  }
-  
-  // Pequeña pausa para que el flash sea visible antes de recargar
-  await new Promise(resolve => setTimeout(resolve, 150));
-  
   // Buscar el look (case-insensitive)
   const lookIndex = looks.findIndex(l => String(l.id).toLowerCase() === String(lookId).toLowerCase());
-  
-  if (lookIndex === -1) {
-    if (clickedButton) {
-      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
-    }
-    return;
-  }
+  if (lookIndex === -1) return;
   
   const look = looks[lookIndex];
   const lookConfig = LOOKS_CONFIG.find(c => c.id.toLowerCase() === lookId.toLowerCase());
-  
-  if (!lookConfig) {
-    if (clickedButton) {
-      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
-    }
-    return;
-  }
+  if (!lookConfig) return;
   
   const slot = lookConfig.slots.find(s => s.type === slotType);
-  if (!slot) {
-    if (clickedButton) {
-      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
-    }
-    return;
-  }
+  if (!slot) return;
   
   // Obtener el producto ACTUAL para excluirlo
   const currentProduct = look.products[slotType];
@@ -993,12 +965,7 @@ window.reloadSlot = async function(lookId, slotType, event) {
     p.Stock !== "0"
   );
   
-  if (productsWithImages.length === 0) {
-    if (clickedButton) {
-      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
-    }
-    return;
-  }
+  if (productsWithImages.length === 0) return;
   
   // Recopilar TODOS los IDs que deben ser excluidos:
   const excludedProductIds = [];
@@ -1008,7 +975,7 @@ window.reloadSlot = async function(lookId, slotType, event) {
     excludedProductIds.push(currentProductId);
   }
   
-  // 2. Excluir productos de OTROS slots en el mismo look (para evitar duplicados en el mismo outfit)
+  // 2. Excluir productos de OTROS slots en el mismo look
   for (const [key, product] of Object.entries(look.products)) {
     if (key !== slotType && product && product.id) {
       const productId = String(product.id);
@@ -1020,62 +987,27 @@ window.reloadSlot = async function(lookId, slotType, event) {
   
   // Obtener productos disponibles para el slot
   let availableProducts = getProductsForSlot(productsWithImages, slot);
-  
-  // Filtrar para excluir los IDs prohibidos
   let freshProducts = availableProducts.filter(p => !excludedProductIds.includes(String(p.ID)));
   
-  // Si no hay productos después de excluir, intentar solo excluyendo el actual
   if (freshProducts.length === 0 && currentProductId) {
     freshProducts = availableProducts.filter(p => String(p.ID) !== currentProductId);
   }
   
-  // Si aún no hay productos, mostrar mensaje
   if (freshProducts.length === 0) {
-    if (clickedButton) {
-      setTimeout(() => clickedButton.classList.remove('reload-btn-flash'), 400);
-    }
     showTemporaryMessage("⚠️ No hay más productos disponibles", "error");
     return;
   }
   
-  // Seleccionar un producto aleatorio de los disponibles
+  // Seleccionar un producto aleatorio
   const randomIndex = Math.floor(Math.random() * freshProducts.length);
-  const newProduct = freshProducts[randomIndex];
+  let newProduct = freshProducts[randomIndex];
   
-  // Verificar que realmente sea diferente al actual
+  // Verificar que sea diferente al actual
   if (currentProductId && String(newProduct.ID) === currentProductId) {
-    // Intentar una vez más con un producto diferente
     const otherProducts = freshProducts.filter(p => String(p.ID) !== currentProductId);
     if (otherProducts.length > 0) {
       const newRandomIndex = Math.floor(Math.random() * otherProducts.length);
-      const finalProduct = otherProducts[newRandomIndex];
-      
-      const updatedProduct = {
-        id: finalProduct.ID,
-        name: finalProduct.Nombre,
-        price: Number(finalProduct.Precio || 0),
-        image: finalProduct.Imagen1 || finalProduct.Imagen2 || finalProduct.Imagen3 || "",
-        stock: finalProduct.Stock,
-        category: finalProduct.Categoria,
-        size: finalProduct.Talla ? "Talla: " + finalProduct.Talla : "Talla no especificada"
-      };
-      
-      look.products[slotType] = updatedProduct;
-      
-      if (slotType === "torso" && updatedProduct.image) {
-        look.image = optimizeDriveUrl(updatedProduct.image, 500);
-      }
-      
-      looks[lookIndex] = { ...look };
-      allLooks = [...looks];
-      renderLooks();
-      
-      // Remover la clase de flash después de renderizar
-      setTimeout(() => {
-        if (clickedButton) clickedButton.classList.remove('reload-btn-flash');
-      }, 400);
-      
-      return;
+      newProduct = otherProducts[newRandomIndex];
     }
   }
   
@@ -1090,25 +1022,111 @@ window.reloadSlot = async function(lookId, slotType, event) {
     size: newProduct.Talla ? "Talla: " + newProduct.Talla : "Talla no especificada"
   };
   
-  // Actualizar el look
+  // Guardar en el array de datos
   look.products[slotType] = updatedProduct;
   
-  // Si es el slot torso, actualizar la imagen principal del look
+  // Si es torso, actualizar imagen principal del look
   if (slotType === "torso" && updatedProduct.image) {
     look.image = optimizeDriveUrl(updatedProduct.image, 500);
   }
   
-  // Guardar cambios
   looks[lookIndex] = { ...look };
   allLooks = [...looks];
   
-  // Re-renderizar
-  renderLooks();
+  // ========== ACTUALIZACIÓN ESPECÍFICA DEL DOM (SIN RE-RENDER COMPLETO) ==========
   
-  // Remover la clase de flash después de renderizar
+  // Encontrar el card del look específico
+  const lookCards = document.querySelectorAll('.look-card');
+  let targetCard = null;
+  
+  for (const card of lookCards) {
+    const titleEl = card.querySelector('.look-title');
+    if (titleEl && titleEl.textContent.toLowerCase().includes(look.name.toLowerCase())) {
+      targetCard = card;
+      break;
+    }
+  }
+  
+  if (!targetCard) {
+    // Fallback: re-renderizar todo si no encuentra el card
+    renderLooks();
+    return;
+  }
+  
+  // Encontrar el producto específico dentro del card
+  const productItem = targetCard.querySelector(`.look-product-item[data-slot="${slotType}"]`);
+  
+  if (!productItem) {
+    renderLooks();
+    return;
+  }
+  
+  // Actualizar la imagen
+  const productImg = productItem.querySelector('.look-product-img');
+  const newImgUrl = optimizeDriveUrl(updatedProduct.image, 150);
+  if (productImg) {
+    productImg.src = newImgUrl;
+    productImg.alt = updatedProduct.name;
+  }
+  
+  // Actualizar nombre
+  const productName = productItem.querySelector('.look-product-name');
+  if (productName) productName.textContent = updatedProduct.name;
+  
+  // Actualizar precio
+  const productPrice = productItem.querySelector('.look-product-price');
+  if (productPrice) productPrice.textContent = formatCurrency(updatedProduct.price);
+  
+  // Actualizar categoría
+  const productCategory = productItem.querySelector('.look-product-category');
+  if (productCategory) productCategory.textContent = updatedProduct.category || '';
+  
+  // Actualizar talla
+  const productSize = productItem.querySelector('.look-product-size');
+  if (productSize) productSize.textContent = updatedProduct.size || 'Talla no especificada';
+  
+  // Actualizar el botón "Agregar" con los nuevos datos
+  const addButton = productItem.querySelector('.look-product-add');
+  if (addButton) {
+    const escapedName = updatedProduct.name.replace(/'/g, "\\'");
+    addButton.setAttribute('onclick', `addToCart({ID:'${updatedProduct.id}', Nombre:'${escapedName}', Precio:${updatedProduct.price}, Imagen1:'${updatedProduct.image}', Talla:'${updatedProduct.size || ''}'})`);
+  }
+  
+  // Si es torso, actualizar la imagen principal del look
+  if (slotType === "torso") {
+    const lookImage = targetCard.querySelector('.look-image');
+    if (lookImage) {
+      lookImage.src = optimizeDriveUrl(updatedProduct.image, 500);
+      lookImage.alt = updatedProduct.name;
+    }
+  }
+  
+  // Recalcular y actualizar el precio total del look
+  let newTotalPrice = 0;
+  for (const [key, product] of Object.entries(look.products)) {
+    if (product && product.price) {
+      newTotalPrice += product.price;
+    }
+  }
+  
+  const totalPriceElement = targetCard.querySelector('.look-total-price');
+  if (totalPriceElement) {
+    totalPriceElement.textContent = formatCurrency(newTotalPrice);
+  }
+  
+  // Actualizar el contador de prendas
+  const productCountElement = targetCard.querySelector('.look-item-count');
+  const productCount = Object.values(look.products).filter(p => p !== null).length;
+  if (productCountElement) {
+    productCountElement.textContent = `${productCount} prenda${productCount !== 1 ? 's' : ''}`;
+  }
+  
+  // Pequeño feedback visual (opcional - un sutil cambio de color)
+  productItem.style.transition = 'background-color 0.3s ease';
+  productItem.style.backgroundColor = '#e8f5e9';
   setTimeout(() => {
-    if (clickedButton) clickedButton.classList.remove('reload-btn-flash');
-  }, 400);
+    productItem.style.backgroundColor = '';
+  }, 300);
 };
 
 
