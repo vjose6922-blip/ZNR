@@ -1,487 +1,35 @@
+// ============================================
+// ADMIN.JS - Panel de administración
+// ============================================
+
 const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
 let adminSession = null;
 let adminProducts = [];
+let adminCurrentPage = 1;
+let adminFilteredProducts = [];
+let adminProductsPerPage = 10;
 
-// Caché persistente con localStorage
-const CACHE_KEY = 'zr_products_cache';
-const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
-
-
-
-// ============================================
-// INTERCEPTOR DE ALERTAS DEL NAVEGADOR - SIN PARPADEOS
-// ============================================
-
-// Crear estilos para los modales personalizados
-const modalStyles = `
-  .custom-alert-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(8px);
-    z-index: 10001;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    animation: modalFadeIn 0.2s ease forwards;
-  }
-  
-  .custom-alert-modal.closing {
-    animation: modalFadeOut 0.15s ease forwards;
-    pointer-events: none;
-  }
-  
-  .custom-alert-content {
-    background: white;
-    border-radius: 28px;
-    max-width: 380px;
-    width: 85%;
-    overflow: hidden;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    transform: scale(0.95);
-    opacity: 0;
-    animation: contentScaleIn 0.2s ease forwards;
-  }
-  
-  .custom-alert-modal.closing .custom-alert-content {
-    animation: contentScaleOut 0.15s ease forwards;
-  }
-  
-  .custom-alert-header {
-    background: linear-gradient(135deg, #3b1f5f, #ff4f81);
-    color: white;
-    padding: 20px;
-    text-align: center;
-  }
-  
-  .custom-alert-icon {
-    font-size: 40px;
-    display: block;
-    margin-bottom: 8px;
-  }
-  
-  .custom-alert-header h3 {
-    margin: 0;
-    font-size: 18px;
-  }
-  
-  .custom-alert-body {
-    padding: 24px 20px;
-    text-align: center;
-    font-size: 15px;
-    color: #333;
-    line-height: 1.5;
-  }
-  
-  .custom-alert-footer {
-    padding: 16px 20px 24px;
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    border-top: 1px solid #eee;
-  }
-  
-  .custom-alert-btn {
-    padding: 12px 28px;
-    border: none;
-    border-radius: 40px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 100px;
-  }
-  
-  .custom-alert-btn.confirm {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: white;
-  }
-  
-  .custom-alert-btn.cancel {
-    background: #f5f5f8;
-    color: #666;
-    border: 1px solid #e0e0e0;
-  }
-  
-  .custom-alert-btn.confirm:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
-  }
-  
-  .custom-alert-btn.cancel:hover {
-    background: #ffebee;
-    color: #c62828;
-    border-color: #ef9a9a;
-  }
-  
-  .custom-alert-input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    font-size: 14px;
-    margin-top: 12px;
-    box-sizing: border-box;
-  }
-  
-  .custom-alert-input:focus {
-    outline: none;
-    border-color: #ff4f81;
-    box-shadow: 0 0 0 3px rgba(255, 79, 129, 0.1);
-  }
-  
-  @keyframes modalFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes modalFadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  
-  @keyframes contentScaleIn {
-    from {
-      transform: scale(0.95);
-      opacity: 0;
-    }
-    to {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes contentScaleOut {
-    from {
-      transform: scale(1);
-      opacity: 1;
-    }
-    to {
-      transform: scale(0.95);
-      opacity: 0;
-    }
-  }
-`;
-
-// Agregar estilos al documento
-if (!document.querySelector("#custom-alert-styles")) {
-  const styleSheet = document.createElement("style");
-  styleSheet.id = "custom-alert-styles";
-  styleSheet.textContent = modalStyles;
-  document.head.appendChild(styleSheet);
-}
-
-// Variable para evitar múltiples modales simultáneos
-let activeModal = null;
-
-// Función para cerrar modal actual de forma segura
-function closeCurrentModal() {
-  if (activeModal) {
-    // Marcar como cerrando para evitar animaciones conflictivas
-    activeModal.classList.add("closing");
-    
-    // Esperar a que termine la animación antes de remover
-    setTimeout(() => {
-      if (activeModal && activeModal.parentNode) {
-        activeModal.remove();
-      }
-      activeModal = null;
-    }, 150);
-  }
-}
-
-// Interceptar alert()
-window.originalAlert = window.alert;
-window.alert = function(message) {
-  return new Promise((resolve) => {
-    // Cerrar modal anterior si existe
-    closeCurrentModal();
-    
-    showCustomAlert({
-      title: "Aviso",
-      message: String(message),
-      icon: "ℹ️",
-      confirmText: "Aceptar",
-      onConfirm: () => {
-        resolve();
-      }
-    });
-  });
-};
-
-// Interceptar confirm()
-window.originalConfirm = window.confirm;
-window.confirm = function(message) {
-  return new Promise((resolve) => {
-    closeCurrentModal();
-    
-    showCustomConfirm({
-      title: "Confirmar",
-      message: String(message),
-      icon: "❓",
-      confirmText: "Aceptar",
-      cancelText: "Cancelar",
-      onConfirm: () => resolve(true),
-      onCancel: () => resolve(false)
-    });
-  });
-};
-
-// Interceptar prompt()
-window.originalPrompt = window.prompt;
-window.prompt = function(message, defaultValue = "") {
-  return new Promise((resolve) => {
-    closeCurrentModal();
-    
-    showCustomPrompt({
-      title: "Ingresar información",
-      message: String(message),
-      icon: "📝",
-      defaultValue: defaultValue,
-      confirmText: "Aceptar",
-      cancelText: "Cancelar",
-      onConfirm: (value) => resolve(value),
-      onCancel: () => resolve(null)
-    });
-  });
-};
-
-// Función para mostrar alert personalizada
-function showCustomAlert(options) {
-  const { title, message, icon = "ℹ️", confirmText = "Aceptar", onConfirm } = options;
-  
-  const modal = document.createElement("div");
-  modal.className = "custom-alert-modal";
-  modal.innerHTML = `
-    <div class="custom-alert-content">
-      <div class="custom-alert-header">
-        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
-        <h3>${escapeHtml(title)}</h3>
-      </div>
-      <div class="custom-alert-body">
-        <p>${escapeHtml(message)}</p>
-      </div>
-      <div class="custom-alert-footer">
-        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  activeModal = modal;
-  
-  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
-  
-  const close = () => {
-    if (!modal.parentNode) return;
-    
-    modal.classList.add("closing");
-    setTimeout(() => {
-      if (modal.parentNode) modal.remove();
-      if (activeModal === modal) activeModal = null;
-      if (onConfirm) onConfirm();
-    }, 150);
-  };
-  
-  confirmBtn.addEventListener("click", close);
-  
-  // Cerrar al hacer clic fuera (solo si no está cerrando)
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal && !modal.classList.contains("closing")) {
-      close();
-    }
-  });
-}
-
-// Función para mostrar confirm personalizada
-function showCustomConfirm(options) {
-  const { title, message, icon = "❓", confirmText = "Aceptar", cancelText = "Cancelar", onConfirm, onCancel } = options;
-  
-  const modal = document.createElement("div");
-  modal.className = "custom-alert-modal";
-  modal.innerHTML = `
-    <div class="custom-alert-content">
-      <div class="custom-alert-header">
-        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
-        <h3>${escapeHtml(title)}</h3>
-      </div>
-      <div class="custom-alert-body">
-        <p>${escapeHtml(message)}</p>
-      </div>
-      <div class="custom-alert-footer">
-        <button class="custom-alert-btn cancel">${escapeHtml(cancelText)}</button>
-        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  activeModal = modal;
-  
-  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
-  const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
-  
-  const close = (callback) => {
-    if (!modal.parentNode) return;
-    
-    modal.classList.add("closing");
-    setTimeout(() => {
-      if (modal.parentNode) modal.remove();
-      if (activeModal === modal) activeModal = null;
-      if (callback) callback();
-    }, 150);
-  };
-  
-  confirmBtn.addEventListener("click", () => close(onConfirm));
-  cancelBtn.addEventListener("click", () => close(onCancel));
-  
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal && !modal.classList.contains("closing")) {
-      close(onCancel);
-    }
-  });
-}
-
-// Función para mostrar prompt personalizado
-function showCustomPrompt(options) {
-  const { title, message, icon = "📝", defaultValue = "", confirmText = "Aceptar", cancelText = "Cancelar", onConfirm, onCancel } = options;
-  
-  const modal = document.createElement("div");
-  modal.className = "custom-alert-modal";
-  modal.innerHTML = `
-    <div class="custom-alert-content">
-      <div class="custom-alert-header">
-        <span class="custom-alert-icon">${escapeHtml(icon)}</span>
-        <h3>${escapeHtml(title)}</h3>
-      </div>
-      <div class="custom-alert-body">
-        <p>${escapeHtml(message)}</p>
-        <input type="text" class="custom-alert-input" id="custom-prompt-input" value="${escapeHtml(defaultValue)}" autocomplete="off">
-      </div>
-      <div class="custom-alert-footer">
-        <button class="custom-alert-btn cancel">${escapeHtml(cancelText)}</button>
-        <button class="custom-alert-btn confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  activeModal = modal;
-  
-  const input = modal.querySelector("#custom-prompt-input");
-  const confirmBtn = modal.querySelector(".custom-alert-btn.confirm");
-  const cancelBtn = modal.querySelector(".custom-alert-btn.cancel");
-  
-  setTimeout(() => input.focus(), 100);
-  
-  const close = (callback, value = null) => {
-    if (!modal.parentNode) return;
-    
-    modal.classList.add("closing");
-    setTimeout(() => {
-      if (modal.parentNode) modal.remove();
-      if (activeModal === modal) activeModal = null;
-      if (callback) callback(value);
-    }, 150);
-  };
-  
-  confirmBtn.addEventListener("click", () => close(onConfirm, input.value));
-  cancelBtn.addEventListener("click", () => close(onCancel, null));
-  
-  input.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      close(onConfirm, input.value);
-    }
-  });
-  
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal && !modal.classList.contains("closing")) {
-      close(onCancel, null);
-    }
-  });
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function getCachedProducts() {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    
-    const { data, timestamp } = JSON.parse(cached);
-    if (Date.now() - timestamp > CACHE_EXPIRY) {
-      localStorage.removeItem(CACHE_KEY);
-      return null;
-    }
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function setCachedProducts(products) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      data: products,
-      timestamp: Date.now()
-    }));
-  } catch (e) {
-    console.warn("No se pudo guardar en caché:", e);
-  }
-}
-
-function formatCurrency(value) {
-  const num = Number(value) || 0;
-  return `$${num.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`;
-}
+// ========== FUNCIONES ESPECÍFICAS DE ADMIN ==========
 
 async function apiRequest(method, body) {
   try {
-
     let url = ADMIN_API_URL;
-
     if (method === "GET" && body) {
       const params = new URLSearchParams(body);
       url += "?" + params.toString();
     }
-
     const options = {
-  method: method === "POST" ? "POST" : "GET",
-  headers: {
-    "Content-Type": "application/x-www-form-urlencoded"
-  }
-};
-
+      method: method === "POST" ? "POST" : "GET",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" }
+    };
     if (method === "POST" && body) {
       const params = new URLSearchParams(body);
       options.body = params.toString();
     }
-
     const res = await fetch(url, options);
-
-    if (!res.ok) {
-      throw new Error("HTTP " + res.status);
-    }
-
+    if (!res.ok) throw new Error("HTTP " + res.status);
     return await res.json();
-
   } catch (err) {
     console.error("API ERROR:", err);
     throw err;
@@ -492,13 +40,8 @@ async function handleAdminLogin(e) {
   e.preventDefault();
   const password = document.getElementById("admin-password").value;
   const token = document.getElementById("admin-token").value;
-
   try {
-    const data = await apiRequest("POST", {
-      action: "login",
-      password,
-      token,
-    });
+    const data = await apiRequest("POST", { action: "login", password, token });
     if (!data || !data.ok) {
       alert("Credenciales incorrectas");
       return;
@@ -520,25 +63,10 @@ function handleAdminLogout() {
   document.getElementById("admin-login-form").reset();
 }
 
-
 async function loadAdminProducts() {
-  // Admin siempre necesita datos frescos, pero mostrar caché rápido
-  const cached = getCachedProducts();
-  if (cached && cached.length > 0) {
-    adminProducts = cached;
-    updateAdminStats();
-    populateAdminCategoryFilter();
-    adminCurrentPage = 1;
-    renderAdminProductsWithFilters();
-    // Actualizar en segundo plano
-    loadAdminInBackground();
-    return;
-  }
-  
   try {
     const data = await apiRequest("GET");
     adminProducts = data.products || data || [];
-    setCachedProducts(adminProducts);
     updateAdminStats();
     populateAdminCategoryFilter();
     adminCurrentPage = 1;
@@ -549,511 +77,38 @@ async function loadAdminProducts() {
   }
 }
 
-async function loadAdminInBackground() {
-  try {
-    const data = await apiRequest("GET");
-    const freshProducts = data.products || data || [];
-    adminProducts = freshProducts;
-    setCachedProducts(adminProducts);
-    updateAdminStats();
-    populateAdminCategoryFilter();
-    renderAdminProductsWithFilters();
-  } catch (err) {
-    console.error("Error en carga background:", err);
-  }
-}
-
-
-function renderAdminProducts() {
-  const list = document.getElementById("admin-products-list");
-  list.innerHTML = "";
-  if (adminProducts.length === 0) {
-    list.innerHTML =
-      '<p class="helper-text">No hay productos registrados.</p>';
-    return;
-  }
-
-  adminProducts.forEach((p) => {
-    const row = document.createElement("div");
-    row.className = "admin-product-row";
-
-    const main = document.createElement("div");
-    main.className = "admin-product-main";
-    const title = document.createElement("span");
-    title.textContent = `${p.ID} · ${p.Nombre || "Sin nombre"}`;
-    const meta = document.createElement("span");
-    meta.className = "helper-text";
-    meta.textContent = `${formatCurrency(p.Precio)} · Stock: ${
-      p.Stock || 0
-    }`;
-
-    main.appendChild(title);
-    main.appendChild(meta);
-
-    const actions = document.createElement("div");
-    actions.className = "admin-product-actions";
-
-    const editBtn = document.createElement("button");
-    editBtn.className = "text-button";
-    editBtn.textContent = "Editar";
-    editBtn.addEventListener("click", () => fillFormForEdit(p));
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "text-button";
-    deleteBtn.style.color = "#d32f2f";
-    deleteBtn.textContent = "Eliminar";
-    deleteBtn.addEventListener("click", () => deleteProduct(p.ID));
-
-    actions.appendChild(editBtn);
-    actions.appendChild(deleteBtn);
-
-    row.appendChild(main);
-    row.appendChild(actions);
-    list.appendChild(row);
-  });
-}
-
-function updateAdminStats() {
-
-  const totalProducts = adminProducts.length;
-
-  const totalInventoryValue = adminProducts.reduce((sum, p) => {
-    const price = Number(p.Precio || 0);
-    const stock = Number(p.Stock || 0);
-
-    return sum + (price * stock);
-  }, 0);
-
-  const outOfStock = adminProducts.filter(
-    (p) => Number(p.Stock || 0) <= 0
-  ).length;
-
-  document.getElementById("stat-total-products").textContent =
-    totalProducts;
-
-  document.getElementById("stat-total-stock").textContent =
-    formatCurrency(totalInventoryValue);
-
-  document.getElementById("stat-out-of-stock").textContent =
-    outOfStock;
-}
-
-function formatCurrency(value) {
-  return "$" + Number(value).toLocaleString();
-}
-
-function resetProductForm() {
-  document.getElementById("product-form").reset();
-  document.getElementById("product-id").value = "";
-  document.getElementById("product-form-title").textContent = "Crear producto";
-  clearImageUploads();
-}
-
-function fillFormForEdit(product) {
-  document.getElementById("product-id").value = product.ID || "";
-  document.getElementById("product-name").value = product.Nombre || "";
-  document.getElementById("product-price").value = product.Precio || "";
-  document.getElementById("product-stock").value = product.Stock || "";
-  document.getElementById("product-description").value =
-    product.Descripcion || "";
-  document.getElementById("product-sizes").value =
-  product.Talla || "";
-  document.getElementById("product-category").value =
-    product.Categoria || "";
-  document.getElementById("product-badge").value = product.Badge || "";
-
-  const img1 = document.getElementById("product-image1");
-if (img1) img1.value = product.Imagen1 || "";
-
-  const img2 = document.getElementById("product-image2");
-if (img2) img2.value = product.Imagen2 || "";
-
-  const img3 = document.getElementById("product-image3");
-if (img3) img3.value = product.Imagen3 || "";
-
-  document.getElementById("product-form-title").textContent =
-    "Editar producto";
-}
-
-async function handleProductFormSubmit(e) {
-  e.preventDefault();
-  const id = document.getElementById("product-id").value;
-  const data = {
-
-  Nombre: document.getElementById("product-name").value.trim(),
-
-  Precio: Number(
-    document.getElementById("product-price").value || 0
-  ),
-
-  Stock: Number(
-    document.getElementById("product-stock").value || 0
-  ),
-
-  Descripcion: document
-    .getElementById("product-description")
-    .value.trim(),
-
-  Talla: document
-    .getElementById("product-sizes")
-    .value.trim(),
-
-  Categoria: document
-    .getElementById("product-category")
-    .value.trim(),
-
-  Badge: document.getElementById("product-badge").value,
-
-  Imagen1: document.getElementById("product-image1").value.trim(),
-
-  Imagen2: document.getElementById("product-image2").value.trim(),
-
-  Imagen3: document.getElementById("product-image3").value.trim(),
-
-};
-
-  try {
-    let res;
-
-if (id) {
-  res = await apiRequest("POST", {
-    action: "update",
-    id,
-    ...data
-  });
-} else {
-  res = await apiRequest("POST", {
-    action: "create",
-    ...data
-  });
-}
-
-console.log("API RESPONSE:", res);
-
-if (!res || !res.ok) {
-  alert("Error desde Apps Script");
-  return;
-}
-    resetProductForm();
-    clearImageUploads();
-    loadAdminProducts();
-  } catch (err) {
-    console.error(err);
-    alert("Error al guardar el producto");
-  }
-}
-
-async function deleteProduct(id) {
-  if (!confirm("¿Eliminar este producto?")) return;
-  try {
-    await apiRequest("POST", {
-      action: "delete",
-      id,
-    });
-    loadAdminProducts();
-  } catch (err) {
-    console.error(err);
-    alert("Error al eliminar el producto");
-  }
-}
-
-
-document.addEventListener("DOMContentLoaded", () => {
-  document
-    .getElementById("admin-login-form")
-    .addEventListener("submit", handleAdminLogin);
-
-  document
-    .getElementById("admin-logout-btn")
-    .addEventListener("click", handleAdminLogout);
-
-  document
-    .getElementById("product-form")
-    .addEventListener("submit", handleProductFormSubmit);
-
-  document
-    .getElementById("reset-form-btn")
-    .addEventListener("click", resetProductForm);
-
-  document
-    .getElementById("admin-refresh-btn")
-    .addEventListener("click", loadAdminProducts);
-});
-
-
-
-const UPLOAD_API_URL = ADMIN_API_URL; // usa el mismo Apps Script
-
-function initImageUploads(){
-
-setupImageUpload("image-upload-1","product-image1");
-setupImageUpload("image-upload-2","product-image2");
-setupImageUpload("image-upload-3","product-image3");
-
-}
-function setupImageUpload(fileInputId, textInputId) {
-
-const fileInput = document.getElementById(fileInputId);
-const textInput = document.getElementById(textInputId);
-
-const preview = document.getElementById("preview-" + fileInputId);
-const progress = document.getElementById("progress-" + fileInputId);
-
-if (!fileInput) return;
-
-fileInput.addEventListener("change", async () => {
-
-const file = fileInput.files[0];
-if (!file) return;
-
-preview.src = URL.createObjectURL(file);
-preview.style.display = "block";
-
-progress.style.width = "10%";
-
-try {
-
-const compressed = await compressImage(file);
-const base64 = compressed.split(",")[1];
-
-progress.style.width = "40%";
-
-const res = await fetch(UPLOAD_API_URL, {
-  method: "POST",
-  headers: {
-    "Content-Type": "text/plain"
-  },
-  body: JSON.stringify({
-    action: "uploadImage",
-    fileName: file.name,
-    mimeType: "image/jpeg",
-    data: base64
-  })
-});
-progress.style.width = "70%";
-
-const json = await res.json();
-
-if (!json.ok) {
-alert("Error subiendo imagen: " + json.error);
-progress.style.width = "0%";
-return;
-}
-
-const imageUrl =
-"https://lh3.googleusercontent.com/d/" +
-json.id +
-"=w500-h500-c-rw";
-
-textInput.value = imageUrl;
-
-progress.style.width = "100%";
-
-setTimeout(()=>{
-progress.style.width="0%";
-},800);
-
-} catch (err) {
-
-console.error(err);
-alert("Error subiendo imagen");
-progress.style.width = "0%";
-
-}
-
-});
-
-}
-
-document.addEventListener("DOMContentLoaded", initImageUploads);
-
-
-
-async function compressImage(file) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = e => img.src = e.target.result;
-
-    img.onload = () => {
-
-      const canvas = document.createElement("canvas");
-
-      const MAX = 1200;
-
-      let w = img.width;
-      let h = img.height;
-
-      if (w > MAX || h > MAX) {
-        if (w > h) {
-          h *= MAX / w;
-          w = MAX;
-        } else {
-          w *= MAX / h;
-          h = MAX;
-        }
-      }
-
-      canvas.width = w;
-      canvas.height = h;
-
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, w, h);
-
-      resolve(canvas.toDataURL("image/jpeg", 0.8));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
-function clearImageUploads() {
-
-  const previews = document.querySelectorAll(".image-preview");
-  const progressBars = document.querySelectorAll(".upload-progress");
-  const fileInputs = document.querySelectorAll("input[type=file]");
-
-  previews.forEach(img => {
-    img.src = "";
-    img.style.display = "none";
-  });
-
-  progressBars.forEach(bar => {
-    bar.style.width = "0%";
-  });
-
-  fileInputs.forEach(input => {
-    input.value = "";
-  });
-
-}
-
-
-
-
-const NOTIF_API = ADMIN_API_URL + "?action=notifications";
-
-let lastNotifCount = 0;
-
-async function checkNotifications(){
-  try{
-    const res = await fetch(NOTIF_API);
-    const data = await res.json();
-
-    console.log("NOTIF DATA:", data);
-
-    if(!data.ok) return;
-
-    const notifications = data.notifications || [];
-    // 🔥 FILTRAR SOLO LOS QUE ESTÁN "pending"
-    const pendingNotifications = notifications.filter(n => n.STATUS === "pending");
-    const count = pendingNotifications.length;
-
-    const badge = document.getElementById("notif-badge");
-    if(!badge) return;
-
-    badge.textContent = count;
-
-    if(count > lastNotifCount){
-      animateBell();
-    }
-
-    lastNotifCount = count;
-
-  }catch(err){
-    console.log("notif error",err);
-  }
-}
-
-
-function animateBell(){
-
-  const bell = document.querySelector(".admin-notification-bell");
-
-  bell.style.transform = "scale(1.2)";
-  bell.style.color = "#ff4f81";
-
-  setTimeout(()=>{
-    bell.style.transform = "";
-    bell.style.color = "";
-  },400);
-
-}
-
-function openNotifications(){
-  window.location.href="notificaciones.html";
-}
-
-
-document.addEventListener("DOMContentLoaded", () => {
-
-  checkNotifications();  // setInterval(checkNotifications, 10000);
-
-});
-
-
-
-
-
-
-// Variables para paginación y filtros en admin
-let adminCurrentPage = 1;
-let adminFilteredProducts = [];
-let adminProductsPerPage = 10;
-
-// Función para escapar HTML
-function escapeHtml(text) {
-  if (!text) return "";
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Función para renderizar productos con paginación y filtros
 function renderAdminProductsWithFilters() {
   const searchTerm = document.getElementById("admin-search-input")?.value.toLowerCase() || "";
   const categoryFilter = document.getElementById("admin-category-filter")?.value || "";
   const stockFilter = document.getElementById("admin-stock-filter")?.value || "";
   
-  // Filtrar productos
   adminFilteredProducts = adminProducts.filter(product => {
-    // Búsqueda por nombre o ID
     const matchesSearch = !searchTerm || 
       (product.Nombre || "").toLowerCase().includes(searchTerm) ||
       String(product.ID || "").includes(searchTerm);
-    
-    // Filtro por categoría
     const matchesCategory = !categoryFilter || (product.Categoria || "") === categoryFilter;
-    
-    // Filtro por stock
     const stock = Number(product.Stock || 0);
     let matchesStock = true;
     if (stockFilter === "low") matchesStock = stock > 0 && stock <= 5;
     else if (stockFilter === "out") matchesStock = stock === 0;
     else if (stockFilter === "in") matchesStock = stock > 0;
-    
     return matchesSearch && matchesCategory && matchesStock;
   });
   
-  // Paginación
   const totalPages = Math.ceil(adminFilteredProducts.length / adminProductsPerPage);
   const start = (adminCurrentPage - 1) * adminProductsPerPage;
   const end = start + adminProductsPerPage;
   const pageProducts = adminFilteredProducts.slice(start, end);
   
-  // Renderizar productos
   renderAdminProductsList(pageProducts);
   renderAdminPagination(totalPages);
 }
 
-// Renderizar lista de productos (versión mejorada)
 function renderAdminProductsList(products) {
   const list = document.getElementById("admin-products-list");
   if (!list) return;
   
   list.innerHTML = "";
-  
   if (!products || products.length === 0) {
     list.innerHTML = '<p class="helper-text" style="text-align:center; padding:40px;">No hay productos que coincidan con los filtros.</p>';
     return;
@@ -1062,7 +117,6 @@ function renderAdminProductsList(products) {
   products.forEach((p) => {
     const row = document.createElement("div");
     row.className = "admin-product-row";
-    
     const stock = Number(p.Stock || 0);
     const stockClass = stock === 0 ? "out-stock" : (stock <= 5 ? "low-stock" : "");
     
@@ -1076,11 +130,9 @@ function renderAdminProductsList(products) {
         <button class="text-button delete-product-btn" data-id="${p.ID}" style="color:#d32f2f;">🗑️ Eliminar</button>
       </div>
     `;
-    
     list.appendChild(row);
   });
   
-  // Agregar event listeners a los botones
   document.querySelectorAll(".edit-product-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-id");
@@ -1097,67 +149,44 @@ function renderAdminProductsList(products) {
   });
 }
 
-// Renderizar paginación del admin
 function renderAdminPagination(totalPages) {
   const pagination = document.getElementById("admin-pagination");
   if (!pagination) return;
-  
   pagination.innerHTML = "";
-  
   if (totalPages <= 1) return;
   
-  // Botón anterior
   if (adminCurrentPage > 1) {
     const prevBtn = document.createElement("button");
     prevBtn.textContent = "← Anterior";
-    prevBtn.onclick = () => {
-      adminCurrentPage--;
-      renderAdminProductsWithFilters();
-    };
+    prevBtn.onclick = () => { adminCurrentPage--; renderAdminProductsWithFilters(); };
     pagination.appendChild(prevBtn);
   }
   
-  // Mostrar máximo 5 páginas
   let startPage = Math.max(1, adminCurrentPage - 2);
   let endPage = Math.min(totalPages, startPage + 4);
-  
-  if (endPage - startPage < 4 && startPage > 1) {
-    startPage = Math.max(1, endPage - 4);
-  }
+  if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
   
   for (let i = startPage; i <= endPage; i++) {
     const btn = document.createElement("button");
     btn.textContent = i;
     if (i === adminCurrentPage) btn.classList.add("active-page");
-    btn.onclick = () => {
-      adminCurrentPage = i;
-      renderAdminProductsWithFilters();
-    };
+    btn.onclick = () => { adminCurrentPage = i; renderAdminProductsWithFilters(); };
     pagination.appendChild(btn);
   }
   
-  // Botón siguiente
   if (adminCurrentPage < totalPages) {
     const nextBtn = document.createElement("button");
     nextBtn.textContent = "Siguiente →";
-    nextBtn.onclick = () => {
-      adminCurrentPage++;
-      renderAdminProductsWithFilters();
-    };
+    nextBtn.onclick = () => { adminCurrentPage++; renderAdminProductsWithFilters(); };
     pagination.appendChild(nextBtn);
   }
 }
 
-// Función para poblar el filtro de categorías
 function populateAdminCategoryFilter() {
   const select = document.getElementById("admin-category-filter");
   if (!select) return;
-  
   const categories = new Set();
-  adminProducts.forEach(p => {
-    if (p.Categoria) categories.add(p.Categoria);
-  });
-  
+  adminProducts.forEach(p => { if (p.Categoria) categories.add(p.Categoria); });
   select.innerHTML = '<option value="">Todas las categorías</option>';
   Array.from(categories).sort().forEach(cat => {
     const opt = document.createElement("option");
@@ -1167,21 +196,11 @@ function populateAdminCategoryFilter() {
   });
 }
 
-// Actualizar estadísticas mejoradas (sobrescribe la función anterior)
 function updateAdminStats() {
   const totalProducts = adminProducts.length;
-  
-  const totalInventoryValue = adminProducts.reduce((sum, p) => {
-    const price = Number(p.Precio || 0);
-    const stock = Number(p.Stock || 0);
-    return sum + (price * stock);
-  }, 0);
-  
+  const totalInventoryValue = adminProducts.reduce((sum, p) => sum + (Number(p.Precio || 0) * Number(p.Stock || 0)), 0);
   const outOfStock = adminProducts.filter(p => Number(p.Stock || 0) <= 0).length;
-  const lowStock = adminProducts.filter(p => {
-    const stock = Number(p.Stock || 0);
-    return stock > 0 && stock <= 5;
-  }).length;
+  const lowStock = adminProducts.filter(p => { const s = Number(p.Stock || 0); return s > 0 && s <= 5; }).length;
   
   const totalStockElem = document.getElementById("stat-total-products");
   const totalValueElem = document.getElementById("stat-total-stock");
@@ -1194,89 +213,209 @@ function updateAdminStats() {
   if (lowStockElem) lowStockElem.textContent = lowStock;
 }
 
-// NUEVA VERSIÓN de loadAdminProducts (reemplaza la anterior)
-async function loadAdminProducts() {
+function resetProductForm() {
+  document.getElementById("product-form").reset();
+  document.getElementById("product-id").value = "";
+  document.getElementById("product-form-title").textContent = "Crear producto";
+  clearImageUploads();
+}
+
+function fillFormForEdit(product) {
+  document.getElementById("product-id").value = product.ID || "";
+  document.getElementById("product-name").value = product.Nombre || "";
+  document.getElementById("product-price").value = product.Precio || "";
+  document.getElementById("product-stock").value = product.Stock || "";
+  document.getElementById("product-description").value = product.Descripcion || "";
+  document.getElementById("product-sizes").value = product.Talla || "";
+  document.getElementById("product-category").value = product.Categoria || "";
+  document.getElementById("product-badge").value = product.Badge || "";
+  const img1 = document.getElementById("product-image1");
+  if (img1) img1.value = product.Imagen1 || "";
+  const img2 = document.getElementById("product-image2");
+  if (img2) img2.value = product.Imagen2 || "";
+  const img3 = document.getElementById("product-image3");
+  if (img3) img3.value = product.Imagen3 || "";
+  document.getElementById("product-form-title").textContent = "Editar producto";
+}
+
+async function handleProductFormSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById("product-id").value;
+  const data = {
+    Nombre: document.getElementById("product-name").value.trim(),
+    Precio: Number(document.getElementById("product-price").value || 0),
+    Stock: Number(document.getElementById("product-stock").value || 0),
+    Descripcion: document.getElementById("product-description").value.trim(),
+    Talla: document.getElementById("product-sizes").value.trim(),
+    Categoria: document.getElementById("product-category").value.trim(),
+    Badge: document.getElementById("product-badge").value,
+    Imagen1: document.getElementById("product-image1").value.trim(),
+    Imagen2: document.getElementById("product-image2").value.trim(),
+    Imagen3: document.getElementById("product-image3").value.trim(),
+  };
   try {
-    const data = await apiRequest("GET");
-    adminProducts = data.products || data || [];
-    updateAdminStats();
-    populateAdminCategoryFilter();
-    adminCurrentPage = 1;
-    renderAdminProductsWithFilters();
+    let res;
+    if (id) {
+      res = await apiRequest("POST", { action: "update", id, ...data });
+    } else {
+      res = await apiRequest("POST", { action: "create", ...data });
+    }
+    if (!res || !res.ok) {
+      alert("Error desde Apps Script");
+      return;
+    }
+    resetProductForm();
+    clearImageUploads();
+    loadAdminProducts();
   } catch (err) {
     console.error(err);
-    alert("Error al cargar productos");
+    alert("Error al guardar el producto");
   }
 }
 
-// Configurar event listeners después de que el DOM esté listo
+async function deleteProduct(id) {
+  if (!confirm("¿Eliminar este producto?")) return;
+  try {
+    await apiRequest("POST", { action: "delete", id });
+    loadAdminProducts();
+  } catch (err) {
+    console.error(err);
+    alert("Error al eliminar el producto");
+  }
+}
+
+// ========== SUBIDA DE IMÁGENES ==========
+const UPLOAD_API_URL = ADMIN_API_URL;
+
+function initImageUploads() {
+  setupImageUpload("image-upload-1", "product-image1");
+  setupImageUpload("image-upload-2", "product-image2");
+  setupImageUpload("image-upload-3", "product-image3");
+}
+
+function setupImageUpload(fileInputId, textInputId) {
+  const fileInput = document.getElementById(fileInputId);
+  const textInput = document.getElementById(textInputId);
+  const preview = document.getElementById("preview-" + fileInputId);
+  const progress = document.getElementById("progress-" + fileInputId);
+  if (!fileInput) return;
+  
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+    progress.style.width = "10%";
+    try {
+      const compressed = await compressImage(file);
+      const base64 = compressed.split(",")[1];
+      progress.style.width = "40%";
+      const res = await fetch(UPLOAD_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "uploadImage", fileName: file.name, mimeType: "image/jpeg", data: base64 })
+      });
+      progress.style.width = "70%";
+      const json = await res.json();
+      if (!json.ok) {
+        alert("Error subiendo imagen: " + json.error);
+        progress.style.width = "0%";
+        return;
+      }
+      const imageUrl = "https://lh3.googleusercontent.com/d/" + json.id + "=w500-h500-c-rw";
+      textInput.value = imageUrl;
+      progress.style.width = "100%";
+      setTimeout(() => progress.style.width = "0%", 800);
+    } catch (err) {
+      console.error(err);
+      alert("Error subiendo imagen");
+      progress.style.width = "0%";
+    }
+  });
+}
+
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = e => img.src = e.target.result;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h *= MAX / w; w = MAX; }
+        else { w *= MAX / h; h = MAX; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function clearImageUploads() {
+  const previews = document.querySelectorAll(".image-preview");
+  const progressBars = document.querySelectorAll(".upload-progress");
+  const fileInputs = document.querySelectorAll("input[type=file]");
+  previews.forEach(img => { img.src = ""; img.style.display = "none"; });
+  progressBars.forEach(bar => bar.style.width = "0%");
+  fileInputs.forEach(input => input.value = "");
+}
+
+// ========== NOTIFICACIONES ==========
+const NOTIF_API = ADMIN_API_URL + "?action=notifications";
+let lastNotifCount = 0;
+
+async function checkNotifications() {
+  try {
+    const res = await fetch(NOTIF_API);
+    const data = await res.json();
+    if (!data.ok) return;
+    const notifications = data.notifications || [];
+    const pendingNotifications = notifications.filter(n => n.STATUS === "pending");
+    const count = pendingNotifications.length;
+    const badge = document.getElementById("notif-badge");
+    if (!badge) return;
+    badge.textContent = count;
+    if (count > lastNotifCount) animateBell();
+    lastNotifCount = count;
+  } catch(err) {
+    console.log("notif error", err);
+  }
+}
+
+function animateBell() {
+  const bell = document.querySelector(".admin-notification-bell");
+  bell.style.transform = "scale(1.2)";
+  bell.style.color = "#ff4f81";
+  setTimeout(() => { bell.style.transform = ""; bell.style.color = ""; }, 400);
+}
+
+function openNotifications() {
+  window.location.href = "notificaciones.html";
+}
+
+// ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
-  // Login form
-  const loginForm = document.getElementById("admin-login-form");
-  if (loginForm) {
-    loginForm.addEventListener("submit", handleAdminLogin);
-  }
+  document.getElementById("admin-login-form")?.addEventListener("submit", handleAdminLogin);
+  document.getElementById("admin-logout-btn")?.addEventListener("click", handleAdminLogout);
+  document.getElementById("product-form")?.addEventListener("submit", handleProductFormSubmit);
+  document.getElementById("reset-form-btn")?.addEventListener("click", resetProductForm);
+  document.getElementById("admin-refresh-btn")?.addEventListener("click", loadAdminProducts);
   
-  // Logout button
-  const logoutBtn = document.getElementById("admin-logout-btn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", handleAdminLogout);
-  }
-  
-  // Product form
-  const productForm = document.getElementById("product-form");
-  if (productForm) {
-    productForm.addEventListener("submit", handleProductFormSubmit);
-  }
-  
-  // Reset form button
-  const resetBtn = document.getElementById("reset-form-btn");
-  if (resetBtn) {
-    resetBtn.addEventListener("click", resetProductForm);
-  }
-  
-  // Refresh button
-  const refreshBtn = document.getElementById("admin-refresh-btn");
-  if (refreshBtn) {
-    refreshBtn.addEventListener("click", loadAdminProducts);
-  }
-  
-  // Inicializar uploads de imágenes
   initImageUploads();
-  
-  // Verificar notificaciones
   checkNotifications();
-  
-  // Configurar intervalo para notificaciones
   setInterval(checkNotifications, 10000);
   
-  // Agregar event listeners para los nuevos filtros
   const adminSearch = document.getElementById("admin-search-input");
   const adminCategory = document.getElementById("admin-category-filter");
   const adminStock = document.getElementById("admin-stock-filter");
   
-  if (adminSearch) {
-    adminSearch.addEventListener("input", () => {
-      adminCurrentPage = 1;
-      renderAdminProductsWithFilters();
-    });
-  }
-  
-  if (adminCategory) {
-    adminCategory.addEventListener("change", () => {
-      adminCurrentPage = 1;
-      renderAdminProductsWithFilters();
-    });
-  }
-  
-  if (adminStock) {
-    adminStock.addEventListener("change", () => {
-      adminCurrentPage = 1;
-      renderAdminProductsWithFilters();
-    });
-  }
+  if (adminSearch) adminSearch.addEventListener("input", () => { adminCurrentPage = 1; renderAdminProductsWithFilters(); });
+  if (adminCategory) adminCategory.addEventListener("change", () => { adminCurrentPage = 1; renderAdminProductsWithFilters(); });
+  if (adminStock) adminStock.addEventListener("change", () => { adminCurrentPage = 1; renderAdminProductsWithFilters(); });
 });
-
-
-
-
