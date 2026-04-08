@@ -4,16 +4,11 @@
   <meta charset="UTF-8" />
   <title>Z&R</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-<!-- Precarga de recursos críticos -->
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
 <link rel="dns-prefetch" href="https://script.google.com">
 <link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
-
-<!-- Precarga de estilos críticos -->
 <link rel="preload" href="styles.css" as="style">
-
 
 
 </head>
@@ -22,7 +17,6 @@
   <div class="loader-text">Cargando...</div>
 </div>
 <body class="theme-aeromexico">
-  <!-- Header principal -->
   <header class="app-header">
     <div class="header-left">
       <div class="logo-touch-area" id="secret-logo">
@@ -48,9 +42,7 @@
     <a href="looks.html" style="background:#ff4f81; color:white;">✨ Looks</a>
   </div>
 
-  <!-- Barra de búsqueda y filtros -->
   <section class="filters-bar">
-    <!-- Fila superior: Búsqueda + Filtro de género -->
     <div class="filters-row-top">
       <div class="search-wrapper">
         <input
@@ -67,7 +59,6 @@
       </select>
     </div>
     
-    <!-- Fila inferior: Categoría y Orden -->
     <div class="filters-row-bottom">
       <select id="category-filter">
         <option value="">Todas las categorías</option>
@@ -80,30 +71,23 @@
     </div>
   </section>
 
-  <!-- Lista de productos -->
-  <main class="products-container" id="products-container">
-    <!-- Productos generados por JS -->
-  </main>
+  <main class="products-container" id="products-container"></main>
 
-  <!-- Paginación -->
   <section class="pagination-section">
     <div id="pagination"></div>
   </section>
 
-  <!-- Carrito flotante -->
   <button class="floating-cart" id="floating-cart-btn" aria-label="Ver carrito">
     <span class="cart-icon">🛒</span>
     <span class="cart-badge" id="cart-count">0</span>
   </button>
 
-  <!-- Panel de carrito -->
   <aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
     <div class="cart-header">
       <h2>Tu carrito</h2>
       <button class="icon-button" id="close-cart-btn" aria-label="Cerrar carrito">✕</button>
     </div>
     <div class="cart-body" id="cart-items-container">
-      <!-- Items del carrito -->
     </div>
    <div class="cart-footer">
   <div class="cart-summary-row">
@@ -115,52 +99,31 @@
     <span id="cart-total">$0</span>
   </div>
   
-  <!-- 🔥 Mostrar número guardado y botón para cambiar -->
   <div id="saved-phone-container" style="font-size: 11px; text-align: center; margin: 8px 0; color: #666; display: none;">
     📱 Número guardado: <span id="saved-phone-display"></span>
     <button id="change-phone-btn" style="background: none; border: none; color: #ff4f81; cursor: pointer; text-decoration: underline; margin-left: 5px;">
       Cambiar
     </button>
   </div>
-  
-  <!-- Botón SOLICITAR COMPRA -->
-  <button id="request-purchase-btn" class="primary-button full-width" 
+    <button id="request-purchase-btn" class="primary-button full-width" 
           style="background: linear-gradient(135deg, #25D366, #128C7E); margin-top: 8px;">
     📝 Solicitar compra (verificar stock)
   </button>
   </div>
-
-
-
-
-
-
     </div>
   </aside>
 
-  <!-- Overlay para modales -->
   <div class="overlay" id="overlay" aria-hidden="true"></div>
-
-  <!-- Modal de imagen completa tipo Instagram -->
   <div class="image-modal" id="image-modal" aria-hidden="true">
     <button class="icon-button close-image-modal" id="close-image-modal">✕</button>
     <img id="image-modal-img" alt="Vista de producto" />
   </div>
 
   <link rel="stylesheet" href="styles.css" />
-<!-- En index.html (tienda) -->
 <script src="common.js"></script>
 <script src="script.js"></script>
 
 
-
-
-
-
-
-
-
-<!-- Footer -->
 <footer class="app-footer">
   <div class="footer-content">
     <div class="footer-logo">
@@ -173,80 +136,10 @@
       </a>
      </div>
     <div class="footer-copyright">
-      <p>© 2024 Z&R - Todos los derechos reservados</p>
+      <p>© 2026 Z&R - Todos los derechos reservados</p>
     </div>
   </div>
 </footer>
 
-<!-- Modal de Aviso de Privacidad -->
-<div id="privacy-modal" class="privacy-modal" style="display: none;">
-  <div class="privacy-modal-content">
-    <div class="privacy-modal-header">
-      <span class="privacy-icon">🔒</span>
-      <h2>Aviso de Privacidad</h2>
-    </div>
-    <div class="privacy-modal-body">
-      <p><strong>Z&R</strong> le informa lo siguiente:</p>
-      
-      <h3>📱 Datos recopilados</h3>
-      <p>Para procesar tus compras, recopilamos tu <strong>número de teléfono</strong> (WhatsApp).</p>
-      
-      <h3>🎯 Finalidad</h3>
-      <p>Tu número será utilizado EXCLUSIVAMENTE para:</p>
-      <ul>
-        <li>✓ Confirmar las solicitudes de compra de tu carrito</li>
-        <li>✓ Enviarte el link de pago cuando se confirme tu pedido</li>
-        <li>✓ Comunicarme contigo sobre el estado de tu compra de ser necesario</li>
-      </ul>
-      
-      <h3>🚫 No compartimos tus datos</h3>
-      <p>Tu número de teléfono NO será compartido con terceros. Solo será visible para el administrador de Z&R para procesar tu pedido.</p>
-      
-      <h3>⏰ Conservación</h3>
-      <p>Tus datos se conservarán únicamente durante el tiempo necesario para cumplir con las finalidades descritas.</p>
-            
-      <p class="privacy-date">Última actualización: Abril 2026</p>
-    </div>
-    <div class="privacy-modal-footer">
-      <button id="reject-privacy-btn" class="privacy-btn reject">❌ Rechazar</button>
-      <button id="accept-privacy-btn" class="privacy-btn accept">✅ Aceptar y continuar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal para cambiar número de teléfono -->
-<div id="change-phone-modal" class="privacy-modal" style="display: none;">
-  <div class="privacy-modal-content" style="max-width: 400px;">
-    <div class="privacy-modal-header">
-      <span class="privacy-icon">📱</span>
-      <h2>Cambiar número de WhatsApp</h2>
-    </div>
-    <div class="privacy-modal-body">
-      <p style="margin-bottom: 16px;">Tu número se usa para enviarte el link de pago cuando el administrador confirme tu pedido.</p>
-      
-      <div class="form-group" style="margin-bottom: 16px;">
-        <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #333;">
-          Número actual:
-        </label>
-        <input type="text" id="current-phone-display" readonly style="width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 12px; background: #f5f5f8; font-size: 14px;">
-      </div>
-      
-      <div class="form-group" style="margin-bottom: 16px;">
-        <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #333;">
-          Nuevo número (10 dígitos):
-        </label>
-        <input type="tel" id="new-phone-input" placeholder="Ejemplo: 8671234567" maxlength="10" style="width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 12px; font-size: 14px;">
-        <p style="font-size: 11px; color: #999; margin-top: 6px;">⚠️ Solo números, sin espacios ni código país</p>
-      </div>
-      
-      <div id="phone-error-message" style="color: #c62828; font-size: 12px; margin-top: 8px; display: none;"></div>
-    </div>
-    <div class="privacy-modal-footer">
-      <button id="close-phone-modal-btn" class="privacy-btn reject">❌ Cancelar</button>
-      <button id="save-phone-btn" class="privacy-btn accept">✅ Guardar número</button>
-    </div>
-  </div>
-</div> 
-  
 </body>
 </html>
