@@ -127,48 +127,101 @@
     color:#0f0;
     padding:10px;
     font-family:monospace;
-    height:200px;
+    height:300px;
     overflow-y:auto;
     border:1px solid #444;
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    z-index:99999;
+    background:rgba(0,0,0,0.9);
+    font-size:11px;
 ">
-    <strong>Consola interna:</strong><br>
+    <strong>🔍 Consola de diagnóstico:</strong>
+    <button onclick="this.parentElement.style.display='none'" style="float:right">✕ Cerrar</button>
+    <hr>
+    <div id="debugOutput"></div>
 </div>
+
 <script>
 (function() {
-    const div = document.getElementById("debugConsole");
-
-    function printToDiv(type, args) {
-        const msg = document.createElement("div");
-        msg.textContent = `[${type}] ` + Array.from(args).join(" ");
-        div.appendChild(msg);
-        div.scrollTop = div.scrollHeight;
+    const outputDiv = document.getElementById("debugOutput");
+    
+    function log(msg, type = "INFO") {
+        const line = document.createElement("div");
+        const timestamp = new Date().toLocaleTimeString();
+        const colors = { INFO: "#0f0", ERROR: "#f00", WARN: "#ff0", DEBUG: "#0ff" };
+        line.style.color = colors[type] || "#0f0";
+        line.textContent = `[${timestamp}] [${type}] ${msg}`;
+        outputDiv.appendChild(line);
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+        console.log(`[${type}] ${msg}`);
     }
-
-    const originalLog = console.log;
-    const originalError = console.error;
-    const originalWarn = console.warn;
-
-    console.log = function() {
-        printToDiv("LOG", arguments);
-        originalLog.apply(console, arguments);
-    };
-
-    console.error = function() {
-        printToDiv("ERROR", arguments);
-        originalError.apply(console, arguments);
-    };
-
-    console.warn = function() {
-        printToDiv("WARN", arguments);
-        originalWarn.apply(console, arguments);
-    };
-
+    
+    // Capturar errores de JS
     window.onerror = function(msg, url, line, col, error) {
-        printToDiv("UNCAUGHT", [msg + " (" + url + ":" + line + ")"]);
+        log(`🔥 ERROR: ${msg} en ${url || "script"}:${line}`, "ERROR");
+        return false;
     };
+    
+    // Capturar promesas rechazadas
+    window.addEventListener("unhandledrejection", function(e) {
+        log(`⚠️ PROMESA RECHAZADA: ${e.reason}`, "ERROR");
+    });
+    
+    // Verificar carga de archivos
+    function checkFileLoad(src, type) {
+        log(`Verificando ${type}: ${src}`, "DEBUG");
+        const exists = Array.from(document.querySelectorAll(`script[src="${src}"], link[href="${src}"]`)).length > 0;
+        if (exists) {
+            log(`✅ ${type} encontrado: ${src}`, "INFO");
+        } else {
+            log(`❌ ${type} NO encontrado: ${src}`, "ERROR");
+        }
+    }
+    
+    // Esperar a que cargue todo
+    window.addEventListener("DOMContentLoaded", function() {
+        log("🚀 DOM completamente cargado", "INFO");
+        log(`📄 Página: ${window.location.pathname}`, "INFO");
+        
+        // Verificar archivos CSS
+        const cssFiles = document.querySelectorAll('link[rel="stylesheet"]');
+        log(`📦 CSS cargados: ${cssFiles.length}`, "INFO");
+        
+        // Verificar archivos JS
+        const jsFiles = document.querySelectorAll('script[src]');
+        log(`📦 JS cargados: ${jsFiles.length}`, "INFO");
+        
+        // Verificar funciones globales
+        setTimeout(() => {
+            log("🔍 Verificando funciones globales:", "DEBUG");
+            const functions = ['formatCurrency', 'escapeHtml', 'optimizeDriveUrl', 'showLoader', 'hideLoader', 'addToCart', 'loadCartFromStorage'];
+            functions.forEach(fn => {
+                if (typeof window[fn] === 'function') {
+                    log(`  ✅ window.${fn}() existe`, "INFO");
+                } else {
+                    log(`  ❌ window.${fn}() NO existe`, "ERROR");
+                }
+            });
+            
+            // Verificar API_URL
+            if (typeof API_URL !== 'undefined') {
+                log(`✅ API_URL definida: ${API_URL.substring(0, 50)}...`, "INFO");
+            } else if (typeof window.API_URL !== 'undefined') {
+                log(`✅ window.API_URL definida`, "INFO");
+            } else {
+                log(`❌ API_URL NO está definida`, "ERROR");
+            }
+        }, 500);
+    });
+    
+    // Log de inicio
+    log("🐛 Consola de diagnóstico iniciada", "INFO");
+    log(`🌐 User Agent: ${navigator.userAgent.substring(0, 80)}`, "DEBUG");
 })();
 </script>
-
 
   
 </body>
