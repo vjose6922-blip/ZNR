@@ -83,8 +83,34 @@
     <img id="image-modal-img" alt="Vista de producto" />
   </div>
 
-  <script src="common.js"></script>
-  <script src="looks.js"></script>
+ <script src="common.js"></script>
+<script src="looks.js"></script>
+
+<!-- DIAGNÓSTICO - Eliminar después de solucionar -->
+<script>
+  setTimeout(function() {
+    console.log("=== DIAGNÓSTICO LOOKS ===");
+    console.log("allProducts length:", window.allProducts ? window.allProducts.length : 'no definido');
+    console.log("allLooks length:", typeof allLooks !== 'undefined' ? allLooks.length : 'no definido');
+    console.log("looks-container existe:", !!document.getElementById("looks-container"));
+    
+    // Verificar caché
+    const cached = localStorage.getItem("zr_products_cache");
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      console.log("Caché encontrada:", data.length, "productos");
+      console.log("Caché antigüedad:", Math.round((Date.now() - timestamp)/1000), "segundos");
+    } else {
+      console.log("No hay caché de productos");
+    }
+    
+    // Verificar API
+    fetch(API_URL + "?action=getWeather")
+      .then(r => r.json())
+      .then(data => console.log("API responde:", data.ok ? "OK" : "ERROR", data))
+      .catch(e => console.log("API error:", e));
+  }, 2000);
+</script>
 
   <footer class="app-footer">
     <div class="footer-content">
