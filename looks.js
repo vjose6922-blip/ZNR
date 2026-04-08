@@ -2,7 +2,7 @@
 // LOOKS.JS - Página de looks/outfits
 // ============================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
+// Usar API_URL de common.js, no redeclarar
 const WEATHER_API_URL = API_URL;
 
 let currentWeather = null;
