@@ -1,7 +1,3 @@
-// ============================================
-// ADMIN.JS - Panel de administración
-// ============================================
-
 const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
 let adminSession = null;
@@ -10,7 +6,6 @@ let adminCurrentPage = 1;
 let adminFilteredProducts = [];
 let adminProductsPerPage = 10;
 
-// ========== FUNCIONES ESPECÍFICAS DE ADMIN ==========
 
 async function apiRequest(method, body) {
   try {
