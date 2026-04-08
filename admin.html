@@ -4,19 +4,20 @@
   <meta charset="UTF-8" />
   <title>Panel administrador</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
+  <link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
+  <link rel="preload" href="styles.css" as="style">
   <link rel="stylesheet" href="styles.css" />
-
-<link rel="preconnect" href="https://script.google.com" crossorigin>
-<link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
-<link rel="dns-prefetch" href="https://script.google.com">
-<link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
-<link rel="preload" href="styles.css" as="style">
-
-
-
-
 </head>
 <body class="theme-aeromexico admin-body">
+  <!-- ✅ AGREGAR EL LOADER AQUÍ -->
+  <div id="global-loader" class="global-loader hidden">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Cargando...</div>
+  </div>
+
   <header class="app-header admin-header">
     <div class="header-left">
       <h1 class="app-title">Admin catálogo</h1>
@@ -46,7 +47,7 @@
   </main>
 
   <main class="admin-main" id="admin-panel-view" hidden>
-      <div class="admin-notification-bell" onclick="openNotifications()">Revisa los productos comprados🔔<span id="notif-badge">0</span></div>
+    <div class="admin-notification-bell" onclick="openNotifications()">Revisa los productos comprados🔔<span id="notif-badge">0</span></div>
 
     <div class="admin-stats-grid">
       <div class="admin-stat-card">
@@ -61,10 +62,8 @@
         <span class="admin-stat-value" id="stat-out-of-stock">0</span>
         <span class="admin-stat-label">Sin stock</span>
       </div>
-      
     </div>
 
-    <!-- Formulario producto (sin cambios) -->
     <section class="card admin-card">
       <div class="admin-card-header">
         <h2 id="product-form-title">Crear producto</h2>
@@ -110,7 +109,7 @@
             <option value="Sueter para Dama">Sueter para Dama</option>
             <option value="Chamarra para Dama">Chamarra para Dama</option>
             <option value="Chamarra para Caballero">Chamarra para Caballero</option>
-        </select>
+          </select>
         </label>
         <label>
           <span>Badge</span>
@@ -180,14 +179,13 @@
         <span>Acciones</span>
       </div>
       
-      <div class="admin-products-list" id="admin-products-list">
-      </div>
+      <div class="admin-products-list" id="admin-products-list"></div>
       
       <div class="admin-pagination" id="admin-pagination"></div>
     </section>
   </main>
-<script src="common.js"></script>
+
+  <script src="common.js"></script>
   <script src="admin.js"></script>
-  
 </body>
 </html>
