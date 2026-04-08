@@ -902,10 +902,27 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   color: #2e7d32;
 }
 
-/* ============================================
-   ESTILOS PARA ADMIN (adicionales)
-   ============================================ */
 
+
+
+
+
+
+
+/* ============================================
+   ADMIN PANEL - ANCHO LIMITADO
+   ============================================ */
+.admin-main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ============================================
+   ADMIN CONTROLS (búsqueda y filtros)
+   ============================================ */
 .admin-controls {
   display: flex;
   gap: 12px;
@@ -930,6 +947,9 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   background: white;
 }
 
+/* ============================================
+   PRODUCTOS - HEADER TABLA
+   ============================================ */
 .admin-products-header {
   display: grid;
   grid-template-columns: 80px 1fr 100px 100px 120px;
@@ -947,6 +967,9 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   overflow-y: auto;
 }
 
+/* ============================================
+   PRODUCTOS - FILAS
+   ============================================ */
 .admin-product-row {
   display: grid;
   grid-template-columns: 70px 1fr 80px 60px 100px;
@@ -1024,8 +1047,154 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   color: #d32f2f;
 }
 
-/* Responsive admin */
+/* ============================================
+   TARJETAS DE ESTADÍSTICAS
+   ============================================ */
+.admin-stats-grid {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.admin-stat-card {
+  flex: 1;
+  min-width: 150px;
+  background: white;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.admin-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  display: block;
+  color: var(--color-primary);
+}
+
+.admin-stat-label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* ============================================
+   TARJETAS GENERALES
+   ============================================ */
+.admin-card {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  transition: box-shadow 0.2s ease;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.admin-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ============================================
+   FORMULARIO
+   ============================================ */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-grid label span {
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
+
+.progress-bar {
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.upload-progress {
+  width: 0%;
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.2s ease;
+}
+
+.image-preview {
+  max-width: 80px;
+  max-height: 80px;
+  margin-top: 6px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+/* ============================================
+   PAGINACIÓN
+   ============================================ */
+.admin-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.admin-pagination button {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-subtle);
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-pagination button.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+/* ============================================
+   RESPONSIVE (hasta 768px)
+   ============================================ */
 @media (max-width: 768px) {
+  .admin-main {
+    padding: 1rem;
+  }
+  
+  .admin-card {
+    padding: 1rem;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
   .admin-products-header {
     display: none;
   }
@@ -1039,7 +1208,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
     margin-bottom: 6px;
     background: white;
     border-radius: 10px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
   
   .admin-product-id {
@@ -1103,4 +1272,108 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
     font-size: 12px;
   }
 }
+
+/* ============================================
+   PANTALLAS GRANDES (mantener centrado)
+   ============================================ */
+@media (min-width: 1600px) {
+  .admin-main {
+    max-width: 1600px;
+    padding: 2rem;
+  }
+}
+
+/* ============================================
+   NOTIFICACIONES / CAMPANA
+   ============================================ */
+.admin-notification-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  padding: 8px 16px;
+  border-radius: 40px;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  width: fit-content;
+}
+
+.admin-notification-bell span {
+  background: #ef4444;
+  color: white;
+  border-radius: 20px;
+  padding: 0px 8px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* ============================================
+   HEADER ADMIN
+   ============================================ */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: white;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.header-left .app-title {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.header-left .app-subtitle {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.icon-button {
+  background: none;
+  border: 1px solid var(--color-border-subtle);
+  padding: 6px 16px;
+  border-radius: 30px;
+  cursor: pointer;
+}
+
+/* ============================================
+   LOADER
+   ============================================ */
+.global-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.global-loader.hidden {
+  display: none;
+}
+
+.loader-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e0e0e0;
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 
