@@ -4,19 +4,19 @@
   <meta charset="UTF-8" />
   <title>Z&R</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="preconnect" href="https://script.google.com" crossorigin>
-<link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
-<link rel="dns-prefetch" href="https://script.google.com">
-<link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
-<link rel="preload" href="styles.css" as="style">
-
-
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
+  <link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
+  <link rel="preload" href="styles.css" as="style">
+  <link rel="stylesheet" href="styles.css" />
 </head>
-<div id="global-loader" class="global-loader hidden">
-  <div class="loader-spinner"></div>
-  <div class="loader-text">Cargando...</div>
-</div>
 <body class="theme-aeromexico">
+  <div id="global-loader" class="global-loader hidden">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Cargando...</div>
+  </div>
+
   <header class="app-header">
     <div class="header-left">
       <div class="logo-touch-area" id="secret-logo">
@@ -28,16 +28,12 @@
       </div>
     </div>
     <div class="header-right">
-      <button class="icon-button" id="refresh-btn" aria-label="Actualizar catálogo">
-        ⟳
-      </button> 
-      <button class="icon-button" id="layout-toggle-btn" aria-label="Cambiar vista">
-  📱
-</button>
+      <button class="icon-button" id="refresh-btn" aria-label="Actualizar catálogo">⟳</button> 
+      <button class="icon-button" id="layout-toggle-btn" aria-label="Cambiar vista">📱</button>
     </div>
   </header>
 
-<div class="looks-nav">
+  <div class="looks-nav">
     <a href="index.html">🏠 Catálogo</a>
     <a href="looks.html" style="background:#ff4f81; color:white;">✨ Looks</a>
   </div>
@@ -45,12 +41,7 @@
   <section class="filters-bar">
     <div class="filters-row-top">
       <div class="search-wrapper">
-        <input
-          type="search"
-          id="search-input"
-          placeholder="Buscar productos..."
-          autocomplete="off"
-        />
+        <input type="search" id="search-input" placeholder="Buscar productos..." autocomplete="off" />
       </div>
       <select id="gender-filter" class="gender-select">
         <option value="">Todos</option>
@@ -58,7 +49,6 @@
         <option value="MUJER">👗 Dama</option>
       </select>
     </div>
-    
     <div class="filters-row-bottom">
       <select id="category-filter">
         <option value="">Todas las categorías</option>
@@ -87,59 +77,49 @@
       <h2>Tu carrito</h2>
       <button class="icon-button" id="close-cart-btn" aria-label="Cerrar carrito">✕</button>
     </div>
-    <div class="cart-body" id="cart-items-container">
-    </div>
-   <div class="cart-footer">
-  <div class="cart-summary-row">
-    <span>Subtotal</span>
-    <span id="cart-subtotal">$0</span>
-  </div>
-  <div class="cart-summary-row total">
-    <span>Total</span>
-    <span id="cart-total">$0</span>
-  </div>
-  
-  <div id="saved-phone-container" style="font-size: 11px; text-align: center; margin: 8px 0; color: #666; display: none;">
-    📱 Número guardado: <span id="saved-phone-display"></span>
-    <button id="change-phone-btn" style="background: none; border: none; color: #ff4f81; cursor: pointer; text-decoration: underline; margin-left: 5px;">
-      Cambiar
-    </button>
-  </div>
-    <button id="request-purchase-btn" class="primary-button full-width" 
-          style="background: linear-gradient(135deg, #25D366, #128C7E); margin-top: 8px;">
-    📝 Solicitar compra (verificar stock)
-  </button>
-  </div>
+    <div class="cart-body" id="cart-items-container"></div>
+    <div class="cart-footer">
+      <div class="cart-summary-row">
+        <span>Subtotal</span>
+        <span id="cart-subtotal">$0</span>
+      </div>
+      <div class="cart-summary-row total">
+        <span>Total</span>
+        <span id="cart-total">$0</span>
+      </div>
+      <div id="saved-phone-container" style="font-size: 11px; text-align: center; margin: 8px 0; color: #666; display: none;">
+        📱 Número guardado: <span id="saved-phone-display"></span>
+        <button id="change-phone-btn" style="background: none; border: none; color: #ff4f81; cursor: pointer; text-decoration: underline; margin-left: 5px;">Cambiar</button>
+      </div>
+      <button id="request-purchase-btn" class="primary-button full-width" style="background: linear-gradient(135deg, #25D366, #128C7E); margin-top: 8px;">
+        📝 Solicitar compra (verificar stock)
+      </button>
     </div>
   </aside>
 
   <div class="overlay" id="overlay" aria-hidden="true"></div>
+  
   <div class="image-modal" id="image-modal" aria-hidden="true">
     <button class="icon-button close-image-modal" id="close-image-modal">✕</button>
     <img id="image-modal-img" alt="Vista de producto" />
   </div>
 
-  <link rel="stylesheet" href="styles.css" />
-<script src="common.js"></script>
-<script src="script.js"></script>
+  <script src="common.js"></script>
+  <script src="script.js"></script>
 
-
-<footer class="app-footer">
-  <div class="footer-content">
-    <div class="footer-logo">
-      <span class="logo-mark">Z&R</span>
-      <p>Moda y estilo para todos</p>
+  <footer class="app-footer">
+    <div class="footer-content">
+      <div class="footer-logo">
+        <span class="logo-mark">Z&R</span>
+        <p>Moda y estilo para todos</p>
+      </div>
+      <div class="footer-social">
+        <a href="https://www.facebook.com/tu_pagina" target="_blank" class="social-link" aria-label="Facebook">Facebook</a>
+      </div>
+      <div class="footer-copyright">
+        <p>© 2026 Z&R - Todos los derechos reservados</p>
+      </div>
     </div>
-    <div class="footer-social">
-      <a href="https://www.facebook.com/tu_pagina" target="_blank" class="social-link" aria-label="Facebook">
-       Facebook
-      </a>
-     </div>
-    <div class="footer-copyright">
-      <p>© 2026 Z&R - Todos los derechos reservados</p>
-    </div>
-  </div>
-</footer>
-
+  </footer>
 </body>
 </html>
