@@ -509,19 +509,80 @@ window.removeFromCart = function(id) {
   if (localCart[id]) { delete localCart[id]; saveCartToStorage(); updateCartBadge(); window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart })); }
 };
 
-// ========== FUNCIONES DE PRODUCTOS (compartidas) ==========
-async function fetchProductsAPI() {
-  const cached = getCachedProducts();
-  if (cached && cached.length > 0) return cached;
-  try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
-    const products = data.products || data || [];
-    setCachedProducts(products);
-    return products;
-  } catch (err) {
-    console.error("Error fetching products:", err);
-    return [];
+// ========== FUNCIONES DE CARRITO DRAWER ==========
+function openCartDrawer() {
+  const drawer = document.getElementById("cart-drawer");
+  const overlay = document.getElementById("overlay");
+  if (drawer) drawer.classList.add("open");
+  if (overlay) overlay.classList.add("visible");
+  updateSavedPhoneDisplay();
+}
+
+function closeCartDrawer() {
+  const drawer = document.getElementById("cart-drawer");
+  const overlay = document.getElementById("overlay");
+  if (drawer) drawer.classList.remove("open");
+  if (overlay) overlay.classList.remove("visible");
+}
+
+function renderCart() {
+  const container = document.getElementById("cart-items-container");
+  if (!container) return;
+  container.innerHTML = "";
+  const items = Object.values(localCart);
+  if (items.length === 0) {
+    container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
+  } else {
+    items.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "cart-item";
+      row.innerHTML = `
+        <div class="cart-item-info">
+          <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
+          <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
+          <div class="cart-item-actions">
+            <button class="qty-btn" onclick="changeCartQty('${item.id}', -1)">−</button>
+            <span class="qty-value">${item.quantity}</span>
+            <button class="qty-btn" onclick="changeCartQty('${item.id}', 1)">+</button>
+            <button class="cart-item-remove" onclick="removeFromCart('${item.id}')">Eliminar</button>
+          </div>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+  }
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotalEl = document.getElementById("cart-subtotal");
+  const totalEl = document.getElementById("cart-total");
+  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
+  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
+}
+
+// ========== FUNCIONES DE MODAL IMAGEN ==========
+function openImageModal(url) {
+  const modal = document.getElementById("image-modal");
+  const img = document.getElementById("image-modal-img");
+  const overlay = document.getElementById("overlay");
+  if (modal && img) {
+    img.src = url;
+    modal.classList.add("open");
+    if (overlay) overlay.classList.add("visible");
+  }
+}
+
+function closeImageModal() {
+  const modal = document.getElementById("image-modal");
+  const overlay = document.getElementById("overlay");
+  if (modal) modal.classList.remove("open");
+  if (overlay) overlay.classList.remove("visible");
+}
+
+function shareProduct(id) {
+  const url = `${window.location.origin}${window.location.pathname}#producto-${id}`;
+  if (navigator.share) {
+    navigator.share({ title: "Producto", text: "Mira este producto", url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => alert("Enlace copiado")).catch(() => {});
   }
 }
 
@@ -546,6 +607,22 @@ function createImageObserver() {
   return imageObserver;
 }
 
+// ========== FUNCIONES DE PRODUCTOS (compartidas) ==========
+async function fetchProductsAPI() {
+  const cached = getCachedProducts();
+  if (cached && cached.length > 0) return cached;
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    const products = data.products || data || [];
+    setCachedProducts(products);
+    return products;
+  } catch (err) {
+    console.error("Error fetching products:", err);
+    return [];
+  }
+}
+
 // ========== INICIALIZACIÓN AUTOMÁTICA ==========
 document.addEventListener('DOMContentLoaded', () => {
   injectGlobalStyles();
@@ -553,10 +630,25 @@ document.addEventListener('DOMContentLoaded', () => {
   createImageObserver();
   
   const floatingCartBtn = document.getElementById("floating-cart-btn");
-  if (floatingCartBtn && typeof openCartDrawer === 'function') floatingCartBtn.addEventListener("click", openCartDrawer);
+  if (floatingCartBtn) floatingCartBtn.addEventListener("click", openCartDrawer);
+  
+  const closeCartBtn = document.getElementById("close-cart-btn");
+  if (closeCartBtn) closeCartBtn.addEventListener("click", closeCartDrawer);
   
   const changePhoneBtn = document.getElementById("change-phone-btn");
   if (changePhoneBtn) changePhoneBtn.addEventListener("click", changePhoneNumber);
   
+  const overlay = document.getElementById("overlay");
+  if (overlay) overlay.addEventListener("click", () => { closeCartDrawer(); closeImageModal(); });
+  
+  const closeImageBtn = document.getElementById("close-image-modal");
+  if (closeImageBtn) closeImageBtn.addEventListener("click", closeImageModal);
+  
   updateSavedPhoneDisplay();
+  
+  // Escuchar cambios en el carrito
+  window.addEventListener('cartUpdated', () => {
+    renderCart();
+    updateCartBadge();
+  });
 });
