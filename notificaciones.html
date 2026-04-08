@@ -1,243 +1,245 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Notificaciones - Z&R Admin</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <title>Notificaciones - Z&R Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
+  <link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
+  <link rel="preload" href="styles.css" as="style">
+  <link rel="stylesheet" href="styles.css">
 </head>
-
 <body class="theme-aeromexico">
-<div id="global-loader" class="global-loader hidden">
-  <div class="loader-spinner"></div>
-  <div class="loader-text">Cargando...</div>
-</div>
-
-<header class="app-header">
-  <div class="header-left">
-    <div class="logo-touch-area">
-      <span class="logo-mark">Z&R</span>
-    </div>
-    <div class="header-text">
-      <h1 class="app-title">Notificaciones</h1>
-      <p class="app-subtitle">Solicitudes de compra agrupadas</p>
-    </div>
+  <div id="global-loader" class="global-loader hidden">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Cargando...</div>
   </div>
-  <div class="header-right">
-    <button class="icon-button" onclick="window.location='admin.html'">⬅</button>
-    <button class="icon-button" onclick="loadNotifications()">⟳</button>
-  </div>
-</header>
 
-<main class="notifications-wrapper" id="notifications"></main>
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-touch-area">
+        <span class="logo-mark">Z&R</span>
+      </div>
+      <div class="header-text">
+        <h1 class="app-title">Notificaciones</h1>
+        <p class="app-subtitle">Solicitudes de compra agrupadas</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-button" onclick="window.location='admin.html'">⬅</button>
+      <button class="icon-button" onclick="loadNotifications()">⟳</button>
+    </div>
+  </header>
 
-<script src="common.js"></script>
+  <main class="notifications-wrapper" id="notifications"></main>
 
-<script>
-const API = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
+  <script src="common.js"></script>
+  <script>
+    const API = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
-function showSuccessMessage(message, duration = 3000) {
-  const container = document.getElementById("notifications");
-  const msgDiv = document.createElement("div");
-  msgDiv.className = "success-message";
-  msgDiv.innerHTML = `<p>✅ ${escapeHtml(message)}</p>`;
-  container.insertBefore(msgDiv, container.firstChild);
-  setTimeout(() => {
-    if (msgDiv && msgDiv.parentNode) {
-      msgDiv.style.opacity = "0";
-      msgDiv.style.transition = "opacity 0.3s";
-      setTimeout(() => msgDiv.remove(), 300);
+    function showSuccessMessage(message, duration = 3000) {
+      const container = document.getElementById("notifications");
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "success-message";
+      msgDiv.innerHTML = `<p>✅ ${escapeHtml(message)}</p>`;
+      container.insertBefore(msgDiv, container.firstChild);
+      setTimeout(() => {
+        if (msgDiv && msgDiv.parentNode) {
+          msgDiv.style.opacity = "0";
+          msgDiv.style.transition = "opacity 0.3s";
+          setTimeout(() => msgDiv.remove(), 300);
+        }
+      }, duration);
     }
-  }, duration);
-}
 
-function groupNotificationsByRequest(notifications) {
-  const groups = new Map();
-  notifications.forEach(notif => {
-    const requestId = notif.REQUEST_ID;
-    if (!requestId) return;
-    if (!groups.has(requestId)) {
-      groups.set(requestId, { requestId: requestId, notifications: [], hasPending: false });
-    }
-    const group = groups.get(requestId);
-    group.notifications.push(notif);
-    if (notif.STATUS === "pending") group.hasPending = true;
-  });
-  return Array.from(groups.values()).filter(group => group.hasPending);
-}
-
-async function loadNotifications() {
-  showLoader("Cargando solicitudes...");
-  try {
-    const res = await fetch(API + "?action=notifications");
-    const data = await res.json();
-    const container = document.getElementById("notifications");
-    if (!data.notifications || data.notifications.length === 0) {
-      container.innerHTML = '<div class="empty">📭 No hay solicitudes</div>';
-      return;
-    }
-    const groups = groupNotificationsByRequest(data.notifications);
-    if (groups.length === 0) {
-      container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
-      return;
-    }
-    container.innerHTML = "";
-    for (const group of groups) {
-      const pendingNotifications = group.notifications.filter(n => n.STATUS === "pending");
-      if (pendingNotifications.length === 0) continue;
-      let clientPhone = null;
-      try {
-        const phoneRes = await fetch(API + "?action=getClientPhone&requestId=" + group.requestId);
-        const phoneData = await phoneRes.json();
-        if (phoneData.ok) clientPhone = phoneData.phone;
-      } catch(e) {}
-      const stockStatus = await checkStockForGroup(pendingNotifications);
-      const availableProducts = pendingNotifications.filter((n, idx) => stockStatus[idx].hasStock);
-      const unavailableProducts = pendingNotifications.filter((n, idx) => !stockStatus[idx].hasStock);
-      const firstDate = pendingNotifications[0]?.FECHA || new Date();
-      const requestDiv = document.createElement("div");
-      requestDiv.className = "request-card";
-      requestDiv.setAttribute("data-request-id", group.requestId);
-      requestDiv.innerHTML = `
-        <div class="request-header">
-          <div><strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span></div>
-          <div class="request-date">📅 ${new Date(firstDate).toLocaleString()}</div>
-          ${clientPhone ? `<div class="client-phone" style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px;">📱 Cliente: +52 ${escapeHtml(clientPhone)}</div>` : ''}
-        </div>
-        <div class="request-products">
-          ${pendingNotifications.map((notif, idx) => {
-            const status = stockStatus[idx];
-            const isAvailable = status.hasStock;
-            const currentStock = status.currentStock;
-            return `
-              <div class="request-product-item ${!isAvailable ? 'out-of-stock' : ''}">
-                <img class="request-product-img" src="${escapeHtml(notif.IMAGEN || '')}" onerror="this.src='https://placehold.co/70x70/eee/999?text=No+img'">
-                <div class="request-product-info">
-                  <div class="request-product-name">${escapeHtml(notif.NOMBRE || 'Producto')}</div>
-                  <div class="request-product-meta">
-                    <span>ID: ${notif.PRODUCT_ID}</span>
-                    <span>Cantidad: ${notif.CANTIDAD}</span>
-                    ${!isAvailable ? `<span>📦 Stock actual: ${currentStock}</span>` : ''}
-                  </div>
-                </div>
-                <div class="request-product-status ${isAvailable ? 'status-pending' : 'status-outofstock'}">
-                  ${isAvailable ? '⏳ Pendiente' : '❌ Sin stock suficiente'}
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-        <div class="request-actions">
-          ${unavailableProducts.length > 0 ? `<button class="btn btn-secondary" onclick="removeOutOfStockNotifications('${group.requestId}')">🗑️ Eliminar ${unavailableProducts.length} producto(s) sin stock</button>` : ''}
-          ${availableProducts.length > 0 ? `<button class="btn btn-confirm" onclick="confirmGroupPurchase('${group.requestId}')">✅ Confirmar compra (${availableProducts.length} producto${availableProducts.length !== 1 ? 's' : ''})</button>` : ''}
-          <button class="btn btn-cancel" onclick="cancelGroupPurchase('${group.requestId}')">❌ Cancelar toda la solicitud</button>
-        </div>
-      `;
-      container.appendChild(requestDiv);
-    }
-    if (container.children.length === 0) container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
-  } catch (err) {
-    console.error("Error:", err);
-    document.getElementById("notifications").innerHTML = '<div class="empty">❌ Error cargando solicitudes: ' + err.message + '</div>';
-  } finally {
-    hideLoader();
-  }
-}
-
-async function checkStockForGroup(notifications) {
-  const results = [];
-  for (const notif of notifications) {
-    try {
-      const response = await fetch(API, {
-        method: "POST",
-        body: JSON.stringify({ action: "checkStock", productId: Number(notif.PRODUCT_ID), cantidad: Number(notif.CANTIDAD) })
+    function groupNotificationsByRequest(notifications) {
+      const groups = new Map();
+      notifications.forEach(notif => {
+        const requestId = notif.REQUEST_ID;
+        if (!requestId) return;
+        if (!groups.has(requestId)) {
+          groups.set(requestId, { requestId: requestId, notifications: [], hasPending: false });
+        }
+        const group = groups.get(requestId);
+        group.notifications.push(notif);
+        if (notif.STATUS === "pending") group.hasPending = true;
       });
-      const data = await response.json();
-      results.push({ hasStock: data.ok === true, currentStock: data.currentStock || 0 });
-    } catch (err) {
-      results.push({ hasStock: false, currentStock: 0 });
+      return Array.from(groups.values()).filter(group => group.hasPending);
     }
-  }
-  return results;
-}
 
-function openWhatsApp(phoneNumber, message) {
-  let cleanPhone = String(phoneNumber).replace(/[^0-9]/g, '');
-  if (cleanPhone.length === 10) cleanPhone = "52" + cleanPhone;
-  else if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) cleanPhone = "52" + cleanPhone.substring(1);
-  window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-}
+    async function loadNotifications() {
+      showLoader("Cargando solicitudes...");
+      try {
+        const res = await fetch(API + "?action=notifications");
+        const data = await res.json();
+        const container = document.getElementById("notifications");
+        if (!data.notifications || data.notifications.length === 0) {
+          container.innerHTML = '<div class="empty">📭 No hay solicitudes</div>';
+          return;
+        }
+        const groups = groupNotificationsByRequest(data.notifications);
+        if (groups.length === 0) {
+          container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
+          return;
+        }
+        container.innerHTML = "";
+        for (const group of groups) {
+          const pendingNotifications = group.notifications.filter(n => n.STATUS === "pending");
+          if (pendingNotifications.length === 0) continue;
+          let clientPhone = null;
+          try {
+            const phoneRes = await fetch(API + "?action=getClientPhone&requestId=" + group.requestId);
+            const phoneData = await phoneRes.json();
+            if (phoneData.ok) clientPhone = phoneData.phone;
+          } catch(e) {}
+          const stockStatus = await checkStockForGroup(pendingNotifications);
+          const availableProducts = pendingNotifications.filter((n, idx) => stockStatus[idx].hasStock);
+          const unavailableProducts = pendingNotifications.filter((n, idx) => !stockStatus[idx].hasStock);
+          const firstDate = pendingNotifications[0]?.FECHA || new Date();
+          const requestDiv = document.createElement("div");
+          requestDiv.className = "request-card";
+          requestDiv.setAttribute("data-request-id", group.requestId);
+          requestDiv.innerHTML = `
+            <div class="request-header">
+              <div><strong>Solicitud:</strong> <span class="request-id">${escapeHtml(group.requestId)}</span></div>
+              <div class="request-date">📅 ${new Date(firstDate).toLocaleString()}</div>
+              ${clientPhone ? `<div class="client-phone" style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px;">📱 Cliente: +52 ${escapeHtml(clientPhone)}</div>` : ''}
+            </div>
+            <div class="request-products">
+              ${pendingNotifications.map((notif, idx) => {
+                const status = stockStatus[idx];
+                const isAvailable = status.hasStock;
+                const currentStock = status.currentStock;
+                return `
+                  <div class="request-product-item ${!isAvailable ? 'out-of-stock' : ''}">
+                    <img class="request-product-img" src="${escapeHtml(notif.IMAGEN || '')}" onerror="this.src='https://placehold.co/70x70/eee/999?text=No+img'">
+                    <div class="request-product-info">
+                      <div class="request-product-name">${escapeHtml(notif.NOMBRE || 'Producto')}</div>
+                      <div class="request-product-meta">
+                        <span>ID: ${notif.PRODUCT_ID}</span>
+                        <span>Cantidad: ${notif.CANTIDAD}</span>
+                        ${!isAvailable ? `<span>📦 Stock actual: ${currentStock}</span>` : ''}
+                      </div>
+                    </div>
+                    <div class="request-product-status ${isAvailable ? 'status-pending' : 'status-outofstock'}">
+                      ${isAvailable ? '⏳ Pendiente' : '❌ Sin stock suficiente'}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            <div class="request-actions">
+              ${unavailableProducts.length > 0 ? `<button class="btn btn-secondary" onclick="removeOutOfStockNotifications('${group.requestId}')">🗑️ Eliminar ${unavailableProducts.length} producto(s) sin stock</button>` : ''}
+              ${availableProducts.length > 0 ? `<button class="btn btn-confirm" onclick="confirmGroupPurchase('${group.requestId}')">✅ Confirmar compra (${availableProducts.length} producto${availableProducts.length !== 1 ? 's' : ''})</button>` : ''}
+              <button class="btn btn-cancel" onclick="cancelGroupPurchase('${group.requestId}')">❌ Cancelar toda la solicitud</button>
+            </div>
+          `;
+          container.appendChild(requestDiv);
+        }
+        if (container.children.length === 0) container.innerHTML = '<div class="empty">✅ No hay solicitudes pendientes</div>';
+      } catch (err) {
+        console.error("Error:", err);
+        document.getElementById("notifications").innerHTML = '<div class="empty">❌ Error cargando solicitudes: ' + err.message + '</div>';
+      } finally {
+        hideLoader();
+      }
+    }
 
-async function confirmGroupPurchase(requestId) {
-  if (!confirm(`¿Confirmar TODOS los productos con stock disponible de esta solicitud?\n\nLos productos sin stock serán rechazos automáticamente.`)) return;
-  showLoader("Procesando solicitud completa...");
-  try {
-    const response = await fetch(API, {
-      method: "POST",
-      body: JSON.stringify({ action: "confirmGroupPurchase", requestId: requestId })
-    });
-    const data = await response.json();
-    if (!data.ok) throw new Error(data.error || "Error al confirmar");
-    let summary = `✅ ${data.message}\n\n`;
-    if (data.approvedCount > 0) summary += `💰 Total a pagar: $${(data.totalAmount || 0).toLocaleString()}\n`;
-    if (data.paymentLink) summary += `\n🔗 Link de pago generado. Se enviará al cliente por WhatsApp.`;
-    alert(summary);
-    if (data.whatsappUrl) window.open(data.whatsappUrl, '_blank');
-    setTimeout(() => loadNotifications(), 2000);
-  } catch (err) {
-    alert(`❌ Error: ${err.message}`);
-    hideLoader();
-  }
-}
+    async function checkStockForGroup(notifications) {
+      const results = [];
+      for (const notif of notifications) {
+        try {
+          const response = await fetch(API, {
+            method: "POST",
+            body: JSON.stringify({ action: "checkStock", productId: Number(notif.PRODUCT_ID), cantidad: Number(notif.CANTIDAD) })
+          });
+          const data = await response.json();
+          results.push({ hasStock: data.ok === true, currentStock: data.currentStock || 0 });
+        } catch (err) {
+          results.push({ hasStock: false, currentStock: 0 });
+        }
+      }
+      return results;
+    }
 
-async function removeOutOfStockNotifications(requestId) {
-  if (!confirm("¿Eliminar los productos sin stock de esta solicitud? Los productos con stock se mantendrán pendientes.")) return;
-  showLoader("Eliminando...");
-  try {
-    const response = await fetch(API, {
-      method: "POST",
-      body: JSON.stringify({ action: "removeOutOfStockNotifications", requestId: requestId })
-    });
-    const data = await response.json();
-    if (data.ok) {
-      showSuccessMessage(`Eliminados ${data.removedCount} producto(s) sin stock`);
+    function openWhatsApp(phoneNumber, message) {
+      let cleanPhone = String(phoneNumber).replace(/[^0-9]/g, '');
+      if (cleanPhone.length === 10) cleanPhone = "52" + cleanPhone;
+      else if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) cleanPhone = "52" + cleanPhone.substring(1);
+      window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    }
+
+    async function confirmGroupPurchase(requestId) {
+      if (!confirm(`¿Confirmar TODOS los productos con stock disponible de esta solicitud?\n\nLos productos sin stock serán rechazos automáticamente.`)) return;
+      showLoader("Procesando solicitud completa...");
+      try {
+        const response = await fetch(API, {
+          method: "POST",
+          body: JSON.stringify({ action: "confirmGroupPurchase", requestId: requestId })
+        });
+        const data = await response.json();
+        if (!data.ok) throw new Error(data.error || "Error al confirmar");
+        let summary = `✅ ${data.message}\n\n`;
+        if (data.approvedCount > 0) summary += `💰 Total a pagar: $${(data.totalAmount || 0).toLocaleString()}\n`;
+        if (data.paymentLink) summary += `\n🔗 Link de pago generado. Se enviará al cliente por WhatsApp.`;
+        alert(summary);
+        if (data.whatsappUrl) window.open(data.whatsappUrl, '_blank');
+        setTimeout(() => loadNotifications(), 2000);
+      } catch (err) {
+        alert(`❌ Error: ${err.message}`);
+        hideLoader();
+      }
+    }
+
+    async function removeOutOfStockNotifications(requestId) {
+      if (!confirm("¿Eliminar los productos sin stock de esta solicitud? Los productos con stock se mantendrán pendientes.")) return;
+      showLoader("Eliminando...");
+      try {
+        const response = await fetch(API, {
+          method: "POST",
+          body: JSON.stringify({ action: "removeOutOfStockNotifications", requestId: requestId })
+        });
+        const data = await response.json();
+        if (data.ok) {
+          showSuccessMessage(`Eliminados ${data.removedCount} producto(s) sin stock`);
+          loadNotifications();
+        } else {
+          throw new Error(data.error || "Error");
+        }
+      } catch (err) {
+        alert(`❌ Error: ${err.message}`);
+      } finally {
+        hideLoader();
+      }
+    }
+
+    async function cancelGroupPurchase(requestId) {
+      if (!confirm("¿Cancelar TODA la solicitud de compra?")) return;
+      showLoader("Cancelando...");
+      try {
+        const response = await fetch(API, {
+          method: "POST",
+          body: JSON.stringify({ action: "cancelGroupPurchase", requestId: requestId })
+        });
+        const data = await response.json();
+        if (data.ok) {
+          showSuccessMessage(`Solicitud cancelada (${data.cancelledCount} productos)`);
+          loadNotifications();
+        } else {
+          throw new Error(data.error || "Error");
+        }
+      } catch (err) {
+        alert(`❌ Error: ${err.message}`);
+      } finally {
+        hideLoader();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
       loadNotifications();
-    } else {
-      throw new Error(data.error || "Error");
-    }
-  } catch (err) {
-    alert(`❌ Error: ${err.message}`);
-  } finally {
-    hideLoader();
-  }
-}
-
-async function cancelGroupPurchase(requestId) {
-  if (!confirm("¿Cancelar TODA la solicitud de compra?")) return;
-  showLoader("Cancelando...");
-  try {
-    const response = await fetch(API, {
-      method: "POST",
-      body: JSON.stringify({ action: "cancelGroupPurchase", requestId: requestId })
     });
-    const data = await response.json();
-    if (data.ok) {
-      showSuccessMessage(`Solicitud cancelada (${data.cancelledCount} productos)`);
-      loadNotifications();
-    } else {
-      throw new Error(data.error || "Error");
-    }
-  } catch (err) {
-    alert(`❌ Error: ${err.message}`);
-  } finally {
-    hideLoader();
-  }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  loadNotifications();
-});
-</script>
-
+  </script>
 </body>
 </html>
