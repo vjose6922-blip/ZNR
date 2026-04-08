@@ -1375,5 +1375,9 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-
+#admin-panel-view, #admin-login-view {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
 
