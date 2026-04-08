@@ -1,8 +1,4 @@
-// ============================================
-// COMMON.JS - Funciones compartidas y optimizadas
-// ============================================
 
-// ========== CONFIGURACIÓN GLOBAL ==========
 const WHATSAPP_NUMBER = "528671781272";
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
@@ -606,6 +602,108 @@ function createImageObserver() {
   }
   return imageObserver;
 }
+
+
+
+
+
+// ========== CHECKOUT ==========
+async function openWhatsAppCheckout() {
+  const items = Object.values(localCart);
+  if (items.length === 0) {
+    showTemporaryMessage("No hay productos en el carrito", "error");
+    return;
+  }
+  
+  const hasAcceptedPrivacy = localStorage.getItem("privacy_accepted") === "true";
+  if (!hasAcceptedPrivacy) {
+    showPrivacyModal(() => continueCheckout());
+    return;
+  }
+  continueCheckout();
+}
+
+async function continueCheckout() {
+  const items = Object.values(localCart);
+  if (items.length === 0) return;
+  
+  let clientPhone = localStorage.getItem("client_phone");
+  if (!clientPhone) {
+    clientPhone = await prompt(
+      "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n⚠️ Solo números, sin espacios ni código país.\n🔒 Tus datos están protegidos (aceptaste el aviso de privacidad)",
+      ""
+    );
+    if (!clientPhone) {
+      showTemporaryMessage("❌ Necesitamos tu número para procesar la compra", "error");
+      return;
+    }
+    clientPhone = clientPhone.replace(/[^0-9]/g, '');
+    if (clientPhone.length !== 10) {
+      showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
+      return;
+    }
+    localStorage.setItem("client_phone", clientPhone);
+  }
+  
+  showLoader("Enviando solicitud...");
+  const requestId = generateRequestId();
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n\n";
+  adminMessage += `*Cliente:* +52 ${clientPhone}\n`;
+  adminMessage += `*Solicitud ID:* ${requestId}\n`;
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += "*📦 Productos:*\n";
+  items.forEach((item) => {
+    adminMessage += `• ${item.name}\n`;
+    adminMessage += `  Cantidad: ${item.quantity}\n`;
+    adminMessage += `  Precio unitario: $${item.price.toLocaleString()}\n`;
+    adminMessage += `  Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
+    adminMessage += "------------------------\n";
+  });
+  adminMessage += `*💰 Total: $${total.toLocaleString()} MXN*\n\n`;
+  adminMessage += `_✅ Para continuar con el pago espera el mensaje de confirmacion_\n`;
+  
+  const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
+  window.open(whatsappAdminUrl, '_blank');
+  
+  try {
+    await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "saveClientPhone", requestId: requestId, phone: clientPhone })
+    });
+    
+    const notificationItems = items.map(item => ({
+      productId: item.id,
+      nombre: item.name,
+      cantidad: item.quantity,
+      imagen: item.Imagen1 || "",
+      talla: item.Talla || ""
+    }));
+    
+    await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "createNotification", items: notificationItems, requestId: requestId })
+    });
+    
+    localCart = {};
+    saveCartToStorage();
+    updateCartBadge();
+    renderCart();
+    showTemporaryMessage(`✅ ¡Solicitud enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`, "success");
+    closeCartDrawer();
+  } catch(err) {
+    console.error("Error:", err);
+    showTemporaryMessage("❌ Error al enviar la solicitud", "error");
+  } finally {
+    hideLoader();
+  }
+}
+
+
+
+
+
 
 // ========== FUNCIONES DE PRODUCTOS (compartidas) ==========
 async function fetchProductsAPI() {
