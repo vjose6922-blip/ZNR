@@ -2,15 +2,12 @@
 // SCRIPT.JS - Tienda principal
 // ============================================
 
-const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
-
 const PAGE_SIZE = 10;
 let allProducts = [];
 let filteredProducts = [];
 let currentPage = 1;
 let isLoading = false;
-let imageObserver = null;
-const sliderState = new Map();
+let sliderState = new Map();
 let initialHashHandled = false;
 const SECRET_TAPS_REQUIRED = 5;
 let secretTapCount = 0;
@@ -60,7 +57,7 @@ async function fetchProducts(force = false) {
   showLoader("Cargando productos...");
   
   try {
-    const res = await fetch(SHEET_API_URL);
+    const res = await fetch(API_URL);
     const data = await res.json();
     allProducts = (data.products || data || []).slice(0, 500);
     setCachedProducts(allProducts);
@@ -89,7 +86,7 @@ async function fetchProducts(force = false) {
 
 async function loadProductsInBackground() {
   try {
-    const res = await fetch(SHEET_API_URL);
+    const res = await fetch(API_URL);
     const data = await res.json();
     const freshProducts = (data.products || data || []).slice(0, 500);
     if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
@@ -233,13 +230,11 @@ function createProductCard(product) {
     slide.className = "product-slide";
     const img = document.createElement("img");
     img.alt = Nombre || "Producto";
-    img.setAttribute("data-src", url);
+    img.src = url; // Carga directa sin lazy loading para asegurar que se vean
     img.loading = "lazy";
     img.addEventListener("click", () => openImageModal(url));
     slide.appendChild(img);
     track.appendChild(slide);
-    if (imageObserver) imageObserver.observe(img);
-    else if (img.dataset.src) { img.src = img.dataset.src; img.removeAttribute("data-src"); }
   });
   slider.appendChild(track);
   const dotsContainer = document.createElement("div");
@@ -369,55 +364,7 @@ function attachSliderEvents(slider, totalSlides) {
   setInterval(() => updateSlider((sliderState.get(productId) || 0) + 1), 6000);
 }
 
-// ========== FUNCIONES DE CARRITO (usando common.js) ==========
-function renderCart() {
-  const container = document.getElementById("cart-items-container");
-  if (!container) return;
-  container.innerHTML = "";
-  const items = Object.values(localCart);
-  if (items.length === 0) {
-    container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
-  } else {
-    items.forEach((item) => {
-      const row = document.createElement("div");
-      row.className = "cart-item";
-      row.innerHTML = `
-        <div class="cart-item-info">
-          <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
-          <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
-          <div class="cart-item-actions">
-            <button class="qty-btn" onclick="changeCartQty('${item.id}', -1)">−</button>
-            <span class="qty-value">${item.quantity}</span>
-            <button class="qty-btn" onclick="changeCartQty('${item.id}', 1)">+</button>
-            <button class="cart-item-remove" onclick="removeFromCart('${item.id}')">Eliminar</button>
-          </div>
-        </div>
-      `;
-      container.appendChild(row);
-    });
-  }
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const subtotalEl = document.getElementById("cart-subtotal");
-  const totalEl = document.getElementById("cart-total");
-  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
-}
-
-function openCartDrawer() {
-  const drawer = document.getElementById("cart-drawer");
-  const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.add("open");
-  if (overlay) overlay.classList.add("visible");
-  updateSavedPhoneDisplay();
-}
-
-function closeCartDrawer() {
-  const drawer = document.getElementById("cart-drawer");
-  const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.remove("open");
-  if (overlay) overlay.classList.remove("visible");
-}
-
+// ========== FUNCIONES DE IMAGEN ==========
 function openImageModal(url) {
   const modal = document.getElementById("image-modal");
   const img = document.getElementById("image-modal-img");
@@ -520,7 +467,7 @@ async function continueCheckout() {
   const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
   window.open(whatsappAdminUrl, '_blank');
   try {
-    await fetch(SHEET_API_URL, {
+    await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({ action: "saveClientPhone", requestId: requestId, phone: clientPhone })
     });
@@ -531,14 +478,14 @@ async function continueCheckout() {
       imagen: item.Imagen1 || "",
       talla: item.Talla || ""
     }));
-    await fetch(SHEET_API_URL, {
+    await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({ action: "createNotification", items: notificationItems, requestId: requestId })
     });
     localCart = {};
     saveCartToStorage();
     updateCartBadge();
-    renderCart();
+    if (typeof renderCart === 'function') renderCart();
     showTemporaryMessage(`✅ ¡Solicitud enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`, "success");
     closeCartDrawer();
     startSilentPolling(requestId, clientPhone);
@@ -553,7 +500,7 @@ async function continueCheckout() {
 function startSilentPolling(requestId, clientPhone) {
   let interval = setInterval(async () => {
     try {
-      const response = await fetch(`${SHEET_API_URL}?action=checkRequestStatus&requestId=${requestId}`);
+      const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${requestId}`);
       const data = await response.json();
       if (data.ok && data.status === 'approved' && data.paymentLink) {
         clearInterval(interval);
@@ -589,7 +536,7 @@ async function pagarConMercadoPago() {
   showLoader("Preparando pago...");
   try {
     const params = new URLSearchParams({ action: "createPreference", items: JSON.stringify(items) });
-    const response = await fetch(`${SHEET_API_URL}?${params.toString()}`, { method: "GET" });
+    const response = await fetch(`${API_URL}?${params.toString()}`, { method: "GET" });
     const data = await response.json();
     if (data.ok && data.initPoint) {
       window.location.href = data.initPoint;
@@ -610,7 +557,7 @@ function verificarEstadoPago() {
     localCart = {};
     saveCartToStorage();
     updateCartBadge();
-    renderCart();
+    if (typeof renderCart === 'function') renderCart();
     alert("🎉 ¡Pago completado con éxito!\n\nGracias por tu compra.");
     window.history.replaceState({}, document.title, window.location.pathname);
   } else if (paymentStatus === "failure") {
@@ -622,30 +569,8 @@ function verificarEstadoPago() {
   }
 }
 
-// ========== IMAGE OBSERVER ==========
-function createImageObserver() {
-  if ("IntersectionObserver" in window) {
-    imageObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const img = entry.target;
-          const dataSrc = img.getAttribute("data-src");
-          if (dataSrc) {
-            const newImg = new Image();
-            newImg.onload = () => { img.src = dataSrc; img.removeAttribute("data-src"); };
-            newImg.src = dataSrc;
-          }
-          imageObserver.unobserve(img);
-        }
-      });
-    }, { rootMargin: "50px 0px", threshold: 0.01 });
-  }
-}
-
 // ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
-  createImageObserver();
-  renderCart();
   fetchProducts();
 
   let searchDebounceTimeout;
@@ -700,8 +625,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Escuchar cambios en el carrito desde common.js
+// Escuchar cambios en el carrito
 window.addEventListener('cartUpdated', () => {
-  renderCart();
+  if (typeof renderCart === 'function') renderCart();
   updateCartBadge();
 });
