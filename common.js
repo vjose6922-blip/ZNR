@@ -727,6 +727,12 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCartFromStorage();
   createImageObserver();
   
+  // ✅ IMPORTANTE: Renderizar el carrito al cargar la página
+  if (typeof renderCart === 'function') {
+    renderCart();
+    console.log("✅ Carrito renderizado al inicio");
+  }
+  
   const floatingCartBtn = document.getElementById("floating-cart-btn");
   if (floatingCartBtn) floatingCartBtn.addEventListener("click", openCartDrawer);
   
@@ -746,7 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Escuchar cambios en el carrito
   window.addEventListener('cartUpdated', () => {
-    renderCart();
+    if (typeof renderCart === 'function') renderCart();
     updateCartBadge();
   });
 });
