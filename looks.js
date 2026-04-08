@@ -547,4 +547,20 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Escuchar cambios en el carrito
   window.addEventListener('cartUpdated', () => updateCartBadge());
+  
+  // ========== AGREGAR ESTO ==========
+  const requestBtn = document.getElementById("request-purchase-btn");
+  if (requestBtn) {
+    requestBtn.addEventListener("click", openWhatsAppCheckout);
+    console.log("✅ Botón solicitar compra configurado");
+  } else {
+    console.log("❌ Botón request-purchase-btn no encontrado");
+  }
+  
+  // Verificar que openWhatsAppCheckout existe
+  if (typeof openWhatsAppCheckout === 'function') {
+    console.log("✅ openWhatsAppCheckout existe");
+  } else {
+    console.log("❌ openWhatsAppCheckout NO existe");
+  }
 });
