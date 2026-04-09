@@ -196,7 +196,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .admin-stat-label { font-size: 12px; opacity: 0.9; margin-top: 4px; display: block; }
 
 /* Footer */
-.app-footer { background: linear-gradient(135deg, #0b0714, #05030a); color: white; margin-top: 20px; padding: 30px 20px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+.app-footer { background: linear-gradient(135deg, #0b0714, #05030a); color: white; margin-top: 20px; padding: 10px 10px 10px; border-top: 1px solid rgba(255,255,255,0.1); }
 .footer-content { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center; }
 .footer-logo .logo-mark { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #ff4f81, #ff7a4f); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .footer-logo p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 5px; }
