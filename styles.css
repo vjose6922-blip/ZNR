@@ -115,27 +115,272 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .products-container.layout-grid .product-badge { font-size: 8px; padding: 3px 8px; top: 6px; left: 6px; }
 
 /* Looks Grid */
-.looks-grid.layout-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; padding: 12px 12px 80px !important; }
-.looks-grid.layout-grid .look-card { margin: 4px; display: flex; flex-direction: column; height: 100%; border-radius: 16px; }
-.looks-grid.layout-grid .look-image { height: 160px; object-fit: cover; }
-.looks-grid.layout-grid .look-info { padding: 0; flex: 1; }
-.looks-grid.layout-grid .look-title { font-size: 13px; margin: 4px 0 2px; }
-.looks-grid.layout-grid .look-description { font-size: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.looks-grid.layout-grid .look-category { font-size: 9px; padding: 2px 8px; }
-.looks-grid.layout-grid .look-products { margin: 6px 0 4px; border-radius: 12px; overflow: hidden; }
-.looks-grid.layout-grid .look-products-title { display: none; }
-.looks-grid.layout-grid .look-product-item { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-bottom: 1px solid #eee; }
-.looks-grid.layout-grid .look-product-img { width: 40px; min-width: 40px; height: 40px; object-fit: contain; border-radius: 6px; }
-.looks-grid.layout-grid .look-product-info { flex: 1; min-width: 0; }
-.looks-grid.layout-grid .look-product-name { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.looks-grid.layout-grid .look-product-price { font-size: 9px; }
-.looks-grid.layout-grid .look-product-category,
-.looks-grid.layout-grid .look-product-size { font-size: 10px; }
-.looks-grid.layout-grid .look-product-actions { padding: 3px 6px; font-size: 8px; }
-.looks-grid.layout-grid .look-product-add { padding: 3px 6px; font-size: 8px; }
-.looks-grid.layout-grid .look-total { padding: 8px 4px 4px 4px; margin-top: 4px; border-top: 1px solid #eee; }
-.looks-grid.layout-grid .look-total-price { font-size: 11px; white-space: nowrap; }
-.looks-grid.layout-grid .buy-look-btn { padding: 8px 6px; font-size: 10px; margin-top: 8px; }
+/* ===== ESTILOS PARA LOOKS EN MODO CUADRÍCULA ===== */
+
+/* Cuando el contenedor tiene la clase layout-grid */
+.looks-grid.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+/* Estilos para cada tarjeta en modo cuadrícula */
+.looks-grid.layout-grid .look-card {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.looks-grid.layout-grid .look-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+/* Contenedor de imagen con PADDING */
+.looks-grid.layout-grid .look-image-container {
+  padding: 20px;  /* ← ESTE ES EL PADDING QUE NECESITAS */
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.looks-grid.layout-grid .look-image {
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 12px;
+  transition: transform 0.2s;
+}
+
+.looks-grid.layout-grid .look-image:hover {
+  transform: scale(1.02);
+}
+
+/* Información del look */
+.looks-grid.layout-grid .look-info {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.looks-grid.layout-grid .look-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.looks-grid.layout-grid .look-category {
+  background: #f0f0f0;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #666;
+}
+
+.looks-grid.layout-grid .look-item-count {
+  font-size: 12px;
+  color: #ff4f81;
+  font-weight: 500;
+}
+
+.looks-grid.layout-grid .look-title {
+  font-size: 18px;
+  margin: 8px 0;
+  color: #3b1f5f;
+}
+
+.looks-grid.layout-grid .look-description {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 16px;
+}
+
+/* Productos dentro del look */
+.looks-grid.layout-grid .look-products {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.looks-grid.layout-grid .look-products-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b1f5f;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.looks-grid.layout-grid .look-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.looks-grid.layout-grid .look-product-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: white;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.looks-grid.layout-grid .look-product-img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.looks-grid.layout-grid .look-product-info {
+  flex: 1;
+}
+
+.looks-grid.layout-grid .look-product-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.looks-grid.layout-grid .look-product-price {
+  font-size: 12px;
+  color: #ff4f81;
+  font-weight: 600;
+}
+
+.looks-grid.layout-grid .look-product-category {
+  font-size: 10px;
+  color: #999;
+  margin-top: 2px;
+}
+
+/* ===== ESTO ES LO IMPORTANTE - TALLAS VISIBLES ===== */
+.looks-grid.layout-grid .look-product-size {
+  font-size: 11px;
+  color: #3b1f5f;
+  background: #f0e6ff;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.looks-grid.layout-grid .look-product-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.looks-grid.layout-grid .look-product-add {
+  background: linear-gradient(135deg, #3b1f5f, #ff4f81);
+  border: none;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.looks-grid.layout-grid .look-product-add:hover {
+  transform: scale(1.02);
+  opacity: 0.9;
+}
+
+.looks-grid.layout-grid .look-product-reload {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  color: #666;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.looks-grid.layout-grid .look-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.looks-grid.layout-grid .look-total-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3b1f5f;
+}
+
+.looks-grid.layout-grid .look-total-price {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ff4f81;
+}
+
+.looks-grid.layout-grid .buy-look-btn {
+  background: linear-gradient(135deg, #25D366, #128C7E);
+  border: none;
+  color: white;
+  padding: 12px;
+  border-radius: 40px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: all 0.2s;
+}
+
+.looks-grid.layout-grid .buy-look-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+/* ===== MODO LISTA (original) ===== */
+.looks-grid:not(.layout-grid) {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.looks-grid:not(.layout-grid) .look-card {
+  display: flex;
+  gap: 24px;
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.looks-grid:not(.layout-grid) .look-image-container {
+  flex: 0 0 280px;
+  cursor: pointer;
+}
+
+.looks-grid:not(.layout-grid) .look-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.looks-grid:not(.layout-grid) .look-info {
+  flex: 1;
+  padding: 20px 20px 20px 0;
+}
 
 /* Paginación */
 .pagination-section { padding: 8px 16px 80px; display: flex; justify-content: center; }
