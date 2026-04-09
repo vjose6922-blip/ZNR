@@ -1367,3 +1367,18 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   padding: 20px;
 }
 
+
+#layout-toggle-looks {
+  background: transparent;
+  border: 1px solid #ccc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 22px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#layout-toggle-looks:hover {
+  border-color: #888;
+}
+
