@@ -1382,3 +1382,21 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   border-color: #888;
 }
 
+#layout-toggle-btn {
+  background: transparent;
+  border: 1px solid #ccc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 22px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+#layout-toggle-btn:hover {
+  border-color: #888;
+  background: rgba(0,0,0,0.05);
+}
+
+#layout-toggle-btn:active {
+  transform: scale(0.92);
+}
