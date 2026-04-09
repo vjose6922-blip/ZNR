@@ -618,41 +618,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   }
 }
 
-/* Responsive para tablets */
-@media (min-width: 768px) {
-  .looks-grid.layout-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 20px !important;
-    max-width: 800px !important;
-    margin: 0 auto !important;
-  }
-  
-  .looks-grid.layout-grid .look-image {
-    max-height: 200px;
-  }
-  
-  .looks-grid.layout-grid .look-image-container {
-    padding: 20px !important;
-  }
-}
 
-/* Responsive para desktop */
-@media (min-width: 1024px) {
-  .looks-grid.layout-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    max-width: 1000px !important;
-  }
-  
-  .looks-grid.layout-grid .look-image {
-    max-height: 220px;
-  }
-  
-  .looks-grid.layout-grid .look-image-container {
-    padding: 24px !important;
-  }
-}
-
-/* Mensaje vacío */
 .empty-looks {
   text-align: center;
   padding: 60px 20px;
