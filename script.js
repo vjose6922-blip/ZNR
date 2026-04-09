@@ -628,7 +628,7 @@ if (layoutBtn && productsContainer) {
     layoutBtn.textContent = isGrid ? "▦" : "≡";
   });
 }
-
+});
 
 // Escuchar cambios en el carrito
 window.addEventListener('cartUpdated', () => {
