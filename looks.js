@@ -524,15 +524,15 @@ function initLooksLayoutToggle() {
   const savedLayout = localStorage.getItem("looks_layout");
   if (savedLayout === "grid") {
     looksContainer.classList.add("layout-grid");
-    toggleBtn.textContent = "🟥🟥";
+    toggleBtn.textContent = "▦";
   } else {
-    toggleBtn.textContent = "🟥";
+    toggleBtn.textContent = "≡";
   }
   toggleBtn.addEventListener("click", () => {
     looksContainer.classList.toggle("layout-grid");
     const isGrid = looksContainer.classList.contains("layout-grid");
     localStorage.setItem("looks_layout", isGrid ? "grid" : "list");
-    toggleBtn.textContent = isGrid ? "🟥🟥" : "🟥";
+    toggleBtn.textContent = isGrid ? "▦" : "≡";
   });
 }
 
