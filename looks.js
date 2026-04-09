@@ -1,8 +1,4 @@
-// ============================================
-// LOOKS.JS - Página de looks/outfits
-// ============================================
 
-// Usar API_URL de common.js, no redeclarar
 const WEATHER_API_URL = API_URL;
 
 let currentWeather = null;
