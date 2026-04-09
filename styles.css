@@ -143,121 +143,126 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   margin: 0 auto;
 }
 
-/* ===== MODO LISTA (original) ===== */
+/* ===== MODO LISTA (original) - TODO PEGADO ===== */
 .look-card {
   background: white;
-  border-radius: 24px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin: 0;
 }
 
 .look-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 32px rgba(0,0,0,0.16);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
 }
 
 .look-image {
   width: 100%;
-  height: 280px;
+  height: 260px;
   object-fit: contain;
-  background: #f0f0f0;
+  background: #f8f9fa;
   cursor: pointer;
+  margin: 0;
+  padding: 0;
 }
 
 .look-image-container {
   cursor: pointer;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 .look-image-container:hover .look-image {
-  transform: scale(1.02);
+  transform: scale(1.01);
 }
 
 .look-info {
-  padding: 20px;
+  padding: 10px 12px;
+  margin: 0;
 }
 
 .look-category {
   display: inline-block;
   background: #f0e6ff;
   color: #3b1f5f;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 20px;
-  margin-bottom: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-bottom: 6px;
 }
 
 .look-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
 }
 
 .look-item-count {
   background: #e8e8ff;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 9px;
   font-weight: 600;
   color: #3b1f5f;
 }
 
 .look-title {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
-  margin: 0 0 8px 0;
+  margin: 4px 0 2px 0;
   color: #1a1a2a;
 }
 
 .look-description {
-  font-size: 14px;
+  font-size: 11px;
   color: #666;
-  line-height: 1.5;
-  margin-bottom: 16px;
+  line-height: 1.3;
+  margin-bottom: 8px;
 }
 
-/* Productos dentro del look */
+/* Productos dentro del look - SIN ESPACIOS */
 .look-products {
   background: #f8f8fc;
-  border-radius: 16px;
+  border-radius: 0;
   padding: 0;
-  margin-bottom: 16px;
+  margin: 0;
   overflow: hidden;
 }
 
 .look-products-title {
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
   color: #3b1f5f;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 12px 0 12px;
+  margin: 0;
+  padding: 6px 8px 4px 8px;
+  background: #f8f8fc;
+  border-bottom: 1px solid #eee;
 }
 
 .look-products-list {
   display: flex;
   flex-direction: column;
   gap: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .look-product-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background: white;
-  transition: all 0.2s;
-  position: relative;
-  border-left: 4px solid transparent;
   margin: 0;
-  padding: 8px 12px;
+  padding: 6px 8px;
   border-bottom: 1px solid #f0f0f0;
+  border-left: 3px solid transparent;
 }
 
 .look-product-item:last-child {
@@ -281,12 +286,13 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 .look-product-img {
-  width: 70px;
-  min-width: 70px;
-  height: 70px;
+  width: 50px;
+  min-width: 50px;
+  height: 50px;
   object-fit: contain;
-  background: #f5f5f8;
-  border-radius: 8px;
+  background: #fafafa;
+  border-radius: 6px;
+  margin: 0;
 }
 
 .look-product-info {
@@ -294,46 +300,48 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
 }
 
 .look-product-name {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: #1a1a2a;
-  margin-bottom: 2px;
-  line-height: 1.3;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .look-product-price {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: #ff4f81;
+  margin: 0;
 }
 
 .look-product-category {
-  font-size: 10px;
-  color: #888;
-  margin-top: 1px;
+  display: none;
 }
 
 .look-product-size {
-  font-size: 10px;
+  font-size: 8px;
   color: #888;
+  margin: 0;
 }
 
 .look-product-actions {
   display: flex;
-  gap: 6px;
+  gap: 3px;
   align-items: center;
 }
 
 .look-product-add {
   background: #e8e8ff;
   border: none;
-  border-radius: 20px;
-  padding: 6px 12px;
-  font-size: 12px;
+  border-radius: 14px;
+  padding: 3px 8px;
+  font-size: 9px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -349,9 +357,9 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .look-product-reload {
   background: #f0f0f0;
   border: none;
-  border-radius: 20px;
-  padding: 4px 8px;
-  font-size: 14px;
+  border-radius: 14px;
+  padding: 3px 6px;
+  font-size: 9px;
   cursor: pointer;
   transition: all 0.2s;
   color: #666;
@@ -360,27 +368,27 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .look-product-reload:hover {
   background: #ff4f81;
   color: white;
-  transform: scale(0.98);
 }
 
-/* Total del look */
+/* Total del look - compacto */
 .look-total {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  padding: 12px;
+  align-items: center;
+  padding: 6px 8px;
   border-top: 1px solid #eee;
-  margin-top: 0;
+  margin: 0;
   background: white;
 }
 
 .look-total-label {
-  font-size: 13px;
+  font-size: 10px;
   color: #666;
+  margin: 0;
 }
 
 .look-total-price {
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 700;
   color: #3b1f5f;
 }
@@ -390,30 +398,29 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   width: 100%;
   background: linear-gradient(135deg, #ff4f81, #ff7a4f);
   border: none;
-  border-radius: 40px;
-  padding: 14px;
+  border-radius: 0 0 16px 16px;
+  padding: 10px;
   color: white;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 12px;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  margin-top: 8px;
+  gap: 4px;
+  margin: 0;
 }
 
 .buy-look-btn:active {
   transform: scale(0.98);
 }
 
-/* ===== MODO CUADRÍCULA (GRID) - CORREGIDO ===== */
-/* ===== MODO CUADRÍCULA (GRID) - MÁS COMPACTO ===== */
+/* ===== MODO CUADRÍCULA (GRID) - TODO PEGADO ===== */
 .looks-grid.layout-grid {
   display: grid !important;
   grid-template-columns: repeat(2, 1fr) !important;
-  gap: 12px !important; /* Reducido de 16px a 12px */
+  gap: 8px !important;
   padding: 12px 12px 80px !important;
   max-width: 100% !important;
 }
@@ -422,97 +429,101 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   display: flex;
   flex-direction: column;
   margin: 0;
-  border-radius: 12px; /* Reducido de 16px a 12px */
+  border-radius: 12px;
   height: 100%;
 }
 
-/* Contenedor de imagen más compacto */
 .looks-grid.layout-grid .look-image-container {
-  padding: 12px !important; /* Reducido de 16px a 12px */
+  padding: 8px !important;
   background: #f8f9fa;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 0;
 }
 
 .looks-grid.layout-grid .look-image {
   height: auto;
-  max-height: 150px; /* Reducido de 180px a 150px */
+  max-height: 130px;
   object-fit: contain;
   width: 100%;
+  margin: 0;
 }
 
 .looks-grid.layout-grid .look-info {
-  padding: 8px; /* Reducido de 12px a 8px */
+  padding: 6px;
   flex: 1;
   display: flex;
   flex-direction: column;
+  margin: 0;
 }
 
 .looks-grid.layout-grid .look-header {
-  margin-bottom: 2px; /* Reducido de 4px a 2px */
+  margin-bottom: 2px;
   flex-wrap: wrap;
 }
 
 .looks-grid.layout-grid .look-category {
-  font-size: 8px; /* Reducido de 9px a 8px */
-  padding: 2px 6px; /* Reducido de 2px 8px a 2px 6px */
+  font-size: 7px;
+  padding: 1px 5px;
   margin-bottom: 0;
 }
 
 .looks-grid.layout-grid .look-item-count {
-  font-size: 8px; /* Reducido de 9px a 8px */
-  padding: 2px 6px; /* Reducido de 2px 8px a 2px 6px */
+  font-size: 7px;
+  padding: 1px 5px;
 }
 
 .looks-grid.layout-grid .look-title {
-  font-size: 11px; /* Reducido de 13px a 11px */
-  margin: 2px 0; /* Reducido de 4px 0 a 2px 0 */
+  font-size: 10px;
+  margin: 2px 0;
 }
 
 .looks-grid.layout-grid .look-description {
-  font-size: 9px; /* Reducido de 10px a 9px */
+  font-size: 8px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-bottom: 6px; /* Reducido de 8px a 6px */
+  margin-bottom: 4px;
+  line-height: 1.2;
 }
 
-/* Productos dentro del look en modo grid - MÁS COMPACTO */
+/* Productos dentro del look en modo grid - TODO PEGADO */
 .looks-grid.layout-grid .look-products {
-  margin: 4px 0; /* Reducido de 8px a 4px */
-  padding: 6px; /* Reducido de 8px a 6px */
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
 }
 
 .looks-grid.layout-grid .look-products-title {
-  font-size: 9px; /* Reducido de 10px a 9px */
-  padding: 0 0 4px 0; /* Reducido de 6px a 4px */
-  margin-bottom: 0;
+  font-size: 7px;
+  padding: 3px 5px;
+  margin: 0;
 }
 
 .looks-grid.layout-grid .look-products-list {
-  gap: 4px; /* Reducido de 8px a 4px */
+  gap: 0;
 }
 
 .looks-grid.layout-grid .look-product-item {
-  padding: 4px; /* Reducido de 6px a 4px */
-  gap: 6px; /* Reducido de 8px a 6px */
+  padding: 3px 5px;
+  gap: 4px;
+  border-left-width: 2px;
 }
 
 .looks-grid.layout-grid .look-product-img {
-  width: 35px; /* Reducido de 45px a 35px */
-  min-width: 35px;
-  height: 35px;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
 }
 
 .looks-grid.layout-grid .look-product-info {
-  min-width: 0;
-  gap: 1px; /* Espacio mínimo */
+  gap: 0;
 }
 
 .looks-grid.layout-grid .look-product-name {
-  font-size: 8px; /* Reducido de 9px a 8px */
+  font-size: 7px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -520,7 +531,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 .looks-grid.layout-grid .look-product-price {
-  font-size: 8px; /* Reducido de 9px a 8px */
+  font-size: 6px;
   margin: 0;
 }
 
@@ -528,45 +539,83 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   display: none;
 }
 
-/* Tallas más compactas */
 .looks-grid.layout-grid .look-product-size {
-  font-size: 7px !important; /* Reducido de 9px a 7px */
-  padding: 1px 4px !important; /* Reducido de 2px 6px a 1px 4px */
-  margin-top: 2px !important;
+  font-size: 5px !important;
+  padding: 1px 3px !important;
+  margin-top: 1px !important;
+  border-radius: 6px !important;
 }
 
 .looks-grid.layout-grid .look-product-actions {
   flex-direction: column;
-  gap: 2px; /* Reducido de 4px a 2px */
+  gap: 1px;
 }
 
 .looks-grid.layout-grid .look-product-add {
-  padding: 2px 4px; /* Reducido de 3px 6px a 2px 4px */
-  font-size: 7px; /* Reducido de 8px a 7px */
+  padding: 2px 4px;
+  font-size: 6px;
+  border-radius: 8px;
 }
 
 .looks-grid.layout-grid .look-product-reload {
-  padding: 2px 4px; /* Reducido de 3px 6px a 2px 4px */
-  font-size: 7px; /* Reducido de 8px a 7px */
+  padding: 2px 3px;
+  font-size: 6px;
+  border-radius: 8px;
 }
 
 .looks-grid.layout-grid .look-total {
-  padding: 6px; /* Reducido de 8px a 6px */
-  margin-top: 0;
+  padding: 3px 5px;
+  margin: 0;
 }
 
 .looks-grid.layout-grid .look-total-label {
-  font-size: 9px; /* Reducido de 10px a 9px */
+  font-size: 7px;
 }
 
 .looks-grid.layout-grid .look-total-price {
-  font-size: 10px; /* Reducido de 12px a 10px */
+  font-size: 8px;
 }
 
 .looks-grid.layout-grid .buy-look-btn {
-  padding: 6px 4px; /* Reducido de 8px 6px a 6px 4px */
-  font-size: 9px; /* Reducido de 10px a 9px */
-  margin-top: 2px; /* Reducido de 4px a 2px */
+  padding: 5px 3px;
+  font-size: 7px;
+  margin: 0;
+  border-radius: 0;
+  gap: 2px;
+}
+
+/* Responsive para tablets */
+@media (min-width: 768px) {
+  .looks-grid.layout-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+  }
+  
+  .looks-grid.layout-grid .look-image {
+    max-height: 170px;
+  }
+  
+  .looks-grid.layout-grid .look-image-container {
+    padding: 10px !important;
+  }
+}
+
+/* Responsive para desktop */
+@media (min-width: 1024px) {
+  .looks-grid.layout-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    max-width: 950px !important;
+  }
+  
+  .looks-grid.layout-grid .look-image {
+    max-height: 180px;
+  }
+  
+  .looks-grid.layout-grid .look-image-container {
+    padding: 12px !important;
+  }
 }
 
 /* Responsive para tablets */
