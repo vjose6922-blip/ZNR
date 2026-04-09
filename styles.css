@@ -107,7 +107,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .products-container.layout-grid .product-name { font-size: 13px; }
 .products-container.layout-grid .product-price { font-size: 14px; padding: 2px 6px; }
 .products-container.layout-grid .product-description,
-.products-container.layout-grid .product-sizes { display: none; }
+.products-container.layout-grid .product-sizes { font-size: 11px; }
 .products-container.layout-grid .product-actions { flex-direction: row !important; gap: 5px; }
 .products-container.layout-grid .product-actions-left { flex: 1; }
 .products-container.layout-grid .share-button { padding: 6px 4px; font-size: 10.5px; width: 100%; text-align: center; }
