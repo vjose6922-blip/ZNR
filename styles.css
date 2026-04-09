@@ -45,13 +45,13 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .full-width { width: 100%; }
 
 /* Navegación Looks */
-.looks-nav { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); }
+.looks-nav { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; background-color: transparent; backdrop-filter: blur(10px); }
 .looks-nav a { text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 30px; transition: all 0.2s; }
 .looks-nav a:first-child { background: #3b1f5f; color: white; }
 .looks-nav a:last-child { color: #3b1f5f; background: #f0e6ff; }
 
 /* Filtros mejorados */
-.filters-bar { padding: 16px; position: flex; top: 64px; z-index: 10; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+.filters-bar { padding: 16px; position: flex; top: 64px; z-index: 10; background-color: transparent; backdrop-filter: blur(10px); }
 .filters-row-top { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
 .search-wrapper { flex: 1; }
 .search-wrapper input { width: 100%; padding: 12px 16px; border: 1px solid #e0e0e0; border-radius: 12px; font-size: 14px; background: #f5f5f8; transition: all 0.2s ease; }
@@ -197,10 +197,10 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 
 /* Footer */
 .app-footer { background: linear-gradient(135deg, #0b0714, #05030a); color: white; margin-top: 20px; padding: 10px 10px 10px; border-top: 1px solid rgba(255,255,255,0.1); }
-.footer-content { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center; }
+.footer-content { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
 .footer-logo .logo-mark { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #ff4f81, #ff7a4f); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .footer-logo p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 5px; }
-.footer-social { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+.footer-social { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .social-link { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 14px; transition: all 0.2s ease; padding: 8px 20px; border-radius: 30px; background: rgba(255,255,255,0.05); }
 .social-link:hover { color: #ff4f81; background: rgba(255,79,129,0.15); transform: translateY(-2px); }
 .footer-copyright p { font-size: 12px; color: rgba(255,255,255,0.4); margin: 0; }
