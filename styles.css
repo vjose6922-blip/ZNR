@@ -409,10 +409,11 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 /* ===== MODO CUADRÍCULA (GRID) - CORREGIDO ===== */
+/* ===== MODO CUADRÍCULA (GRID) - MÁS COMPACTO ===== */
 .looks-grid.layout-grid {
   display: grid !important;
   grid-template-columns: repeat(2, 1fr) !important;
-  gap: 12px !important;
+  gap: 12px !important; /* Reducido de 16px a 12px */
   padding: 12px 12px 80px !important;
   max-width: 100% !important;
 }
@@ -421,13 +422,13 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   display: flex;
   flex-direction: column;
   margin: 0;
-  border-radius: 12px;
+  border-radius: 12px; /* Reducido de 16px a 12px */
   height: 100%;
 }
 
-/* Contenedor de imagen con PADDING */
+/* Contenedor de imagen más compacto */
 .looks-grid.layout-grid .look-image-container {
-  padding: 16px !important;
+  padding: 12px !important; /* Reducido de 16px a 12px */
   background: #f8f9fa;
   display: flex;
   align-items: center;
@@ -436,139 +437,136 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 
 .looks-grid.layout-grid .look-image {
   height: auto;
-  max-height: 180px;
+  max-height: 150px; /* Reducido de 180px a 150px */
   object-fit: contain;
   width: 100%;
 }
 
 .looks-grid.layout-grid .look-info {
-  padding: 8px;
+  padding: 8px; /* Reducido de 12px a 8px */
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
 .looks-grid.layout-grid .look-header {
-  margin-bottom: 4px;
+  margin-bottom: 2px; /* Reducido de 4px a 2px */
   flex-wrap: wrap;
 }
 
 .looks-grid.layout-grid .look-category {
-  font-size: 9px;
-  padding: 2px 8px;
+  font-size: 8px; /* Reducido de 9px a 8px */
+  padding: 2px 6px; /* Reducido de 2px 8px a 2px 6px */
   margin-bottom: 0;
 }
 
 .looks-grid.layout-grid .look-item-count {
-  font-size: 9px;
-  padding: 2px 8px;
+  font-size: 8px; /* Reducido de 9px a 8px */
+  padding: 2px 6px; /* Reducido de 2px 8px a 2px 6px */
 }
 
 .looks-grid.layout-grid .look-title {
-  font-size: 13px;
-  margin: 4px 0 2px;
+  font-size: 11px; /* Reducido de 13px a 11px */
+  margin: 2px 0; /* Reducido de 4px 0 a 2px 0 */
 }
 
 .looks-grid.layout-grid .look-description {
-  font-size: 10px;
+  font-size: 9px; /* Reducido de 10px a 9px */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-bottom: 6px; /* Reducido de 8px a 6px */
 }
 
-/* Productos dentro del look en modo grid */
+/* Productos dentro del look en modo grid - MÁS COMPACTO */
 .looks-grid.layout-grid .look-products {
-  margin: 4px 0;
-  padding: 6px;
+  margin: 4px 0; /* Reducido de 8px a 4px */
+  padding: 6px; /* Reducido de 8px a 6px */
 }
 
 .looks-grid.layout-grid .look-products-title {
-  font-size: 10px;
-  padding: 0 0 6px 0;
+  font-size: 9px; /* Reducido de 10px a 9px */
+  padding: 0 0 4px 0; /* Reducido de 6px a 4px */
+  margin-bottom: 0;
 }
 
 .looks-grid.layout-grid .look-products-list {
-  gap: 8px;
+  gap: 4px; /* Reducido de 8px a 4px */
 }
 
 .looks-grid.layout-grid .look-product-item {
-  padding: 4px;
-  gap: 6px;
+  padding: 4px; /* Reducido de 6px a 4px */
+  gap: 6px; /* Reducido de 8px a 6px */
 }
 
 .looks-grid.layout-grid .look-product-img {
-  width: 45px;
-  min-width: 45px;
-  height: 45px;
+  width: 35px; /* Reducido de 45px a 35px */
+  min-width: 35px;
+  height: 35px;
 }
 
 .looks-grid.layout-grid .look-product-info {
   min-width: 0;
-  gap: 1px;
+  gap: 1px; /* Espacio mínimo */
 }
 
 .looks-grid.layout-grid .look-product-name {
-  font-size: 9px;
+  font-size: 8px; /* Reducido de 9px a 8px */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin: 0;
 }
 
 .looks-grid.layout-grid .look-product-price {
-  font-size: 9px;
+  font-size: 8px; /* Reducido de 9px a 8px */
+  margin: 0;
 }
 
 .looks-grid.layout-grid .look-product-category {
   display: none;
 }
 
-/* ===== TALLAS VISIBLES EN MODO GRID ===== */
+/* Tallas más compactas */
 .looks-grid.layout-grid .look-product-size {
-  font-size: 9px !important;
-  color: #3b1f5f !important;
-  background: #f0e6ff !important;
-  display: inline-block !important;
-  padding: 2px 6px !important;
-  border-radius: 10px !important;
-  margin-top: 3px !important;
-  font-weight: 500 !important;
+  font-size: 7px !important; /* Reducido de 9px a 7px */
+  padding: 1px 4px !important; /* Reducido de 2px 6px a 1px 4px */
+  margin-top: 2px !important;
 }
 
 .looks-grid.layout-grid .look-product-actions {
   flex-direction: column;
-  gap: 4px;
+  gap: 2px; /* Reducido de 4px a 2px */
 }
 
 .looks-grid.layout-grid .look-product-add {
-  padding: 3px 6px;
-  font-size: 8px;
-  white-space: nowrap;
+  padding: 2px 4px; /* Reducido de 3px 6px a 2px 4px */
+  font-size: 7px; /* Reducido de 8px a 7px */
 }
 
 .looks-grid.layout-grid .look-product-reload {
-  padding: 3px 6px;
-  font-size: 8px;
+  padding: 2px 4px; /* Reducido de 3px 6px a 2px 4px */
+  font-size: 7px; /* Reducido de 8px a 7px */
 }
 
 .looks-grid.layout-grid .look-total {
-  padding: 8px;
+  padding: 6px; /* Reducido de 8px a 6px */
   margin-top: 0;
 }
 
 .looks-grid.layout-grid .look-total-label {
-  font-size: 10px;
+  font-size: 9px; /* Reducido de 10px a 9px */
 }
 
 .looks-grid.layout-grid .look-total-price {
-  font-size: 12px;
+  font-size: 10px; /* Reducido de 12px a 10px */
 }
 
 .looks-grid.layout-grid .buy-look-btn {
-  padding: 8px 6px;
-  font-size: 10px;
-  margin-top: 4px;
+  padding: 6px 4px; /* Reducido de 8px 6px a 6px 4px */
+  font-size: 9px; /* Reducido de 10px a 9px */
+  margin-top: 2px; /* Reducido de 4px a 2px */
 }
 
 /* Responsive para tablets */
