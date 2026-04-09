@@ -131,7 +131,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .looks-grid.layout-grid .look-product-price { font-size: 9px; }
 .looks-grid.layout-grid .look-product-category,
 .looks-grid.layout-grid .look-product-size { font-size: 10px; }
-.looks-grid.layout-grid .look-product-actions { display: flex; flex-direction: column; gap: 3px; }
+.looks-grid.layout-grid .look-product-actions { padding: 3px 6px; font-size: 8px; }
 .looks-grid.layout-grid .look-product-add { padding: 3px 6px; font-size: 8px; }
 .looks-grid.layout-grid .look-total { padding: 8px 4px 4px 4px; margin-top: 4px; border-top: 1px solid #eee; }
 .looks-grid.layout-grid .look-total-price { font-size: 11px; white-space: nowrap; }
