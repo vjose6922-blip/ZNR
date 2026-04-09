@@ -117,7 +117,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 /* ===== LOOKS GRID - BASE ===== */
 .looks-hero {
   background: linear-gradient(135deg, #2b1744 0%, #1a0f2e 100%);
-  padding: 16px 20px;
+  padding: 8px 10px;
   text-align: center;
   margin-bottom: 8px;
 }
