@@ -612,15 +612,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const savedLayout = localStorage.getItem("products_layout");
     if (savedLayout === "grid") {
       productsContainer.classList.add("layout-grid");
-      layoutBtn.textContent = "🟦🟦";
+      layoutBtn.textContent = "🟥🟥";
     } else {
-      layoutBtn.textContent = "📱";
+      layoutBtn.textContent = "🟥";
     }
     layoutBtn.addEventListener("click", () => {
       productsContainer.classList.toggle("layout-grid");
       const isGrid = productsContainer.classList.contains("layout-grid");
       localStorage.setItem("products_layout", isGrid ? "grid" : "list");
-      layoutBtn.textContent = isGrid ? "🟦🟦" : "📱";
+      layoutBtn.textContent = isGrid ? "🟥🟥" : "🟥";
     });
   }
 });
