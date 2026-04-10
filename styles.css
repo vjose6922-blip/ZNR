@@ -106,7 +106,6 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .products-container.layout-grid .product-description,
 .products-container.layout-grid .product-sizes { font-size: 13px; }
 .products-container.layout-grid .product-actions { flex-direction: row !important; gap: 5px; }
-.products-container.layout-grid .product-actions-left { flex: 1; }
 .products-container.layout-grid .primary-button { padding: 6px 4px; font-size: 12.5px; flex: 1; text-align: center; }
 .products-container.layout-grid .product-badge { font-size: 10px; padding: 3px 8px; top: 6px; left: 6px; }
 
