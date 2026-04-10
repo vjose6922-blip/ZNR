@@ -254,7 +254,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .look-product-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 18px;
   background: white;
   margin: 0;
   padding: 6px 8px;
