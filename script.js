@@ -310,11 +310,6 @@ function createProductCard(product) {
   actions.className = "product-actions";
   const leftActions = document.createElement("div");
   leftActions.className = "product-actions-left";
-  const shareBtn = document.createElement("button");
-  shareBtn.className = "share-button";
-  shareBtn.textContent = "Compartir";
-  shareBtn.addEventListener("click", () => shareProduct(ID));
-  leftActions.appendChild(shareBtn);
   const isOutOfStock = stockNum <= 0;
   const addBtn = document.createElement("button");
   addBtn.className = "primary-button";
@@ -383,14 +378,7 @@ function closeImageModal() {
   if (overlay) overlay.classList.remove("visible");
 }
 
-function shareProduct(id) {
-  const url = `${window.location.origin}${window.location.pathname}#producto-${id}`;
-  if (navigator.share) {
-    navigator.share({ title: "Producto", text: "Mira este producto", url }).catch(() => {});
-  } else {
-    navigator.clipboard.writeText(url).then(() => alert("Enlace copiado")).catch(() => {});
-  }
-}
+
 
 function handleInitialHash() {
   if (initialHashHandled) return;
