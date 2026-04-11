@@ -8,7 +8,12 @@ let allLooks = [];
 let currentLooksPage = 1;
 let looksPerPage = 10;
 
-// ========== CONFIGURACIÓN DE LOOKS ==========
+
+window.addEventListener('beforeunload', () => {
+  sessionStorage.setItem('looks_scroll_position', window.scrollY);
+});
+
+
 const WEATHER_PRIORITY_SCORES = {
   calor: {
     "look_verano_dama": 100, "look_verano_caballero": 100,
@@ -274,14 +279,38 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
 
 // ========== CARGA Y RENDERIZADO DE LOOKS ==========
 async function loadProducts() {
-  const cached = getCachedProducts();
+  // Si estamos offline, mostrar mensaje
+  if (!navigator.onLine) {
+    console.log('📡 Offline - Cargando looks desde caché');
+    if (window.ConnectionMonitor && window.ConnectionMonitor.showOfflineBanner) {
+      window.ConnectionMonitor.showOfflineBanner();
+    }
+  }
+  
+  // CARGA INSTANTÁNEA desde caché
+  const cached = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
+    ? window.CacheManager.getSessionProductsCache() 
+    : getCachedProducts();
+  
   if (cached && cached.length > 0) {
+    console.log("⚡ CARGA INSTANTÁNEA de looks desde caché");
     allProducts = cached;
     await getWeather();
     buildLooksFromProducts();
-    loadLooksInBackground();
+    
+    const savedScroll = sessionStorage.getItem('looks_scroll_position');
+    if (savedScroll) {
+      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
+      sessionStorage.removeItem('looks_scroll_position');
+    }
+    
+    if (navigator.onLine) {
+      loadLooksInBackground();
+    }
     return;
   }
+  
+  // Sin caché: carga normal
   showLoader("Cargando productos...");
   try {
     await getWeather();
