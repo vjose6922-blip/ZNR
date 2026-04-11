@@ -4,12 +4,12 @@ const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
 const API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
-// ========== VARIABLES GLOBALES ==========
 let localCart = {};
 let imageObserver = null;
 let activeModal = null;
+let connectionBanner = null;
+let isOnline = navigator.onLine;
 
-// ========== INYECTAR ESTILOS GLOBALES (una sola vez) ==========
 function injectGlobalStyles() {
   if (document.querySelector('#global-styles')) return;
   
@@ -347,18 +347,39 @@ if (!window.alertIntercepted) {
 
 // ========== FUNCIONES DE CACHÉ ==========
 function getCachedProducts() {
+  // PRIMERO: caché de sesión (entre páginas - MÁS RÁPIDO)
+  if (window.CacheManager && window.CacheManager.getSessionProductsCache) {
+    const sessionCached = window.CacheManager.getSessionProductsCache();
+    if (sessionCached && sessionCached.length > 0) {
+      console.log("✅ Usando caché de sesión (instantáneo)");
+      return sessionCached;
+    }
+  }
+  
+  // SEGUNDO: caché persistente (localStorage)
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return null;
     const { data, timestamp } = JSON.parse(cached);
-    if (Date.now() - timestamp > CACHE_EXPIRY) { localStorage.removeItem(CACHE_KEY); return null; }
+    if (Date.now() - timestamp > CACHE_EXPIRY) { 
+      localStorage.removeItem(CACHE_KEY); 
+      return null; 
+    }
+    console.log("📦 Usando caché de localStorage");
     return data;
   } catch { return null; }
 }
 
 function setCachedProducts(products) {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ data: products, timestamp: Date.now() })); } 
-  catch (e) { console.warn("No se pudo guardar en caché:", e); }
+  // Guardar en caché de sesión
+  if (window.CacheManager && window.CacheManager.setSessionProductsCache) {
+    window.CacheManager.setSessionProductsCache(products);
+  }
+  
+  // Guardar en caché persistente
+  try { 
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: products, timestamp: Date.now() })); 
+  } catch (e) { console.warn("No se pudo guardar en caché:", e); }
 }
 
 // ========== FUNCIONES DE UTILIDAD ==========
@@ -721,13 +742,276 @@ async function fetchProductsAPI() {
   }
 }
 
-// ========== INICIALIZACIÓN AUTOMÁTICA ==========
-document.addEventListener('DOMContentLoaded', () => {
+
+
+function createConnectionBanner() {
+  if (connectionBanner) return;
+  
+  connectionBanner = document.createElement('div');
+  connectionBanner.id = 'connection-banner';
+  connectionBanner.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10001;
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  `;
+  
+  document.body.insertBefore(connectionBanner, document.body.firstChild);
+}
+
+// Mostrar banner de modo offline
+function showOfflineBanner() {
+  if (!connectionBanner) createConnectionBanner();
+  
+  connectionBanner.style.background = '#ffebee';
+  connectionBanner.style.color = '#c62828';
+  connectionBanner.style.borderBottom = '2px solid #ef5350';
+  connectionBanner.innerHTML = `
+    <span style="font-size: 20px;">📡</span>
+    <span><strong>⚠️ Modo offline</strong> - Estás viendo una versión guardada del catálogo</span>
+    <button id="dismiss-offline-btn" style="
+      background: rgba(198, 40, 40, 0.1);
+      border: 1px solid #ef5350;
+      padding: 4px 12px;
+      border-radius: 20px;
+      color: #c62828;
+      cursor: pointer;
+      font-size: 12px;
+    ">Entendido</button>
+  `;
+  
+  connectionBanner.style.transform = 'translateY(0)';
+  connectionBanner.style.display = 'flex';
+  
+  const dismissBtn = document.getElementById('dismiss-offline-btn');
+  if (dismissBtn) {
+    dismissBtn.onclick = () => {
+      connectionBanner.style.transform = 'translateY(-100%)';
+      sessionStorage.setItem('offline_banner_dismissed', Date.now().toString());
+      setTimeout(() => {
+        if (connectionBanner) connectionBanner.style.display = 'none';
+      }, 300);
+    };
+  }
+  
+  addOfflineIndicator();
+}
+
+// Mostrar banner de vuelta online
+function showOnlineBanner() {
+  if (!connectionBanner) createConnectionBanner();
+  
+  connectionBanner.style.background = '#e8f5e9';
+  connectionBanner.style.color = '#2e7d32';
+  connectionBanner.style.borderBottom = '2px solid #4caf50';
+  connectionBanner.innerHTML = `
+    <span style="font-size: 20px;">✅</span>
+    <span><strong>¡Conexión restablecida!</strong> La página se actualizará automáticamente</span>
+    <button id="refresh-now-btn" style="
+      background: #4caf50;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 20px;
+      color: white;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+    ">Actualizar ahora</button>
+  `;
+  
+  connectionBanner.style.transform = 'translateY(0)';
+  connectionBanner.style.display = 'flex';
+  
+  setTimeout(() => {
+    if (connectionBanner && connectionBanner.style.transform !== 'translateY(-100%)') {
+      connectionBanner.style.transform = 'translateY(-100%)';
+      setTimeout(() => {
+        if (connectionBanner) connectionBanner.style.display = 'none';
+      }, 300);
+    }
+  }, 5000);
+  
+  const refreshBtn = document.getElementById('refresh-now-btn');
+  if (refreshBtn) {
+    refreshBtn.onclick = () => {
+      window.location.reload();
+    };
+  }
+  
+  removeOfflineIndicator();
+}
+
+// Agregar indicador visual flotante
+function addOfflineIndicator() {
+  let indicator = document.getElementById('offline-mode-indicator');
+  if (indicator) return;
+  
+  indicator = document.createElement('div');
+  indicator.id = 'offline-mode-indicator';
+  indicator.style.cssText = `
+    position: fixed;
+    bottom: 70px;
+    left: 16px;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    color: #ffeb3b;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    pointer-events: none;
+  `;
+  indicator.innerHTML = '📡 <span>Modo offline</span>';
+  document.body.appendChild(indicator);
+}
+
+function removeOfflineIndicator() {
+  const indicator = document.getElementById('offline-mode-indicator');
+  if (indicator) indicator.remove();
+}
+
+// Verificar conexión periódicamente
+function startConnectionMonitor() {
+  setInterval(() => {
+    const wasOnline = isOnline;
+    isOnline = navigator.onLine;
+    
+    if (wasOnline !== isOnline) {
+      if (!isOnline) {
+        console.log('🔴 Conexión perdida - Activando modo offline');
+        showOfflineBanner();
+        window.dispatchEvent(new CustomEvent('connection:offline'));
+      } else {
+        console.log('🟢 Conexión recuperada');
+        showOnlineBanner();
+        window.dispatchEvent(new CustomEvent('connection:online'));
+        
+        if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+          if (typeof fetchProducts === 'function') {
+            fetchProducts(true);
+          }
+        } else if (window.location.pathname.includes('looks.html')) {
+          if (typeof loadProducts === 'function') {
+            loadProducts();
+          }
+        }
+      }
+    }
+  }, 3000);
+  
+  window.addEventListener('online', () => {
+    console.log('🟢 Navegador detectó conexión online');
+    isOnline = true;
+  });
+  
+  window.addEventListener('offline', () => {
+    console.log('🔴 Navegador detectó conexión offline');
+    isOnline = false;
+    showOfflineBanner();
+  });
+}
+
+// Registrar Service Worker
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) {
+    console.log('⚠️ Service Worker no soportado');
+    return false;
+  }
+  
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/'
+    });
+    console.log('✅ Service Worker registrado:', registration.scope);
+    
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event.data.type === 'CONNECTION_STATUS') {
+        console.log('📡 Estado desde SW:', event.data.isOnline);
+      }
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Error registrando SW:', error);
+    return false;
+  }
+}
+
+// Verificar si estamos en modo offline
+async function checkIfOfflineMode() {
+  if (!('serviceWorker' in navigator)) return false;
+  
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const cache = await caches.open('zr-cache-v1');
+    const cachedResponse = await cache.match(window.location.href);
+    
+    if (cachedResponse && !navigator.onLine) {
+      showOfflineBanner();
+      return true;
+    }
+  } catch (err) {
+    console.log('Error verificando modo offline:', err);
+  }
+  
+  if (!navigator.onLine) {
+    showOfflineBanner();
+    return true;
+  }
+  return false;
+}
+
+// Exportar funciones
+window.ConnectionMonitor = {
+  showOfflineBanner,
+  showOnlineBanner,
+  startConnectionMonitor,
+  registerServiceWorker,
+  checkIfOfflineMode,
+  isOnline: () => navigator.onLine
+};
+
+
+
+
+
+
+
+document.addEventListener('DOMContentLoaded', async () => {
   injectGlobalStyles();
   loadCartFromStorage();
   createImageObserver();
   
-  // ✅ IMPORTANTE: Renderizar el carrito al cargar la página
+  // Inicializar precarga
+  if (window.CacheManager && window.CacheManager.initPreloading) {
+    window.CacheManager.initPreloading();
+  }
+  
+  // Registrar Service Worker
+  await registerServiceWorker();
+  
+  // Iniciar monitor de conexión
+  startConnectionMonitor();
+  
+  // Verificar modo offline
+  await checkIfOfflineMode();
+  
   if (typeof renderCart === 'function') {
     renderCart();
     console.log("✅ Carrito renderizado al inicio");
@@ -750,9 +1034,19 @@ document.addEventListener('DOMContentLoaded', () => {
   
   updateSavedPhoneDisplay();
   
-  // Escuchar cambios en el carrito
   window.addEventListener('cartUpdated', () => {
     if (typeof renderCart === 'function') renderCart();
     updateCartBadge();
+  });
+  
+  window.addEventListener('connection:offline', () => {
+    console.log('📡 Evento: Conexión perdida');
+  });
+  
+  window.addEventListener('connection:online', () => {
+    console.log('📡 Evento: Conexión recuperada');
+    if (typeof loadProductsInBackground === 'function') {
+      loadProductsInBackground();
+    }
   });
 });
