@@ -1,5 +1,9 @@
+// ============================================
+// LOOKS.JS - VERSIÓN ULTRA RÁPIDA OPTIMIZADA
+// ============================================
 
 const WEATHER_API_URL = API_URL;
+const LOOKS_CACHE_KEY = 'zr_looks_generated_v2';
 
 let currentWeather = null;
 let allProducts = [];
@@ -7,12 +11,14 @@ let looks = [];
 let allLooks = [];
 let currentLooksPage = 1;
 let looksPerPage = 10;
+let isGeneratingLooks = false;
+let preloadedNextPage = null;
+let lazyImageObserver = null;
 
-
+// Guardar scroll position
 window.addEventListener('beforeunload', () => {
   sessionStorage.setItem('looks_scroll_position', window.scrollY);
 });
-
 
 const WEATHER_PRIORITY_SCORES = {
   calor: {
@@ -123,7 +129,146 @@ const LOOKS_CONFIG = [
     ] }
 ];
 
-// ========== FUNCIONES DE CLIMA ==========
+// ========== 1. LAZY LOADING PARA IMÁGENES ==========
+function initLazyLoading() {
+  if ('IntersectionObserver' in window) {
+    lazyImageObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          const dataSrc = img.getAttribute('data-src');
+          if (dataSrc) {
+            const newImg = new Image();
+            newImg.onload = () => {
+              img.src = dataSrc;
+              img.removeAttribute('data-src');
+              img.classList.add('loaded');
+            };
+            newImg.src = dataSrc;
+          }
+          lazyImageObserver.unobserve(img);
+        }
+      });
+    }, {
+      rootMargin: '100px 0px',
+      threshold: 0.01
+    });
+  }
+}
+
+function lazyLoadImage(imgElement, src) {
+  if (!imgElement) return;
+  
+  if (lazyImageObserver) {
+    imgElement.setAttribute('data-src', src);
+    imgElement.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
+    imgElement.classList.add('lazy');
+    lazyImageObserver.observe(imgElement);
+  } else {
+    imgElement.src = src;
+  }
+}
+
+function initLazyImagesAfterRender() {
+  const lazyImages = document.querySelectorAll('.lazy');
+  if (lazyImageObserver) {
+    lazyImages.forEach(img => lazyImageObserver.observe(img));
+  }
+}
+
+// ========== 2. CACHÉ DE LOOKS COMPRIMIDO ==========
+function compressLooksData(looks) {
+  return looks.map(look => ({
+    id: look.id,
+    name: look.name,
+    description: look.description,
+    category: look.category,
+    image: look.image,
+    productCount: look.productCount,
+    products: Object.entries(look.products).reduce((acc, [key, product]) => {
+      if (product) {
+        acc[key] = {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          stock: product.stock,
+          size: product.size
+        };
+      }
+      return acc;
+    }, {})
+  }));
+}
+
+function decompressLooksData(compressed) {
+  return compressed.map(look => ({
+    ...look,
+    config: LOOKS_CONFIG.find(c => c.id.toLowerCase() === look.id),
+    products: look.products
+  }));
+}
+
+function getCachedLooksOptimized() {
+  try {
+    const sessionCached = sessionStorage.getItem(LOOKS_CACHE_KEY);
+    if (sessionCached) {
+      const { looks: compressed, timestamp, productsHash } = JSON.parse(sessionCached);
+      const currentHash = getProductsQuickHash();
+      if (currentHash === productsHash && (Date.now() - timestamp) < 300000) {
+        console.log("⚡ Looks desde sessionStorage (instantáneo)");
+        return decompressLooksData(compressed);
+      }
+    }
+    
+    const localCached = localStorage.getItem(LOOKS_CACHE_KEY);
+    if (localCached) {
+      const { looks: compressed, timestamp, productsHash } = JSON.parse(localCached);
+      const currentHash = getProductsQuickHash();
+      if (currentHash === productsHash && (Date.now() - timestamp) < 600000) {
+        console.log("📦 Looks desde localStorage");
+        const decompressed = decompressLooksData(compressed);
+        sessionStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify({
+          looks: compressed,
+          productsHash,
+          timestamp: Date.now()
+        }));
+        return decompressed;
+      }
+    }
+    
+    return null;
+  } catch(e) {
+    console.warn("Error cargando caché de looks:", e);
+    return null;
+  }
+}
+
+function saveLooksToCacheOptimized(looks) {
+  try {
+    const compressed = compressLooksData(looks);
+    const productsHash = getProductsQuickHash();
+    const cacheData = {
+      looks: compressed,
+      productsHash,
+      timestamp: Date.now()
+    };
+    
+    sessionStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify(cacheData));
+    localStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify(cacheData));
+    
+    console.log(`💾 Looks guardados en caché`);
+  } catch(e) {
+    console.warn("Error guardando caché de looks:", e);
+  }
+}
+
+function getProductsQuickHash() {
+  if (!allProducts.length) return 'empty';
+  return allProducts.slice(0, 100).map(p => `${p.ID}:${p.Stock}`).join('|');
+}
+
+// ========== 3. FUNCIONES DE CLIMA ==========
 async function getWeather() {
   try {
     const response = await fetch(`${WEATHER_API_URL}?action=getWeather`);
@@ -195,7 +340,7 @@ function sortLooksByWeather(looksArray) {
   return [...looksArray].sort((a, b) => (priorityScores[b.id?.toLowerCase()] || 0) - (priorityScores[a.id?.toLowerCase()] || 0));
 }
 
-// ========== FUNCIONES DE PRODUCTOS PARA LOOKS ==========
+// ========== 4. FUNCIONES DE PRODUCTOS PARA LOOKS ==========
 function matchesProductCriteria(product, categories, keywords, excludeKeywords = []) {
   if (!product) return false;
   const productCategory = (product.Categoria || "").toLowerCase();
@@ -277,9 +422,68 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   return selected;
 }
 
-// ========== CARGA Y RENDERIZADO DE LOOKS ==========
+// ========== 5. PRECARGA DE PÁGINAS (PREFETCH) ==========
+function preloadAdjacentPages() {
+  const totalPages = Math.ceil(allLooks.length / looksPerPage);
+  
+  if (currentLooksPage < totalPages) {
+    preloadLooksPage(currentLooksPage + 1);
+  }
+  
+  if (currentLooksPage > 1) {
+    preloadLooksPage(currentLooksPage - 1);
+  }
+}
+
+function preloadLooksPage(pageNumber) {
+  if (preloadedNextPage === pageNumber) return;
+  
+  const start = (pageNumber - 1) * looksPerPage;
+  const end = start + looksPerPage;
+  const pageLooks = allLooks.slice(start, end);
+  
+  if (pageLooks.length === 0) return;
+  
+  if (window.requestIdleCallback) {
+    requestIdleCallback(() => {
+      pageLooks.forEach(look => {
+        if (look.image) {
+          const link = document.createElement('link');
+          link.rel = 'preload';
+          link.as = 'image';
+          link.href = look.image;
+          document.head.appendChild(link);
+        }
+        
+        Object.values(look.products).forEach(product => {
+          if (product?.image) {
+            const imgLink = document.createElement('link');
+            imgLink.rel = 'preload';
+            imgLink.as = 'image';
+            imgLink.href = product.image;
+            document.head.appendChild(imgLink);
+          }
+        });
+      });
+      
+      preloadedNextPage = pageNumber;
+      console.log(`🔮 Precargada página ${pageNumber} de looks`);
+    });
+  } else {
+    setTimeout(() => {
+      pageLooks.forEach(look => {
+        if (look.image) {
+          const img = new Image();
+          img.src = look.image;
+        }
+      });
+      preloadedNextPage = pageNumber;
+    }, 100);
+  }
+}
+
+// ========== 6. CARGA Y RENDERIZADO DE LOOKS ==========
 async function loadProducts() {
-  // Si estamos offline, mostrar mensaje
   if (!navigator.onLine) {
     console.log('📡 Offline - Cargando looks desde caché');
     if (window.ConnectionMonitor && window.ConnectionMonitor.showOfflineBanner) {
@@ -287,16 +491,50 @@ async function loadProducts() {
     }
   }
   
-  // CARGA INSTANTÁNEA desde caché
-  const cached = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
+  // Intentar cargar looks desde caché optimizado PRIMERO
+  const cachedLooks = getCachedLooksOptimized();
+  if (cachedLooks && cachedLooks.length > 0) {
+    console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
+    allLooks = cachedLooks;
+    looks = [...allLooks];
+    currentLooksPage = 1;
+    
+    // Cargar productos también para tenerlos disponibles
+    const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
+      ? window.CacheManager.getSessionProductsCache() 
+      : getCachedProducts();
+    
+    if (cachedProducts && cachedProducts.length > 0) {
+      allProducts = cachedProducts;
+    }
+    
+    await getWeather();
+    renderLooks();
+    initLazyImagesAfterRender();
+    preloadAdjacentPages();
+    
+    const savedScroll = sessionStorage.getItem('looks_scroll_position');
+    if (savedScroll) {
+      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
+      sessionStorage.removeItem('looks_scroll_position');
+    }
+    
+    if (navigator.onLine && !isGeneratingLooks) {
+      loadFreshProductsInBackground();
+    }
+    return;
+  }
+  
+  // Si no hay caché de looks, intentar cargar productos
+  const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
     ? window.CacheManager.getSessionProductsCache() 
     : getCachedProducts();
   
-  if (cached && cached.length > 0) {
-    console.log("⚡ CARGA INSTANTÁNEA de looks desde caché");
-    allProducts = cached;
+  if (cachedProducts && cachedProducts.length > 0) {
+    console.log("⚡ Productos desde caché, generando looks...");
+    allProducts = cachedProducts;
     await getWeather();
-    buildLooksFromProducts();
+    await generateLooksAsync();
     
     const savedScroll = sessionStorage.getItem('looks_scroll_position');
     if (savedScroll) {
@@ -305,7 +543,7 @@ async function loadProducts() {
     }
     
     if (navigator.onLine) {
-      loadLooksInBackground();
+      loadFreshProductsInBackground();
     }
     return;
   }
@@ -314,11 +552,16 @@ async function loadProducts() {
   showLoader("Cargando productos...");
   try {
     await getWeather();
-    const res = await fetch(API_URL);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    
+    const res = await fetch(API_URL, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
     const data = await res.json();
     allProducts = data.products || data || [];
     setCachedProducts(allProducts);
-    buildLooksFromProducts();
+    await generateLooksAsync();
   } catch (err) {
     console.error("Error cargando productos:", err);
     const container = document.getElementById("looks-container");
@@ -328,159 +571,250 @@ async function loadProducts() {
   }
 }
 
-async function loadLooksInBackground() {
+async function generateLooksAsync() {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const startTime = performance.now();
+      
+      const productsWithImages = allProducts.filter(p => 
+        (p.Imagen1 || p.Imagen2 || p.Imagen3) && Number(p.Stock || 0) > 0
+      );
+      
+      const allBuiltLooks = [];
+      
+      for (const config of LOOKS_CONFIG) {
+        const selectedProducts = selectProductsForLook(config, productsWithImages);
+        const productCount = Object.keys(selectedProducts).length;
+        
+        if (productCount > 0) {
+          const firstProductKey = Object.keys(selectedProducts)[0];
+          let lookImage = "https://placehold.co/600x800/3b1f5f/ffffff?text=Z&R";
+          if (selectedProducts[firstProductKey] && selectedProducts[firstProductKey].image) {
+            lookImage = optimizeDriveUrl(selectedProducts[firstProductKey].image, 500);
+          }
+          
+          allBuiltLooks.push({
+            id: config.id.toLowerCase(),
+            name: config.name,
+            description: config.description,
+            category: config.category,
+            image: lookImage,
+            products: selectedProducts,
+            config: config,
+            productCount: productCount
+          });
+        }
+      }
+      
+      allLooks = sortLooksByWeather(allBuiltLooks);
+      looks = [...allLooks];
+      currentLooksPage = 1;
+      
+      saveLooksToCacheOptimized(allLooks);
+      
+      renderLooks();
+      initLazyImagesAfterRender();
+      preloadAdjacentPages();
+      
+      const endTime = performance.now();
+      console.log(`✅ Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
+      
+      resolve();
+    }, 10);
+  });
+}
+
+async function loadFreshProductsInBackground() {
+  if (isGeneratingLooks) return;
+  isGeneratingLooks = true;
+  
   try {
-    const res = await fetch(API_URL);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const res = await fetch(API_URL, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
     const data = await res.json();
     const freshProducts = data.products || data || [];
+    
     if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
       allProducts = freshProducts;
       setCachedProducts(allProducts);
-      buildLooksFromProducts();
-      renderLooks();
+      await generateLooksAsync();
+      showTemporaryMessage("✨ Outfits actualizados", "info");
     }
   } catch (err) {
-    console.error("Error en carga background:", err);
+    console.log("Background update falló:", err.message);
+  } finally {
+    isGeneratingLooks = false;
   }
 }
 
-function buildLooksFromProducts() {
-  if (allProducts.length === 0) return;
-  const productsWithImages = allProducts.filter(p => (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0);
-  const allBuiltLooks = [];
-  for (const config of LOOKS_CONFIG) {
-    const selectedProducts = selectProductsForLook(config, productsWithImages);
-    const productCount = Object.keys(selectedProducts).length;
-    if (productCount > 0) {
-      const firstProductKey = Object.keys(selectedProducts)[0];
-      let lookImage = "https://placehold.co/600x800/3b1f5f/ffffff?text=Z&R";
-      if (selectedProducts[firstProductKey] && selectedProducts[firstProductKey].image) {
-        lookImage = optimizeDriveUrl(selectedProducts[firstProductKey].image, 500);
-      }
-      allBuiltLooks.push({
-        id: config.id.toLowerCase(),
-        name: config.name,
-        description: config.description,
-        category: config.category,
-        image: lookImage,
-        products: selectedProducts,
-        config: config,
-        productCount: productCount
-      });
-    }
-  }
-  allLooks = sortLooksByWeather(allBuiltLooks);
-  looks = [...allLooks];
-  currentLooksPage = 1;
-  renderLooks();
-}
-
+// ========== 7. RENDERIZADO OPTIMIZADO ==========
 function renderLooks() {
   const container = document.getElementById("looks-container");
   if (!container) return;
+  
   if (allLooks.length === 0) {
     container.innerHTML = `<div class="empty-looks"><p>✨ No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">catálogo</a> para ver nuestros productos.</p></div>`;
     renderLooksPagination();
     return;
   }
+  
   const totalPages = Math.ceil(allLooks.length / looksPerPage);
   const start = (currentLooksPage - 1) * looksPerPage;
   const end = start + looksPerPage;
   const looksToRender = allLooks.slice(start, end);
-  container.innerHTML = "";
+  
+  const fragment = document.createDocumentFragment();
+  
   looksToRender.forEach(look => {
-    let totalPrice = 0;
-    let productsHtml = '';
-    let productCount = 0;
-    const slotOrder = ["torso", "piernas", "pies"];
-    for (const slotKey of slotOrder) {
-      const product = look.products[slotKey];
-      if (!product) continue;
-      productCount++;
-      totalPrice += product.price;
-      const productImg = optimizeDriveUrl(product.image, 150);
-      productsHtml += `
-        <div class="look-product-item" data-slot="${slotKey}">
-          <img class="look-product-img" src="${productImg}" alt="${escapeHtml(product.name)}" onerror="this.src='https://placehold.co/70x70/eee/999?text=No+img'">
-          <div class="look-product-info">
-            <div class="look-product-name">${escapeHtml(product.name)}</div>
-            <div class="look-product-price">${formatCurrency(product.price)}</div>
-            <div class="look-product-category">${escapeHtml(product.category || '')}</div>
-            <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
-          </div>
-          <div class="look-product-actions">
-            <button class="look-product-add" onclick="addToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">
-              + Agregar
-            </button>
-            <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">Cambiar</button>
-          </div>
+    const card = createLookCardWithLazy(look);
+    fragment.appendChild(card);
+  });
+  
+  container.innerHTML = '';
+  container.appendChild(fragment);
+  
+  renderLooksPagination(totalPages);
+  
+  preloadAdjacentPages();
+}
+
+function createLookCardWithLazy(look) {
+  let totalPrice = 0;
+  let productsHtml = '';
+  let productCount = 0;
+  const slotOrder = ["torso", "piernas", "pies"];
+  
+  for (const slotKey of slotOrder) {
+    const product = look.products[slotKey];
+    if (!product) continue;
+    productCount++;
+    totalPrice += product.price;
+    const productImgOptimized = optimizeDriveUrl(product.image, 150);
+    
+    productsHtml += `
+      <div class="look-product-item" data-slot="${slotKey}">
+        <div class="look-product-img-container">
+          <img class="look-product-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
         </div>
-      `;
-    }
-    const card = document.createElement("div");
-    card.className = "look-card";
-    card.innerHTML = `
-      <div class="look-image-container" onclick="openImageModal('${optimizeDriveUrl(look.image, 800)}')">
-        <img class="look-image" src="${optimizeDriveUrl(look.image, 500)}" alt="${escapeHtml(look.name)}">
-      </div>
-      <div class="look-info">
-        <div class="look-header">
-          <span class="look-category">${escapeHtml(look.category)}</span>
-          <span class="look-item-count">${productCount} prenda${productCount !== 1 ? 's' : ''}</span>
+        <div class="look-product-info">
+          <div class="look-product-name">${escapeHtml(product.name)}</div>
+          <div class="look-product-price">${formatCurrency(product.price)}</div>
+          <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
         </div>
-        <h2 class="look-title">${escapeHtml(look.name)}</h2>
-        <p class="look-description">${escapeHtml(look.description)}</p>
-        <div class="look-products">
-          <div class="look-products-title"><span>Este outfit incluye:</span></div>
-          <div class="look-products-list">${productsHtml}</div>
-          <div class="look-total">
-            <span class="look-total-label">Precio total:</span>
-            <span class="look-total-price">${formatCurrency(totalPrice)}</span>
-          </div>
+        <div class="look-product-actions">
+          <button class="look-product-add" onclick="addToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">
+            + Agregar
+          </button>
+          <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">Cambiar</button>
         </div>
-        <button class="buy-look-btn" onclick="addLookToCart('${look.id}')">🛒 Comprar todo</button>
       </div>
     `;
-    container.appendChild(card);
-  });
-  renderLooksPagination(totalPages);
+  }
+  
+  const card = document.createElement("div");
+  card.className = "look-card";
+  const mainImageOptimized = optimizeDriveUrl(look.image, 500);
+  
+  card.innerHTML = `
+    <div class="look-image-container" onclick="openImageModal('${optimizeDriveUrl(look.image, 800)}')">
+      <img class="look-image lazy" data-src="${mainImageOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 3'%3E%3C/svg%3E" alt="${escapeHtml(look.name)}">
+    </div>
+    <div class="look-info">
+      <div class="look-header">
+        <span class="look-category">${escapeHtml(look.category)}</span>
+        <span class="look-item-count">${productCount} prenda${productCount !== 1 ? 's' : ''}</span>
+      </div>
+      <h2 class="look-title">${escapeHtml(look.name)}</h2>
+      <p class="look-description">${escapeHtml(look.description)}</p>
+      <div class="look-products">
+        <div class="look-products-title"><span>Este outfit incluye:</span></div>
+        <div class="look-products-list">${productsHtml}</div>
+        <div class="look-total">
+          <span class="look-total-label">Precio total:</span>
+          <span class="look-total-price">${formatCurrency(totalPrice)}</span>
+        </div>
+      </div>
+      <button class="buy-look-btn" onclick="addLookToCart('${look.id}')">🛒 Comprar todo</button>
+    </div>
+  `;
+  
+  return card;
 }
 
 function renderLooksPagination(totalPages) {
   const container = document.getElementById("looks-container");
   if (!container) return;
+  
   const existingPagination = document.querySelector(".looks-pagination");
   if (existingPagination) existingPagination.remove();
+  
   if (totalPages <= 1) return;
+  
   const paginationDiv = document.createElement("div");
   paginationDiv.className = "looks-pagination admin-pagination";
   paginationDiv.style.cssText = "display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap;";
+  
   if (currentLooksPage > 1) {
-    const prevBtn = document.createElement("button");
-    prevBtn.textContent = "← Anterior";
-    prevBtn.onclick = () => { currentLooksPage--; renderLooks(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    const prevBtn = createPaginationButton("← Anterior", () => {
+      currentLooksPage--;
+      renderLooks();
+      initLazyImagesAfterRender();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
     paginationDiv.appendChild(prevBtn);
   }
+  
   let startPage = Math.max(1, currentLooksPage - 2);
   let endPage = Math.min(totalPages, startPage + 4);
   if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
+  
   for (let i = startPage; i <= endPage; i++) {
-    const btn = document.createElement("button");
-    btn.textContent = i;
-    if (i === currentLooksPage) btn.classList.add("active-page");
-    btn.onclick = () => { currentLooksPage = i; renderLooks(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-    paginationDiv.appendChild(btn);
+    const pageBtn = createPaginationButton(i.toString(), () => {
+      currentLooksPage = i;
+      renderLooks();
+      initLazyImagesAfterRender();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    if (i === currentLooksPage) pageBtn.classList.add("active-page");
+    paginationDiv.appendChild(pageBtn);
   }
+  
   if (currentLooksPage < totalPages) {
-    const nextBtn = document.createElement("button");
-    nextBtn.textContent = "Siguiente →";
-    nextBtn.onclick = () => { currentLooksPage++; renderLooks(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    const nextBtn = createPaginationButton("Siguiente →", () => {
+      currentLooksPage++;
+      renderLooks();
+      initLazyImagesAfterRender();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
     paginationDiv.appendChild(nextBtn);
   }
+  
   container.parentNode.insertBefore(paginationDiv, container.nextSibling);
 }
 
-// ========== FUNCIONES DE RECARGA DE SLOTS ==========
+function createPaginationButton(text, onClick) {
+  const btn = document.createElement("button");
+  btn.textContent = text;
+  btn.onclick = onClick;
+  
+  if (text === "Siguiente →" && currentLooksPage < Math.ceil(allLooks.length / looksPerPage)) {
+    btn.addEventListener('mouseenter', () => {
+      preloadLooksPage(currentLooksPage + 1);
+    });
+  } else if (text === "← Anterior" && currentLooksPage > 1) {
+    btn.addEventListener('mouseenter', () => {
+      preloadLooksPage(currentLooksPage - 1);
+    });
+  }
+  
+  return btn;
+}
+
+// ========== 8. FUNCIONES DE RECARGA DE SLOTS ==========
 window.reloadSlot = async function(lookId, slotType, event) {
   if (event) event.stopPropagation();
   const lookIndex = looks.findIndex(l => String(l.id).toLowerCase() === String(lookId).toLowerCase());
@@ -531,6 +865,7 @@ window.reloadSlot = async function(lookId, slotType, event) {
   looks[lookIndex] = { ...look };
   allLooks = [...looks];
   renderLooks();
+  initLazyImagesAfterRender();
 };
 
 window.addLookToCart = function(lookId) {
@@ -561,31 +896,50 @@ function initLooksLayoutToggle() {
   });
 }
 
-// ========== INICIALIZACIÓN ==========
+// ========== 9. INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
+  initLazyLoading();
   loadProducts();
   
   const refreshBtn = document.getElementById("refresh-looks");
-  if (refreshBtn) refreshBtn.addEventListener("click", () => loadProducts());
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      localStorage.removeItem(LOOKS_CACHE_KEY);
+      sessionStorage.removeItem(LOOKS_CACHE_KEY);
+      loadProducts();
+    });
+  }
   
   initLooksLayoutToggle();
   
-  // Escuchar cambios en el carrito
   window.addEventListener('cartUpdated', () => updateCartBadge());
   
-  // ========== AGREGAR ESTO ==========
   const requestBtn = document.getElementById("request-purchase-btn");
   if (requestBtn) {
     requestBtn.addEventListener("click", openWhatsAppCheckout);
     console.log("✅ Botón solicitar compra configurado");
-  } else {
-    console.log("❌ Botón request-purchase-btn no encontrado");
   }
   
-  // Verificar que openWhatsAppCheckout existe
   if (typeof openWhatsAppCheckout === 'function') {
     console.log("✅ openWhatsAppCheckout existe");
-  } else {
-    console.log("❌ openWhatsAppCheckout NO existe");
   }
 });
+
+// CSS para lazy loading
+const lazyLoadingStyles = `
+  .lazy {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .lazy.loaded {
+    opacity: 1;
+  }
+  .look-product-img-container {
+    min-width: 80px;
+    background: #f5f5f8;
+  }
+`;
+
+const styleSheet = document.createElement("style");
+styleSheet.textContent = lazyLoadingStyles;
+document.head.appendChild(styleSheet);
