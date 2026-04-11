@@ -13,7 +13,28 @@ const SECRET_TAPS_REQUIRED = 5;
 let secretTapCount = 0;
 let secretTapTimeout = null;
 
-// ========== MAPEO DE GÉNERO ==========
+
+async function checkOfflineOnStart() {
+  if (!navigator.onLine) {
+    console.log('📡 Iniciando en modo offline');
+    if (window.ConnectionMonitor && window.ConnectionMonitor.showOfflineBanner) {
+      window.ConnectionMonitor.showOfflineBanner();
+    }
+    showTemporaryMessage('📡 Modo offline - Mostrando catálogo guardado', 'info');
+  }
+}
+
+window.addEventListener('beforeunload', () => {
+  sessionStorage.setItem('index_scroll_position', window.scrollY);
+});
+
+
+
+
+
+
+
+
 function getGenderFromCategory(categoria) {
   if (!categoria) return null;
   const categoriaLower = categoria.toLowerCase().trim();
@@ -37,9 +58,10 @@ function getGenderFromCategory(categoria) {
   return genderMap[categoriaLower] || null;
 }
 
-// ========== FUNCIONES DE PRODUCTOS ==========
 async function fetchProducts(force = false) {
-  if (!force) {
+  // Si estamos offline y no es force, solo usar caché
+  if (!navigator.onLine && !force) {
+    console.log('📡 Offline - Usando solo caché');
     const cached = getCachedProducts();
     if (cached && cached.length > 0) {
       allProducts = cached;
@@ -48,11 +70,56 @@ async function fetchProducts(force = false) {
       renderProductsPage(true);
       populateCategoryFilter(document.getElementById("gender-filter")?.value);
       handleInitialHash();
-      loadProductsInBackground();
+      showTemporaryMessage('📡 Sin conexión - Mostrando productos guardados', 'info');
       return;
     }
   }
   
+  // Si es force, ignoramos toda caché
+  if (force) {
+    isLoading = true;
+    showLoader("Actualizando productos...");
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      allProducts = (data.products || data || []).slice(0, 500);
+      setCachedProducts(allProducts);
+      filteredProducts = [...allProducts];
+      currentPage = 1;
+      renderProductsPage(true);
+      populateCategoryFilter(document.getElementById("gender-filter")?.value);
+      handleInitialHash();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      isLoading = false;
+      hideLoader();
+    }
+    return;
+  }
+  
+  // CARGA INSTANTÁNEA: primero mostramos caché
+  const cached = getCachedProducts();
+  if (cached && cached.length > 0) {
+    console.log("⚡ CARGA INSTANTÁNEA desde caché");
+    allProducts = cached;
+    filteredProducts = [...allProducts];
+    currentPage = 1;
+    renderProductsPage(true);
+    populateCategoryFilter(document.getElementById("gender-filter")?.value);
+    handleInitialHash();
+    
+    const savedScroll = sessionStorage.getItem('index_scroll_position');
+    if (savedScroll && !initialHashHandled) {
+      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
+      sessionStorage.removeItem('index_scroll_position');
+    }
+    
+    loadProductsInBackground();
+    return;
+  }
+  
+  // Sin caché: carga normal
   isLoading = true;
   showLoader("Cargando productos...");
   
@@ -571,55 +638,74 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const genderFilter = document.getElementById("gender-filter");
-  if (genderFilter) genderFilter.addEventListener("change", () => { populateCategoryFilter(genderFilter.value); applyFilters(); });
+  if (genderFilter) genderFilter.addEventListener("change", () => { 
+    populateCategoryFilter(genderFilter.value); 
+    applyFilters(); 
+  });
+
   const categoryFilter = document.getElementById("category-filter");
   if (categoryFilter) categoryFilter.addEventListener("change", () => applyFilters());
+
   const sortSelect = document.getElementById("sort-select");
   if (sortSelect) sortSelect.addEventListener("change", () => applyFilters());
 
   const closeCartBtn = document.getElementById("close-cart-btn");
   if (closeCartBtn) closeCartBtn.addEventListener("click", closeCartDrawer);
+
   const overlay = document.getElementById("overlay");
-  if (overlay) overlay.addEventListener("click", () => { closeCartDrawer(); closeImageModal(); });
+  if (overlay) overlay.addEventListener("click", () => { 
+    closeCartDrawer(); 
+    closeImageModal(); 
+  });
+
   const closeImageBtn = document.getElementById("close-image-modal");
   if (closeImageBtn) closeImageBtn.addEventListener("click", closeImageModal);
+
   const refreshBtn = document.getElementById("refresh-btn");
-  if (refreshBtn) refreshBtn.addEventListener("click", () => { if (!isLoading) fetchProducts(true); });
+  if (refreshBtn) refreshBtn.addEventListener("click", () => { 
+    if (!isLoading) fetchProducts(true); 
+  });
+
   const secretLogo = document.getElementById("secret-logo");
   if (secretLogo) secretLogo.addEventListener("click", handleSecretTap);
+
   const requestBtn = document.getElementById("request-purchase-btn");
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
+
   const mpBtn = document.getElementById("mp-checkout-btn");
   if (mpBtn) mpBtn.addEventListener("click", pagarConMercadoPago);
+
   verificarEstadoPago();
 
   // Layout toggle
- const layoutBtn = document.getElementById("layout-toggle-btn");
-const productsContainer = document.getElementById("products-container");
+  const layoutBtn = document.getElementById("layout-toggle-btn");
+  const productsContainer = document.getElementById("products-container");
 
-if (layoutBtn && productsContainer) {
-  const savedLayout = localStorage.getItem("products_layout");
+  if (layoutBtn && productsContainer) {
+    const savedLayout = localStorage.getItem("products_layout");
 
-  if (savedLayout === "grid") {
-    productsContainer.classList.add("layout-grid");
-    layoutBtn.textContent = "▦"; // icono grid
-  } else {
-    layoutBtn.textContent = "≡"; // icono lista
+    if (savedLayout === "grid") {
+      productsContainer.classList.add("layout-grid");
+      layoutBtn.textContent = "▦"; // icono grid
+    } else {
+      layoutBtn.textContent = "≡"; // icono lista
+    }
+
+    layoutBtn.addEventListener("click", () => {
+      productsContainer.classList.toggle("layout-grid");
+
+      const isGrid = productsContainer.classList.contains("layout-grid");
+      localStorage.setItem("products_layout", isGrid ? "grid" : "list");
+
+      layoutBtn.textContent = isGrid ? "▦" : "≡";
+    });
   }
 
-  layoutBtn.addEventListener("click", () => {
-    productsContainer.classList.toggle("layout-grid");
-
-    const isGrid = productsContainer.classList.contains("layout-grid");
-    localStorage.setItem("products_layout", isGrid ? "grid" : "list");
-
-    layoutBtn.textContent = isGrid ? "▦" : "≡";
-  });
-}
+  checkOfflineOnStart();
 });
 
-// Escuchar cambios en el carrito
 window.addEventListener('cartUpdated', () => {
   if (typeof renderCart === 'function') renderCart();
   updateCartBadge();
 });
+
