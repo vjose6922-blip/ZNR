@@ -124,20 +124,25 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   font-size: 14px;
 }
 
+/* Modo lista - mismo espaciado que grid */
 .looks-grid {
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  padding: 16px 12px 80px;
-  max-width: 600px;
+  gap: 8px;  /* Mismo gap que grid */
+  padding: 12px 12px 80px;  /* Mismo padding que grid */
+  max-width: 100%;  /* O el ancho que uses en grid */
   margin: 0 auto;
+}
+
+.look-card {
+  margin: 0;
+  border-radius: 12px;  /* Mismo border-radius que grid */
 }
 
 /* ===== MODO LISTA (original) - TODO PEGADO ===== */
 .look-card {
   background: white;
   border-radius: 16px;
-  padding: 12px 12px
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
