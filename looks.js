@@ -1,5 +1,5 @@
 // ============================================
-// LOOKS.JS - VERSIÓN ULTRA RÁPIDA OPTIMIZADA
+// LOOKS.JS - VERSIÓN CON SKELETON + PROGRESIVA
 // ============================================
 
 const WEATHER_API_URL = API_URL;
@@ -129,7 +129,47 @@ const LOOKS_CONFIG = [
     ] }
 ];
 
-// ========== 1. LAZY LOADING PARA IMÁGENES ==========
+// ========== 1. SKELETON LOADING ==========
+function showSkeletonLooks() {
+  const container = document.getElementById("looks-container");
+  if (!container) return;
+  
+  const skeletonCards = [];
+  const skeletonCount = Math.min(looksPerPage, 6);
+  
+  for (let i = 0; i < skeletonCount; i++) {
+    skeletonCards.push(`
+      <div class="look-card skeleton-card">
+        <div class="skeleton-image shimmer"></div>
+        <div class="look-info">
+          <div class="skeleton-category shimmer"></div>
+          <div class="skeleton-title shimmer"></div>
+          <div class="skeleton-text shimmer"></div>
+          <div class="skeleton-products">
+            <div class="skeleton-product shimmer"></div>
+            <div class="skeleton-product shimmer"></div>
+            <div class="skeleton-product shimmer"></div>
+          </div>
+          <div class="skeleton-button shimmer"></div>
+        </div>
+      </div>
+    `);
+  }
+  
+  container.innerHTML = skeletonCards.join('');
+}
+
+function hideSkeletonLooks() {
+  const skeletons = document.querySelectorAll('.skeleton-card');
+  skeletons.forEach(s => {
+    s.style.opacity = '0';
+    setTimeout(() => {
+      if (s.parentNode) s.remove();
+    }, 200);
+  });
+}
+
+// ========== 2. LAZY LOADING PARA IMÁGENES ==========
 function initLazyLoading() {
   if ('IntersectionObserver' in window) {
     lazyImageObserver = new IntersectionObserver((entries) => {
@@ -176,7 +216,7 @@ function initLazyImagesAfterRender() {
   }
 }
 
-// ========== 2. CACHÉ DE LOOKS COMPRIMIDO ==========
+// ========== 3. CACHÉ DE LOOKS COMPRIMIDO ==========
 function compressLooksData(looks) {
   return looks.map(look => ({
     id: look.id,
@@ -268,7 +308,7 @@ function getProductsQuickHash() {
   return allProducts.slice(0, 100).map(p => `${p.ID}:${p.Stock}`).join('|');
 }
 
-// ========== 3. FUNCIONES DE CLIMA ==========
+// ========== 4. FUNCIONES DE CLIMA ==========
 async function getWeather() {
   try {
     const response = await fetch(`${WEATHER_API_URL}?action=getWeather`);
@@ -340,7 +380,7 @@ function sortLooksByWeather(looksArray) {
   return [...looksArray].sort((a, b) => (priorityScores[b.id?.toLowerCase()] || 0) - (priorityScores[a.id?.toLowerCase()] || 0));
 }
 
-// ========== 4. FUNCIONES DE PRODUCTOS PARA LOOKS ==========
+// ========== 5. FUNCIONES DE PRODUCTOS PARA LOOKS ==========
 function matchesProductCriteria(product, categories, keywords, excludeKeywords = []) {
   if (!product) return false;
   const productCategory = (product.Categoria || "").toLowerCase();
@@ -422,7 +462,80 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   return selected;
 }
 
-// ========== 5. PRECARGA DE PÁGINAS (PREFETCH) ==========
+// ========== 6. GENERACIÓN PROGRESIVA DE LOOKS ==========
+async function generateLooksProgressive() {
+  return new Promise((resolve) => {
+    const startTime = performance.now();
+    
+    const productsWithImages = allProducts.filter(p => 
+      (p.Imagen1 || p.Imagen2 || p.Imagen3) && Number(p.Stock || 0) > 0
+    );
+    
+    const allBuiltLooks = [];
+    let currentIndex = 0;
+    
+    function processBatch() {
+      const batchSize = 3;
+      const end = Math.min(currentIndex + batchSize, LOOKS_CONFIG.length);
+      
+      for (let i = currentIndex; i < end; i++) {
+        const config = LOOKS_CONFIG[i];
+        const selectedProducts = selectProductsForLook(config, productsWithImages);
+        const productCount = Object.keys(selectedProducts).length;
+        
+        if (productCount > 0) {
+          const firstProductKey = Object.keys(selectedProducts)[0];
+          let lookImage = "https://placehold.co/600x800/3b1f5f/ffffff?text=Z&R";
+          if (selectedProducts[firstProductKey] && selectedProducts[firstProductKey].image) {
+            lookImage = optimizeDriveUrl(selectedProducts[firstProductKey].image, 500);
+          }
+          
+          allBuiltLooks.push({
+            id: config.id.toLowerCase(),
+            name: config.name,
+            description: config.description,
+            category: config.category,
+            image: lookImage,
+            products: selectedProducts,
+            config: config,
+            productCount: productCount
+          });
+        }
+      }
+      
+      currentIndex = end;
+      
+      // Actualizar UI con los looks generados hasta ahora
+      if (allBuiltLooks.length > 0) {
+        const currentLooks = sortLooksByWeather([...allBuiltLooks]);
+        allLooks = currentLooks;
+        looks = [...allLooks];
+        renderLooks();
+        initLazyImagesAfterRender();
+      }
+      
+      if (currentIndex < LOOKS_CONFIG.length) {
+        setTimeout(processBatch, 50);
+      } else {
+        // Terminado
+        allLooks = sortLooksByWeather(allBuiltLooks);
+        looks = [...allLooks];
+        saveLooksToCacheOptimized(allLooks);
+        renderLooks();
+        initLazyImagesAfterRender();
+        preloadAdjacentPages();
+        
+        const endTime = performance.now();
+        console.log(`✅ Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
+        resolve();
+      }
+    }
+    
+    processBatch();
+  });
+}
+
+// ========== 7. PRECARGA DE PÁGINAS (PREFETCH) ==========
 function preloadAdjacentPages() {
   const totalPages = Math.ceil(allLooks.length / looksPerPage);
   
@@ -482,8 +595,11 @@ function preloadLooksPage(pageNumber) {
   }
 }
 
-// ========== 6. CARGA Y RENDERIZADO DE LOOKS ==========
+// ========== 8. CARGA PRINCIPAL ==========
 async function loadProducts() {
+  // MOSTRAR SKELETON INMEDIATAMENTE
+  showSkeletonLooks();
+  
   if (!navigator.onLine) {
     console.log('📡 Offline - Cargando looks desde caché');
     if (window.ConnectionMonitor && window.ConnectionMonitor.showOfflineBanner) {
@@ -491,7 +607,7 @@ async function loadProducts() {
     }
   }
   
-  // Intentar cargar looks desde caché optimizado PRIMERO
+  // Intentar cargar looks desde caché optimizado
   const cachedLooks = getCachedLooksOptimized();
   if (cachedLooks && cachedLooks.length > 0) {
     console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
@@ -499,7 +615,6 @@ async function loadProducts() {
     looks = [...allLooks];
     currentLooksPage = 1;
     
-    // Cargar productos también para tenerlos disponibles
     const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
       ? window.CacheManager.getSessionProductsCache() 
       : getCachedProducts();
@@ -509,9 +624,14 @@ async function loadProducts() {
     }
     
     await getWeather();
-    renderLooks();
-    initLazyImagesAfterRender();
-    preloadAdjacentPages();
+    
+    // Reemplazar skeleton con contenido real
+    setTimeout(() => {
+      renderLooks();
+      initLazyImagesAfterRender();
+      preloadAdjacentPages();
+      hideSkeletonLooks();
+    }, 50);
     
     const savedScroll = sessionStorage.getItem('looks_scroll_position');
     if (savedScroll) {
@@ -531,10 +651,11 @@ async function loadProducts() {
     : getCachedProducts();
   
   if (cachedProducts && cachedProducts.length > 0) {
-    console.log("⚡ Productos desde caché, generando looks...");
+    console.log("⚡ Productos desde caché, generando looks progresivamente...");
     allProducts = cachedProducts;
     await getWeather();
-    await generateLooksAsync();
+    await generateLooksProgressive();
+    hideSkeletonLooks();
     
     const savedScroll = sessionStorage.getItem('looks_scroll_position');
     if (savedScroll) {
@@ -549,7 +670,6 @@ async function loadProducts() {
   }
   
   // Sin caché: carga normal
-  showLoader("Cargando productos...");
   try {
     await getWeather();
     const controller = new AbortController();
@@ -561,67 +681,16 @@ async function loadProducts() {
     const data = await res.json();
     allProducts = data.products || data || [];
     setCachedProducts(allProducts);
-    await generateLooksAsync();
+    await generateLooksProgressive();
+    hideSkeletonLooks();
   } catch (err) {
     console.error("Error cargando productos:", err);
     const container = document.getElementById("looks-container");
-    if (container) container.innerHTML = '<div class="empty-looks">❌ Error al cargar los productos. Intenta de nuevo.</div>';
-  } finally {
-    hideLoader();
+    if (container && !container.querySelector('.look-card')) {
+      container.innerHTML = '<div class="empty-looks">❌ Error al cargar los productos. Intenta de nuevo.</div>';
+    }
+    hideSkeletonLooks();
   }
-}
-
-async function generateLooksAsync() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const startTime = performance.now();
-      
-      const productsWithImages = allProducts.filter(p => 
-        (p.Imagen1 || p.Imagen2 || p.Imagen3) && Number(p.Stock || 0) > 0
-      );
-      
-      const allBuiltLooks = [];
-      
-      for (const config of LOOKS_CONFIG) {
-        const selectedProducts = selectProductsForLook(config, productsWithImages);
-        const productCount = Object.keys(selectedProducts).length;
-        
-        if (productCount > 0) {
-          const firstProductKey = Object.keys(selectedProducts)[0];
-          let lookImage = "https://placehold.co/600x800/3b1f5f/ffffff?text=Z&R";
-          if (selectedProducts[firstProductKey] && selectedProducts[firstProductKey].image) {
-            lookImage = optimizeDriveUrl(selectedProducts[firstProductKey].image, 500);
-          }
-          
-          allBuiltLooks.push({
-            id: config.id.toLowerCase(),
-            name: config.name,
-            description: config.description,
-            category: config.category,
-            image: lookImage,
-            products: selectedProducts,
-            config: config,
-            productCount: productCount
-          });
-        }
-      }
-      
-      allLooks = sortLooksByWeather(allBuiltLooks);
-      looks = [...allLooks];
-      currentLooksPage = 1;
-      
-      saveLooksToCacheOptimized(allLooks);
-      
-      renderLooks();
-      initLazyImagesAfterRender();
-      preloadAdjacentPages();
-      
-      const endTime = performance.now();
-      console.log(`✅ Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
-      
-      resolve();
-    }, 10);
-  });
 }
 
 async function loadFreshProductsInBackground() {
@@ -641,7 +710,7 @@ async function loadFreshProductsInBackground() {
     if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
       allProducts = freshProducts;
       setCachedProducts(allProducts);
-      await generateLooksAsync();
+      await generateLooksProgressive();
       showTemporaryMessage("✨ Outfits actualizados", "info");
     }
   } catch (err) {
@@ -651,13 +720,15 @@ async function loadFreshProductsInBackground() {
   }
 }
 
-// ========== 7. RENDERIZADO OPTIMIZADO ==========
+// ========== 9. RENDERIZADO OPTIMIZADO ==========
 function renderLooks() {
   const container = document.getElementById("looks-container");
   if (!container) return;
   
   if (allLooks.length === 0) {
-    container.innerHTML = `<div class="empty-looks"><p>✨ No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">catálogo</a> para ver nuestros productos.</p></div>`;
+    if (!container.querySelector('.skeleton-card')) {
+      container.innerHTML = `<div class="empty-looks"><p>✨ No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">catálogo</a> para ver nuestros productos.</p></div>`;
+    }
     renderLooksPagination();
     return;
   }
@@ -674,7 +745,10 @@ function renderLooks() {
     fragment.appendChild(card);
   });
   
-  container.innerHTML = '';
+  // Limpiar solo los looks, no los skeletons
+  const existingCards = container.querySelectorAll('.look-card:not(.skeleton-card)');
+  existingCards.forEach(card => card.remove());
+  
   container.appendChild(fragment);
   
   renderLooksPagination(totalPages);
@@ -814,7 +888,7 @@ function createPaginationButton(text, onClick) {
   return btn;
 }
 
-// ========== 8. FUNCIONES DE RECARGA DE SLOTS ==========
+// ========== 10. FUNCIONES DE RECARGA DE SLOTS ==========
 window.reloadSlot = async function(lookId, slotType, event) {
   if (event) event.stopPropagation();
   const lookIndex = looks.findIndex(l => String(l.id).toLowerCase() === String(lookId).toLowerCase());
@@ -896,7 +970,7 @@ function initLooksLayoutToggle() {
   });
 }
 
-// ========== 9. INICIALIZACIÓN ==========
+// ========== 11. INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
   initLazyLoading();
   loadProducts();
@@ -925,15 +999,79 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// CSS para lazy loading
-const lazyLoadingStyles = `
+// ========== 12. CSS PARA SKELETON Y LAZY LOADING ==========
+const skeletonStyles = `
+  .skeleton-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  
+  .shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer-animation 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes shimmer-animation {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  
+  .skeleton-image {
+    width: 100%;
+    height: 260px;
+    background: #e0e0e0;
+  }
+  
+  .skeleton-category {
+    width: 80px;
+    height: 20px;
+    border-radius: 12px;
+    margin: 12px 16px 8px 16px;
+  }
+  
+  .skeleton-title {
+    width: 70%;
+    height: 24px;
+    border-radius: 8px;
+    margin: 0 16px 8px 16px;
+  }
+  
+  .skeleton-text {
+    width: 90%;
+    height: 16px;
+    border-radius: 8px;
+    margin: 0 16px 12px 16px;
+  }
+  
+  .skeleton-products {
+    margin: 12px 16px;
+    gap: 8px;
+  }
+  
+  .skeleton-product {
+    height: 60px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .skeleton-button {
+    height: 44px;
+    margin: 12px 16px 16px 16px;
+    border-radius: 30px;
+  }
+  
   .lazy {
     opacity: 0;
     transition: opacity 0.3s ease;
   }
+  
   .lazy.loaded {
     opacity: 1;
   }
+  
   .look-product-img-container {
     min-width: 80px;
     background: #f5f5f8;
@@ -941,5 +1079,5 @@ const lazyLoadingStyles = `
 `;
 
 const styleSheet = document.createElement("style");
-styleSheet.textContent = lazyLoadingStyles;
+styleSheet.textContent = skeletonStyles;
 document.head.appendChild(styleSheet);
