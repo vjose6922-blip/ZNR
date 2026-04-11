@@ -1,5 +1,5 @@
 // ============================================
-// LOOKS.JS - VERSIÓN CON SKELETON + PROGRESIVA
+// LOOKS.JS - VERSIÓN CON SKELETON + PROGRESIVA + UPDATE LOCAL
 // ============================================
 
 const WEATHER_API_URL = API_URL;
@@ -193,19 +193,6 @@ function initLazyLoading() {
       rootMargin: '100px 0px',
       threshold: 0.01
     });
-  }
-}
-
-function lazyLoadImage(imgElement, src) {
-  if (!imgElement) return;
-  
-  if (lazyImageObserver) {
-    imgElement.setAttribute('data-src', src);
-    imgElement.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
-    imgElement.classList.add('lazy');
-    lazyImageObserver.observe(imgElement);
-  } else {
-    imgElement.src = src;
   }
 }
 
@@ -505,7 +492,6 @@ async function generateLooksProgressive() {
       
       currentIndex = end;
       
-      // Actualizar UI con los looks generados hasta ahora
       if (allBuiltLooks.length > 0) {
         const currentLooks = sortLooksByWeather([...allBuiltLooks]);
         allLooks = currentLooks;
@@ -517,7 +503,6 @@ async function generateLooksProgressive() {
       if (currentIndex < LOOKS_CONFIG.length) {
         setTimeout(processBatch, 50);
       } else {
-        // Terminado
         allLooks = sortLooksByWeather(allBuiltLooks);
         looks = [...allLooks];
         saveLooksToCacheOptimized(allLooks);
@@ -597,7 +582,6 @@ function preloadLooksPage(pageNumber) {
 
 // ========== 8. CARGA PRINCIPAL ==========
 async function loadProducts() {
-  // MOSTRAR SKELETON INMEDIATAMENTE
   showSkeletonLooks();
   
   if (!navigator.onLine) {
@@ -607,7 +591,6 @@ async function loadProducts() {
     }
   }
   
-  // Intentar cargar looks desde caché optimizado
   const cachedLooks = getCachedLooksOptimized();
   if (cachedLooks && cachedLooks.length > 0) {
     console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
@@ -625,7 +608,6 @@ async function loadProducts() {
     
     await getWeather();
     
-    // Reemplazar skeleton con contenido real
     setTimeout(() => {
       renderLooks();
       initLazyImagesAfterRender();
@@ -645,7 +627,6 @@ async function loadProducts() {
     return;
   }
   
-  // Si no hay caché de looks, intentar cargar productos
   const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
     ? window.CacheManager.getSessionProductsCache() 
     : getCachedProducts();
@@ -669,7 +650,6 @@ async function loadProducts() {
     return;
   }
   
-  // Sin caché: carga normal
   try {
     await getWeather();
     const controller = new AbortController();
@@ -745,14 +725,12 @@ function renderLooks() {
     fragment.appendChild(card);
   });
   
-  // Limpiar solo los looks, no los skeletons
   const existingCards = container.querySelectorAll('.look-card:not(.skeleton-card)');
   existingCards.forEach(card => card.remove());
   
   container.appendChild(fragment);
   
   renderLooksPagination(totalPages);
-  
   preloadAdjacentPages();
 }
 
@@ -783,7 +761,7 @@ function createLookCardWithLazy(look) {
           <button class="look-product-add" onclick="addToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">
             + Agregar
           </button>
-          <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">Cambiar</button>
+          <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">⟳ Cambiar</button>
         </div>
       </div>
     `;
@@ -888,20 +866,28 @@ function createPaginationButton(text, onClick) {
   return btn;
 }
 
-// ========== 10. FUNCIONES DE RECARGA DE SLOTS ==========
+// ========== 10. ACTUALIZACIÓN LOCAL (sin recargar toda la página) ==========
 window.reloadSlot = async function(lookId, slotType, event) {
   if (event) event.stopPropagation();
+  
   const lookIndex = looks.findIndex(l => String(l.id).toLowerCase() === String(lookId).toLowerCase());
   if (lookIndex === -1) return;
+  
   const look = looks[lookIndex];
   const lookConfig = LOOKS_CONFIG.find(c => c.id.toLowerCase() === lookId.toLowerCase());
   if (!lookConfig) return;
+  
   const slot = lookConfig.slots.find(s => s.type === slotType);
   if (!slot) return;
+  
   const currentProduct = look.products[slotType];
   const currentProductId = currentProduct ? String(currentProduct.id) : null;
-  const productsWithImages = allProducts.filter(p => (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0 && p.Stock !== "0");
+  
+  const productsWithImages = allProducts.filter(p => 
+    (p.Imagen1 || p.Imagen2 || p.Imagen3) && p.Stock > 0 && p.Stock !== "0"
+  );
   if (productsWithImages.length === 0) return;
+  
   const excludedProductIds = [];
   if (currentProductId) excludedProductIds.push(currentProductId);
   for (const [key, product] of Object.entries(look.products)) {
@@ -910,21 +896,27 @@ window.reloadSlot = async function(lookId, slotType, event) {
       if (!excludedProductIds.includes(productId)) excludedProductIds.push(productId);
     }
   }
+  
   let availableProducts = getProductsForSlot(productsWithImages, slot);
   let freshProducts = availableProducts.filter(p => !excludedProductIds.includes(String(p.ID)));
+  
   if (freshProducts.length === 0 && currentProductId) {
     freshProducts = availableProducts.filter(p => String(p.ID) !== currentProductId);
   }
+  
   if (freshProducts.length === 0) {
     showTemporaryMessage("⚠️ No hay más productos disponibles", "error");
     return;
   }
+  
   let randomIndex = Math.floor(Math.random() * freshProducts.length);
   let newProduct = freshProducts[randomIndex];
+  
   if (currentProductId && String(newProduct.ID) === currentProductId) {
     const otherProducts = freshProducts.filter(p => String(p.ID) !== currentProductId);
     if (otherProducts.length > 0) newProduct = otherProducts[Math.floor(Math.random() * otherProducts.length)];
   }
+  
   const updatedProduct = {
     id: newProduct.ID,
     name: newProduct.Nombre,
@@ -934,13 +926,142 @@ window.reloadSlot = async function(lookId, slotType, event) {
     category: newProduct.Categoria,
     size: newProduct.Talla ? "Talla: " + newProduct.Talla : "Talla no especificada"
   };
+  
+  // Calcular diferencia de precio
+  const oldPrice = look.products[slotType]?.price || 0;
+  const priceDifference = updatedProduct.price - oldPrice;
+  
+  // Actualizar en memoria
   look.products[slotType] = updatedProduct;
-  if (slotType === "torso" && updatedProduct.image) look.image = optimizeDriveUrl(updatedProduct.image, 500);
+  if (slotType === "torso" && updatedProduct.image) {
+    look.image = optimizeDriveUrl(updatedProduct.image, 500);
+  }
+  
   looks[lookIndex] = { ...look };
   allLooks = [...looks];
-  renderLooks();
-  initLazyImagesAfterRender();
+  saveLooksToCacheOptimized(allLooks);
+  
+  // Actualizar SOLO el elemento modificado en el DOM
+  updateSingleLookInDOM(look, lookIndex, slotType, updatedProduct, priceDifference);
+  
+  showTemporaryMessage(`✨ Prenda actualizada: ${updatedProduct.name}`, "info");
 };
+
+function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, priceDifference) {
+  const lookCards = document.querySelectorAll('.look-card');
+  let targetCard = null;
+  
+  for (const card of lookCards) {
+    const titleEl = card.querySelector('.look-title');
+    if (titleEl && titleEl.textContent === look.name) {
+      targetCard = card;
+      break;
+    }
+  }
+  
+  if (!targetCard) {
+    renderLooks();
+    return;
+  }
+  
+  const productItems = targetCard.querySelectorAll('.look-product-item');
+  let targetProductItem = null;
+  const slotOrder = ["torso", "piernas", "pies"];
+  const slotIndex = slotOrder.indexOf(changedSlotType);
+  
+  if (productItems[slotIndex]) {
+    targetProductItem = productItems[slotIndex];
+  } else {
+    for (const item of productItems) {
+      if (item.getAttribute('data-slot') === changedSlotType) {
+        targetProductItem = item;
+        break;
+      }
+    }
+  }
+  
+  if (!targetProductItem) {
+    renderLooks();
+    return;
+  }
+  
+  const totalPriceEl = targetCard.querySelector('.look-total-price');
+  let oldTotalPrice = 0;
+  if (totalPriceEl) {
+    oldTotalPrice = parseFloat(totalPriceEl.textContent.replace(/[^0-9.-]/g, '')) || 0;
+  }
+  
+  // Actualizar imagen
+  const productImg = targetProductItem.querySelector('.look-product-img');
+  const newImageUrl = optimizeDriveUrl(newProduct.image, 150);
+  if (productImg) {
+    productImg.style.opacity = '0.5';
+    const newImg = new Image();
+    newImg.onload = () => {
+      productImg.src = newImageUrl;
+      productImg.style.opacity = '1';
+      productImg.classList.add('loaded');
+    };
+    newImg.src = newImageUrl;
+    productImg.setAttribute('data-src', newImageUrl);
+  }
+  
+  // Actualizar nombre
+  const productNameEl = targetProductItem.querySelector('.look-product-name');
+  if (productNameEl) productNameEl.textContent = escapeHtml(newProduct.name);
+  
+  // Actualizar precio con animación
+  const productPriceEl = targetProductItem.querySelector('.look-product-price');
+  if (productPriceEl) {
+    productPriceEl.textContent = formatCurrency(newProduct.price);
+    productPriceEl.classList.add('price-changed');
+    setTimeout(() => productPriceEl.classList.remove('price-changed'), 300);
+  }
+  
+  // Actualizar talla
+  const productSizeEl = targetProductItem.querySelector('.look-product-size');
+  if (productSizeEl) productSizeEl.textContent = escapeHtml(newProduct.size || 'Talla no especificada');
+  
+  // Actualizar botón Agregar
+  const addBtn = targetProductItem.querySelector('.look-product-add');
+  if (addBtn) {
+    const newOnClick = `addToCart({ID:'${newProduct.id}', Nombre:'${escapeHtml(newProduct.name)}', Precio:${newProduct.price}, Imagen1:'${newProduct.image}', Talla:'${escapeHtml(newProduct.size || '')}'})`;
+    addBtn.setAttribute('onclick', newOnClick);
+  }
+  
+  // Actualizar precio total
+  if (totalPriceEl) {
+    const newTotalPrice = oldTotalPrice + priceDifference;
+    totalPriceEl.textContent = formatCurrency(newTotalPrice);
+    totalPriceEl.classList.add('price-changed');
+    setTimeout(() => totalPriceEl.classList.remove('price-changed'), 300);
+  }
+  
+  // Actualizar imagen principal si cambió torso
+  if (changedSlotType === "torso") {
+    const mainImage = targetCard.querySelector('.look-image');
+    if (mainImage) {
+      const newMainImageUrl = optimizeDriveUrl(newProduct.image, 500);
+      mainImage.style.opacity = '0.5';
+      const newImg = new Image();
+      newImg.onload = () => {
+        mainImage.src = newMainImageUrl;
+        mainImage.style.opacity = '1';
+      };
+      newImg.src = newMainImageUrl;
+      mainImage.setAttribute('data-src', newMainImageUrl);
+      
+      const imageContainer = targetCard.querySelector('.look-image-container');
+      if (imageContainer) {
+        imageContainer.setAttribute('onclick', `openImageModal('${optimizeDriveUrl(newProduct.image, 800)}')`);
+      }
+    }
+  }
+  
+  // Actualizar botón comprar todo
+  const buyBtn = targetCard.querySelector('.buy-look-btn');
+  if (buyBtn) buyBtn.setAttribute('onclick', `addLookToCart('${look.id}')`);
+}
 
 window.addLookToCart = function(lookId) {
   const look = looks.find(l => l.id.toLowerCase() === lookId.toLowerCase());
@@ -985,22 +1106,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   
   initLooksLayoutToggle();
-  
   window.addEventListener('cartUpdated', () => updateCartBadge());
   
   const requestBtn = document.getElementById("request-purchase-btn");
-  if (requestBtn) {
-    requestBtn.addEventListener("click", openWhatsAppCheckout);
-    console.log("✅ Botón solicitar compra configurado");
-  }
-  
-  if (typeof openWhatsAppCheckout === 'function') {
-    console.log("✅ openWhatsAppCheckout existe");
-  }
+  if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 });
 
-// ========== 12. CSS PARA SKELETON Y LAZY LOADING ==========
-const skeletonStyles = `
+// ========== 12. CSS ==========
+const styles = `
   .skeleton-card {
     background: white;
     border-radius: 16px;
@@ -1019,65 +1132,29 @@ const skeletonStyles = `
     100% { background-position: -200% 0; }
   }
   
-  .skeleton-image {
-    width: 100%;
-    height: 260px;
-    background: #e0e0e0;
+  .skeleton-image { width: 100%; height: 260px; background: #e0e0e0; }
+  .skeleton-category { width: 80px; height: 20px; border-radius: 12px; margin: 12px 16px 8px 16px; }
+  .skeleton-title { width: 70%; height: 24px; border-radius: 8px; margin: 0 16px 8px 16px; }
+  .skeleton-text { width: 90%; height: 16px; border-radius: 8px; margin: 0 16px 12px 16px; }
+  .skeleton-products { margin: 12px 16px; gap: 8px; }
+  .skeleton-product { height: 60px; border-radius: 12px; margin-bottom: 8px; }
+  .skeleton-button { height: 44px; margin: 12px 16px 16px 16px; border-radius: 30px; }
+  
+  .lazy { opacity: 0; transition: opacity 0.3s ease; }
+  .lazy.loaded { opacity: 1; }
+  .look-product-img-container { min-width: 80px; background: #f5f5f8; }
+  
+  .price-changed {
+    animation: pricePulse 0.3s ease-in-out;
   }
   
-  .skeleton-category {
-    width: 80px;
-    height: 20px;
-    border-radius: 12px;
-    margin: 12px 16px 8px 16px;
-  }
-  
-  .skeleton-title {
-    width: 70%;
-    height: 24px;
-    border-radius: 8px;
-    margin: 0 16px 8px 16px;
-  }
-  
-  .skeleton-text {
-    width: 90%;
-    height: 16px;
-    border-radius: 8px;
-    margin: 0 16px 12px 16px;
-  }
-  
-  .skeleton-products {
-    margin: 12px 16px;
-    gap: 8px;
-  }
-  
-  .skeleton-product {
-    height: 60px;
-    border-radius: 12px;
-    margin-bottom: 8px;
-  }
-  
-  .skeleton-button {
-    height: 44px;
-    margin: 12px 16px 16px 16px;
-    border-radius: 30px;
-  }
-  
-  .lazy {
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-  
-  .lazy.loaded {
-    opacity: 1;
-  }
-  
-  .look-product-img-container {
-    min-width: 80px;
-    background: #f5f5f8;
+  @keyframes pricePulse {
+    0% { transform: scale(1); color: #ff4f81; }
+    50% { transform: scale(1.1); color: #ff7a4f; }
+    100% { transform: scale(1); color: #ff4f81; }
   }
 `;
 
 const styleSheet = document.createElement("style");
-styleSheet.textContent = skeletonStyles;
+styleSheet.textContent = styles;
 document.head.appendChild(styleSheet);
