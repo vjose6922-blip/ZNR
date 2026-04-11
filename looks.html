@@ -85,7 +85,17 @@
 
  <script src="common.js"></script>
 <script src="looks.js"></script>
-
+<script src="cache-manager.js"></script>
+  <script>
+    // Registrar Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => console.log('✅ SW registrado:', registration.scope))
+          .catch(error => console.log('❌ Error SW:', error));
+      });
+    }
+  </script>
 
 
   <footer class="app-footer">
