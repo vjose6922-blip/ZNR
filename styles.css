@@ -509,9 +509,9 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 .looks-grid.layout-grid .look-product-img {
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
+  width: 60px;
+  min-width: 60px;
+  height: 60px;
 }
 
 .looks-grid.layout-grid .look-product-info {
@@ -590,7 +590,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   }
   
   .looks-grid.layout-grid .look-image {
-    max-height: 170px;
+    max-height: 60px;
   }
   
   .looks-grid.layout-grid .look-image-container {
