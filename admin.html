@@ -665,14 +665,25 @@
 
   <!-- Panel View -->
   <main class="admin-main" id="admin-panel-view" hidden>
-    <!-- Notificaciones -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
-      <button class="admin-notification-bell" onclick="openNotifications()">
-        🔔 Notificaciones de compra
-        <span id="notif-badge">0</span>
+  <!-- Notificaciones y botones de acción -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+    <button class="admin-notification-bell" onclick="openNotifications()">
+      🔔 Notificaciones de compra
+      <span id="notif-badge">0</span>
+    </button>
+    
+    <div style="display: flex; gap: 8px;">
+      <!-- Botón: Solo actualizar productos (sin recargar página) -->
+      <button class="icon-button" id="admin-refresh-btn" style="background: rgba(255,255,255,0.1);" title="Actualizar lista de productos">
+        ⟳
       </button>
-      <button class="icon-button" onclick="loadAdminProducts()" style="background: rgba(255,255,255,0.1);">⟳</button>
+      
+      <!-- Botón: Recargar página completa -->
+      <button class="icon-button" id="admin-reload-btn" style="background: rgba(255,255,255,0.1);" title="Recargar página">
+        🔄
+      </button>
     </div>
+  </div>
 
     <!-- Estadísticas -->
     <div class="admin-stats-grid">
