@@ -532,51 +532,27 @@ function openCartDrawer() {
   const drawer = document.getElementById("cart-drawer");
   const overlay = document.getElementById("overlay");
   
-  console.log("📦 [CARRITO] drawer encontrado?", drawer ? "SÍ ✅" : "NO ❌");
-  console.log("📦 [CARRITO] overlay encontrado?", overlay ? "SÍ ✅" : "NO ❌");
-  
   if (!drawer) {
-    console.error("❌ [CARRITO] No existe el elemento #cart-drawer en el DOM");
+    console.error("❌ [CARRITO] No existe #cart-drawer");
     return;
   }
   
   if (!overlay) {
-    console.error("❌ [CARRITO] No existe el elemento #overlay en el DOM");
+    console.error("❌ [CARRITO] No existe #overlay");
     return;
   }
   
-  console.log("➕ [CARRITO] Añadiendo clase 'open' al drawer");
   drawer.classList.add("open");
-  
-  console.log("➕ [CARRITO] Añadiendo clase 'visible' al overlay");
   overlay.classList.add("visible");
   
-  console.log("📋 [CARRITO] Clases del drawer después:", drawer.className);
-  console.log("📋 [CARRITO] Clases del overlay después:", overlay.className);
-  
-  console.log("🔄 [CARRITO] Llamando a renderCart()...");
+  // Renderizar y asegurar que los botones funcionen
   if (typeof renderCart === 'function') {
     renderCart();
-    console.log("✅ [CARRITO] renderCart() ejecutado");
-  } else {
-    console.error("❌ [CARRITO] renderCart() NO está definida como función");
   }
   
-  console.log("📞 [CARRITO] Llamando a updateSavedPhoneDisplay()...");
   if (typeof updateSavedPhoneDisplay === 'function') {
     updateSavedPhoneDisplay();
-    console.log("✅ [CARRITO] updateSavedPhoneDisplay() ejecutado");
-  } else {
-    console.warn("⚠️ [CARRITO] updateSavedPhoneDisplay() NO está definida");
   }
-  
-  // Verificar si el drawer es visualmente visible
-  const drawerStyle = window.getComputedStyle(drawer);
-  console.log("📐 [CARRITO] Drawer transform:", drawerStyle.transform);
-  console.log("📐 [CARRITO] Drawer visibility:", drawerStyle.visibility);
-  console.log("📐 [CARRITO] Drawer display:", drawerStyle.display);
-  
-  console.log("✅ [CARRITO] openCartDrawer() completada");
 }
 
 function closeCartDrawer() {
@@ -586,12 +562,12 @@ function closeCartDrawer() {
   if (overlay) overlay.classList.remove("visible");
 }
 
+
+
 function renderCart() {
   console.log("🔄 [RENDER] renderCart() iniciada");
   
   const container = document.getElementById("cart-items-container");
-  console.log("📦 [RENDER] container encontrado?", container ? "SÍ ✅" : "NO ❌");
-  
   if (!container) {
     console.error("❌ [RENDER] No existe #cart-items-container");
     return;
@@ -599,14 +575,11 @@ function renderCart() {
   
   container.innerHTML = "";
   const items = Object.values(localCart);
-  console.log(`📊 [RENDER] Items en carrito: ${items.length}`);
   
   if (items.length === 0) {
     container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
-    console.log("✅ [RENDER] Carrito vacío renderizado");
   } else {
     items.forEach((item, index) => {
-      console.log(`  [RENDER] Item ${index + 1}: ${item.name} - Cantidad: ${item.quantity} - Precio: $${item.price}`);
       const row = document.createElement("div");
       row.className = "cart-item";
       row.innerHTML = `
@@ -614,41 +587,88 @@ function renderCart() {
           <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
           <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
           <div class="cart-item-actions">
-            <button class="qty-btn" onclick="changeCartQty('${item.id}', -1)">−</button>
+            <button class="qty-btn" data-action="decrement" data-id="${item.id}">−</button>
             <span class="qty-value">${item.quantity}</span>
-            <button class="qty-btn" onclick="changeCartQty('${item.id}', 1)">+</button>
-            <button class="cart-item-remove" onclick="removeFromCart('${item.id}')">Eliminar</button>
+            <button class="qty-btn" data-action="increment" data-id="${item.id}">+</button>
+            <button class="cart-item-remove" data-action="remove" data-id="${item.id}">Eliminar</button>
           </div>
         </div>
       `;
       container.appendChild(row);
     });
-    console.log("✅ [RENDER] Items renderizados correctamente");
+    
+    // Añadir event listeners después de crear los elementos
+    document.querySelectorAll('.qty-btn[data-action="decrement"]').forEach(btn => {
+      btn.removeEventListener('click', handleDecrement);
+      btn.addEventListener('click', handleDecrement);
+    });
+    
+    document.querySelectorAll('.qty-btn[data-action="increment"]').forEach(btn => {
+      btn.removeEventListener('click', handleIncrement);
+      btn.addEventListener('click', handleIncrement);
+    });
+    
+    document.querySelectorAll('.cart-item-remove[data-action="remove"]').forEach(btn => {
+      btn.removeEventListener('click', handleRemove);
+      btn.addEventListener('click', handleRemove);
+    });
   }
   
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const subtotalEl = document.getElementById("cart-subtotal");
   const totalEl = document.getElementById("cart-total");
   
-  console.log(`💰 [RENDER] Subtotal calculado: $${subtotal}`);
-  
-  if (subtotalEl) {
-    subtotalEl.textContent = formatCurrency(subtotal);
-    console.log("✅ [RENDER] #cart-subtotal actualizado");
-  } else {
-    console.error("❌ [RENDER] No se encontró #cart-subtotal");
-  }
-  
-  if (totalEl) {
-    totalEl.textContent = formatCurrency(subtotal);
-    console.log("✅ [RENDER] #cart-total actualizado");
-  } else {
-    console.error("❌ [RENDER] No se encontró #cart-total");
-  }
-  
-  console.log("✅ [RENDER] renderCart() completada");
+  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
+  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
 }
 
+// Handlers separados para los botones del carrito
+function handleDecrement(e) {
+  e.stopPropagation();
+  const id = e.currentTarget.getAttribute('data-id');
+  if (id && typeof window.changeCartQty === 'function') {
+    window.changeCartQty(id, -1);
+    renderCart(); // Re-renderizar después del cambio
+  }
+}
+
+function handleIncrement(e) {
+  e.stopPropagation();
+  const id = e.currentTarget.getAttribute('data-id');
+  if (id && typeof window.changeCartQty === 'function') {
+    window.changeCartQty(id, 1);
+    renderCart(); // Re-renderizar después del cambio
+  }
+}
+
+function handleRemove(e) {
+  e.stopPropagation();
+  const id = e.currentTarget.getAttribute('data-id');
+  if (id && typeof window.removeFromCart === 'function') {
+    window.removeFromCart(id);
+    renderCart(); // Re-renderizar después de eliminar
+  }
+}
+
+// Modificar la función changeCartQty existente
+window.changeCartQty = function(id, delta) {
+  if (!localCart[id]) return;
+  localCart[id].quantity += delta;
+  if (localCart[id].quantity <= 0) delete localCart[id];
+  saveCartToStorage();
+  updateCartBadge();
+  window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart }));
+};
+
+// Modificar removeFromCart existente
+window.removeFromCart = function(id) {
+  if (localCart[id]) { 
+    delete localCart[id]; 
+    saveCartToStorage(); 
+    updateCartBadge(); 
+    window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart }));
+  }
+};
 // ========== FUNCIONES DE MODAL IMAGEN ==========
 function openImageModal(url) {
   const modal = document.getElementById("image-modal");
