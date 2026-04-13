@@ -119,45 +119,281 @@ navigator.serviceWorker.register('/ZNR/sw.js')
     color:#0f0;
     padding:10px;
     font-family:monospace;
-    height:200px;
+    height:250px;
     overflow-y:auto;
     border:1px solid #444;
+    border-radius:8px;
+    position:relative;
 ">
-<strong>Consola interna:</strong><br>
+    <div style="
+        position:sticky;
+        top:0;
+        background:#111;
+        padding-bottom:8px;
+        margin-bottom:8px;
+        border-bottom:1px solid #444;
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        z-index:10;
+    ">
+        <strong style="flex:1;">🐛 Consola interna:</strong>
+        <button id="clearConsoleBtn" style="
+            background:#333;
+            color:#0f0;
+            border:1px solid #0f0;
+            padding:2px 8px;
+            border-radius:4px;
+            cursor:pointer;
+            font-size:11px;
+        ">🗑️ Limpiar</button>
+        <button id="exportConsoleBtn" style="
+            background:#333;
+            color:#0f0;
+            border:1px solid #0f0;
+            padding:2px 8px;
+            border-radius:4px;
+            cursor:pointer;
+            font-size:11px;
+        ">📥 Exportar</button>
+        <button id="testCartBtn" style="
+            background:#ff4f81;
+            color:white;
+            border:none;
+            padding:2px 8px;
+            border-radius:4px;
+            cursor:pointer;
+            font-size:11px;
+        ">🛒 Test Carrito</button>
+        <label style="font-size:11px; display:flex; align-items:center; gap:4px;">
+            <input type="checkbox" id="filterErrorsOnly" style="margin:0;">
+            Solo errores
+        </label>
+    </div>
+    <div id="consoleMessages"></div>
 </div>
+
 <script>
 (function() {
+    const container = document.getElementById("consoleMessages");
     const div = document.getElementById("debugConsole");
- 
-    function printToDiv(type, args) {
+    let messages = [];
+    let filterErrorsOnly = false;
+    
+    // Colores para diferentes tipos
+    const colors = {
+        LOG: '#0f0',
+        ERROR: '#ff4444',
+        WARN: '#ffaa00',
+        UNCAUGHT: '#ff6600',
+        CART: '#ff4f81'
+    };
+    
+    function printToDiv(type, args, source = 'console') {
+        if (filterErrorsOnly && type !== 'ERROR' && type !== 'UNCAUGHT') return;
+        
         const msg = document.createElement("div");
-        msg.textContent = `[${type}] ` + Array.from(args).join(" ");
-        div.appendChild(msg);
+        const timestamp = new Date().toLocaleTimeString();
+        const messageText = Array.from(args).join(" ");
+        
+        msg.style.cssText = `
+            font-size: 11px;
+            padding: 4px 0;
+            border-bottom: 1px solid #222;
+            font-family: monospace;
+            color: ${colors[type] || '#0f0'};
+            word-break: break-word;
+        `;
+        
+        msg.innerHTML = `[${timestamp}] <strong>${type}:</strong> ${escapeHtml(messageText)}`;
+        
+        container.appendChild(msg);
         div.scrollTop = div.scrollHeight;
+        
+        // Guardar para exportar
+        messages.push({ timestamp, type, message: messageText, source });
+        
+        // Limitar número de mensajes
+        while (container.children.length > 100) {
+            container.removeChild(container.firstChild);
+            messages.shift();
+        }
     }
- 
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Interceptar console methods
     const originalLog = console.log;
     const originalError = console.error;
     const originalWarn = console.warn;
- 
+    
     console.log = function() {
         printToDiv("LOG", arguments);
         originalLog.apply(console, arguments);
     };
- 
+    
     console.error = function() {
         printToDiv("ERROR", arguments);
         originalError.apply(console, arguments);
     };
- 
+    
     console.warn = function() {
         printToDiv("WARN", arguments);
         originalWarn.apply(console, arguments);
     };
- 
+    
+    // Capturar errores no manejados
     window.onerror = function(msg, url, line, col, error) {
-        printToDiv("UNCAUGHT", [msg + " (" + url + ":" + line + ")"]);
+        printToDiv("UNCAUGHT", [`${msg} (${url || 'script'}:${line})`]);
+        return false;
     };
+    
+    // Capturar promesas rechazadas
+    window.addEventListener('unhandledrejection', function(event) {
+        printToDiv("ERROR", [`Promise rejection: ${event.reason}`]);
+    });
+    
+    // Botón limpiar
+    document.getElementById("clearConsoleBtn").addEventListener("click", () => {
+        container.innerHTML = '';
+        messages = [];
+        printToDiv("LOG", ["🧹 Consola limpiada"]);
+    });
+    
+    // Botón exportar
+    document.getElementById("exportConsoleBtn").addEventListener("click", () => {
+        const exportText = messages.map(m => `[${m.timestamp}] ${m.type}: ${m.message}`).join('\n');
+        const blob = new Blob([exportText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `console-log-${new Date().toISOString()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        printToDiv("LOG", ["📄 Log exportado"]);
+    });
+    
+    // Filtro solo errores
+    const filterCheckbox = document.getElementById("filterErrorsOnly");
+    filterCheckbox.addEventListener("change", (e) => {
+        filterErrorsOnly = e.target.checked;
+        // Refrescar display
+        container.innerHTML = '';
+        const filteredMessages = filterErrorsOnly ? 
+            messages.filter(m => m.type === 'ERROR' || m.type === 'UNCAUGHT') : 
+            messages;
+        filteredMessages.forEach(m => {
+            const msg = document.createElement("div");
+            msg.style.cssText = `
+                font-size: 11px;
+                padding: 4px 0;
+                border-bottom: 1px solid #222;
+                color: ${colors[m.type] || '#0f0'};
+            `;
+            msg.innerHTML = `[${m.timestamp}] <strong>${m.type}:</strong> ${escapeHtml(m.message)}`;
+            container.appendChild(msg);
+        });
+        printToDiv("LOG", [`Filtro de errores: ${filterErrorsOnly ? 'ACTIVADO' : 'DESACTIVADO'}`]);
+    });
+    
+    // Botón de prueba del carrito
+    document.getElementById("testCartBtn").addEventListener("click", async () => {
+        printToDiv("CART", ["🔍 Probando funcionalidad del carrito..."]);
+        
+        // Verificar elementos del DOM
+        const elements = {
+            'floating-cart-btn': document.getElementById("floating-cart-btn"),
+            'cart-drawer': document.getElementById("cart-drawer"),
+            'cart-items-container': document.getElementById("cart-items-container"),
+            'close-cart-btn': document.getElementById("close-cart-btn"),
+            'cart-count': document.getElementById("cart-count")
+        };
+        
+        for (const [name, el] of Object.entries(elements)) {
+            if (!el) {
+                printToDiv("ERROR", [`❌ Elemento no encontrado: #${name}`]);
+            } else {
+                printToDiv("LOG", [`✅ Elemento encontrado: #${name}`]);
+            }
+        }
+        
+        // Verificar funciones
+        const functions = ['addToCart', 'openCartDrawer', 'closeCartDrawer', 'updateCartBadge'];
+        for (const fn of functions) {
+            if (typeof window[fn] === 'function') {
+                printToDiv("LOG", [`✅ Función disponible: ${fn}()`]);
+            } else {
+                printToDiv("ERROR", [`❌ Función no definida: ${fn}()`]);
+            }
+        }
+        
+        // Verificar localStorage
+        try {
+            const cart = localStorage.getItem("cart");
+            printToDiv("LOG", [`📦 Carrito en localStorage: ${cart || 'vacío'}`]);
+        } catch(e) {
+            printToDiv("ERROR", [`❌ Error accediendo localStorage: ${e.message}`]);
+        }
+        
+        // Intentar añadir un producto de prueba
+        const testProduct = {
+            ID: "TEST_001",
+            Nombre: "Producto de Prueba",
+            Precio: 100,
+            Imagen1: "",
+            Talla: "M"
+        };
+        
+        if (typeof window.addToCart === 'function') {
+            printToDiv("CART", ["🧪 Añadiendo producto de prueba..."]);
+            try {
+                window.addToCart(testProduct);
+                printToDiv("CART", ["✅ Producto añadido correctamente"]);
+            } catch(e) {
+                printToDiv("ERROR", [`❌ Error al añadir producto: ${e.message}\n${e.stack}`]);
+            }
+        } else {
+            printToDiv("ERROR", ["❌ addToCart() no está definida"]);
+        }
+        
+        printToDiv("CART", ["✅ Prueba completada"]);
+    });
+    
+    // Monitorear clicks en el botón del carrito
+    document.addEventListener('click', (e) => {
+        const cartBtn = document.getElementById("floating-cart-btn");
+        if (cartBtn && (e.target === cartBtn || cartBtn.contains(e.target))) {
+            printToDiv("CART", ["🖱️ Click detectado en botón del carrito"]);
+            
+            // Verificar si openCartDrawer existe
+            if (typeof window.openCartDrawer === 'function') {
+                printToDiv("LOG", ["📖 Ejecutando openCartDrawer()..."]);
+            } else {
+                printToDiv("ERROR", ["❌ openCartDrawer() no está definida"]);
+            }
+        }
+    });
+    
+    // Monitorear eventos del carrito
+    window.addEventListener('cartUpdated', (event) => {
+        printToDiv("CART", [`📢 Evento 'cartUpdated' recibido. Carrito:`, event.detail]);
+    });
+    
+    // Verificar errores de red
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+        return originalFetch.apply(this, args).catch(error => {
+            printToDiv("ERROR", [`🌐 Fetch falló: ${args[0]} - ${error.message}`]);
+            throw error;
+        });
+    };
+    
+    printToDiv("LOG", ["🚀 Consola de depuración mejorada activada"]);
+    printToDiv("LOG", ["💡 Haz clic en 'Test Carrito' para diagnosticar problemas"]);
 })();
 </script>
 
