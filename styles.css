@@ -1476,7 +1476,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .look-images-container {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
   padding: 4px;
   background: linear-gradient(135deg, #f8f9fa, #f0f0f5);
   border-radius: 16px 16px 0 0;
@@ -1537,8 +1537,8 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 
 /* MODO GRID - imágenes en FILA */
 .looks-grid.layout-grid .look-images-container {
-  flex-direction: row;
-  gap: 2px;
+  flex-direction: column;
+  gap: 0;
   padding: 2px;
 }
 
@@ -1556,7 +1556,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 .looks-grid.layout-grid .skeleton-image {
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 16 / 9;
 }
 
 /* Lista de productos SIN imagen */
