@@ -927,7 +927,6 @@ function startConnectionMonitor() {
   });
 }
 
-// Registrar Service Worker
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
     console.log('⚠️ Service Worker no soportado');
@@ -935,8 +934,8 @@ async function registerServiceWorker() {
   }
   
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/'
+    const registration = await navigator.serviceWorker.register('/ZNR/sw.js', {
+      scope: '/ZNR/'
     });
     console.log('✅ Service Worker registrado:', registration.scope);
     
