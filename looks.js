@@ -716,7 +716,6 @@ function createLookCardWithLazy(look) {
   let productCount = 0;
   let imagesHtml = '';
   const slotOrder = ["torso", "piernas", "pies"];
-  const slotLabels = { torso: '👕', piernas: '👖', pies: '👟' };
   const slotNames = { torso: 'Prenda superior', piernas: 'Prenda inferior', pies: 'Calzado' };
   
   for (const slotKey of slotOrder) {
@@ -730,7 +729,6 @@ function createLookCardWithLazy(look) {
     imagesHtml += `
       <div class="look-slot-image" data-slot="${slotKey}" onclick="openImageModal('${optimizeDriveUrl(product.image, 800)}')">
         <img class="look-slot-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
-        <span class="look-slot-label">${slotLabels[slotKey]}</span>
       </div>
     `;
     
