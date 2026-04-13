@@ -888,7 +888,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 .admin-main {
-  max-width: 1400px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 1.5rem;
   width: 100%;
@@ -924,7 +924,6 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   grid-template-columns: 80px 1fr 100px 100px 120px;
   gap: 12px;
   padding: 12px 16px;
-  background: #f5f5f8;
   border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 13px;
@@ -1236,7 +1235,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: white;
+  background: #ef4444;
   padding: 8px 16px;
   border-radius: 40px;
   cursor: pointer;
@@ -1261,7 +1260,6 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   flex-wrap: wrap;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  background: white;
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
