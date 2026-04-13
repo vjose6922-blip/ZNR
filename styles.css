@@ -1485,7 +1485,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 /* Cada imagen individual */
 .look-slot-image {
   position: relative;
-  max-height: 100px;
+  max-height: 120px;
   aspect-ratio: 16 / 9;
   background: #ffffff;
   border-radius: 12px;
@@ -1543,6 +1543,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 .looks-grid.layout-grid .look-slot-image {
+  max-width: 120px;
   aspect-ratio: 16 / 9;
 }
 
