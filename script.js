@@ -254,14 +254,7 @@ function renderPagination() {
   if (!pagination) return;
   pagination.innerHTML = "";
   if (totalPages <= 1) return;
-  
-  if (currentPage > 1) {
-    const prevBtn = document.createElement("button");
-    prevBtn.textContent = "← Anterior";
-    prevBtn.onclick = () => { currentPage--; renderProductsPage(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-    pagination.appendChild(prevBtn);
-  }
-  
+   
   for (let i = 1; i <= totalPages; i++) {
     const btn = document.createElement("button");
     btn.textContent = i;
