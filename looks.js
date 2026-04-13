@@ -716,6 +716,8 @@ function createLookCardWithLazy(look) {
   let productCount = 0;
   let imagesHtml = '';
   const slotOrder = ["torso", "piernas", "pies"];
+  const slotLabels = { torso: '👕', piernas: '👖', pies: '👟' };
+  const slotNames = { torso: 'Prenda superior', piernas: 'Prenda inferior', pies: 'Calzado' };
   
   for (const slotKey of slotOrder) {
     const product = look.products[slotKey];
@@ -724,18 +726,17 @@ function createLookCardWithLazy(look) {
     totalPrice += product.price;
     const productImgOptimized = optimizeDriveUrl(product.image, 150);
     
+    // Solo las imágenes superiores (sin duplicar abajo)
     imagesHtml += `
       <div class="look-slot-image" data-slot="${slotKey}" onclick="openImageModal('${optimizeDriveUrl(product.image, 800)}')">
         <img class="look-slot-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
-        <span class="look-slot-label">${slotKey === 'torso' ? '👕' : slotKey === 'piernas' ? '👖' : '👟'}</span>
+        <span class="look-slot-label">${slotLabels[slotKey]}</span>
       </div>
     `;
     
+    // Lista de productos SIN imagen (solo texto, precio, talla y botones)
     productsHtml += `
       <div class="look-product-item" data-slot="${slotKey}">
-        <div class="look-product-img-container">
-          <img class="look-product-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
-        </div>
         <div class="look-product-info">
           <div class="look-product-name">${escapeHtml(product.name)}</div>
           <div class="look-product-price">${formatCurrency(product.price)}</div>
@@ -1075,136 +1076,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 });
 
-const styles = `
-  .skeleton-card {
-    background: white;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  }
-  
-  .shimmer {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: shimmer-animation 1.5s ease-in-out infinite;
-  }
-  
-  @keyframes shimmer-animation {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-  
-  .skeleton-images-container {
-    display: flex;
-    gap: 4px;
-    padding: 4px;
-    background: #f5f5f8;
-  }
-  
-  .skeleton-image {
-    flex: 1;
-    aspect-ratio: 1 / 1;
-    background: #e0e0e0;
-    border-radius: 12px;
-  }
-  
-  .skeleton-category { width: 80px; height: 20px; border-radius: 12px; margin: 12px 16px 8px 16px; }
-  .skeleton-title { width: 70%; height: 24px; border-radius: 8px; margin: 0 16px 8px 16px; }
-  .skeleton-text { width: 90%; height: 16px; border-radius: 8px; margin: 0 16px 12px 16px; }
-  .skeleton-products { margin: 12px 16px; gap: 8px; }
-  .skeleton-product { height: 60px; border-radius: 12px; margin-bottom: 8px; }
-  .skeleton-button { height: 44px; margin: 12px 16px 16px 16px; border-radius: 30px; }
-  
-  .lazy { opacity: 0; transition: opacity 0.3s ease; }
-  .lazy.loaded { opacity: 1; }
-  .look-product-img-container { min-width: 80px; background: #f5f5f8; }
-  
-  .price-changed {
-    animation: pricePulse 0.3s ease-in-out;
-  }
-  
-  @keyframes pricePulse {
-    0% { transform: scale(1); color: #ff4f81; }
-    50% { transform: scale(1.1); color: #ff7a4f; }
-    100% { transform: scale(1); color: #ff4f81; }
-  }
-  
-  /* Nuevos estilos para imágenes superiores */
-  .look-images-container {
-    display: flex;
-    gap: 4px;
-    padding: 4px;
-    background: linear-gradient(135deg, #f8f9fa, #f0f0f5);
-    border-radius: 16px 16px 0 0;
-  }
-  
-  .look-slot-image {
-    flex: 1;
-    position: relative;
-    aspect-ratio: 1 / 1;
-    background: #ffffff;
-    border-radius: 12px;
-    overflow: hidden;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  }
-  
-  .look-slot-image:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  }
-  
-  .look-slot-img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    background: #ffffff;
-    transition: transform 0.2s ease;
-  }
-  
-  .look-slot-image:hover .look-slot-img {
-    transform: scale(1.02);
-  }
-  
-  .look-slot-label {
-    position: absolute;
-    bottom: 4px;
-    right: 4px;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(4px);
-    border-radius: 20px;
-    padding: 2px 6px;
-    font-size: 10px;
-    color: white;
-    font-weight: 500;
-  }
-  
-  .look-slot-image.empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f0f0f0;
-    color: #999;
-    font-size: 12px;
-  }
-  
-  /* Ajustes para modo grid */
-  .looks-grid.layout-grid .look-images-container {
-    flex-direction: column;
-    gap: 2px;
-    padding: 2px;
-  }
-  
-  .looks-grid.layout-grid .look-slot-image {
-    aspect-ratio: 16 / 9;
-  }
-  
-  .looks-grid.layout-grid .look-slot-label {
-    font-size: 8px;
-    padding: 1px 4px;
-  }
-`;
 
 const styleSheet = document.createElement("style");
 styleSheet.textContent = styles;
