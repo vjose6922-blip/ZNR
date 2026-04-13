@@ -412,36 +412,109 @@ function generateRequestId() {
 
 // ========== FUNCIONES DE TELÉFONO ==========
 function updateSavedPhoneDisplay() {
+  console.log("🔄 updateSavedPhoneDisplay() llamada");
+  
   const container = document.getElementById("saved-phone-container");
   const display = document.getElementById("saved-phone-display");
   const savedPhone = localStorage.getItem("client_phone");
+  
   if (container && display) {
     if (savedPhone && savedPhone.length === 10) {
       const formatted = `${savedPhone.slice(0,2)}-${savedPhone.slice(2,6)}-${savedPhone.slice(6)}`;
       display.textContent = formatted;
       container.style.display = "block";
-    } else { container.style.display = "none"; }
+      console.log("📱 Mostrando número:", formatted);
+    } else {
+      container.style.display = "none";
+      console.log("📱 No hay número guardado");
+    }
+  } else {
+    console.warn("⚠️ No se encontraron elementos para mostrar el número");
   }
 }
 
+// ========== FUNCIÓN PARA CAMBIAR NÚMERO DE TELÉFONO (CON MODALES PERSONALIZADOS) ==========
 async function changePhoneNumber() {
+  console.log("📱 changePhoneNumber() llamada - Usando modales personalizados");
+  
   const currentPhone = localStorage.getItem("client_phone") || "";
-  const formattedCurrent = currentPhone && currentPhone.length === 10 ? `${currentPhone.slice(0,2)}-${currentPhone.slice(2,6)}-${currentPhone.slice(6)}` : "no guardado";
-  const newPhone = await prompt(`Número actual: ${formattedCurrent}\n\nIngresa tu nuevo número (10 dígitos):\nEjemplo: 8671234567\n\n⚠️ Solo números, sin espacios ni código país.`, currentPhone || "");
-  if (newPhone === null) return;
+  const formattedCurrent = currentPhone && currentPhone.length === 10 
+    ? `${currentPhone.slice(0,2)}-${currentPhone.slice(2,6)}-${currentPhone.slice(6)}` 
+    : "no guardado";
+  
+  // Usar prompt personalizado
+  const newPhone = await new Promise((resolve) => {
+    showCustomPrompt({
+      title: "📱 Cambiar número de teléfono",
+      message: `Número actual: ${formattedCurrent}\n\nIngresa tu nuevo número (10 dígitos):\nEjemplo: 8671234567\n\n⚠️ Solo números, sin espacios ni código país.`,
+      icon: "📱",
+      defaultValue: currentPhone || "",
+      confirmText: "Guardar",
+      cancelText: "Cancelar",
+      onConfirm: (value) => resolve(value),
+      onCancel: () => resolve(null)
+    });
+  });
+  
+  if (newPhone === null) {
+    console.log("📱 Usuario canceló");
+    return;
+  }
+  
+  // Si el usuario dejó vacío, preguntar si quiere eliminar
   if (newPhone === "") {
-    if (await confirm("¿Eliminar tu número guardado? Deberás ingresarlo nuevamente en tu próxima compra.")) {
+    const confirmDelete = await new Promise((resolve) => {
+      showCustomConfirm({
+        title: "🗑️ Eliminar número",
+        message: "¿Eliminar tu número guardado? Deberás ingresarlo nuevamente en tu próxima compra.",
+        icon: "⚠️",
+        confirmText: "Sí, eliminar",
+        cancelText: "Cancelar",
+        onConfirm: () => resolve(true),
+        onCancel: () => resolve(false)
+      });
+    });
+    
+    if (confirmDelete) {
       localStorage.removeItem("client_phone");
       updateSavedPhoneDisplay();
-      await alert("📱 Número eliminado");
+      
+      showCustomAlert({
+        title: "Número eliminado",
+        message: "📱 Tu número ha sido eliminado correctamente.",
+        icon: "✅",
+        confirmText: "Aceptar"
+      });
     }
     return;
   }
+  
+  // Limpiar y validar el número
   let cleanPhone = newPhone.replace(/[^0-9]/g, '');
-  if (cleanPhone.length !== 10) { await alert("❌ Número inválido. Debe tener 10 dígitos."); return; }
+  if (cleanPhone.length !== 10) {
+    showCustomAlert({
+      title: "❌ Número inválido",
+      message: "El número debe tener exactamente 10 dígitos.\nEjemplo: 8671234567",
+      icon: "❌",
+      confirmText: "Entendido"
+    });
+    return;
+  }
+  
+  // Guardar el número
   localStorage.setItem("client_phone", cleanPhone);
   updateSavedPhoneDisplay();
-  await alert("✅ ¡Número actualizado correctamente!");
+  
+  // Mostrar éxito con modal personalizado
+  const formatted = `${cleanPhone.slice(0,2)}-${cleanPhone.slice(2,6)}-${cleanPhone.slice(6)}`;
+  showCustomAlert({
+    title: "✅ ¡Número actualizado!",
+    message: `Tu nuevo número es: ${formatted}\n\nSe usará para futuras compras.`,
+    icon: "📱",
+    confirmText: "Aceptar"
+  });
+  
+  console.log("📱 Número actualizado:", cleanPhone);
 }
 
 // ========== MODAL DE PRIVACIDAD ==========
@@ -579,7 +652,7 @@ function renderCart() {
   if (items.length === 0) {
     container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
   } else {
-    items.forEach((item, index) => {
+    items.forEach((item) => {
       const row = document.createElement("div");
       row.className = "cart-item";
       row.innerHTML = `
@@ -597,7 +670,7 @@ function renderCart() {
       container.appendChild(row);
     });
     
-    // Añadir event listeners después de crear los elementos
+    // Event listeners para botones del carrito
     document.querySelectorAll('.qty-btn[data-action="decrement"]').forEach(btn => {
       btn.removeEventListener('click', handleDecrement);
       btn.addEventListener('click', handleDecrement);
@@ -614,21 +687,55 @@ function renderCart() {
     });
   }
   
+  // Actualizar totales
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const subtotalEl = document.getElementById("cart-subtotal");
   const totalEl = document.getElementById("cart-total");
   
   if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
   if (totalEl) totalEl.textContent = formatCurrency(subtotal);
+  
+  // 🔴 IMPORTANTE: Reconectar el botón de cambiar teléfono CADA VEZ
+  setTimeout(() => {
+    const changePhoneBtn = document.getElementById('change-phone-btn');
+    if (changePhoneBtn) {
+      const newBtn = changePhoneBtn.cloneNode(true);
+      changePhoneBtn.parentNode.replaceChild(newBtn, changePhoneBtn);
+      
+      newBtn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("🖱️ Click en botón Cambiar número");
+        if (typeof window.changePhoneNumber === 'function') {
+          await window.changePhoneNumber();
+        } else if (typeof changePhoneNumber === 'function') {
+          await changePhoneNumber();
+        } else {
+          console.error("❌ changePhoneNumber no está definida");
+          showCustomAlert({
+            title: "Error",
+            message: "Función no disponible. Recarga la página.",
+            icon: "❌",
+            confirmText: "Aceptar"
+          });
+        }
+      });
+      
+      console.log("✅ Botón 'Cambiar número' reconectado");
+    }
+  }, 10);
+  
+  // Actualizar display del teléfono
+  updateSavedPhoneDisplay();
 }
 
-// Handlers separados para los botones del carrito
+// Handlers para los botones del carrito
 function handleDecrement(e) {
   e.stopPropagation();
   const id = e.currentTarget.getAttribute('data-id');
   if (id && typeof window.changeCartQty === 'function') {
     window.changeCartQty(id, -1);
-    renderCart(); // Re-renderizar después del cambio
+    renderCart();
   }
 }
 
@@ -637,7 +744,7 @@ function handleIncrement(e) {
   const id = e.currentTarget.getAttribute('data-id');
   if (id && typeof window.changeCartQty === 'function') {
     window.changeCartQty(id, 1);
-    renderCart(); // Re-renderizar después del cambio
+    renderCart();
   }
 }
 
@@ -646,7 +753,7 @@ function handleRemove(e) {
   const id = e.currentTarget.getAttribute('data-id');
   if (id && typeof window.removeFromCart === 'function') {
     window.removeFromCart(id);
-    renderCart(); // Re-renderizar después de eliminar
+    renderCart();
   }
 }
 
@@ -1046,7 +1153,26 @@ async function registerServiceWorker() {
   }
 }
 
-// Verificar si estamos en modo offline
+
+
+
+
+
+
+// ========== EXPORTAR FUNCIONES GLOBALMENTE ==========
+window.changePhoneNumber = changePhoneNumber;
+window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
+window.openCartDrawer = openCartDrawer;
+window.closeCartDrawer = closeCartDrawer;
+window.renderCart = renderCart;
+window.addToCart = addToCart;
+window.changeCartQty = changeCartQty;
+window.removeFromCart = removeFromCart;
+window.formatCurrency = formatCurrency;
+window.escapeHtml = escapeHtml;
+window.optimizeDriveUrl = optimizeDriveUrl;
+
+
 async function checkIfOfflineMode() {
   if (!('serviceWorker' in navigator)) return false;
   
@@ -1143,3 +1269,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
+
+
+
+
+
+
+
+
+
