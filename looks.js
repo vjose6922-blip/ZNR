@@ -789,17 +789,7 @@ function renderLooksPagination(totalPages) {
   const paginationDiv = document.createElement("div");
   paginationDiv.className = "looks-pagination admin-pagination";
   paginationDiv.style.cssText = "display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap;";
-  
-  if (currentLooksPage > 1) {
-    const prevBtn = createPaginationButton("← Anterior", () => {
-      currentLooksPage--;
-      renderLooks();
-      initLazyImagesAfterRender();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-    paginationDiv.appendChild(prevBtn);
-  }
-  
+   
   let startPage = Math.max(1, currentLooksPage - 2);
   let endPage = Math.min(totalPages, startPage + 4);
   if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
