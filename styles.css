@@ -470,8 +470,8 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 .looks-grid.layout-grid .look-product-img {
-  width: 70px;
-  height: 70px;
+  width: 120px;
+  height: 120px;
 }
 
 .looks-grid.layout-grid .look-product-info {
@@ -540,9 +540,6 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   gap: 2px;
 }
 
-/* Responsive para tablets */
-
-/* Responsive para desktop */
 @media (min-width: 1024px) {
   .looks-grid.layout-grid {
     grid-template-columns: repeat(3, 1fr) !important;
@@ -1537,14 +1534,24 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 
 /* MODO GRID - imágenes en FILA */
 .looks-grid.layout-grid .look-images-container {
+  display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 2px;
+  padding: 4px;
+  background: linear-gradient(135deg, #f8f9fa, #f0f0f5);
+  border-radius: 16px 16px 0 0;
 }
 
 .looks-grid.layout-grid .look-slot-image {
-  max-width: 120px;
+  position: relative;
+  max-height: 120px;
   aspect-ratio: 16 / 9;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .looks-grid.layout-grid .look-slot-label {
