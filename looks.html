@@ -111,5 +111,61 @@
       </div>
     </div>
   </footer>
+
+
+
+<div id="debugConsole" style="
+    background:#111;
+    color:#0f0;
+    padding:10px;
+    font-family:monospace;
+    height:200px;
+    overflow-y:auto;
+    border:1px solid #444;
+">
+<strong>Consola interna:</strong><br>
+</div>
+<script>
+(function() {
+    const div = document.getElementById("debugConsole");
+ 
+    function printToDiv(type, args) {
+        const msg = document.createElement("div");
+        msg.textContent = `[${type}] ` + Array.from(args).join(" ");
+        div.appendChild(msg);
+        div.scrollTop = div.scrollHeight;
+    }
+ 
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+ 
+    console.log = function() {
+        printToDiv("LOG", arguments);
+        originalLog.apply(console, arguments);
+    };
+ 
+    console.error = function() {
+        printToDiv("ERROR", arguments);
+        originalError.apply(console, arguments);
+    };
+ 
+    console.warn = function() {
+        printToDiv("WARN", arguments);
+        originalWarn.apply(console, arguments);
+    };
+ 
+    window.onerror = function(msg, url, line, col, error) {
+        printToDiv("UNCAUGHT", [msg + " (" + url + ":" + line + ")"]);
+    };
+})();
+</script>
+
+
+
+
+
+
+  
 </body>
 </html>
