@@ -1,7 +1,3 @@
-// ============================================
-// LOOKS.JS - VERSIÓN CON SKELETON + PROGRESIVA + UPDATE LOCAL
-// ============================================
-
 const WEATHER_API_URL = API_URL;
 const LOOKS_CACHE_KEY = 'zr_looks_generated_v2';
 
@@ -15,7 +11,6 @@ let isGeneratingLooks = false;
 let preloadedNextPage = null;
 let lazyImageObserver = null;
 
-// Guardar scroll position
 window.addEventListener('beforeunload', () => {
   sessionStorage.setItem('looks_scroll_position', window.scrollY);
 });
@@ -129,7 +124,6 @@ const LOOKS_CONFIG = [
     ] }
 ];
 
-// ========== 1. SKELETON LOADING ==========
 function showSkeletonLooks() {
   const container = document.getElementById("looks-container");
   if (!container) return;
@@ -173,7 +167,6 @@ function hideSkeletonLooks() {
   });
 }
 
-// ========== 2. LAZY LOADING PARA IMÁGENES ==========
 function initLazyLoading() {
   if ('IntersectionObserver' in window) {
     lazyImageObserver = new IntersectionObserver((entries) => {
@@ -207,7 +200,6 @@ function initLazyImagesAfterRender() {
   }
 }
 
-// ========== 3. CACHÉ DE LOOKS COMPRIMIDO ==========
 function compressLooksData(looks) {
   return looks.map(look => ({
     id: look.id,
@@ -298,7 +290,6 @@ function getProductsQuickHash() {
   return allProducts.slice(0, 100).map(p => `${p.ID}:${p.Stock}`).join('|');
 }
 
-// ========== 4. FUNCIONES DE CLIMA ==========
 async function getWeather() {
   try {
     const response = await fetch(`${WEATHER_API_URL}?action=getWeather`);
@@ -370,7 +361,6 @@ function sortLooksByWeather(looksArray) {
   return [...looksArray].sort((a, b) => (priorityScores[b.id?.toLowerCase()] || 0) - (priorityScores[a.id?.toLowerCase()] || 0));
 }
 
-// ========== 5. FUNCIONES DE PRODUCTOS PARA LOOKS ==========
 function matchesProductCriteria(product, categories, keywords, excludeKeywords = []) {
   if (!product) return false;
   const productCategory = (product.Categoria || "").toLowerCase();
@@ -452,7 +442,6 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   return selected;
 }
 
-// ========== 6. GENERACIÓN PROGRESIVA DE LOOKS ==========
 async function generateLooksProgressive() {
   return new Promise((resolve) => {
     const startTime = performance.now();
@@ -516,7 +505,6 @@ async function generateLooksProgressive() {
   });
 }
 
-// ========== 7. PRECARGA DE PÁGINAS (PREFETCH) ==========
 function preloadAdjacentPages() {
   const totalPages = Math.ceil(allLooks.length / looksPerPage);
   
@@ -570,7 +558,6 @@ function preloadLooksPage(pageNumber) {
   }
 }
 
-// ========== 8. CARGA PRINCIPAL ==========
 async function loadProducts() {
   showSkeletonLooks();
   
@@ -690,7 +677,6 @@ async function loadFreshProductsInBackground() {
   }
 }
 
-// ========== 9. RENDERIZADO OPTIMIZADO ==========
 function renderLooks() {
   const container = document.getElementById("looks-container");
   if (!container) return;
@@ -738,7 +724,6 @@ function createLookCardWithLazy(look) {
     totalPrice += product.price;
     const productImgOptimized = optimizeDriveUrl(product.image, 150);
     
-    // Imagen pequeña para la parte superior
     imagesHtml += `
       <div class="look-slot-image" data-slot="${slotKey}" onclick="openImageModal('${optimizeDriveUrl(product.image, 800)}')">
         <img class="look-slot-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
@@ -746,7 +731,6 @@ function createLookCardWithLazy(look) {
       </div>
     `;
     
-    // Producto en la lista inferior
     productsHtml += `
       <div class="look-product-item" data-slot="${slotKey}">
         <div class="look-product-img-container">
@@ -865,7 +849,6 @@ function createPaginationButton(text, onClick) {
   return btn;
 }
 
-// ========== 10. ACTUALIZACIÓN LOCAL (sin recargar toda la página) ==========
 window.reloadSlot = async function(lookId, slotType, event) {
   if (event) event.stopPropagation();
   
@@ -926,20 +909,15 @@ window.reloadSlot = async function(lookId, slotType, event) {
     size: newProduct.Talla ? "Talla: " + newProduct.Talla : "Talla no especificada"
   };
   
-  // Calcular diferencia de precio
   const oldPrice = look.products[slotType]?.price || 0;
   const priceDifference = updatedProduct.price - oldPrice;
   
-  // Actualizar en memoria
   look.products[slotType] = updatedProduct;
   
   looks[lookIndex] = { ...look };
   allLooks = [...looks];
   saveLooksToCacheOptimized(allLooks);
-  
-  // Actualizar SOLO el elemento modificado en el DOM
   updateSingleLookInDOM(look, lookIndex, slotType, updatedProduct, priceDifference);
-  
   showTemporaryMessage(`✨ Prenda actualizada: ${updatedProduct.name}`, "info");
 };
 
@@ -960,7 +938,6 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
     return;
   }
   
-  // Actualizar imagen superior del slot cambiado
   const slotImageContainer = targetCard.querySelector(`.look-slot-image[data-slot="${changedSlotType}"]`);
   if (slotImageContainer) {
     const slotImg = slotImageContainer.querySelector('.look-slot-img');
@@ -979,7 +956,6 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
     slotImageContainer.setAttribute('onclick', `openImageModal('${optimizeDriveUrl(newProduct.image, 800)}')`);
   }
   
-  // Actualizar producto en la lista inferior
   const productItems = targetCard.querySelectorAll('.look-product-item');
   let targetProductItem = null;
   const slotOrder = ["torso", "piernas", "pies"];
@@ -1007,7 +983,6 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
     oldTotalPrice = parseFloat(totalPriceEl.textContent.replace(/[^0-9.-]/g, '')) || 0;
   }
   
-  // Actualizar imagen del producto
   const productImg = targetProductItem.querySelector('.look-product-img');
   const newImageUrl = optimizeDriveUrl(newProduct.image, 150);
   if (productImg) {
@@ -1022,11 +997,9 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
     productImg.setAttribute('data-src', newImageUrl);
   }
   
-  // Actualizar nombre
   const productNameEl = targetProductItem.querySelector('.look-product-name');
   if (productNameEl) productNameEl.textContent = escapeHtml(newProduct.name);
   
-  // Actualizar precio con animación
   const productPriceEl = targetProductItem.querySelector('.look-product-price');
   if (productPriceEl) {
     productPriceEl.textContent = formatCurrency(newProduct.price);
@@ -1034,18 +1007,15 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
     setTimeout(() => productPriceEl.classList.remove('price-changed'), 300);
   }
   
-  // Actualizar talla
   const productSizeEl = targetProductItem.querySelector('.look-product-size');
   if (productSizeEl) productSizeEl.textContent = escapeHtml(newProduct.size || 'Talla no especificada');
   
-  // Actualizar botón Agregar
   const addBtn = targetProductItem.querySelector('.look-product-add');
   if (addBtn) {
     const newOnClick = `addToCart({ID:'${newProduct.id}', Nombre:'${escapeHtml(newProduct.name)}', Precio:${newProduct.price}, Imagen1:'${newProduct.image}', Talla:'${escapeHtml(newProduct.size || '')}'})`;
     addBtn.setAttribute('onclick', newOnClick);
   }
   
-  // Actualizar precio total
   if (totalPriceEl) {
     const newTotalPrice = oldTotalPrice + priceDifference;
     totalPriceEl.textContent = formatCurrency(newTotalPrice);
@@ -1053,7 +1023,6 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
     setTimeout(() => totalPriceEl.classList.remove('price-changed'), 300);
   }
   
-  // Actualizar botón comprar todo
   const buyBtn = targetCard.querySelector('.buy-look-btn');
   if (buyBtn) buyBtn.setAttribute('onclick', `addLookToCart('${look.id}')`);
 }
@@ -1086,7 +1055,6 @@ function initLooksLayoutToggle() {
   });
 }
 
-// ========== 11. INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
   initLazyLoading();
   loadProducts();
@@ -1107,7 +1075,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 });
 
-// ========== 12. CSS ==========
 const styles = `
   .skeleton-card {
     background: white;
