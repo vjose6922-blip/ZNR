@@ -140,7 +140,11 @@ function showSkeletonLooks() {
   for (let i = 0; i < skeletonCount; i++) {
     skeletonCards.push(`
       <div class="look-card skeleton-card">
-        <div class="skeleton-image shimmer"></div>
+        <div class="skeleton-images-container">
+          <div class="skeleton-image torso shimmer"></div>
+          <div class="skeleton-image piernas shimmer"></div>
+          <div class="skeleton-image pies shimmer"></div>
+        </div>
         <div class="look-info">
           <div class="skeleton-category shimmer"></div>
           <div class="skeleton-title shimmer"></div>
@@ -210,7 +214,6 @@ function compressLooksData(looks) {
     name: look.name,
     description: look.description,
     category: look.category,
-    image: look.image,
     productCount: look.productCount,
     products: Object.entries(look.products).reduce((acc, [key, product]) => {
       if (product) {
@@ -471,18 +474,11 @@ async function generateLooksProgressive() {
         const productCount = Object.keys(selectedProducts).length;
         
         if (productCount > 0) {
-          const firstProductKey = Object.keys(selectedProducts)[0];
-          let lookImage = "https://placehold.co/600x800/3b1f5f/ffffff?text=Z&R";
-          if (selectedProducts[firstProductKey] && selectedProducts[firstProductKey].image) {
-            lookImage = optimizeDriveUrl(selectedProducts[firstProductKey].image, 500);
-          }
-          
           allBuiltLooks.push({
             id: config.id.toLowerCase(),
             name: config.name,
             description: config.description,
             category: config.category,
-            image: lookImage,
             products: selectedProducts,
             config: config,
             productCount: productCount
@@ -545,14 +541,6 @@ function preloadLooksPage(pageNumber) {
   if (window.requestIdleCallback) {
     requestIdleCallback(() => {
       pageLooks.forEach(look => {
-        if (look.image) {
-          const link = document.createElement('link');
-          link.rel = 'preload';
-          link.as = 'image';
-          link.href = look.image;
-          document.head.appendChild(link);
-        }
-        
         Object.values(look.products).forEach(product => {
           if (product?.image) {
             const imgLink = document.createElement('link');
@@ -570,10 +558,12 @@ function preloadLooksPage(pageNumber) {
   } else {
     setTimeout(() => {
       pageLooks.forEach(look => {
-        if (look.image) {
-          const img = new Image();
-          img.src = look.image;
-        }
+        Object.values(look.products).forEach(product => {
+          if (product?.image) {
+            const img = new Image();
+            img.src = product.image;
+          }
+        });
       });
       preloadedNextPage = pageNumber;
     }, 100);
@@ -738,6 +728,7 @@ function createLookCardWithLazy(look) {
   let totalPrice = 0;
   let productsHtml = '';
   let productCount = 0;
+  let imagesHtml = '';
   const slotOrder = ["torso", "piernas", "pies"];
   
   for (const slotKey of slotOrder) {
@@ -747,6 +738,15 @@ function createLookCardWithLazy(look) {
     totalPrice += product.price;
     const productImgOptimized = optimizeDriveUrl(product.image, 150);
     
+    // Imagen pequeña para la parte superior
+    imagesHtml += `
+      <div class="look-slot-image" data-slot="${slotKey}" onclick="openImageModal('${optimizeDriveUrl(product.image, 800)}')">
+        <img class="look-slot-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
+        <span class="look-slot-label">${slotKey === 'torso' ? '👕' : slotKey === 'piernas' ? '👖' : '👟'}</span>
+      </div>
+    `;
+    
+    // Producto en la lista inferior
     productsHtml += `
       <div class="look-product-item" data-slot="${slotKey}">
         <div class="look-product-img-container">
@@ -769,11 +769,10 @@ function createLookCardWithLazy(look) {
   
   const card = document.createElement("div");
   card.className = "look-card";
-  const mainImageOptimized = optimizeDriveUrl(look.image, 500);
   
   card.innerHTML = `
-    <div class="look-image-container" onclick="openImageModal('${optimizeDriveUrl(look.image, 800)}')">
-      <img class="look-image lazy" data-src="${mainImageOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 3'%3E%3C/svg%3E" alt="${escapeHtml(look.name)}">
+    <div class="look-images-container">
+      ${imagesHtml || '<div class="look-slot-image empty">Sin imágenes</div>'}
     </div>
     <div class="look-info">
       <div class="look-header">
@@ -933,9 +932,6 @@ window.reloadSlot = async function(lookId, slotType, event) {
   
   // Actualizar en memoria
   look.products[slotType] = updatedProduct;
-  if (slotType === "torso" && updatedProduct.image) {
-    look.image = optimizeDriveUrl(updatedProduct.image, 500);
-  }
   
   looks[lookIndex] = { ...look };
   allLooks = [...looks];
@@ -964,6 +960,26 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
     return;
   }
   
+  // Actualizar imagen superior del slot cambiado
+  const slotImageContainer = targetCard.querySelector(`.look-slot-image[data-slot="${changedSlotType}"]`);
+  if (slotImageContainer) {
+    const slotImg = slotImageContainer.querySelector('.look-slot-img');
+    const newImageUrl = optimizeDriveUrl(newProduct.image, 150);
+    if (slotImg) {
+      slotImg.style.opacity = '0.5';
+      const newImg = new Image();
+      newImg.onload = () => {
+        slotImg.src = newImageUrl;
+        slotImg.style.opacity = '1';
+        slotImg.classList.add('loaded');
+      };
+      newImg.src = newImageUrl;
+      slotImg.setAttribute('data-src', newImageUrl);
+    }
+    slotImageContainer.setAttribute('onclick', `openImageModal('${optimizeDriveUrl(newProduct.image, 800)}')`);
+  }
+  
+  // Actualizar producto en la lista inferior
   const productItems = targetCard.querySelectorAll('.look-product-item');
   let targetProductItem = null;
   const slotOrder = ["torso", "piernas", "pies"];
@@ -991,7 +1007,7 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
     oldTotalPrice = parseFloat(totalPriceEl.textContent.replace(/[^0-9.-]/g, '')) || 0;
   }
   
-  // Actualizar imagen
+  // Actualizar imagen del producto
   const productImg = targetProductItem.querySelector('.look-product-img');
   const newImageUrl = optimizeDriveUrl(newProduct.image, 150);
   if (productImg) {
@@ -1035,27 +1051,6 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
     totalPriceEl.textContent = formatCurrency(newTotalPrice);
     totalPriceEl.classList.add('price-changed');
     setTimeout(() => totalPriceEl.classList.remove('price-changed'), 300);
-  }
-  
-  // Actualizar imagen principal si cambió torso
-  if (changedSlotType === "torso") {
-    const mainImage = targetCard.querySelector('.look-image');
-    if (mainImage) {
-      const newMainImageUrl = optimizeDriveUrl(newProduct.image, 500);
-      mainImage.style.opacity = '0.5';
-      const newImg = new Image();
-      newImg.onload = () => {
-        mainImage.src = newMainImageUrl;
-        mainImage.style.opacity = '1';
-      };
-      newImg.src = newMainImageUrl;
-      mainImage.setAttribute('data-src', newMainImageUrl);
-      
-      const imageContainer = targetCard.querySelector('.look-image-container');
-      if (imageContainer) {
-        imageContainer.setAttribute('onclick', `openImageModal('${optimizeDriveUrl(newProduct.image, 800)}')`);
-      }
-    }
   }
   
   // Actualizar botón comprar todo
@@ -1132,7 +1127,20 @@ const styles = `
     100% { background-position: -200% 0; }
   }
   
-  .skeleton-image { width: 100%; height: 260px; background: #e0e0e0; }
+  .skeleton-images-container {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: #f5f5f8;
+  }
+  
+  .skeleton-image {
+    flex: 1;
+    aspect-ratio: 1 / 1;
+    background: #e0e0e0;
+    border-radius: 12px;
+  }
+  
   .skeleton-category { width: 80px; height: 20px; border-radius: 12px; margin: 12px 16px 8px 16px; }
   .skeleton-title { width: 70%; height: 24px; border-radius: 8px; margin: 0 16px 8px 16px; }
   .skeleton-text { width: 90%; height: 16px; border-radius: 8px; margin: 0 16px 12px 16px; }
@@ -1152,6 +1160,82 @@ const styles = `
     0% { transform: scale(1); color: #ff4f81; }
     50% { transform: scale(1.1); color: #ff7a4f; }
     100% { transform: scale(1); color: #ff4f81; }
+  }
+  
+  /* Nuevos estilos para imágenes superiores */
+  .look-images-container {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: linear-gradient(135deg, #f8f9fa, #f0f0f5);
+    border-radius: 16px 16px 0 0;
+  }
+  
+  .look-slot-image {
+    flex: 1;
+    position: relative;
+    aspect-ratio: 1 / 1;
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  
+  .look-slot-image:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  
+  .look-slot-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #ffffff;
+    transition: transform 0.2s ease;
+  }
+  
+  .look-slot-image:hover .look-slot-img {
+    transform: scale(1.02);
+  }
+  
+  .look-slot-label {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    border-radius: 20px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: white;
+    font-weight: 500;
+  }
+  
+  .look-slot-image.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    color: #999;
+    font-size: 12px;
+  }
+  
+  /* Ajustes para modo grid */
+  .looks-grid.layout-grid .look-images-container {
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px;
+  }
+  
+  .looks-grid.layout-grid .look-slot-image {
+    aspect-ratio: 16 / 9;
+  }
+  
+  .looks-grid.layout-grid .look-slot-label {
+    font-size: 8px;
+    padding: 1px 4px;
   }
 `;
 
