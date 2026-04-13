@@ -526,13 +526,57 @@ window.removeFromCart = function(id) {
   if (localCart[id]) { delete localCart[id]; saveCartToStorage(); updateCartBadge(); window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart })); }
 };
 
-// ========== FUNCIONES DE CARRITO DRAWER ==========
 function openCartDrawer() {
+  console.log("🔍 [CARRITO] Abriendo carrito...");
+  
   const drawer = document.getElementById("cart-drawer");
   const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.add("open");
-  if (overlay) overlay.classList.add("visible");
-  updateSavedPhoneDisplay();
+  
+  console.log("📦 [CARRITO] drawer encontrado?", drawer ? "SÍ ✅" : "NO ❌");
+  console.log("📦 [CARRITO] overlay encontrado?", overlay ? "SÍ ✅" : "NO ❌");
+  
+  if (!drawer) {
+    console.error("❌ [CARRITO] No existe el elemento #cart-drawer en el DOM");
+    return;
+  }
+  
+  if (!overlay) {
+    console.error("❌ [CARRITO] No existe el elemento #overlay en el DOM");
+    return;
+  }
+  
+  console.log("➕ [CARRITO] Añadiendo clase 'open' al drawer");
+  drawer.classList.add("open");
+  
+  console.log("➕ [CARRITO] Añadiendo clase 'visible' al overlay");
+  overlay.classList.add("visible");
+  
+  console.log("📋 [CARRITO] Clases del drawer después:", drawer.className);
+  console.log("📋 [CARRITO] Clases del overlay después:", overlay.className);
+  
+  console.log("🔄 [CARRITO] Llamando a renderCart()...");
+  if (typeof renderCart === 'function') {
+    renderCart();
+    console.log("✅ [CARRITO] renderCart() ejecutado");
+  } else {
+    console.error("❌ [CARRITO] renderCart() NO está definida como función");
+  }
+  
+  console.log("📞 [CARRITO] Llamando a updateSavedPhoneDisplay()...");
+  if (typeof updateSavedPhoneDisplay === 'function') {
+    updateSavedPhoneDisplay();
+    console.log("✅ [CARRITO] updateSavedPhoneDisplay() ejecutado");
+  } else {
+    console.warn("⚠️ [CARRITO] updateSavedPhoneDisplay() NO está definida");
+  }
+  
+  // Verificar si el drawer es visualmente visible
+  const drawerStyle = window.getComputedStyle(drawer);
+  console.log("📐 [CARRITO] Drawer transform:", drawerStyle.transform);
+  console.log("📐 [CARRITO] Drawer visibility:", drawerStyle.visibility);
+  console.log("📐 [CARRITO] Drawer display:", drawerStyle.display);
+  
+  console.log("✅ [CARRITO] openCartDrawer() completada");
 }
 
 function closeCartDrawer() {
