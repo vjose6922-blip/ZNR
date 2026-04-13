@@ -587,14 +587,26 @@ function closeCartDrawer() {
 }
 
 function renderCart() {
+  console.log("🔄 [RENDER] renderCart() iniciada");
+  
   const container = document.getElementById("cart-items-container");
-  if (!container) return;
+  console.log("📦 [RENDER] container encontrado?", container ? "SÍ ✅" : "NO ❌");
+  
+  if (!container) {
+    console.error("❌ [RENDER] No existe #cart-items-container");
+    return;
+  }
+  
   container.innerHTML = "";
   const items = Object.values(localCart);
+  console.log(`📊 [RENDER] Items en carrito: ${items.length}`);
+  
   if (items.length === 0) {
     container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
+    console.log("✅ [RENDER] Carrito vacío renderizado");
   } else {
-    items.forEach((item) => {
+    items.forEach((item, index) => {
+      console.log(`  [RENDER] Item ${index + 1}: ${item.name} - Cantidad: ${item.quantity} - Precio: $${item.price}`);
       const row = document.createElement("div");
       row.className = "cart-item";
       row.innerHTML = `
@@ -611,12 +623,30 @@ function renderCart() {
       `;
       container.appendChild(row);
     });
+    console.log("✅ [RENDER] Items renderizados correctamente");
   }
+  
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const subtotalEl = document.getElementById("cart-subtotal");
   const totalEl = document.getElementById("cart-total");
-  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
+  
+  console.log(`💰 [RENDER] Subtotal calculado: $${subtotal}`);
+  
+  if (subtotalEl) {
+    subtotalEl.textContent = formatCurrency(subtotal);
+    console.log("✅ [RENDER] #cart-subtotal actualizado");
+  } else {
+    console.error("❌ [RENDER] No se encontró #cart-subtotal");
+  }
+  
+  if (totalEl) {
+    totalEl.textContent = formatCurrency(subtotal);
+    console.log("✅ [RENDER] #cart-total actualizado");
+  } else {
+    console.error("❌ [RENDER] No se encontró #cart-total");
+  }
+  
+  console.log("✅ [RENDER] renderCart() completada");
 }
 
 // ========== FUNCIONES DE MODAL IMAGEN ==========
