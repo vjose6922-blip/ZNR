@@ -101,43 +101,36 @@ navigator.serviceWorker.register('/ZNR/sw.js')
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando página...');
+    console.log('🚀 Inicializando página con modales personalizados...');
     
-    // Asegurar que las funciones estén disponibles globalmente
-    window.renderCart = renderCart;
+    // Asegurar que todas las funciones estén disponibles globalmente
+    window.changePhoneNumber = changePhoneNumber;
+    window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
     window.openCartDrawer = openCartDrawer;
     window.closeCartDrawer = closeCartDrawer;
-    window.changeCartQty = changeCartQty;
-    window.removeFromCart = removeFromCart;
+    window.renderCart = renderCart;
     window.addToCart = addToCart;
     
     // Configurar botón del carrito
     const floatingCartBtn = document.getElementById('floating-cart-btn');
     if (floatingCartBtn) {
-        // Remover eventos anteriores
         const newBtn = floatingCartBtn.cloneNode(true);
         floatingCartBtn.parentNode.replaceChild(newBtn, floatingCartBtn);
-        
-        newBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🛒 Abriendo carrito...');
+        newBtn.addEventListener('click', () => {
+            console.log('🛒 Abriendo carrito');
             if (typeof window.openCartDrawer === 'function') {
                 window.openCartDrawer();
-            } else {
-                console.error('❌ openCartDrawer no está definida');
             }
         });
     }
     
-    // Configurar botón de cerrar carrito
+    // Configurar botón cerrar carrito
     const closeCartBtn = document.getElementById('close-cart-btn');
     if (closeCartBtn) {
-        const newCloseBtn = closeCartBtn.cloneNode(true);
-        closeCartBtn.parentNode.replaceChild(newCloseBtn, closeCartBtn);
-        
-        newCloseBtn.addEventListener('click', function() {
-            console.log('❌ Cerrando carrito...');
+        const newBtn = closeCartBtn.cloneNode(true);
+        closeCartBtn.parentNode.replaceChild(newBtn, closeCartBtn);
+        newBtn.addEventListener('click', () => {
+            console.log('❌ Cerrando carrito');
             if (typeof window.closeCartDrawer === 'function') {
                 window.closeCartDrawer();
             }
@@ -149,8 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (overlay) {
         const newOverlay = overlay.cloneNode(true);
         overlay.parentNode.replaceChild(newOverlay, overlay);
-        
-        newOverlay.addEventListener('click', function() {
+        newOverlay.addEventListener('click', () => {
             if (typeof window.closeCartDrawer === 'function') {
                 window.closeCartDrawer();
             }
@@ -160,39 +152,27 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Configurar botón de solicitar compra
-    const requestBtn = document.getElementById('request-purchase-btn');
-    if (requestBtn) {
-        const newRequestBtn = requestBtn.cloneNode(true);
-        requestBtn.parentNode.replaceChild(newRequestBtn, requestBtn);
-        
-        newRequestBtn.addEventListener('click', function() {
-            if (typeof window.openWhatsAppCheckout === 'function') {
-                window.openWhatsAppCheckout();
-            } else if (typeof openWhatsAppCheckout === 'function') {
-                openWhatsAppCheckout();
-            } else {
-                console.error('❌ openWhatsAppCheckout no está definida');
-            }
-        });
-    }
-    
     // Inicializar carrito
     if (typeof loadCartFromStorage === 'function') {
         loadCartFromStorage();
     }
     
-    // Renderizar carrito inicialmente (aunque esté cerrado)
+    // Renderizar carrito
     if (typeof renderCart === 'function') {
         renderCart();
     }
     
-    console.log('✅ Inicialización completada');
+    // Actualizar display del teléfono
+    if (typeof updateSavedPhoneDisplay === 'function') {
+        updateSavedPhoneDisplay();
+    }
+    
+    console.log('✅ Inicialización completada con modales personalizados');
 });
 
-// Escuchar eventos de actualización del carrito
+// Escuchar actualizaciones del carrito
 window.addEventListener('cartUpdated', function() {
-    console.log('📦 Carrito actualizado, re-renderizando...');
+    console.log('📦 Carrito actualizado');
     if (typeof renderCart === 'function') {
         renderCart();
     }
