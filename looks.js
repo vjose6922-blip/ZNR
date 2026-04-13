@@ -92,7 +92,7 @@ const LOOKS_CONFIG = [
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants", "pantalon"], excludeKeywords: ["vestir", "formal", "short"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacón"], required: true }
     ] },
-  { id: "look_casual_caballero", name: "👔 Casual Hombre", description: "Para el día a día", category: "Hombre",
+  { id: "look_casual_caballero", name: "👔 Casual ", description: "Para el día a día", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: [], excludeKeywords: ["vestir", "formal", "camisa"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "short"], required: true },
@@ -741,10 +741,8 @@ function createLookCardWithLazy(look) {
           <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
         </div>
         <div class="look-product-actions">
-          <button class="look-product-add" onclick="addToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">
-            + Agregar
-          </button>
-          <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">⟳ Cambiar</button>
+          <button class="look-product-add" onclick="addToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">🛒</button>
+          <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">⟳</button>
         </div>
       </div>
     `;
