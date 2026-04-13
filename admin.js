@@ -1,3 +1,7 @@
+// ============================================
+// admin.js - Panel de Administración Z&R
+// ============================================
+
 const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
 let adminSession = null;
@@ -5,10 +9,10 @@ let adminProducts = [];
 let adminCurrentPage = 1;
 let adminFilteredProducts = [];
 let adminProductsPerPage = 10;
-// Agrega esta función al inicio de admin.js, después de las variables globales
+let lastNotifCount = 0;
+let notificationInterval = null;
 
-
-
+// ========== FUNCIONES DE API ==========
 async function apiRequest(method, body) {
   try {
     let url = ADMIN_API_URL;
@@ -33,34 +37,72 @@ async function apiRequest(method, body) {
   }
 }
 
+// ========== AUTENTICACIÓN ==========
 async function handleAdminLogin(e) {
   e.preventDefault();
   const password = document.getElementById("admin-password").value;
   const token = document.getElementById("admin-token").value;
+  
+  showLoader("Verificando credenciales...");
+  
   try {
     const data = await apiRequest("POST", { action: "login", password, token });
     if (!data || !data.ok) {
-      alert("Credenciales incorrectas");
+      await showCustomAlert({
+        title: "❌ Acceso denegado",
+        message: "Credenciales incorrectas. Verifica tu contraseña y token.",
+        icon: "🔒",
+        confirmText: "Intentar nuevamente"
+      });
       return;
     }
+    
     adminSession = data.session || "ok";
     document.getElementById("admin-login-view").hidden = true;
     document.getElementById("admin-panel-view").hidden = false;
+    
+    await showCustomAlert({
+      title: "✅ Bienvenido",
+      message: "Has iniciado sesión correctamente en el panel de administración.",
+      icon: "🎉",
+      confirmText: "Continuar"
+    });
+    
     loadAdminProducts();
+    startNotificationMonitoring();
+    
   } catch (err) {
     console.error(err);
-    alert("Error al iniciar sesión");
+    await showCustomAlert({
+      title: "❌ Error",
+      message: "Error al iniciar sesión. Intenta nuevamente.",
+      icon: "⚠️",
+      confirmText: "Aceptar"
+    });
+  } finally {
+    hideLoader();
   }
 }
 
 function handleAdminLogout() {
+  stopNotificationMonitoring();
   adminSession = null;
   document.getElementById("admin-login-view").hidden = false;
   document.getElementById("admin-panel-view").hidden = true;
   document.getElementById("admin-login-form").reset();
+  
+  showCustomAlert({
+    title: "👋 Sesión cerrada",
+    message: "Has cerrado sesión correctamente.",
+    icon: "✅",
+    confirmText: "Aceptar"
+  });
 }
 
+// ========== GESTIÓN DE PRODUCTOS ==========
 async function loadAdminProducts() {
+  showLoader("Cargando productos...");
+  
   try {
     const data = await apiRequest("GET");
     adminProducts = data.products || data || [];
@@ -70,7 +112,14 @@ async function loadAdminProducts() {
     renderAdminProductsWithFilters();
   } catch (err) {
     console.error(err);
-    alert("Error al cargar productos");
+    await showCustomAlert({
+      title: "❌ Error",
+      message: "Error al cargar productos. Verifica tu conexión.",
+      icon: "⚠️",
+      confirmText: "Aceptar"
+    });
+  } finally {
+    hideLoader();
   }
 }
 
@@ -107,7 +156,7 @@ function renderAdminProductsList(products) {
   
   list.innerHTML = "";
   if (!products || products.length === 0) {
-    list.innerHTML = '<p class="helper-text" style="text-align:center; padding:40px;">No hay productos que coincidan con los filtros.</p>';
+    list.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">📭 No hay productos que coincidan con los filtros.</div>';
     return;
   }
   
@@ -115,16 +164,27 @@ function renderAdminProductsList(products) {
     const row = document.createElement("div");
     row.className = "admin-product-row";
     const stock = Number(p.Stock || 0);
-    const stockClass = stock === 0 ? "out-stock" : (stock <= 5 ? "low-stock" : "");
+    let stockClass = "";
+    let stockText = "";
+    
+    if (stock === 0) {
+      stockClass = "out-stock";
+      stockText = "❌ Sin stock";
+    } else if (stock <= 5) {
+      stockClass = "low-stock";
+      stockText = `⚠️ ${stock} unidades`;
+    } else {
+      stockText = `✅ ${stock} unidades`;
+    }
     
     row.innerHTML = `
-      <div class="admin-product-id">${p.ID || "N/A"}</div>
+      <div class="admin-product-id">#${p.ID || "N/A"}</div>
       <div class="admin-product-name">${escapeHtml(p.Nombre || "Sin nombre")}</div>
       <div class="admin-product-price">${formatCurrency(p.Precio)}</div>
-      <div class="admin-product-stock ${stockClass}">${stock}</div>
+      <div class="admin-product-stock ${stockClass}">${stockText}</div>
       <div class="admin-product-actions">
-        <button class="text-button edit-product-btn" data-id="${p.ID}">✏️ Editar</button>
-        <button class="text-button delete-product-btn" data-id="${p.ID}" style="color:#d32f2f;">🗑️ Eliminar</button>
+        <button class="edit-product-btn" data-id="${p.ID}">✏️ Editar</button>
+        <button class="delete-product-btn" data-id="${p.ID}">🗑️ Eliminar</button>
       </div>
     `;
     list.appendChild(row);
@@ -155,7 +215,7 @@ function renderAdminPagination(totalPages) {
   if (adminCurrentPage > 1) {
     const prevBtn = document.createElement("button");
     prevBtn.textContent = "← Anterior";
-    prevBtn.onclick = () => { adminCurrentPage--; renderAdminProductsWithFilters(); };
+    prevBtn.onclick = () => { adminCurrentPage--; renderAdminProductsWithFilters(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     pagination.appendChild(prevBtn);
   }
   
@@ -167,14 +227,14 @@ function renderAdminPagination(totalPages) {
     const btn = document.createElement("button");
     btn.textContent = i;
     if (i === adminCurrentPage) btn.classList.add("active-page");
-    btn.onclick = () => { adminCurrentPage = i; renderAdminProductsWithFilters(); };
+    btn.onclick = () => { adminCurrentPage = i; renderAdminProductsWithFilters(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     pagination.appendChild(btn);
   }
   
   if (adminCurrentPage < totalPages) {
     const nextBtn = document.createElement("button");
     nextBtn.textContent = "Siguiente →";
-    nextBtn.onclick = () => { adminCurrentPage++; renderAdminProductsWithFilters(); };
+    nextBtn.onclick = () => { adminCurrentPage++; renderAdminProductsWithFilters(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     pagination.appendChild(nextBtn);
   }
 }
@@ -184,7 +244,7 @@ function populateAdminCategoryFilter() {
   if (!select) return;
   const categories = new Set();
   adminProducts.forEach(p => { if (p.Categoria) categories.add(p.Categoria); });
-  select.innerHTML = '<option value="">Todas las categorías</option>';
+  select.innerHTML = '<option value="">📁 Todas las categorías</option>';
   Array.from(categories).sort().forEach(cat => {
     const opt = document.createElement("option");
     opt.value = cat;
@@ -210,10 +270,11 @@ function updateAdminStats() {
   if (lowStockElem) lowStockElem.textContent = lowStock;
 }
 
+// ========== FORMULARIO DE PRODUCTOS ==========
 function resetProductForm() {
   document.getElementById("product-form").reset();
   document.getElementById("product-id").value = "";
-  document.getElementById("product-form-title").textContent = "Crear producto";
+  document.getElementById("product-form-title").textContent = "✨ Crear Producto";
   clearImageUploads();
 }
 
@@ -226,13 +287,40 @@ function fillFormForEdit(product) {
   document.getElementById("product-sizes").value = product.Talla || "";
   document.getElementById("product-category").value = product.Categoria || "";
   document.getElementById("product-badge").value = product.Badge || "";
+  
   const img1 = document.getElementById("product-image1");
   if (img1) img1.value = product.Imagen1 || "";
   const img2 = document.getElementById("product-image2");
   if (img2) img2.value = product.Imagen2 || "";
   const img3 = document.getElementById("product-image3");
   if (img3) img3.value = product.Imagen3 || "";
-  document.getElementById("product-form-title").textContent = "Editar producto";
+  
+  document.getElementById("product-form-title").textContent = "✏️ Editar Producto";
+  
+  // Mostrar previews si existen
+  if (product.Imagen1) {
+    const preview1 = document.getElementById("preview-image-upload-1");
+    if (preview1) {
+      preview1.src = product.Imagen1;
+      preview1.style.display = "block";
+    }
+  }
+  if (product.Imagen2) {
+    const preview2 = document.getElementById("preview-image-upload-2");
+    if (preview2) {
+      preview2.src = product.Imagen2;
+      preview2.style.display = "block";
+    }
+  }
+  if (product.Imagen3) {
+    const preview3 = document.getElementById("preview-image-upload-3");
+    if (preview3) {
+      preview3.src = product.Imagen3;
+      preview3.style.display = "block";
+    }
+  }
+  
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function handleProductFormSubmit(e) {
@@ -250,6 +338,19 @@ async function handleProductFormSubmit(e) {
     Imagen2: document.getElementById("product-image2").value.trim(),
     Imagen3: document.getElementById("product-image3").value.trim(),
   };
+  
+  if (!data.Nombre) {
+    await showCustomAlert({
+      title: "⚠️ Campo requerido",
+      message: "El nombre del producto es obligatorio.",
+      icon: "📝",
+      confirmText: "Aceptar"
+    });
+    return;
+  }
+  
+  showLoader(id ? "Actualizando producto..." : "Creando producto...");
+  
   try {
     let res;
     if (id) {
@@ -257,27 +358,73 @@ async function handleProductFormSubmit(e) {
     } else {
       res = await apiRequest("POST", { action: "create", ...data });
     }
+    
     if (!res || !res.ok) {
-      alert("Error desde Apps Script");
-      return;
+      throw new Error(res?.error || "Error desconocido");
     }
+    
     resetProductForm();
     clearImageUploads();
-    loadAdminProducts();
+    await loadAdminProducts();
+    
+    await showCustomAlert({
+      title: id ? "✅ Producto actualizado" : "✅ Producto creado",
+      message: id ? "El producto se ha actualizado correctamente." : "El producto se ha creado correctamente.",
+      icon: "🎉",
+      confirmText: "Aceptar"
+    });
+    
   } catch (err) {
     console.error(err);
-    alert("Error al guardar el producto");
+    await showCustomAlert({
+      title: "❌ Error",
+      message: "Error al guardar el producto: " + err.message,
+      icon: "⚠️",
+      confirmText: "Aceptar"
+    });
+  } finally {
+    hideLoader();
   }
 }
 
 async function deleteProduct(id) {
-  if (!confirm("¿Eliminar este producto?")) return;
+  const confirmDelete = await new Promise((resolve) => {
+    showCustomConfirm({
+      title: "🗑️ Eliminar producto",
+      message: "¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.",
+      icon: "⚠️",
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+      onConfirm: () => resolve(true),
+      onCancel: () => resolve(false)
+    });
+  });
+  
+  if (!confirmDelete) return;
+  
+  showLoader("Eliminando producto...");
+  
   try {
     await apiRequest("POST", { action: "delete", id });
-    loadAdminProducts();
+    await loadAdminProducts();
+    
+    await showCustomAlert({
+      title: "✅ Producto eliminado",
+      message: "El producto se ha eliminado correctamente.",
+      icon: "🗑️",
+      confirmText: "Aceptar"
+    });
+    
   } catch (err) {
     console.error(err);
-    alert("Error al eliminar el producto");
+    await showCustomAlert({
+      title: "❌ Error",
+      message: "Error al eliminar el producto.",
+      icon: "⚠️",
+      confirmText: "Aceptar"
+    });
+  } finally {
+    hideLoader();
   }
 }
 
@@ -285,48 +432,70 @@ async function deleteProduct(id) {
 const UPLOAD_API_URL = ADMIN_API_URL;
 
 function initImageUploads() {
-  setupImageUpload("image-upload-1", "product-image1");
-  setupImageUpload("image-upload-2", "product-image2");
-  setupImageUpload("image-upload-3", "product-image3");
+  setupImageUpload("image-upload-1", "product-image1", "preview-image-upload-1", "progress-image-upload-1");
+  setupImageUpload("image-upload-2", "product-image2", "preview-image-upload-2", "progress-image-upload-2");
+  setupImageUpload("image-upload-3", "product-image3", "preview-image-upload-3", "progress-image-upload-3");
 }
 
-function setupImageUpload(fileInputId, textInputId) {
+function setupImageUpload(fileInputId, textInputId, previewId, progressId) {
   const fileInput = document.getElementById(fileInputId);
   const textInput = document.getElementById(textInputId);
-  const preview = document.getElementById("preview-" + fileInputId);
-  const progress = document.getElementById("progress-" + fileInputId);
+  const preview = document.getElementById(previewId);
+  const progress = document.getElementById(progressId);
+  
   if (!fileInput) return;
   
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files[0];
     if (!file) return;
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = "block";
-    progress.style.width = "10%";
+    
+    // Mostrar preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      preview.src = e.target.result;
+      preview.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+    
+    if (progress) progress.style.width = "10%";
+    
     try {
       const compressed = await compressImage(file);
       const base64 = compressed.split(",")[1];
-      progress.style.width = "40%";
+      
+      if (progress) progress.style.width = "40%";
+      
       const res = await fetch(UPLOAD_API_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "uploadImage", fileName: file.name, mimeType: "image/jpeg", data: base64 })
       });
-      progress.style.width = "70%";
+      
+      if (progress) progress.style.width = "70%";
+      
       const json = await res.json();
+      
       if (!json.ok) {
-        alert("Error subiendo imagen: " + json.error);
-        progress.style.width = "0%";
-        return;
+        throw new Error(json.error || "Error al subir imagen");
       }
-      const imageUrl = "https://lh3.googleusercontent.com/d/" + json.id + "=w500-h500-c-rw";
+      
+      const imageUrl = "https://lh3.googleusercontent.com/d/" + json.id + "=w800-h800-c-rw";
       textInput.value = imageUrl;
-      progress.style.width = "100%";
-      setTimeout(() => progress.style.width = "0%", 800);
+      
+      if (progress) progress.style.width = "100%";
+      setTimeout(() => {
+        if (progress) progress.style.width = "0%";
+      }, 800);
+      
     } catch (err) {
       console.error(err);
-      alert("Error subiendo imagen");
-      progress.style.width = "0%";
+      await showCustomAlert({
+        title: "❌ Error",
+        message: "Error al subir la imagen: " + err.message,
+        icon: "🖼️",
+        confirmText: "Aceptar"
+      });
+      if (progress) progress.style.width = "0%";
     }
   });
 }
@@ -341,8 +510,13 @@ async function compressImage(file) {
       const MAX = 1200;
       let w = img.width, h = img.height;
       if (w > MAX || h > MAX) {
-        if (w > h) { h *= MAX / w; w = MAX; }
-        else { w *= MAX / h; h = MAX; }
+        if (w > h) {
+          h *= MAX / w;
+          w = MAX;
+        } else {
+          w *= MAX / h;
+          h = MAX;
+        }
       }
       canvas.width = w;
       canvas.height = h;
@@ -358,38 +532,74 @@ function clearImageUploads() {
   const previews = document.querySelectorAll(".image-preview");
   const progressBars = document.querySelectorAll(".upload-progress");
   const fileInputs = document.querySelectorAll("input[type=file]");
-  previews.forEach(img => { img.src = ""; img.style.display = "none"; });
-  progressBars.forEach(bar => bar.style.width = "0%");
-  fileInputs.forEach(input => input.value = "");
+  
+  previews.forEach(img => {
+    img.src = "";
+    img.style.display = "none";
+  });
+  progressBars.forEach(bar => {
+    if (bar) bar.style.width = "0%";
+  });
+  fileInputs.forEach(input => {
+    if (input) input.value = "";
+  });
 }
 
 // ========== NOTIFICACIONES ==========
-const NOTIF_API = ADMIN_API_URL + "?action=notifications";
-let lastNotifCount = 0;
-
 async function checkNotifications() {
   try {
-    const res = await fetch(NOTIF_API);
+    const res = await fetch(`${ADMIN_API_URL}?action=notifications`);
     const data = await res.json();
     if (!data.ok) return;
+    
     const notifications = data.notifications || [];
     const pendingNotifications = notifications.filter(n => n.STATUS === "pending");
     const count = pendingNotifications.length;
     const badge = document.getElementById("notif-badge");
-    if (!badge) return;
-    badge.textContent = count;
-    if (count > lastNotifCount) animateBell();
+    
+    if (badge) {
+      badge.textContent = count;
+      
+      if (count > 0) {
+        badge.style.animation = "pulse 0.5s ease";
+        setTimeout(() => {
+          if (badge) badge.style.animation = "";
+        }, 500);
+      }
+      
+      // Mostrar alerta si hay nuevas notificaciones
+      if (count > lastNotifCount && count > 0 && adminSession) {
+        const bell = document.querySelector(".admin-notification-bell");
+        if (bell) {
+          bell.style.transform = "scale(1.05)";
+          bell.style.boxShadow = "0 0 20px rgba(255,79,129,0.6)";
+          setTimeout(() => {
+            if (bell) {
+              bell.style.transform = "";
+              bell.style.boxShadow = "";
+            }
+          }, 1000);
+        }
+      }
+    }
+    
     lastNotifCount = count;
   } catch(err) {
-    console.log("notif error", err);
+    console.log("Error checking notifications:", err);
   }
 }
 
-function animateBell() {
-  const bell = document.querySelector(".admin-notification-bell");
-  bell.style.transform = "scale(1.2)";
-  bell.style.color = "#ff4f81";
-  setTimeout(() => { bell.style.transform = ""; bell.style.color = ""; }, 400);
+function startNotificationMonitoring() {
+  if (notificationInterval) clearInterval(notificationInterval);
+  checkNotifications();
+  notificationInterval = setInterval(checkNotifications, 10000);
+}
+
+function stopNotificationMonitoring() {
+  if (notificationInterval) {
+    clearInterval(notificationInterval);
+    notificationInterval = null;
+  }
 }
 
 function openNotifications() {
@@ -398,21 +608,74 @@ function openNotifications() {
 
 // ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("admin-login-form")?.addEventListener("submit", handleAdminLogin);
-  document.getElementById("admin-logout-btn")?.addEventListener("click", handleAdminLogout);
-  document.getElementById("product-form")?.addEventListener("submit", handleProductFormSubmit);
-  document.getElementById("reset-form-btn")?.addEventListener("click", resetProductForm);
-  document.getElementById("admin-refresh-btn")?.addEventListener("click", loadAdminProducts);
+  // Login form
+  const loginForm = document.getElementById("admin-login-form");
+  if (loginForm) loginForm.addEventListener("submit", handleAdminLogin);
   
+  // Logout button
+  const logoutBtn = document.getElementById("admin-logout-btn");
+  if (logoutBtn) logoutBtn.addEventListener("click", handleAdminLogout);
+  
+  // Product form
+  const productForm = document.getElementById("product-form");
+  if (productForm) productForm.addEventListener("submit", handleProductFormSubmit);
+  
+  // Reset form button
+  const resetBtn = document.getElementById("reset-form-btn");
+  if (resetBtn) resetBtn.addEventListener("click", resetProductForm);
+  
+  // Refresh button
+  const refreshBtn = document.getElementById("admin-refresh-btn");
+  if (refreshBtn) refreshBtn.addEventListener("click", loadAdminProducts);
+  
+  // Initialize image uploads
   initImageUploads();
-  checkNotifications();
-  setInterval(checkNotifications, 10000);
   
+  // Filters
   const adminSearch = document.getElementById("admin-search-input");
   const adminCategory = document.getElementById("admin-category-filter");
   const adminStock = document.getElementById("admin-stock-filter");
   
-  if (adminSearch) adminSearch.addEventListener("input", () => { adminCurrentPage = 1; renderAdminProductsWithFilters(); });
-  if (adminCategory) adminCategory.addEventListener("change", () => { adminCurrentPage = 1; renderAdminProductsWithFilters(); });
-  if (adminStock) adminStock.addEventListener("change", () => { adminCurrentPage = 1; renderAdminProductsWithFilters(); });
+  if (adminSearch) {
+    adminSearch.addEventListener("input", () => { 
+      adminCurrentPage = 1; 
+      renderAdminProductsWithFilters(); 
+    });
+  }
+  if (adminCategory) {
+    adminCategory.addEventListener("change", () => { 
+      adminCurrentPage = 1; 
+      renderAdminProductsWithFilters(); 
+    });
+  }
+  if (adminStock) {
+    adminStock.addEventListener("change", () => { 
+      adminCurrentPage = 1; 
+      renderAdminProductsWithFilters(); 
+    });
+  }
+  
+  // Check if already logged in (session persistence)
+  const hasSession = sessionStorage.getItem("admin_session");
+  if (hasSession === "true" && document.getElementById("admin-panel-view")) {
+    document.getElementById("admin-login-view").hidden = true;
+    document.getElementById("admin-panel-view").hidden = false;
+    loadAdminProducts();
+    startNotificationMonitoring();
+  }
 });
+
+// Guardar sesión al loguearse
+const originalLoginSuccess = handleAdminLogin;
+window.handleAdminLogin = async function(e) {
+  await originalLoginSuccess(e);
+  if (adminSession) {
+    sessionStorage.setItem("admin_session", "true");
+  }
+};
+
+// Limpiar sesión al cerrar
+window.handleAdminLogout = function() {
+  sessionStorage.removeItem("admin_session");
+  handleAdminLogout();
+};
