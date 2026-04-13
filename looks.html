@@ -87,7 +87,6 @@
 <script src="looks.js"></script>
 <script src="cache-manager.js"></script>
   <script>
-    // Registrar Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
 navigator.serviceWorker.register('/ZNR/sw.js')
@@ -96,7 +95,33 @@ navigator.serviceWorker.register('/ZNR/sw.js')
       });
     }
   </script>
-
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Asegurar que el botón del carrito tenga el evento
+    const floatingCartBtn = document.getElementById('floating-cart-btn');
+    if (floatingCartBtn) {
+        // Remover eventos anteriores para evitar duplicados
+        const newBtn = floatingCartBtn.cloneNode(true);
+        floatingCartBtn.parentNode.replaceChild(newBtn, floatingCartBtn);
+        
+        newBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🛒 Botón del carrito clickeado');
+            if (typeof window.openCartDrawer === 'function') {
+                window.openCartDrawer();
+            } else {
+                console.error('❌ openCartDrawer no está definida');
+            }
+        });
+    }
+    
+    // Asegurar que renderCart esté disponible globalmente
+    if (typeof renderCart !== 'function' && window.renderCart) {
+        window.renderCart = renderCart;
+    }
+});
+</script>
 
   <footer class="app-footer">
     <div class="footer-content">
