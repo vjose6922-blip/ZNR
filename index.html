@@ -106,10 +106,8 @@
 
   <script src="common.js"></script>
   <script src="script.js"></script>
-    <!-- Cache Manager y Service Worker -->
   <script src="cache-manager.js"></script>
   <script>
-    // Registrar Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
 navigator.serviceWorker.register('/ZNR/sw.js')
