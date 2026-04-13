@@ -1485,7 +1485,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 /* Cada imagen individual */
 .look-slot-image {
   position: relative;
-  width: 100%;
+  max-height: 100px;
   aspect-ratio: 16 / 9;
   background: #ffffff;
   border-radius: 12px;
@@ -1543,7 +1543,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 .looks-grid.layout-grid .look-slot-image {
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 16 / 9;
 }
 
 .looks-grid.layout-grid .look-slot-label {
@@ -1552,7 +1552,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 }
 
 .looks-grid.layout-grid .skeleton-images-container {
-  flex-direction: row;
+  flex-direction: column;
 }
 
 .looks-grid.layout-grid .skeleton-image {
