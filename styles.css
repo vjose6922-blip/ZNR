@@ -495,13 +495,13 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 
 .looks-grid.layout-grid .look-product-add {
   padding: 2px 4px;
-  font-size: 9px;
+  font-size: 13px;
   border-radius: 8px;
 }
 
 .looks-grid.layout-grid .look-product-reload {
   padding: 2px 3px;
-  font-size: 9px;
+  font-size: 13px;
   border-radius: 8px;
 }
 
@@ -1563,7 +1563,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   border: none;
   border-radius: 20px;
   padding: 4px 12px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -1580,7 +1580,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   border: none;
   border-radius: 20px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
   color: #666;
