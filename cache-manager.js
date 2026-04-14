@@ -1,11 +1,6 @@
-// ============================================
-// cache-manager.js - Caché entre páginas
-// ============================================
-
 const PAGE_CACHE_KEY = 'zr_page_cache';
 const PRODUCTS_CACHE_KEY_SESSION = 'zr_products_session';
 
-// Guarda productos en caché de sesión (MUY RÁPIDO)
 function setSessionProductsCache(products) {
   try {
     sessionStorage.setItem(PRODUCTS_CACHE_KEY_SESSION, JSON.stringify({
@@ -15,7 +10,6 @@ function setSessionProductsCache(products) {
   } catch(e) { console.warn('Error guardando caché de sesión:', e); }
 }
 
-// Obtiene productos del caché de sesión (INSTANTÁNEO)
 function getSessionProductsCache(maxAge = 300000) {
   try {
     const cached = sessionStorage.getItem(PRODUCTS_CACHE_KEY_SESSION);
@@ -29,7 +23,6 @@ function getSessionProductsCache(maxAge = 300000) {
   } catch(e) { return null; }
 }
 
-// Guarda el estado de la página actual (scroll, filtros, etc)
 function savePageState(pageName, state) {
   try {
     const allStates = JSON.parse(sessionStorage.getItem(PAGE_CACHE_KEY) || '{}');
@@ -41,7 +34,6 @@ function savePageState(pageName, state) {
   } catch(e) {}
 }
 
-// Restaura el estado de una página
 function restorePageState(pageName) {
   try {
     const allStates = JSON.parse(sessionStorage.getItem(PAGE_CACHE_KEY) || '{}');
@@ -53,7 +45,6 @@ function restorePageState(pageName) {
   } catch(e) { return null; }
 }
 
-// Precarga la siguiente página
 function preloadPage(pageUrl) {
   if (!pageUrl) return;
   
@@ -80,7 +71,6 @@ function preloadPage(pageUrl) {
   }
 }
 
-// Inicializa precarga de enlaces
 function initPreloading() {
   document.querySelectorAll('a[href*=".html"]').forEach(link => {
     link.addEventListener('mouseenter', () => {
@@ -97,7 +87,6 @@ function initPreloading() {
   });
 }
 
-// Verificar si hay datos en caché para modo offline
 function isOfflineModeAvailable() {
   const sessionCached = getSessionProductsCache();
   const localCached = (() => {
@@ -111,7 +100,6 @@ function isOfflineModeAvailable() {
   return !!(sessionCached || localCached);
 }
 
-// Exportar funciones
 window.CacheManager = {
   setSessionProductsCache,
   getSessionProductsCache,
