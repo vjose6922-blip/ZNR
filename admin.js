@@ -604,30 +604,36 @@ function openNotifications() {
 
 // ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
-  // Login form
   const loginForm = document.getElementById("admin-login-form");
   if (loginForm) loginForm.addEventListener("submit", handleAdminLogin);
   
-  // Logout button
+  // Logout button - Corregido
   const logoutBtn = document.getElementById("admin-logout-btn");
-  if (logoutBtn) logoutBtn.addEventListener("click", handleAdminLogout);
+  if (logoutBtn) {
+    // Remover eventos anteriores para evitar duplicados
+    const newLogoutBtn = logoutBtn.cloneNode(true);
+    logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+    
+    newLogoutBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("🖱️ Botón logout clickeado");
+      // Llamar directamente a la función de logout
+      doAdminLogout();
+    });
+  }
   
-  // Product form
   const productForm = document.getElementById("product-form");
   if (productForm) productForm.addEventListener("submit", handleProductFormSubmit);
   
-  // Reset form button
   const resetBtn = document.getElementById("reset-form-btn");
   if (resetBtn) resetBtn.addEventListener("click", resetProductForm);
   
-  // Refresh button
   const refreshBtn = document.getElementById("admin-refresh-btn");
   if (refreshBtn) refreshBtn.addEventListener("click", loadAdminProducts);
   
-  // Initialize image uploads
   initImageUploads();
   
-  // Filters
   const adminSearch = document.getElementById("admin-search-input");
   const adminCategory = document.getElementById("admin-category-filter");
   const adminStock = document.getElementById("admin-stock-filter");
@@ -651,7 +657,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   
-  // Check if already logged in (session persistence)
+  // Mantener sesión al recargar
   const hasSession = sessionStorage.getItem("admin_session");
   if (hasSession === "true" && document.getElementById("admin-panel-view")) {
     document.getElementById("admin-login-view").hidden = true;
@@ -670,8 +676,38 @@ window.handleAdminLogin = async function(e) {
   }
 };
 
-// Limpiar sesión al cerrar
-window.handleAdminLogout = function() {
+// NUEVA FUNCIÓN: Logout que cierra sesión inmediatamente
+function doAdminLogout() {
+  console.log("🚪 Cerrando sesión...");
+  
+  // Detener monitoreo
+  stopNotificationMonitoring();
+  
+  // Limpiar sesión
+  adminSession = null;
+  
+  // Eliminar sesión guardada
   sessionStorage.removeItem("admin_session");
-  handleAdminLogout();
-};
+  
+  // Cambiar vista inmediatamente
+  const loginView = document.getElementById("admin-login-view");
+  const panelView = document.getElementById("admin-panel-view");
+  
+  if (loginView) loginView.hidden = false;
+  if (panelView) panelView.hidden = true;
+  
+  // Limpiar formulario
+  const loginForm = document.getElementById("admin-login-form");
+  if (loginForm) loginForm.reset();
+  
+  // Mostrar mensaje
+  showCustomAlert({
+    title: "👋 Sesión cerrada",
+    message: "Has cerrado sesión correctamente.",
+    icon: "✅",
+    confirmText: "Aceptar"
+  });
+  
+  console.log("✅ Sesión cerrada");
+}
+
