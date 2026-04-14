@@ -725,14 +725,12 @@ function createLookCardWithLazy(look) {
     totalPrice += product.price;
     const productImgOptimized = optimizeDriveUrl(product.image, 150);
     
-    // Solo las imágenes superiores (sin duplicar abajo)
     imagesHtml += `
       <div class="look-slot-image" data-slot="${slotKey}" onclick="openImageModal('${optimizeDriveUrl(product.image, 800)}')">
         <img class="look-slot-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
       </div>
     `;
     
-    // Lista de productos SIN imagen (solo texto, precio, talla y botones)
     productsHtml += `
       <div class="look-product-item" data-slot="${slotKey}">
         <div class="look-product-info">
