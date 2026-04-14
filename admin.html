@@ -11,12 +11,10 @@
   <link rel="preload" href="styles.css" as="style">
   <link rel="stylesheet" href="styles.css" />
   <style>
-  /* Reset y estilos base */
   * {
     box-sizing: border-box;
   }
   
-  /* Header */
   .admin-header {
     background: rgba(5, 3, 10, 0.95) !important;
     backdrop-filter: blur(18px) !important;
@@ -28,7 +26,6 @@
     color: white !important;
   }
   
-  /* Contenedor principal - SIN max-width en móvil */
   .admin-main {
     background: linear-gradient(180deg, #0b0714 0%, #1a1528 100%);
     min-height: calc(100vh - 64px);
@@ -36,7 +33,6 @@
     width: 100%;
   }
   
-  /* En tablet y desktop se centra */
   @media (min-width: 768px) {
     .admin-main {
       max-width: 1200px;
@@ -45,7 +41,6 @@
     }
   }
   
-  /* Tarjetas generales */
   .admin-card {
     background: rgba(255, 255, 255, 0.98);
     border-radius: 16px;
@@ -82,7 +77,6 @@
     cursor: pointer;
   }
   
-  /* ESTADÍSTICAS - FIJAS en 3 columnas iguales */
   .admin-stats-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -98,7 +92,7 @@
     text-align: center;
     color: white !important;
     width: 100%;
-    min-width: 0; /* Importante: permite que se encoja */
+    min-width: 0; 
   }
   
   .admin-stat-card * {
@@ -128,7 +122,6 @@
     text-overflow: ellipsis;
   }
   
-  /* Tablet */
   @media (min-width: 480px) {
     .admin-stats-grid {
       gap: 12px;
@@ -148,7 +141,6 @@
     }
   }
   
-  /* Desktop */
   @media (min-width: 768px) {
     .admin-stats-grid {
       gap: 16px;
@@ -169,7 +161,6 @@
     }
   }
   
-  /* Botón de notificaciones */
   .admin-notification-bell {
     background: linear-gradient(135deg, #ff4f81, #ff7a4f);
     color: white;
@@ -212,7 +203,6 @@
     text-align: center;
   }
   
-  /* Formulario vertical */
   .form-vertical {
     display: flex;
     flex-direction: column;
@@ -254,7 +244,6 @@
     box-shadow: 0 0 0 3px rgba(255, 79, 129, 0.1);
   }
   
-  /* Desktop - 2 columnas */
   @media (min-width: 768px) {
     .form-vertical {
       display: grid;
@@ -268,7 +257,6 @@
     }
   }
   
-  /* Imágenes */
   .image-upload-area {
     display: flex;
     flex-direction: column;
@@ -321,7 +309,6 @@
     transition: width 0.3s;
   }
   
-  /* Botón primario */
   .primary-button {
     background: linear-gradient(135deg, #ff4f81, #ff7a4f);
     border: none;
@@ -340,7 +327,6 @@
     box-shadow: 0 6px 20px rgba(255, 79, 129, 0.4);
   }
   
-  /* Filtros */
   .admin-controls {
     display: flex;
     flex-direction: column;
@@ -374,7 +360,6 @@
     }
   }
   
-  /* Lista de productos - móvil */
   .admin-products-header {
     display: none;
   }
@@ -468,7 +453,6 @@
     color: white;
   }
   
-  /* Desktop - tabla normal */
   @media (min-width: 768px) {
     .admin-products-header {
       display: grid;
@@ -502,7 +486,6 @@
     }
   }
   
-  /* Paginación */
   .admin-pagination {
     display: flex;
     justify-content: center;
@@ -532,7 +515,6 @@
     border-color: #ff4f81;
   }
   
-  /* Loader */
   .global-loader {
     position: fixed;
     top: 0;
@@ -571,7 +553,6 @@
     font-size: 14px;
   }
   
-  /* Header right */
   .header-right {
     display: flex;
     gap: 8px;
@@ -620,13 +601,11 @@
 </style>
 </head>
 <body class="admin-body">
-  <!-- Loader -->
   <div id="global-loader" class="global-loader hidden">
     <div class="loader-spinner"></div>
     <div class="loader-text">Cargando...</div>
   </div>
 
-  <!-- Header -->
   <header class="app-header admin-header">
     <div class="header-left">
       <div class="logo-touch-area">
@@ -642,50 +621,38 @@
     </div>
   </header>
 
-  <!-- Login View -->
   <main class="admin-main" id="admin-login-view">
     <div class="admin-card" style="max-width: 400px; margin: 40px auto;">
       <div class="admin-card-header" style="text-align: center;">
-        <h2>🔐 Acceso Administrador</h2>
+        <h2>Administrador</h2>
         <p style="color: rgba(255,255,255,0.8); margin-top: 8px;">Ingresa tus credenciales para continuar</p>
       </div>
       <form id="admin-login-form" class="form-vertical">
         <div class="form-row">
-          <label>🔑 Contraseña</label>
+          <label>Contraseña</label>
           <input type="password" id="admin-password" required placeholder="Ingresa tu contraseña" />
         </div>
         <div class="form-row">
-          <label>🎫 Token</label>
+          <label>Token</label>
           <input type="password" id="admin-token" required placeholder="Ingresa tu token" />
         </div>
-        <button type="submit" class="primary-button full-width" style="margin-top: 10px;">Ingresar al Panel</button>
+        <button type="submit" class="primary-button full-width" style="margin-top: 10px;">Ingresar</button>
       </form>
     </div>
   </main>
 
-  <!-- Panel View -->
   <main class="admin-main" id="admin-panel-view" hidden>
-  <!-- Notificaciones y botones de acción -->
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
     <button class="admin-notification-bell" onclick="openNotifications()">
-      🔔 Notificaciones de compra
+      🔔 Notificaciones
       <span id="notif-badge">0</span>
     </button>
     
     <div style="display: flex; gap: 8px;">
-      <!-- Botón: Solo actualizar productos (sin recargar página) -->
-      <button class="icon-button" id="admin-refresh-btn" style="background: rgba(255,255,255,0.1);" title="Actualizar lista de productos">
-        ⟳
-      </button>
-      
-      <!-- Botón: Recargar página completa -->
-      <button class="icon-button" id="admin-reload-btn" style="background: rgba(255,255,255,0.1);" title="Recargar página">
-        🔄
-      </button>
+      <button class="icon-button" id="admin-reload-btn" style="background: rgba(255,255,255,0.1);" title="Recargar página">🔄</button>
     </div>
   </div>
 
-    <!-- Estadísticas -->
     <div class="admin-stats-grid">
       <div class="admin-stat-card">
         <span class="admin-stat-value" id="stat-total-products">0</span>
@@ -701,42 +668,41 @@
       </div>
     </div>
 
-    <!-- Formulario de productos en modo lista vertical -->
     <section class="admin-card">
       <div class="admin-card-header">
-        <h2 id="product-form-title">✨ Crear Producto</h2>
+        <h2 id="product-form-title">Crear Producto</h2>
         <button id="reset-form-btn" class="text-button">+ Nuevo</button>
       </div>
       <form id="product-form" class="form-vertical">
         <input type="hidden" id="product-id" name="id" />
         
         <div class="form-row">
-          <label>📝 Nombre del producto *</label>
+          <label>Nombre del producto *</label>
           <input type="text" id="product-name" name="Nombre" required placeholder="Ej: Camisa de manga larga" />
         </div>
         
         <div class="form-row">
-          <label>💰 Precio (MXN) *</label>
+          <label>Precio (MXN) *</label>
           <input type="number" id="product-price" name="Precio" min="0" step="0.01" required placeholder="0.00" />
         </div>
         
         <div class="form-row">
-          <label>📊 Stock disponible *</label>
+          <label>Stock disponible *</label>
           <input type="number" id="product-stock" name="Stock" min="0" required placeholder="0" />
         </div>
         
         <div class="form-row">
-          <label>📝 Descripción</label>
+          <label>Descripción</label>
           <textarea id="product-description" name="Descripcion" rows="3" placeholder="Descripción del producto..."></textarea>
         </div>
         
         <div class="form-row">
-          <label>👕 Talla</label>
+          <label>Talla</label>
           <input type="text" id="product-sizes" name="Talla" placeholder="Ej: S, M, L o 28,30,32" />
         </div>
         
         <div class="form-row">
-          <label>🏷️ Categoría</label>
+          <label>Categoría</label>
           <select id="product-category" name="Categoria">
             <option value="">Seleccionar categoría</option>
             <option value="Accesorios">Accesorios</option>
@@ -758,18 +724,17 @@
         </div>
         
         <div class="form-row">
-          <label>⭐ Badge (etiqueta especial)</label>
+          <label>Badge</label>
           <select id="product-badge" name="Badge">
             <option value="">Ninguno</option>
-            <option value="Nuevo">🔥 Nuevo</option>
-            <option value="Popular">⭐ Popular</option>
-            <option value="Oferta">💸 Oferta</option>
+            <option value="Nuevo">Nuevo</option>
+            <option value="Popular">Popular</option>
+            <option value="Oferta">Oferta</option>
           </select>
         </div>
         
-        <!-- Imagen 1 -->
         <div class="form-row">
-          <label>🖼️ Imagen 1 (Principal)</label>
+          <label>Imagen 1</label>
           <div class="image-upload-area">
             <input type="file" id="image-upload-1" accept="image/*">
             <div class="image-preview-container">
@@ -782,9 +747,8 @@
           </div>
         </div>
         
-        <!-- Imagen 2 -->
         <div class="form-row">
-          <label>🖼️ Imagen 2</label>
+          <label>Imagen 2</label>
           <div class="image-upload-area">
             <input type="file" id="image-upload-2" accept="image/*">
             <div class="image-preview-container">
@@ -797,9 +761,8 @@
           </div>
         </div>
         
-        <!-- Imagen 3 -->
         <div class="form-row">
-          <label>🖼️ Imagen 3</label>
+          <label>Imagen 3</label>
           <div class="image-upload-area">
             <input type="file" id="image-upload-3" accept="image/*">
             <div class="image-preview-container">
@@ -815,11 +778,14 @@
         <button type="submit" class="primary-button full-width" style="margin-top: 10px; padding: 14px;">💾 Guardar Producto</button>
       </form>
     </section>
-
-    <!-- Lista de productos -->
+    
+    <div style="display: flex; gap: 8px;">
+    <button class="icon-button" id="admin-refresh-btn" style="background: rgba(255,255,255,0.1);" title="Actualizar lista de productos">⟳</button>
+    </div>
+    
     <section class="admin-card">
       <div class="admin-card-header">
-        <h2>📋 Lista de Productos</h2>
+        <h2>Lista de Productos</h2>
       </div>
       
       <div class="admin-controls">
@@ -829,9 +795,9 @@
         </select>
         <select id="admin-stock-filter" class="admin-filter-select">
           <option value="">Todos los stocks</option>
-          <option value="low">📉 Stock bajo (≤5)</option>
-          <option value="out">❌ Sin stock</option>
-          <option value="in">✅ Con stock</option>
+          <option value="low">Stock bajo (≤5)</option>
+          <option value="out">Sin stock</option>
+          <option value="in">Con stock</option>
         </select>
       </div>
       
@@ -855,7 +821,6 @@
   <script src="admin.js"></script>
   <script src="cache-manager.js"></script>
   <script>
-    // Registrar Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/ZNR/sw.js')         
