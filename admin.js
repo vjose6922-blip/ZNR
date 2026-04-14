@@ -1,7 +1,3 @@
-// ============================================
-// admin.js - Panel de Administración Z&R
-// ============================================
-
 const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
 let adminSession = null;
@@ -12,7 +8,6 @@ let adminProductsPerPage = 10;
 let lastNotifCount = 0;
 let notificationInterval = null;
 
-// ========== FUNCIONES DE API ==========
 async function apiRequest(method, body) {
   try {
     let url = ADMIN_API_URL;
@@ -37,7 +32,6 @@ async function apiRequest(method, body) {
   }
 }
 
-// ========== AUTENTICACIÓN ==========
 async function handleAdminLogin(e) {
   e.preventDefault();
   const password = document.getElementById("admin-password").value;
@@ -61,12 +55,7 @@ async function handleAdminLogin(e) {
     document.getElementById("admin-login-view").hidden = true;
     document.getElementById("admin-panel-view").hidden = false;
     
-    await showCustomAlert({
-      title: "✅ Bienvenido",
-      message: "Has iniciado sesión correctamente en el panel de administración.",
-      icon: "🎉",
-      confirmText: "Continuar"
-    });
+    
     
     loadAdminProducts();
     startNotificationMonitoring();
