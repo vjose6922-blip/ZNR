@@ -1,7 +1,3 @@
-// ============================================
-// SCRIPT.JS - Tienda principal
-// ============================================
-
 const PAGE_SIZE = 10;
 let allProducts = [];
 let filteredProducts = [];
@@ -29,12 +25,6 @@ window.addEventListener('beforeunload', () => {
 });
 
 
-
-
-
-
-
-
 function getGenderFromCategory(categoria) {
   if (!categoria) return null;
   const categoriaLower = categoria.toLowerCase().trim();
@@ -59,7 +49,6 @@ function getGenderFromCategory(categoria) {
 }
 
 async function fetchProducts(force = false) {
-  // Si estamos offline y no es force, solo usar caché
   if (!navigator.onLine && !force) {
     console.log('📡 Offline - Usando solo caché');
     const cached = getCachedProducts();
@@ -75,7 +64,6 @@ async function fetchProducts(force = false) {
     }
   }
   
-  // Si es force, ignoramos toda caché
   if (force) {
     isLoading = true;
     showLoader("Actualizando productos...");
@@ -98,7 +86,6 @@ async function fetchProducts(force = false) {
     return;
   }
   
-  // CARGA INSTANTÁNEA: primero mostramos caché
   const cached = getCachedProducts();
   if (cached && cached.length > 0) {
     console.log("⚡ CARGA INSTANTÁNEA desde caché");
@@ -119,7 +106,6 @@ async function fetchProducts(force = false) {
     return;
   }
   
-  // Sin caché: carga normal
   isLoading = true;
   showLoader("Cargando productos...");
   
@@ -277,7 +263,6 @@ function createProductCard(product) {
   card.className = "product-card";
   card.id = `producto-${ID}`;
   
-  // Slider
   const slider = document.createElement("div");
   slider.className = "product-slider";
   slider.dataset.productId = ID;
@@ -290,7 +275,7 @@ function createProductCard(product) {
     slide.className = "product-slide";
     const img = document.createElement("img");
     img.alt = Nombre || "Producto";
-    img.src = url; // Carga directa sin lazy loading para asegurar que se vean
+    img.src = url; 
     img.loading = "lazy";
     img.addEventListener("click", () => openImageModal(url));
     slide.appendChild(img);
@@ -314,7 +299,6 @@ function createProductCard(product) {
   }
   attachSliderEvents(slider, images.length);
   
-  // Info
   const info = document.createElement("div");
   info.className = "product-info";
   const titleRow = document.createElement("div");
@@ -365,7 +349,6 @@ function createProductCard(product) {
   info.appendChild(descEl);
   info.appendChild(sizesEl);
   
-  // Acciones
   const actions = document.createElement("div");
   actions.className = "product-actions";
   const leftActions = document.createElement("div");
@@ -419,7 +402,6 @@ function attachSliderEvents(slider, totalSlides) {
   setInterval(() => updateSlider((sliderState.get(productId) || 0) + 1), 6000);
 }
 
-// ========== FUNCIONES DE IMAGEN ==========
 function openImageModal(url) {
   const modal = document.getElementById("image-modal");
   const img = document.getElementById("image-modal-img");
@@ -437,8 +419,6 @@ function closeImageModal() {
   if (modal) modal.classList.remove("open");
   if (overlay) overlay.classList.remove("visible");
 }
-
-
 
 function handleInitialHash() {
   if (initialHashHandled) return;
@@ -460,7 +440,6 @@ function handleSecretTap() {
   }
 }
 
-// ========== CHECKOUT ==========
 async function openWhatsAppCheckout() {
   const items = Object.values(localCart);
   if (items.length === 0) {
@@ -481,7 +460,7 @@ async function continueCheckout() {
   let clientPhone = localStorage.getItem("client_phone");
   if (!clientPhone) {
     clientPhone = await prompt(
-      "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n⚠️ Solo números, sin espacios ni código país.\n🔒 Tus datos están protegidos (aceptaste el aviso de privacidad)",
+      "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n⚠️ Solo números, sin espacios ni código país.\n🔒 Tus datos están protegidos",
       ""
     );
     if (!clientPhone) {
@@ -569,7 +548,6 @@ function startSilentPolling(requestId, clientPhone) {
   setTimeout(() => { clearInterval(interval); localStorage.removeItem('pending_purchase_' + requestId); }, 600000);
 }
 
-// ========== MERCADO PAGO ==========
 async function pagarConMercadoPago() {
   const items = Object.values(localCart).map(item => ({
     id: item.id,
@@ -617,7 +595,6 @@ function verificarEstadoPago() {
   }
 }
 
-// ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
   fetchProducts();
 
@@ -670,7 +647,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   verificarEstadoPago();
 
-  // Layout toggle
   const layoutBtn = document.getElementById("layout-toggle-btn");
   const productsContainer = document.getElementById("products-container");
 
@@ -679,9 +655,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (savedLayout === "grid") {
       productsContainer.classList.add("layout-grid");
-      layoutBtn.textContent = "▦"; // icono grid
+      layoutBtn.textContent = "▦"; 
     } else {
-      layoutBtn.textContent = "≡"; // icono lista
+      layoutBtn.textContent = "≡";
     }
 
     layoutBtn.addEventListener("click", () => {
