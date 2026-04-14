@@ -55,8 +55,6 @@ async function handleAdminLogin(e) {
     document.getElementById("admin-login-view").hidden = true;
     document.getElementById("admin-panel-view").hidden = false;
     
-    
-    
     loadAdminProducts();
     startNotificationMonitoring();
     
@@ -291,9 +289,8 @@ function fillFormForEdit(product) {
   const img3 = document.getElementById("product-image3");
   if (img3) img3.value = product.Imagen3 || "";
   
-  document.getElementById("product-form-title").textContent = "✏️ Editar Producto";
+  document.getElementById("product-form-title").textContent = "Editar Producto";
   
-  // Mostrar previews si existen
   if (product.Imagen1) {
     const preview1 = document.getElementById("preview-image-upload-1");
     if (preview1) {
@@ -386,7 +383,7 @@ async function handleProductFormSubmit(e) {
 async function deleteProduct(id) {
   const confirmDelete = await new Promise((resolve) => {
     showCustomConfirm({
-      title: "🗑️ Eliminar producto",
+      title: "Eliminar producto",
       message: "¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.",
       icon: "⚠️",
       confirmText: "Sí, eliminar",
@@ -404,27 +401,14 @@ async function deleteProduct(id) {
     await apiRequest("POST", { action: "delete", id });
     await loadAdminProducts();
     
-    await showCustomAlert({
-      title: "✅ Producto eliminado",
-      message: "El producto se ha eliminado correctamente.",
-      icon: "🗑️",
-      confirmText: "Aceptar"
-    });
-    
   } catch (err) {
     console.error(err);
-    await showCustomAlert({
-      title: "❌ Error",
-      message: "Error al eliminar el producto.",
-      icon: "⚠️",
-      confirmText: "Aceptar"
-    });
-  } finally {
+  
+  } finally   {
     hideLoader();
   }
 }
 
-// ========== SUBIDA DE IMÁGENES ==========
 const UPLOAD_API_URL = ADMIN_API_URL;
 
 function initImageUploads() {
@@ -445,7 +429,6 @@ function setupImageUpload(fileInputId, textInputId, previewId, progressId) {
     const file = fileInput.files[0];
     if (!file) return;
     
-    // Mostrar preview
     const reader = new FileReader();
     reader.onload = (e) => {
       preview.src = e.target.result;
@@ -541,7 +524,6 @@ function clearImageUploads() {
   });
 }
 
-// ========== NOTIFICACIONES ==========
 async function checkNotifications() {
   try {
     const res = await fetch(`${ADMIN_API_URL}?action=notifications`);
@@ -563,7 +545,6 @@ async function checkNotifications() {
         }, 500);
       }
       
-      // Mostrar alerta si hay nuevas notificaciones
       if (count > lastNotifCount && count > 0 && adminSession) {
         const bell = document.querySelector(".admin-notification-bell");
         if (bell) {
@@ -602,15 +583,12 @@ function openNotifications() {
   window.location.href = "notificaciones.html";
 }
 
-// ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.getElementById("admin-login-form");
   if (loginForm) loginForm.addEventListener("submit", handleAdminLogin);
   
-  // Logout button - Corregido
   const logoutBtn = document.getElementById("admin-logout-btn");
   if (logoutBtn) {
-    // Remover eventos anteriores para evitar duplicados
     const newLogoutBtn = logoutBtn.cloneNode(true);
     logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
     
@@ -618,7 +596,6 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       e.stopPropagation();
       console.log("🖱️ Botón logout clickeado");
-      // Llamar directamente a la función de logout
       doAdminLogout();
     });
   }
@@ -657,7 +634,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   
-  // Mantener sesión al recargar
   const hasSession = sessionStorage.getItem("admin_session");
   if (hasSession === "true" && document.getElementById("admin-panel-view")) {
     document.getElementById("admin-login-view").hidden = true;
@@ -667,7 +643,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Guardar sesión al loguearse
 const originalLoginSuccess = handleAdminLogin;
 window.handleAdminLogin = async function(e) {
   await originalLoginSuccess(e);
@@ -676,38 +651,19 @@ window.handleAdminLogin = async function(e) {
   }
 };
 
-// NUEVA FUNCIÓN: Logout que cierra sesión inmediatamente
 function doAdminLogout() {
   console.log("🚪 Cerrando sesión...");
-  
-  // Detener monitoreo
   stopNotificationMonitoring();
-  
-  // Limpiar sesión
   adminSession = null;
-  
-  // Eliminar sesión guardada
   sessionStorage.removeItem("admin_session");
   
-  // Cambiar vista inmediatamente
   const loginView = document.getElementById("admin-login-view");
   const panelView = document.getElementById("admin-panel-view");
   
   if (loginView) loginView.hidden = false;
   if (panelView) panelView.hidden = true;
   
-  // Limpiar formulario
   const loginForm = document.getElementById("admin-login-form");
-  if (loginForm) loginForm.reset();
-  
-  // Mostrar mensaje
-  showCustomAlert({
-    title: "👋 Sesión cerrada",
-    message: "Has cerrado sesión correctamente.",
-    icon: "✅",
-    confirmText: "Aceptar"
-  });
-  
-  console.log("✅ Sesión cerrada");
+  if (loginForm) loginForm.reset();  
 }
 
