@@ -74,21 +74,28 @@ async function handleAdminLogin(e) {
 }
 
 function handleAdminLogout() {
-  stopNotificationMonitoring();
-  adminSession = null;
-  document.getElementById("admin-login-view").hidden = false;
-  document.getElementById("admin-panel-view").hidden = true;
-  document.getElementById("admin-login-form").reset();
   
-  showCustomAlert({
-    title: "👋 Sesión cerrada",
-    message: "Has cerrado sesión correctamente.",
-    icon: "✅",
-    confirmText: "Aceptar"
-  });
+  stopNotificationMonitoring();
+  
+  adminSession = null;
+  
+  const loginView = document.getElementById("admin-login-view");
+  const panelView = document.getElementById("admin-panel-view");
+  
+  if (loginView) loginView.hidden = false;
+  if (panelView) panelView.hidden = true;
+  
+  const loginForm = document.getElementById("admin-login-form");
+  if (loginForm) loginForm.reset();
+  
+  const passwordInput = document.getElementById("admin-password");
+  const tokenInput = document.getElementById("admin-token");
+  if (passwordInput) passwordInput.value = "";
+  if (tokenInput) tokenInput.value = "";
+  
+  
 }
 
-// ========== GESTIÓN DE PRODUCTOS ==========
 async function loadAdminProducts() {
   showLoader("Cargando productos...");
   
