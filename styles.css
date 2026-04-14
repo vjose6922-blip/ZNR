@@ -672,7 +672,7 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
   background: rgba(0, 0, 0, 0.08);
   border: none;
   font-size: 26px;
-  color: #ff4f81;
+  background: linear-gradient(135deg, #ff4f81, #ff7a4f);
   cursor: pointer;
   width: 36px;
   height: 36px;
