@@ -668,7 +668,22 @@ html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Blink
 .qty-btn { width: 24px; height: 24px; border-radius: 999px; border: 1px solid var(--color-border-subtle); background: #ffffff; cursor: pointer; }
 .qty-value { min-width: 20px; text-align: center; font-size: 13px; }
 .cart-item-remove { border: none; background: transparent; color: var(--color-text-muted); font-size: 12px; cursor: pointer; }
+.close-cart-btn {
+  background: transparent;
+  border: none;
+  font-size: 26px;
+  color: #ff4f81;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  transition: 0.2s;
+}
 
+.close-cart-btn:hover {
+  background: rgba(255, 79, 129, 0.15);
+  color: #ff7a4f;
+}
 .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); opacity: 0; pointer-events: none; transition: opacity var(--transition-med); z-index: var(--z-overlay); }
 .overlay.visible { opacity: 1; pointer-events: auto; }
 .image-modal { position: fixed; inset: 0; background: #000000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity var(--transition-med); z-index: var(--z-modal); }
