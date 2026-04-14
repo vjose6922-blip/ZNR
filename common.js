@@ -1,7 +1,7 @@
 
 const WHATSAPP_NUMBER = "528671781272";
 const CACHE_KEY = 'zr_products_cache';
-const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
+const CACHE_EXPIRY = 5 * 60 * 1000; 
 const API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
 let localCart = {};
@@ -202,7 +202,6 @@ function injectGlobalStyles() {
   document.head.appendChild(styleSheet);
 }
 
-// ========== LOADER ==========
 function showLoader(text = "Cargando...") {
   let loader = document.getElementById("global-loader");
   if (!loader) {
@@ -238,7 +237,6 @@ function showTemporaryMessage(text, type = "info") {
   }, 3000);
 }
 
-// ========== MODALES PERSONALIZADOS ==========
 function closeCurrentModal() {
   if (activeModal) {
     activeModal.classList.add("closing");
@@ -334,7 +332,6 @@ function showCustomPrompt(options) {
   modal.addEventListener("click", (e) => { if (e.target === modal && !modal.classList.contains("closing")) close(onCancel, null); });
 }
 
-// Interceptar alert/confirm/prompt
 if (!window.alertIntercepted) {
   window.originalAlert = window.alert;
   window.alert = function(message) { return new Promise((resolve) => { closeCurrentModal(); showCustomAlert({ title: "Aviso", message: String(message), icon: "ℹ️", confirmText: "Aceptar", onConfirm: () => resolve() }); }); };
@@ -345,9 +342,7 @@ if (!window.alertIntercepted) {
   window.alertIntercepted = true;
 }
 
-// ========== FUNCIONES DE CACHÉ ==========
 function getCachedProducts() {
-  // PRIMERO: caché de sesión (entre páginas - MÁS RÁPIDO)
   if (window.CacheManager && window.CacheManager.getSessionProductsCache) {
     const sessionCached = window.CacheManager.getSessionProductsCache();
     if (sessionCached && sessionCached.length > 0) {
@@ -356,7 +351,6 @@ function getCachedProducts() {
     }
   }
   
-  // SEGUNDO: caché persistente (localStorage)
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return null;
@@ -371,18 +365,15 @@ function getCachedProducts() {
 }
 
 function setCachedProducts(products) {
-  // Guardar en caché de sesión
   if (window.CacheManager && window.CacheManager.setSessionProductsCache) {
     window.CacheManager.setSessionProductsCache(products);
   }
   
-  // Guardar en caché persistente
   try { 
     localStorage.setItem(CACHE_KEY, JSON.stringify({ data: products, timestamp: Date.now() })); 
   } catch (e) { console.warn("No se pudo guardar en caché:", e); }
 }
 
-// ========== FUNCIONES DE UTILIDAD ==========
 function formatCurrency(value) {
   const num = Number(value) || 0;
   return `$${num.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`;
@@ -410,7 +401,6 @@ function generateRequestId() {
   return 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
 }
 
-// ========== FUNCIONES DE TELÉFONO ==========
 function updateSavedPhoneDisplay() {
   console.log("🔄 updateSavedPhoneDisplay() llamada");
   
@@ -433,7 +423,6 @@ function updateSavedPhoneDisplay() {
   }
 }
 
-// ========== FUNCIÓN PARA CAMBIAR NÚMERO DE TELÉFONO (CON MODALES PERSONALIZADOS) ==========
 async function changePhoneNumber() {
   console.log("📱 changePhoneNumber() llamada - Usando modales personalizados");
   
@@ -442,7 +431,6 @@ async function changePhoneNumber() {
     ? `${currentPhone.slice(0,2)}-${currentPhone.slice(2,6)}-${currentPhone.slice(6)}` 
     : "no guardado";
   
-  // Usar prompt personalizado
   const newPhone = await new Promise((resolve) => {
     showCustomPrompt({
       title: "📱 Cambiar número de teléfono",
@@ -461,7 +449,6 @@ async function changePhoneNumber() {
     return;
   }
   
-  // Si el usuario dejó vacío, preguntar si quiere eliminar
   if (newPhone === "") {
     const confirmDelete = await new Promise((resolve) => {
       showCustomConfirm({
@@ -478,18 +465,10 @@ async function changePhoneNumber() {
     if (confirmDelete) {
       localStorage.removeItem("client_phone");
       updateSavedPhoneDisplay();
-      
-      showCustomAlert({
-        title: "Número eliminado",
-        message: "📱 Tu número ha sido eliminado correctamente.",
-        icon: "✅",
-        confirmText: "Aceptar"
-      });
     }
     return;
   }
   
-  // Limpiar y validar el número
   let cleanPhone = newPhone.replace(/[^0-9]/g, '');
   if (cleanPhone.length !== 10) {
     showCustomAlert({
@@ -501,11 +480,9 @@ async function changePhoneNumber() {
     return;
   }
   
-  // Guardar el número
   localStorage.setItem("client_phone", cleanPhone);
   updateSavedPhoneDisplay();
   
-  // Mostrar éxito con modal personalizado
   const formatted = `${cleanPhone.slice(0,2)}-${cleanPhone.slice(2,6)}-${cleanPhone.slice(6)}`;
   showCustomAlert({
     title: "✅ ¡Número actualizado!",
@@ -514,10 +491,8 @@ async function changePhoneNumber() {
     confirmText: "Aceptar"
   });
   
-  console.log("📱 Número actualizado:", cleanPhone);
 }
 
-// ========== MODAL DE PRIVACIDAD ==========
 function showPrivacyModal(onAccept) {
   let modal = document.getElementById("privacy-modal");
   if (!modal) {
@@ -555,7 +530,6 @@ function showPrivacyModal(onAccept) {
   if (rejectBtn) rejectBtn.addEventListener("click", handleReject);
 }
 
-// ========== FUNCIONES DE CARRITO ==========
 function loadCartFromStorage() {
   try { localCart = JSON.parse(localStorage.getItem("cart") || "{}"); } catch { localCart = {}; }
   updateCartBadge();
@@ -618,7 +592,6 @@ function openCartDrawer() {
   drawer.classList.add("open");
   overlay.classList.add("visible");
   
-  // Renderizar y asegurar que los botones funcionen
   if (typeof renderCart === 'function') {
     renderCart();
   }
@@ -670,7 +643,6 @@ function renderCart() {
       container.appendChild(row);
     });
     
-    // Event listeners para botones del carrito
     document.querySelectorAll('.qty-btn[data-action="decrement"]').forEach(btn => {
       btn.removeEventListener('click', handleDecrement);
       btn.addEventListener('click', handleDecrement);
@@ -687,7 +659,6 @@ function renderCart() {
     });
   }
   
-  // Actualizar totales
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const subtotalEl = document.getElementById("cart-subtotal");
   const totalEl = document.getElementById("cart-total");
@@ -695,7 +666,6 @@ function renderCart() {
   if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
   if (totalEl) totalEl.textContent = formatCurrency(subtotal);
   
-  // 🔴 IMPORTANTE: Reconectar el botón de cambiar teléfono CADA VEZ
   setTimeout(() => {
     const changePhoneBtn = document.getElementById('change-phone-btn');
     if (changePhoneBtn) {
@@ -721,15 +691,12 @@ function renderCart() {
         }
       });
       
-      console.log("✅ Botón 'Cambiar número' reconectado");
     }
   }, 10);
   
-  // Actualizar display del teléfono
   updateSavedPhoneDisplay();
 }
 
-// Handlers para los botones del carrito
 function handleDecrement(e) {
   e.stopPropagation();
   const id = e.currentTarget.getAttribute('data-id');
@@ -757,7 +724,6 @@ function handleRemove(e) {
   }
 }
 
-// Modificar la función changeCartQty existente
 window.changeCartQty = function(id, delta) {
   if (!localCart[id]) return;
   localCart[id].quantity += delta;
@@ -767,7 +733,6 @@ window.changeCartQty = function(id, delta) {
   window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart }));
 };
 
-// Modificar removeFromCart existente
 window.removeFromCart = function(id) {
   if (localCart[id]) { 
     delete localCart[id]; 
@@ -776,7 +741,6 @@ window.removeFromCart = function(id) {
     window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart }));
   }
 };
-// ========== FUNCIONES DE MODAL IMAGEN ==========
 function openImageModal(url) {
   const modal = document.getElementById("image-modal");
   const img = document.getElementById("image-modal-img");
@@ -804,7 +768,6 @@ function shareProduct(id) {
   }
 }
 
-// ========== IMAGE OBSERVER (Lazy Loading) ==========
 function createImageObserver() {
   if ("IntersectionObserver" in window) {
     imageObserver = new IntersectionObserver((entries) => {
@@ -826,10 +789,6 @@ function createImageObserver() {
 }
 
 
-
-
-
-// ========== CHECKOUT ==========
 async function openWhatsAppCheckout() {
   const items = Object.values(localCart);
   if (items.length === 0) {
@@ -923,11 +882,6 @@ async function continueCheckout() {
 }
 
 
-
-
-
-
-// ========== FUNCIONES DE PRODUCTOS (compartidas) ==========
 async function fetchProductsAPI() {
   const cached = getCachedProducts();
   if (cached && cached.length > 0) return cached;
@@ -942,7 +896,6 @@ async function fetchProductsAPI() {
     return [];
   }
 }
-
 
 
 function createConnectionBanner() {
@@ -972,7 +925,6 @@ function createConnectionBanner() {
   document.body.insertBefore(connectionBanner, document.body.firstChild);
 }
 
-// Mostrar banner de modo offline
 function showOfflineBanner() {
   if (!connectionBanner) createConnectionBanner();
   
@@ -1010,7 +962,6 @@ function showOfflineBanner() {
   addOfflineIndicator();
 }
 
-// Mostrar banner de vuelta online
 function showOnlineBanner() {
   if (!connectionBanner) createConnectionBanner();
   
@@ -1054,7 +1005,6 @@ function showOnlineBanner() {
   removeOfflineIndicator();
 }
 
-// Agregar indicador visual flotante
 function addOfflineIndicator() {
   let indicator = document.getElementById('offline-mode-indicator');
   if (indicator) return;
@@ -1087,7 +1037,6 @@ function removeOfflineIndicator() {
   if (indicator) indicator.remove();
 }
 
-// Verificar conexión periódicamente
 function startConnectionMonitor() {
   setInterval(() => {
     const wasOnline = isOnline;
@@ -1154,12 +1103,6 @@ async function registerServiceWorker() {
 }
 
 
-
-
-
-
-
-// ========== EXPORTAR FUNCIONES GLOBALMENTE ==========
 window.changePhoneNumber = changePhoneNumber;
 window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
 window.openCartDrawer = openCartDrawer;
@@ -1196,7 +1139,6 @@ async function checkIfOfflineMode() {
   return false;
 }
 
-// Exportar funciones
 window.ConnectionMonitor = {
   showOfflineBanner,
   showOnlineBanner,
@@ -1208,27 +1150,16 @@ window.ConnectionMonitor = {
 
 
 
-
-
-
-
 document.addEventListener('DOMContentLoaded', async () => {
   injectGlobalStyles();
   loadCartFromStorage();
   createImageObserver();
   
-  // Inicializar precarga
   if (window.CacheManager && window.CacheManager.initPreloading) {
     window.CacheManager.initPreloading();
   }
-  
-  // Registrar Service Worker
-  await registerServiceWorker();
-  
-  // Iniciar monitor de conexión
+ await registerServiceWorker();
   startConnectionMonitor();
-  
-  // Verificar modo offline
   await checkIfOfflineMode();
   
   if (typeof renderCart === 'function') {
