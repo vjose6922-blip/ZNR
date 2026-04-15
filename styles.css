@@ -20,7 +20,6 @@
   --z-overlay: 25;
   --z-modal: 40;
   
-  /* Fondos específicos (oscuro) */
   --page-bg: radial-gradient(circle at top, #2b1744 0, #05030a 55%, #05030a 100%);
   --page-bg-linear: linear-gradient(180deg, #05030a 0, #0b0714 40%, #f5f5f8 100%);
   --header-footer-bg: rgba(5, 3, 10, 0.92);
@@ -28,6 +27,14 @@
   --footer-text: rgba(255, 255, 255, 0.8);
   --footer-text-muted: rgba(255, 255, 255, 0.4);
   --border-header: rgba(255, 255, 255, 0.06);
+  --header-text: #ffffff;           /* Texto blanco en header oscuro */
+  --header-text-muted: rgba(255, 255, 255, 0.7);  /* Subtítulo blanco semi-transparente */
+  --header-icon-bg: rgba(255, 255, 255, 0.1);    /* Fondo íconos */
+  --header-icon-hover: rgba(255, 255, 255, 0.2); /* Hover íconos */
+  --header-icon-color: #ffffff;
+   --footer-text: #ffffff;           /* Blanco puro */
+  --footer-text-muted: rgba(255, 255, 255, 0.7); /* Más claro que antes */
+  --footer-link-bg: rgba(255, 255, 255, 0.1);    /* Fondo links más visible */
 }
 
 [data-theme="light"] {
@@ -44,9 +51,17 @@
   --page-bg-linear: linear-gradient(180deg, #fff5e6 0, #fff8f0 40%, #fff9ef 100%);
   --header-footer-bg: rgba(255, 248, 240, 0.95);
   --footer-bg: linear-gradient(135deg, #f5e6d3, #fff5e6);
-  --footer-text: #5a3b2c;
-  --footer-text-muted: #a08c7a;
+ --header-text: #2c1810;           /* Texto oscuro en header claro */
+  --header-text-muted: #8b7355;     /* Subtítulo marrón */
+  --header-icon-bg: rgba(0, 0, 0, 0.06);   /* Fondo íconos claro */
+  --header-icon-hover: rgba(0, 0, 0, 0.12); /* Hover íconos */
+  --header-icon-color: #2c1810;     /* Color íconos oscuro */
+  
+  --footer-text: #2c1810;           /* Texto oscuro para footer claro */
+  --footer-text-muted: #a08c7a;     /* Texto secundario */
+  --footer-link-bg: rgba(0, 0, 0, 0.05);
   --border-header: rgba(0, 0, 0, 0.08);
+  
 }
 
 html, body {
@@ -61,7 +76,7 @@ html, body {
   background: var(--page-bg-linear);
 }
 
-/* Header */
+/* Header - versión corregida */
 .app-header {
   position: sticky;
   top: 0;
@@ -74,24 +89,36 @@ html, body {
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--border-header);
 }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.header-right { display: flex; align-items: center; gap: 8px; }
+
+.header-left { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+}
+
+.header-right { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+}
+
 .app-title {
   margin: 0;
   font-size: 18px;
-  color: var(--color-text-main);
+  color: var(--header-text);  /* CAMBIADO: usa variable específica */
+  font-weight: 600;
 }
 
 .app-subtitle {
   margin: 0;
   font-size: 12px;
-  color: var(--color-text-muted);
+  color: var(--header-text-muted);  /* CAMBIADO: usa variable específica */
 }
 
 .icon-button {
   border: none;
-  background: rgba(128, 128, 128, 0.15);
-  color: var(--color-text-main);
+  background: var(--header-icon-bg);  /* CAMBIADO: usa variable específica */
+  color: var(--header-icon-color);     /* CAMBIADO: usa variable específica */
   border-radius: 999px;
   width: 32px;
   height: 32px;
@@ -100,24 +127,34 @@ html, body {
   justify-content: center;
   cursor: pointer;
   transition: background var(--transition-fast), transform var(--transition-fast);
+  font-size: 16px;
 }
 
 .icon-button:hover {
-  background: rgba(128, 128, 128, 0.25);
+  background: var(--header-icon-hover);  /* CAMBIADO: usa variable específica */
 }
 
 .icon-button:active {
   transform: scale(0.94);
 }
 
+/* Footer - versión corregida */
 .app-footer {
   background: var(--footer-bg);
-  color: var(--color-text-main);
   margin-top: 20px;
-  padding: 10px 10px 10px;
+  padding: 16px 10px;
   border-top: 1px solid var(--border-header);
 }
-.footer-content { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; }
+
+.footer-content { 
+  max-width: 1200px; 
+  margin: 0 auto; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  gap: 12px; 
+  text-align: center; 
+}
 
 .footer-logo .logo-mark {
   font-size: 28px;
@@ -130,23 +167,24 @@ html, body {
 
 .footer-logo p {
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: var(--footer-text-muted);
   margin-top: 5px;
 }
 
 .social-link {
-  color: var(--footer-text);
+  color: var(--footer-text);  /* CAMBIADO: más contraste */
   text-decoration: none;
   font-size: 14px;
+  font-weight: 500;  /* AÑADIDO: más grueso */
   transition: all 0.2s ease;
   padding: 8px 20px;
   border-radius: 30px;
-  background: rgba(128, 128, 128, 0.08);
+  background: var(--footer-link-bg);  /* CAMBIADO: fondo más visible */
 }
 
 .social-link:hover {
   color: #ff4f81;
-  background: rgba(255, 79, 129, 0.15);
+  background: rgba(255, 79, 129, 0.2);
   transform: translateY(-2px);
 }
 
@@ -154,6 +192,7 @@ html, body {
   font-size: 12px;
   color: var(--footer-text-muted);
   margin: 0;
+  font-weight: 400;
 }
 
 /* Logo (se mantiene igual en ambos temas) */
