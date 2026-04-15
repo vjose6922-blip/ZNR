@@ -903,7 +903,6 @@ window.reloadSlot = async function(lookId, slotType, event) {
   allLooks = [...looks];
   saveLooksToCacheOptimized(allLooks);
   updateSingleLookInDOM(look, lookIndex, slotType, updatedProduct, priceDifference);
-  showTemporaryMessage(`✨ Prenda actualizada: ${updatedProduct.name}`, "info");
 };
 
 function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, priceDifference) {
