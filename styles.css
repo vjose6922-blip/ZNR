@@ -32,7 +32,7 @@
   --header-icon-bg: rgba(255, 255, 255, 0.1);    /* Fondo íconos */
   --header-icon-hover: rgba(255, 255, 255, 0.2); /* Hover íconos */
   --header-icon-color: #ffffff;
-   --footer-text: #ffffff;           /* Blanco puro */
+  --footer-text: #ffffff;           /* Blanco puro */
   --footer-text-muted: rgba(255, 255, 255, 0.7); /* Más claro que antes */
   --footer-link-bg: rgba(255, 255, 255, 0.1);    /* Fondo links más visible */
 }
@@ -51,7 +51,7 @@
   --page-bg-linear: linear-gradient(180deg, #fff5e6 0, #fff8f0 40%, #fff9ef 100%);
   --header-footer-bg: rgba(255, 248, 240, 0.95);
   --footer-bg: linear-gradient(135deg, #f5e6d3, #fff5e6);
- --header-text: #2c1810;           /* Texto oscuro en header claro */
+  --header-text: #2c1810;           /* Texto oscuro en header claro */
   --header-text-muted: #8b7355;     /* Subtítulo marrón */
   --header-icon-bg: rgba(0, 0, 0, 0.06);   /* Fondo íconos claro */
   --header-icon-hover: rgba(0, 0, 0, 0.12); /* Hover íconos */
@@ -67,6 +67,7 @@
 html, body {
   background: var(--page-bg);
   color: var(--color-text-main);
+  padding: 0;
 }
 
 .theme-aeromexico {
