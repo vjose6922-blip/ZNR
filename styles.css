@@ -51,14 +51,13 @@
   --page-bg-linear: linear-gradient(180deg, #fff5e6 0, #fff8f0 40%, #fff9ef 100%);
   --header-footer-bg: rgba(255, 248, 240, 0.95);
   --footer-bg: linear-gradient(135deg, #f5e6d3, #fff5e6);
-  --header-text: #2c1810;           /* Texto oscuro en header claro */
-  --header-text-muted: #8b7355;     /* Subtítulo marrón */
-  --header-icon-bg: rgba(0, 0, 0, 0.06);   /* Fondo íconos claro */
-  --header-icon-hover: rgba(0, 0, 0, 0.12); /* Hover íconos */
-  --header-icon-color: #2c1810;     /* Color íconos oscuro */
-  
-  --footer-text: #2c1810;           /* Texto oscuro para footer claro */
-  --footer-text-muted: #a08c7a;     /* Texto secundario */
+  --header-text: #2c1810;          
+  --header-text-muted: #8b7355;     
+  --header-icon-bg: rgba(0, 0, 0, 0.06);  
+  --header-icon-hover: rgba(0, 0, 0, 0.12); 
+  --header-icon-color: #2c1810;     
+  --footer-text: #2c1810;           
+  --footer-text-muted: #a08c7a;     
   --footer-link-bg: rgba(0, 0, 0, 0.05);
   --border-header: rgba(0, 0, 0, 0.08);
   
@@ -106,7 +105,7 @@ body {
   display: flex; 
   align-items: center; 
   gap: 8px; 
-  padding: 0 16px;
+  padding: 0 2px;
 }
 
 .header-right { 
@@ -131,8 +130,8 @@ body {
 
 .icon-button {
   border: none;
-  background: var(--header-icon-bg);  /* CAMBIADO: usa variable específica */
-  color: var(--header-icon-color);     /* CAMBIADO: usa variable específica */
+  background: var(--header-icon-bg);  
+  color: var(--header-icon-color);     
   border-radius: 999px;
   width: 32px;
   height: 32px;
@@ -211,7 +210,6 @@ body {
   font-weight: 400;
 }
 
-/* Logo (se mantiene igual en ambos temas) */
 .logo-touch-area {
   width: 40px;
   height: 40px;
