@@ -458,7 +458,7 @@ function setupImageUpload(fileInputId, textInputId, previewId, progressId) {
         throw new Error(json.error || "Error al subir imagen");
       }
       
-      const imageUrl = "https://lh3.googleusercontent.com/d/" + json.id + "=w800-h800-c-rw";
+      const imageUrl = "https://lh3.googleusercontent.com/d/" + json.id + "=w400-h400-c-rw";
       textInput.value = imageUrl;
       
       if (progress) progress.style.width = "100%";
