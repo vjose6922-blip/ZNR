@@ -723,7 +723,7 @@ function createLookCardWithLazy(look) {
     if (!product) continue;
     productCount++;
     totalPrice += product.price;
-    const productImgOptimized = optimizeDriveUrl(product.image, 150);
+    const productImgOptimized = optimizeDriveUrl(product.image, 200);
     
     imagesHtml += `
       <div class="look-slot-image" data-slot="${slotKey}" onclick="openImageModal('${optimizeDriveUrl(product.image, 800)}')">
