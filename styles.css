@@ -40,7 +40,6 @@
   --color-text-muted: #8b7355;
   --color-border-subtle: #ffe0b5;
   
-  /* Fondos específicos (claro) */
   --page-bg: radial-gradient(circle at top, #ffe8d6 0, #fff5e6 55%, #fff9ef 100%);
   --page-bg-linear: linear-gradient(180deg, #fff5e6 0, #fff8f0 40%, #fff9ef 100%);
   --header-footer-bg: rgba(255, 248, 240, 0.95);
@@ -50,9 +49,6 @@
   --border-header: rgba(0, 0, 0, 0.08);
 }
 
-/* ========== APLICAR VARIABLES ========== */
-
-/* Fondo de página */
 html, body {
   background: var(--page-bg);
   color: var(--color-text-main);
@@ -80,7 +76,6 @@ html, body {
 }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header-right { display: flex; align-items: center; gap: 8px; }
-/* Títulos del header */
 .app-title {
   margin: 0;
   font-size: 18px;
@@ -93,7 +88,6 @@ html, body {
   color: var(--color-text-muted);
 }
 
-/* Botones del header (íconos) */
 .icon-button {
   border: none;
   background: rgba(128, 128, 128, 0.15);
@@ -116,7 +110,6 @@ html, body {
   transform: scale(0.94);
 }
 
-/* Footer */
 .app-footer {
   background: var(--footer-bg);
   color: var(--color-text-main);
@@ -124,6 +117,7 @@ html, body {
   padding: 10px 10px 10px;
   border-top: 1px solid var(--border-header);
 }
+.footer-content { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; }
 
 .footer-logo .logo-mark {
   font-size: 28px;
