@@ -1,5 +1,4 @@
 :root {
-  /* Tema oscuro (default) */
   --color-primary: #3b1f5f;
   --color-primary-soft: #5a3b8a;
   --color-accent: #ff4f81;
@@ -27,14 +26,14 @@
   --footer-text: rgba(255, 255, 255, 0.8);
   --footer-text-muted: rgba(255, 255, 255, 0.4);
   --border-header: rgba(255, 255, 255, 0.06);
-  --header-text: #ffffff;           /* Texto blanco en header oscuro */
-  --header-text-muted: rgba(255, 255, 255, 0.7);  /* Subtítulo blanco semi-transparente */
-  --header-icon-bg: rgba(255, 255, 255, 0.1);    /* Fondo íconos */
-  --header-icon-hover: rgba(255, 255, 255, 0.2); /* Hover íconos */
+  --header-text: #ffffff;           
+  --header-text-muted: rgba(255, 255, 255, 0.7);  
+  --header-icon-bg: rgba(255, 255, 255, 0.1);    
+  --header-icon-hover: rgba(255, 255, 255, 0.2);
   --header-icon-color: #ffffff;
-  --footer-text: #ffffff;           /* Blanco puro */
-  --footer-text-muted: rgba(255, 255, 255, 0.7); /* Más claro que antes */
-  --footer-link-bg: rgba(255, 255, 255, 0.1);    /* Fondo links más visible */
+  --footer-text: #ffffff;          
+  --footer-text-muted: rgba(255, 255, 255, 0.7); 
+  --footer-link-bg: rgba(255, 255, 255, 0.1);   
 }
 
 [data-theme="light"] {
@@ -104,28 +103,28 @@ body {
 .header-left { 
   display: flex; 
   align-items: center; 
-  gap: 8px; 
-  padding: 0 2px;
+  gap: 4px; 
+  padding: 0;
 }
 
 .header-right { 
   display: flex; 
   align-items: center; 
-  gap: 8px; 
-  padding: 0 16px;
+  gap: 4px; 
+  padding: 0;
 }
 
 .app-title {
   margin: 0;
   font-size: 18px;
-  color: var(--header-text);  /* CAMBIADO: usa variable específica */
+  color: var(--header-text);  
   font-weight: 600;
 }
 
 .app-subtitle {
   margin: 0;
   font-size: 12px;
-  color: var(--header-text-muted);  /* CAMBIADO: usa variable específica */
+  color: var(--header-text-muted);  
 }
 
 .icon-button {
@@ -144,14 +143,13 @@ body {
 }
 
 .icon-button:hover {
-  background: var(--header-icon-hover);  /* CAMBIADO: usa variable específica */
+  background: var(--header-icon-hover);  
 }
 
 .icon-button:active {
   transform: scale(0.94);
 }
 
-/* Footer - versión corregida */
 .app-footer {
   background: var(--footer-bg);
   margin-top: 20px;
@@ -187,14 +185,14 @@ body {
 }
 
 .social-link {
-  color: var(--footer-text);  /* CAMBIADO: más contraste */
+  color: var(--footer-text);  
   text-decoration: none;
   font-size: 14px;
-  font-weight: 500;  /* AÑADIDO: más grueso */
+  font-weight: 500;  
   transition: all 0.2s ease;
   padding: 8px 20px;
   border-radius: 30px;
-  background: var(--footer-link-bg);  /* CAMBIADO: fondo más visible */
+  background: var(--footer-link-bg);  
 }
 
 .social-link:hover {
@@ -298,24 +296,6 @@ body {
 .products-container.layout-grid .primary-button { padding: 6px 4px; font-size: 12.5px; flex: 1; text-align: center; }
 .products-container.layout-grid .product-badge { font-size: 10px; padding: 3px 8px; top: 6px; left: 6px; }
 
-.looks-hero {
-  background: linear-gradient(135deg, #2b1744 0%, #1a0f2e 100%);
-  padding: 8px 10px;
-  text-align: center;
-  margin-bottom: 8px;
-}
-
-.looks-hero h1 {
-  font-size: 28px;
-  color: white;
-  margin: 0 0 8px 0;
-}
-
-.looks-hero p {
-  color: rgba(255,255,255,0.7);
-  margin: 0;
-  font-size: 14px;
-}
 
 .looks-grid {
   display: flex;
