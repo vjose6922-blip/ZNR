@@ -197,12 +197,58 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = e => img.src = e.target.result;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      // Reducir tamaño máximo de 1200px a 800px para imágenes de producto
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) {
+          h *= MAX / w;
+          w = MAX;
+        } else {
+          w *= MAX / h;
+          h = MAX;
+        }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+     
+      resolve(canvas.toDataURL("image/webp", 0.8));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function optimizeDriveUrl(url, size = 400) {
   if (!url) return "";
   const match = url.match(/[-\w]{25,}/);
   if (match) {
     const id = match[0];
-    const actualSize = window.innerWidth < 768 ? 400 : size;
+    // Tamaños más pequeños para móvil y tablet
+    const screenWidth = window.innerWidth;
+    let actualSize = size;
+    
+    if (screenWidth < 480) {
+      actualSize = 300;  // Móvil pequeño
+    } else if (screenWidth < 768) {
+      actualSize = 400;  // Móvil grande/tablet
+    } else if (screenWidth < 1200) {
+      actualSize = 600;  // Desktop pequeño
+    } else {
+      actualSize = 800;  // Desktop grande
+    }
+    
+    // Limitar el tamaño máximo a 800 para no desperdiciar ancho de banda
+    actualSize = Math.min(actualSize, 800);
+    
     return `https://drive.google.com/thumbnail?id=${id}&sz=w${actualSize}`;
   }
   return url;
