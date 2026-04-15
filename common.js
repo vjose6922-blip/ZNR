@@ -1205,7 +1205,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  
+  updateThemeIcon(savedTheme);
+}
 
+function updateThemeIcon(theme) {
+  const toggleBtn = document.getElementById('theme-toggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = theme === 'dark' ? '🌙' : '☀️';
+  }
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  updateThemeIcon(newTheme);
+  
+  window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+  }
+});
 
 
 
