@@ -982,21 +982,16 @@ window.ConnectionMonitor = {
 
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // ===== TAREAS CRÍTICAS (ejecutar inmediatamente) =====
   loadCartFromStorage();
   createImageObserver();
-  
-  if (window.CacheManager && window.CacheManager.initPreloading) {
-    window.CacheManager.initPreloading();
-  }
- await registerServiceWorker();
-  startConnectionMonitor();
-  await checkIfOfflineMode();
   
   if (typeof renderCart === 'function') {
     renderCart();
     console.log("✅ Carrito renderizado al inicio");
   }
   
+  // Configurar eventos esenciales de UI inmediatamente
   const floatingCartBtn = document.getElementById("floating-cart-btn");
   if (floatingCartBtn) floatingCartBtn.addEventListener("click", openCartDrawer);
   
@@ -1014,6 +1009,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   updateSavedPhoneDisplay();
   
+  // ===== TAREAS NO CRÍTICAS (ejecutar cuando el navegador esté inactivo) =====
+  const deferTask = (task) => {
+    if (window.requestIdleCallback) {
+      requestIdleCallback(task, { timeout: 3000 });
+    } else {
+      setTimeout(task, 100);
+    }
+  };
+  
+  deferTask(() => {
+    if (window.CacheManager && window.CacheManager.initPreloading) {
+      window.CacheManager.initPreloading();
+    }
+  });
+  
+  deferTask(async () => {
+    await registerServiceWorker();
+  });
+  
+  deferTask(() => {
+    startConnectionMonitor();
+  });
+  
+  deferTask(async () => {
+    await checkIfOfflineMode();
+  });
+  
+  // ===== EVENTOS GLOBALES (no bloquean) =====
   window.addEventListener('cartUpdated', () => {
     if (typeof renderCart === 'function') renderCart();
     updateCartBadge();
@@ -1026,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('connection:online', () => {
     console.log('📡 Evento: Conexión recuperada');
     if (typeof loadProductsInBackground === 'function') {
-      loadProductsInBackground();
+      deferTask(() => loadProductsInBackground());
     }
   });
 });
