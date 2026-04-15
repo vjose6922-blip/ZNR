@@ -76,94 +76,91 @@
     <img id="image-modal-img" alt="Vista de producto" />
   </div>
 
- <script src="common.js"></script>
-<script src="looks.js"></script>
-<script src="cache-manager.js"></script>
+   <script src="common.js"></script>
+  <script src="looks.js"></script>
+  <script src="cache-manager.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-navigator.serviceWorker.register('/ZNR/sw.js')
-  .then(registration => console.log('✅ SW registrado:', registration.scope))
+        navigator.serviceWorker.register('/ZNR/sw.js')
+          .then(registration => console.log('✅ SW registrado:', registration.scope))
           .catch(error => console.log('❌ Error SW:', error));
       });
     }
   </script>
-<script src="common.js"></script>
-<script src="looks.js"></script>
-<script src="cache-manager.js"></script>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando página con modales personalizados...');
-    
-    window.changePhoneNumber = changePhoneNumber;
-    window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
-    window.openCartDrawer = openCartDrawer;
-    window.closeCartDrawer = closeCartDrawer;
-    window.renderCart = renderCart;
-    window.addToCart = addToCart;
-    
-    const floatingCartBtn = document.getElementById('floating-cart-btn');
-    if (floatingCartBtn) {
-        const newBtn = floatingCartBtn.cloneNode(true);
-        floatingCartBtn.parentNode.replaceChild(newBtn, floatingCartBtn);
-        newBtn.addEventListener('click', () => {
-            console.log('🛒 Abriendo carrito');
-            if (typeof window.openCartDrawer === 'function') {
-                window.openCartDrawer();
-            }
-        });
-    }
-    
-    const closeCartBtn = document.getElementById('close-cart-btn');
-    if (closeCartBtn) {
-        const newBtn = closeCartBtn.cloneNode(true);
-        closeCartBtn.parentNode.replaceChild(newBtn, closeCartBtn);
-        newBtn.addEventListener('click', () => {
-            console.log('❌ Cerrando carrito');
-            if (typeof window.closeCartDrawer === 'function') {
-                window.closeCartDrawer();
-            }
-        });
-    }
-    
-    const overlay = document.getElementById('overlay');
-    if (overlay) {
-        const newOverlay = overlay.cloneNode(true);
-        overlay.parentNode.replaceChild(newOverlay, overlay);
-        newOverlay.addEventListener('click', () => {
-            if (typeof window.closeCartDrawer === 'function') {
-                window.closeCartDrawer();
-            }
-            if (typeof closeImageModal === 'function') {
-                closeImageModal();
-            }
-        });
-    }
-    
-    if (typeof loadCartFromStorage === 'function') {
-        loadCartFromStorage();
-    }
-    
-    if (typeof renderCart === 'function') {
-        renderCart();
-    }
-    
-    if (typeof updateSavedPhoneDisplay === 'function') {
-        updateSavedPhoneDisplay();
-    }
-    
-});
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Inicializando página con modales personalizados...');
+        
+        window.changePhoneNumber = changePhoneNumber;
+        window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
+        window.openCartDrawer = openCartDrawer;
+        window.closeCartDrawer = closeCartDrawer;
+        window.renderCart = renderCart;
+        window.addToCart = addToCart;
+        
+        const floatingCartBtn = document.getElementById('floating-cart-btn');
+        if (floatingCartBtn) {
+            const newBtn = floatingCartBtn.cloneNode(true);
+            floatingCartBtn.parentNode.replaceChild(newBtn, floatingCartBtn);
+            newBtn.addEventListener('click', () => {
+                console.log('🛒 Abriendo carrito');
+                if (typeof window.openCartDrawer === 'function') {
+                    window.openCartDrawer();
+                }
+            });
+        }
+        
+        const closeCartBtn = document.getElementById('close-cart-btn');
+        if (closeCartBtn) {
+            const newBtn = closeCartBtn.cloneNode(true);
+            closeCartBtn.parentNode.replaceChild(newBtn, closeCartBtn);
+            newBtn.addEventListener('click', () => {
+                console.log('❌ Cerrando carrito');
+                if (typeof window.closeCartDrawer === 'function') {
+                    window.closeCartDrawer();
+                }
+            });
+        }
+        
+        const overlay = document.getElementById('overlay');
+        if (overlay) {
+            const newOverlay = overlay.cloneNode(true);
+            overlay.parentNode.replaceChild(newOverlay, overlay);
+            newOverlay.addEventListener('click', () => {
+                if (typeof window.closeCartDrawer === 'function') {
+                    window.closeCartDrawer();
+                }
+                if (typeof closeImageModal === 'function') {
+                    closeImageModal();
+                }
+            });
+        }
+        
+        if (typeof loadCartFromStorage === 'function') {
+            loadCartFromStorage();
+        }
+        
+        if (typeof renderCart === 'function') {
+            renderCart();
+        }
+        
+        if (typeof updateSavedPhoneDisplay === 'function') {
+            updateSavedPhoneDisplay();
+        }
+        
+    });
 
-window.addEventListener('cartUpdated', function() {
-    if (typeof renderCart === 'function') {
-        renderCart();
-    }
-    if (typeof updateCartBadge === 'function') {
-        updateCartBadge();
-    }
-});
-</script>
+    window.addEventListener('cartUpdated', function() {
+        if (typeof renderCart === 'function') {
+            renderCart();
+        }
+        if (typeof updateCartBadge === 'function') {
+            updateCartBadge();
+        }
+    });
+  </script>
 
   <footer class="app-footer">
     <div class="footer-content">
