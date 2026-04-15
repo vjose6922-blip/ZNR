@@ -104,10 +104,11 @@
     <img id="image-modal-img" alt="Vista de producto" />
   </div>
 
-    <script src="common.js"></script>
-  <script src="script.js"></script>
-  <script src="cache-manager.js"></script>
+      <script src="common.js" defer></script>
+  <script src="script.js" defer></script>
+  <script src="cache-manager.js" defer></script>
   <script>
+    // Este script NO tiene defer - debe ejecutarse rápido para registrar el SW
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/ZNR/sw.js')
@@ -117,7 +118,7 @@
     }
   </script>
 
-  <script>
+  <script defer>
     document.addEventListener('DOMContentLoaded', function() {
         console.log('🚀 Inicializando página con modales personalizados...');
         
