@@ -872,7 +872,6 @@ window.reloadSlot = async function(lookId, slotType, event) {
   }
   
   if (freshProducts.length === 0) {
-    showTemporaryMessage("⚠️ No hay más productos disponibles", "error");
     return;
   }
   
