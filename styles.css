@@ -67,6 +67,13 @@
 html, body {
   background: var(--page-bg);
   color: var(--color-text-main);
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+body {
+  margin: 0;
   padding: 0;
 }
 
@@ -75,9 +82,11 @@ html, body {
   display: flex;
   flex-direction: column;
   background: var(--page-bg-linear);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
-/* Header - versión corregida */
 .app-header {
   position: sticky;
   top: 0;
@@ -89,18 +98,22 @@ html, body {
   background: var(--header-footer-bg);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--border-header);
+  width: 100%;
+  border-radius: 0;
 }
 
 .header-left { 
   display: flex; 
   align-items: center; 
-  gap: 10px; 
+  gap: 8px; 
+  padding: 0 16px;
 }
 
 .header-right { 
   display: flex; 
   align-items: center; 
   gap: 8px; 
+  padding: 0 16px;
 }
 
 .app-title {
@@ -145,6 +158,8 @@ html, body {
   margin-top: 20px;
   padding: 16px 10px;
   border-top: 1px solid var(--border-header);
+  width: 100%;
+  border-radius: 0;
 }
 
 .footer-content { 
@@ -241,7 +256,7 @@ html, body {
 .gender-select { padding: 12px 16px; border: 1px solid #e0e0e0; border-radius: 12px; background: #f5f5f8; font-size: 14px; font-weight: 500; cursor: pointer; min-width: 140px; flex-shrink: 0; }
 .filters-row-bottom select { flex: 1; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 12px; background: #f5f5f8; font-size: 14px; cursor: pointer; min-width: 120px; }
 @media (max-width: 640px) { .filters-row-top, .filters-row-bottom { flex-wrap: nowrap; } .search-wrapper { min-width: 180px; } .gender-select, .filters-row-bottom select { flex-shrink: 0; } }
-.products-container { contain: content; padding: 16px 12px 80px; display: flex; flex-direction: column; gap: 16px; }
+.products-container { contain: content; padding: 16px 12px 80px; display: flex; flex-direction: column; gap: 16px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 
 .product-card { background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); padding: 5px; display: flex; flex-direction: column; gap: 12px; transform: translateY(4px); opacity: 0; animation: card-in 0.35s var(--transition-med) forwards; will-change: transform, opacity; transition: box-shadow 0.2s ease; }
 .product-card:hover { box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12); }
