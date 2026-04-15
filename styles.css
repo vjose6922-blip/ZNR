@@ -20,6 +20,37 @@
   --z-modal: 40;
 }
 
+
+[data-theme="light"] {
+  --color-primary: #ff7a4f;
+  --color-primary-soft: #ff9f6e;
+  --color-accent: #ff4f81;
+  --color-bg: #fff9ef;
+  --color-surface: #ffffff;
+  --color-text-main: #2c1810;
+  --color-text-muted: #8b7355;
+  --color-border-subtle: #ffe0b5;
+  --header-bg: rgba(255, 255, 255, 0.95);
+  --card-bg: #ffffff;
+  --shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* Aplicar variables a los elementos */
+body {
+  background: var(--color-bg);
+  color: var(--color-text-main);
+}
+
+.app-header {
+  background: var(--header-bg);
+}
+
+.product-card, .look-card, .admin-card, .request-card {
+  background: var(--card-bg);
+}
+
+
+
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Roboto", "Segoe UI", sans-serif; background: radial-gradient(circle at top, #2b1744 0, #05030a 55%, #05030a 100%); color: var(--color-text-main); }
 .theme-aeromexico { min-height: 100vh; display: flex; flex-direction: column; background: linear-gradient(180deg, #05030a 0, #0b0714 40%, #f5f5f8 100%); }
