@@ -1,6 +1,11 @@
 const WEATHER_API_URL = API_URL;
 const LOOKS_CACHE_KEY = 'zr_looks_generated_v2';
+const MAX_WEATHER_ATTEMPTS = 2;
 
+let cartRenderTimeout = null;
+let isLoadingProducts = false;
+let isGenerating = false;
+let pendingRender = false;
 let currentWeather = null;
 let allProducts = [];
 let looks = [];
@@ -13,6 +18,8 @@ let lazyImageObserver = null;
 let weatherData = null;
 let weatherLoadStarted = false;
 let weatherLoadPromise = null;
+let weatherLoadAttempts = 0;
+let preloadedPages = new Set();
 let precomputedOrders = {
   calor: null,
   frio: null,
@@ -47,14 +54,12 @@ function precomputeAllOrders(looksArray) {
   console.log(`📊 Órdenes de clima precalculadas en ${(performance.now() - startTime).toFixed(0)}ms`);
 }
 
-// Aplicar orden por clima instantáneamente
 function applyWeatherOrderInstant(weatherType) {
   if (isReordering) return false;
   
   const newOrder = precomputedOrders[weatherType];
   if (!newOrder || newOrder.length === 0) return false;
   
-  // Solo reordenar si realmente cambió
   const currentIds = allLooks.map(l => l.id).join(',');
   const newIds = newOrder.map(l => l.id).join(',');
   if (currentIds === newIds) return false;
@@ -62,7 +67,6 @@ function applyWeatherOrderInstant(weatherType) {
   console.log(`🌤️ Reordenando looks para clima: ${weatherType}`);
   isReordering = true;
   
-  // Animar la transición
   animateLooksReordering(newOrder).then(() => {
     allLooks = newOrder;
     looks = [...allLooks];
@@ -81,7 +85,6 @@ async function animateLooksReordering(newLooks) {
   const cards = container.querySelectorAll('.look-card:not(.skeleton-card)');
   if (cards.length === 0) return Promise.resolve();
   
-  // Fade-out rápido
   cards.forEach(card => {
     card.style.transition = 'opacity 0.15s ease';
     card.style.opacity = '0';
@@ -89,15 +92,12 @@ async function animateLooksReordering(newLooks) {
   
   await new Promise(resolve => setTimeout(resolve, 150));
   
-  // Actualizar datos
   allLooks = newLooks;
   currentLooksPage = 1;
   renderLooks();
   
-  // NUEVO: Forzar carga de imágenes lazy después de renderizar
   setTimeout(() => {
     forceLazyImagesLoad();
-    // También re-inicializar el observer
     if (lazyImageObserver) {
       const lazyImages = document.querySelectorAll('.lazy');
       lazyImages.forEach(img => {
@@ -108,7 +108,6 @@ async function animateLooksReordering(newLooks) {
     }
   }, 100);
   
-  // Fade-in
   requestAnimationFrame(() => {
     const newCards = container.querySelectorAll('.look-card');
     newCards.forEach(card => {
@@ -123,7 +122,6 @@ async function animateLooksReordering(newLooks) {
   return Promise.resolve();
 }
 
-// NUEVA FUNCIÓN: Forzar carga de imágenes lazy visibles
 function forceLazyImagesLoad() {
   const lazyImages = document.querySelectorAll('.lazy:not(.loaded)');
   console.log(`🖼️ Forzando carga de ${lazyImages.length} imágenes lazy`);
@@ -131,7 +129,6 @@ function forceLazyImagesLoad() {
   lazyImages.forEach(img => {
     const dataSrc = img.getAttribute('data-src');
     if (dataSrc && !img.src) {
-      // Crear una nueva imagen para precargar
       const tempImg = new Image();
       tempImg.onload = () => {
         img.src = dataSrc;
@@ -139,7 +136,6 @@ function forceLazyImagesLoad() {
         img.removeAttribute('data-src');
       };
       tempImg.onerror = () => {
-        // Si falla, intentar con URL optimizada
         const optimizedUrl = optimizeDriveUrl(dataSrc, 200);
         if (optimizedUrl !== dataSrc) {
           const tempImg2 = new Image();
@@ -155,7 +151,6 @@ function forceLazyImagesLoad() {
     }
   });
 }
-
 // Cargar clima sin bloquear
 async function loadWeatherNonBlocking() {
   if (weatherLoadStarted) return weatherLoadPromise;
@@ -520,23 +515,62 @@ function getProductsQuickHash() {
 }
 
 async function getWeather() {
-  try {
-    const response = await fetch(`${WEATHER_API_URL}?action=getWeather`);
-    const data = await response.json();
-    if (data.ok && data.weatherType) {
-      currentWeather = data;
-      console.log("🌤️ Clima actual:", data.weatherType, data.temperature, data.city);
-      addWeatherNotification(data);
-      return data;
-    } else {
+  if (weatherLoadPromise) {
+    console.log("🌤️ Esperando carga de clima existente...");
+    return weatherLoadPromise;
+  }
+  
+  weatherLoadAttempts++;
+  
+  weatherLoadPromise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
+    
+    try {
+      console.log(`🌤️ Intentando obtener clima (intento ${weatherLoadAttempts})...`);
+      const response = await fetch(`${WEATHER_API_URL}?action=getWeather`, {
+        signal: controller.signal,
+        cache: 'no-cache'
+      });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      
+      if (data.ok && data.weatherType) {
+        console.log(`🌤️ Clima obtenido: ${data.weatherType} ${data.temperature}°C ${data.city || ''}`);
+        currentWeather = data;
+        return data;
+      }
+      throw new Error("Respuesta inválida");
+    } catch (err) {
+      console.log(`⏱️ Clima ${err.name === 'AbortError' ? 'timeout' : 'error'}, usando default`);
+      
+      if (weatherLoadAttempts === 1 && MAX_WEATHER_ATTEMPTS > 1) {
+        console.log("🔄 Reintentando clima en 1 segundo...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        weatherLoadPromise = null;
+        return getWeather();
+      }
+      
       currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
       return currentWeather;
+    } finally {
+      setTimeout(() => {
+        if (weatherLoadPromise === weatherLoadPromise) {
+          weatherLoadPromise = null;
+        }
+      }, 1000);
     }
-  } catch (err) {
-    console.error("Error obteniendo clima:", err);
-    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
-    return currentWeather;
-  }
+  })();
+  
+  return weatherLoadPromise;
+}
+
+
+function fetchWeatherInBackground() {
+  if (weatherLoadPromise) return weatherLoadPromise;
+  return getWeather().catch(() => null);
 }
 
 function addWeatherNotification(weather) {
@@ -670,8 +704,15 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   }
   return selected;
 }
-
 async function generateLooksProgressive() {
+  if (isGenerating) {
+    console.log("⏳ Ya generando looks, esperando...");
+    pendingRender = true;
+    return;
+  }
+  
+  isGenerating = true;
+  
   return new Promise((resolve) => {
     const startTime = performance.now();
     
@@ -681,10 +722,9 @@ async function generateLooksProgressive() {
     
     const allBuiltLooks = [];
     let currentIndex = 0;
+    let firstRenderDone = false;
     
-   
-    
-     function processBatch() {
+    function processBatch() {
       const batchSize = 3;
       const end = Math.min(currentIndex + batchSize, LOOKS_CONFIG.length);
       
@@ -708,41 +748,43 @@ async function generateLooksProgressive() {
       
       currentIndex = end;
       
-      // Renderizar progresivamente
-      if (allBuiltLooks.length > 0) {
-        // Orden neutro inicial (por ID)
+      if (!firstRenderDone && allBuiltLooks.length > 0) {
         const neutralOrder = [...allBuiltLooks].sort((a, b) => a.id.localeCompare(b.id));
         allLooks = neutralOrder;
         looks = [...allLooks];
         renderLooks();
         initLazyImagesAfterRender();
+        firstRenderDone = true;
       }
       
       if (currentIndex < LOOKS_CONFIG.length) {
-        setTimeout(processBatch, 30); // Más rápido
+        setTimeout(processBatch, 30);
       } else {
-        // Orden final según clima (si ya tenemos) o neutro
-        if (weatherData && weatherData.weatherType) {
+        if (currentWeather && currentWeather.weatherType) {
           allLooks = sortLooksByWeather(allBuiltLooks);
         } else {
           allLooks = [...allBuiltLooks].sort((a, b) => a.id.localeCompare(b.id));
         }
         
         looks = [...allLooks];
-        
-        // NUEVO: Precalcular órdenes para cambio instantáneo
         precomputeAllOrders(allLooks);
-        
         saveLooksToCacheOptimized(allLooks);
-        renderLooks();
-        initLazyImagesAfterRender();
-        preloadAdjacentPages();
         
-        // Cargar clima en segundo plano (NO BLOQUEANTE)
-        loadWeatherNonBlocking();
+        if (JSON.stringify(allLooks) !== JSON.stringify(looks)) {
+          renderLooks();
+          initLazyImagesAfterRender();
+        }
+        
+        preloadAdjacentPages();
         
         const endTime = performance.now();
         console.log(`✅ Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
+        
+        isGenerating = false;
+        if (pendingRender) {
+          pendingRender = false;
+          renderLooks();
+        }
         resolve();
       }
     }
@@ -753,17 +795,15 @@ async function generateLooksProgressive() {
 
 function preloadAdjacentPages() {
   const totalPages = Math.ceil(allLooks.length / looksPerPage);
+  clearPreloadCache();
   
   if (currentLooksPage < totalPages) {
     preloadLooksPage(currentLooksPage + 1);
   }
-  
-  if (currentLooksPage > 1) {
-    preloadLooksPage(currentLooksPage - 1);
-  }
 }
 
 function preloadLooksPage(pageNumber) {
+  if (preloadedPages.has(pageNumber)) return;
   if (preloadedNextPage === pageNumber) return;
   
   const start = (pageNumber - 1) * looksPerPage;
@@ -771,6 +811,9 @@ function preloadLooksPage(pageNumber) {
   const pageLooks = allLooks.slice(start, end);
   
   if (pageLooks.length === 0) return;
+  
+  preloadedPages.add(pageNumber);
+  preloadedNextPage = pageNumber;
   
   if (window.requestIdleCallback) {
     requestIdleCallback(() => {
@@ -785,8 +828,6 @@ function preloadLooksPage(pageNumber) {
           }
         });
       });
-      
-      preloadedNextPage = pageNumber;
       console.log(`🔮 Precargada página ${pageNumber} de looks`);
     });
   } else {
@@ -799,99 +840,65 @@ function preloadLooksPage(pageNumber) {
           }
         });
       });
-      preloadedNextPage = pageNumber;
+      console.log(`🔮 Precargada página ${pageNumber} de looks`);
     }, 100);
   }
 }
 
+function clearPreloadCache() {
+  preloadedPages.clear();
+  preloadedNextPage = null;
+}
+
+
 async function loadProducts() {
+  if (isLoadingProducts) {
+    console.log("⏳ Ya cargando productos, omitiendo...");
+    return;
+  }
+  
+  isLoadingProducts = true;
   showSkeletonLooks();
   
-  if (!navigator.onLine) {
-    console.log('📡 Offline - Cargando looks desde caché');
-    if (window.ConnectionMonitor && window.ConnectionMonitor.showOfflineBanner) {
-      window.ConnectionMonitor.showOfflineBanner();
-    }
-  }
+  const weatherPromise = fetchWeatherInBackground();
   
   const cachedLooks = getCachedLooksOptimized();
   if (cachedLooks && cachedLooks.length > 0) {
     console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
     
-    // Orden neutro para mostrar rápido
     const neutralOrder = [...cachedLooks].sort((a, b) => a.id.localeCompare(b.id));
     allLooks = neutralOrder;
     looks = [...allLooks];
     currentLooksPage = 1;
+    precomputeAllOrders(allLooks);
     
-    // Precalcular órdenes con los datos en caché
-    if (typeof precomputeAllOrders === 'function') {
-      precomputeAllOrders(allLooks);
-    }
-    
-    const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
-      ? window.CacheManager.getSessionProductsCache() 
-      : getCachedProducts();
-    
+    const cachedProducts = getCachedProducts();
     if (cachedProducts && cachedProducts.length > 0) {
       allProducts = cachedProducts;
-      // Solo indexar si la función existe
       if (typeof window.indexProducts === 'function') {
         window.indexProducts(allProducts);
       }
     }
     
-    // Renderizar inmediatamente
-    setTimeout(() => {
-      renderLooks();
-      initLazyImagesAfterRender();
-      preloadAdjacentPages();
-      hideSkeletonLooks();
-    }, 10);
+    renderLooks();
+    initLazyImagesAfterRender();
+    preloadAdjacentPages();
+    hideSkeletonLooks();
     
-    // Cargar clima en segundo plano
-    if (typeof loadWeatherNonBlocking === 'function') {
-      loadWeatherNonBlocking();
-    } else {
-      getWeather();
+    const weather = await weatherPromise;
+    if (weather && weather.weatherType && precomputedOrders[weather.weatherType]) {
+      applyWeatherOrderInstant(weather.weatherType);
     }
     
-    // Cargar datos frescos en background
     if (navigator.onLine && !isGeneratingLooks) {
       loadFreshProductsInBackground();
     }
+    
+    isLoadingProducts = false;
     return;
   }
   
-  const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
-    ? window.CacheManager.getSessionProductsCache() 
-    : getCachedProducts();
-  
-  if (cachedProducts && cachedProducts.length > 0) {
-    console.log("⚡ Productos desde caché, generando looks progresivamente...");
-    allProducts = cachedProducts;
-    if (typeof window.indexProducts === 'function') {
-      window.indexProducts(allProducts);
-    }
-    
-    // Mostrar orden neutro primero
-    const neutralLooks = generateNeutralLooksOrder(allProducts);
-    if (neutralLooks.length > 0) {
-      allLooks = neutralLooks;
-      looks = [...allLooks];
-      renderLooks();
-      hideSkeletonLooks();
-    }
-    
-    await getWeather();
-    await generateLooksProgressive();
-    
-    if (navigator.onLine) {
-      loadFreshProductsInBackground();
-    }
-    return;
-  }
-  
+  // Si no hay caché, cargar desde red
   try {
     await getWeather();
     const controller = new AbortController();
@@ -915,6 +922,8 @@ async function loadProducts() {
       container.innerHTML = '<div class="empty-looks">❌ Error al cargar los productos. Intenta de nuevo.</div>';
     }
     hideSkeletonLooks();
+  } finally {
+    isLoadingProducts = false;
   }
 }
 
@@ -1014,10 +1023,8 @@ function renderLooks() {
   renderLooksPagination(totalPages);
   preloadAdjacentPages();
   
-  // NUEVO: Inicializar lazy loading después de renderizar
   setTimeout(() => {
     initLazyImagesAfterRender();
-    // Forzar carga de primeras imágenes visibles
     forceVisibleLazyImages();
   }, 50);
 }
@@ -1026,7 +1033,6 @@ function renderLooks() {
 function forceVisibleLazyImages() {
   const lazyImages = document.querySelectorAll('.lazy:not(.loaded)');
   const viewportHeight = window.innerHeight;
-  const scrollTop = window.scrollY;
   
   lazyImages.forEach(img => {
     const rect = img.getBoundingClientRect();
@@ -1124,7 +1130,19 @@ function renderLooksPagination(totalPages) {
   const paginationDiv = document.createElement("div");
   paginationDiv.className = "looks-pagination admin-pagination";
   paginationDiv.style.cssText = "display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap;";
-   
+  
+  // Botón anterior
+  if (currentLooksPage > 1) {
+    const prevBtn = createPaginationButton("← Anterior", () => {
+      currentLooksPage--;
+      renderLooks();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => forceVisibleLazyImages(), 300);
+    });
+    paginationDiv.appendChild(prevBtn);
+  }
+  
+  // Números de página
   let startPage = Math.max(1, currentLooksPage - 2);
   let endPage = Math.min(totalPages, startPage + 4);
   if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
@@ -1134,13 +1152,13 @@ function renderLooksPagination(totalPages) {
       currentLooksPage = i;
       renderLooks();
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      // NUEVO: Forzar carga después de cambiar página
       setTimeout(() => forceVisibleLazyImages(), 300);
     });
     if (i === currentLooksPage) pageBtn.classList.add("active-page");
     paginationDiv.appendChild(pageBtn);
   }
   
+  // Botón siguiente
   if (currentLooksPage < totalPages) {
     const nextBtn = createPaginationButton("Siguiente →", () => {
       currentLooksPage++;
@@ -1148,6 +1166,13 @@ function renderLooksPagination(totalPages) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => forceVisibleLazyImages(), 300);
     });
+    
+    nextBtn.addEventListener('mouseenter', () => {
+      if (currentLooksPage + 1 <= totalPages) {
+        preloadLooksPage(currentLooksPage + 1);
+      }
+    });
+    
     paginationDiv.appendChild(nextBtn);
   }
   
@@ -1394,14 +1419,15 @@ document.addEventListener("DOMContentLoaded", () => {
   
   const requestBtn = document.getElementById("request-purchase-btn");
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
-});
-// Añadir al final de looks.js, dentro del DOMContentLoaded
-let scrollTimeout;
-window.addEventListener('scroll', function() {
-  if (scrollTimeout) clearTimeout(scrollTimeout);
-  scrollTimeout = setTimeout(() => {
-    forceVisibleLazyImages();
-  }, 100);
+  
+  // Scroll listener para lazy loading
+  let scrollTimeout;
+  window.addEventListener('scroll', function() {
+    if (scrollTimeout) clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      forceVisibleLazyImages();
+    }, 100);
+  });
 });
 
 // También cuando se cambia de página en la paginación
