@@ -8,6 +8,89 @@ let initialHashHandled = false;
 const SECRET_TAPS_REQUIRED = 5;
 let secretTapCount = 0;
 let secretTapTimeout = null;
+let filterCache = new Map();
+let lastFilterKey = '';
+
+
+function getFilterKey(searchValue, categoryValue, genderValue, sortValue) {
+  return `${searchValue}|${categoryValue}|${genderValue}|${sortValue}`;
+}
+
+function applyFiltersOptimized() {
+  const searchValue = document.getElementById("search-input")?.value.trim().toLowerCase() || "";
+  const categoryValue = document.getElementById("category-filter")?.value || "";
+  const genderValue = document.getElementById("gender-filter")?.value || "";
+  const sortValue = document.getElementById("sort-select")?.value || "";
+  
+  const filterKey = getFilterKey(searchValue, categoryValue, genderValue, sortValue);
+  
+  // Verificar caché de filtros
+  if (filterCache.has(filterKey)) {
+    console.log("⚡ Usando filtro en caché");
+    filteredProducts = filterCache.get(filterKey);
+    currentPage = 1;
+    renderProductsPage(true);
+    return;
+  }
+  
+  const startTime = performance.now();
+  let result = [];
+  
+  // FILTRADO INTELIGENTE usando índices cuando es posible
+  if (!searchValue && productsIndexed) {
+    // Sin búsqueda textual - usar índices (O(1))
+    if (genderValue && productsByGender.has(genderValue)) {
+      result = [...productsByGender.get(genderValue)];
+    } else if (categoryValue && productsByCategory.has(categoryValue)) {
+      result = [...productsByCategory.get(categoryValue)];
+    } else {
+      result = [...allProducts];
+    }
+    
+    // Filtrar por categoría adicional si es necesario
+    if (categoryValue && genderValue) {
+      result = result.filter(p => (p.Categoria || "") === categoryValue);
+    }
+  } else {
+    // Con búsqueda textual - filtrado tradicional pero optimizado
+    const sourceArray = (genderValue && productsByGender.has(genderValue)) 
+      ? productsByGender.get(genderValue) 
+      : allProducts;
+    
+    result = sourceArray.filter((p) => {
+      const matchesSearch = !searchValue ||
+        (p.Nombre || "").toLowerCase().includes(searchValue) ||
+        (p.Descripcion || "").toLowerCase().includes(searchValue);
+      const matchesCategory = !categoryValue || (p.Categoria || "") === categoryValue;
+      return matchesSearch && matchesCategory;
+    });
+  }
+  
+  // Ordenar
+  if (sortValue === "price-asc") {
+    result.sort((a, b) => Number(a.Precio || 0) - Number(b.Precio || 0));
+  } else if (sortValue === "price-desc") {
+    result.sort((a, b) => Number(b.Precio || 0) - Number(a.Precio || 0));
+  }
+  
+  // Guardar en caché (máx 20 filtros)
+  if (filterCache.size > 20) {
+    const firstKey = filterCache.keys().next().value;
+    filterCache.delete(firstKey);
+  }
+  filterCache.set(filterKey, result);
+  
+  filteredProducts = result;
+  currentPage = 1;
+  renderProductsPage(true);
+  
+  const endTime = performance.now();
+  console.log(`🔍 Filtro completado en ${(endTime - startTime).toFixed(0)}ms`);
+}
+
+const originalApplyFilters = window.applyFilters;
+window.applyFilters = applyFiltersOptimized;
+
 
 
 async function checkOfflineOnStart() {
@@ -49,93 +132,145 @@ function getGenderFromCategory(categoria) {
 }
 
 async function fetchProducts(force = false) {
+
+  // --- MODO OFFLINE (sin force) ---
   if (!navigator.onLine && !force) {
     console.log('📡 Offline - Usando solo caché');
     const cached = getCachedProducts();
+
     if (cached && cached.length > 0) {
       allProducts = cached;
       filteredProducts = [...allProducts];
       currentPage = 1;
+
       renderProductsPage(true);
       populateCategoryFilter(document.getElementById("gender-filter")?.value);
       handleInitialHash();
       showTemporaryMessage('📡 Sin conexión - Mostrando productos guardados', 'info');
+
+      // 🔍 Indexar productos si aún no se ha hecho
+      if (allProducts.length > 0 && !productsIndexed) {
+        indexProducts(allProducts);
+      }
+
       return;
     }
   }
-  
+
+  // --- FORZAR RECARGA DESDE API ---
   if (force) {
     isLoading = true;
     showLoader("Actualizando productos...");
+
     try {
       const res = await fetch(API_URL);
       const data = await res.json();
+
       allProducts = (data.products || data || []).slice(0, 500);
       setCachedProducts(allProducts);
+
       filteredProducts = [...allProducts];
       currentPage = 1;
+
       renderProductsPage(true);
       populateCategoryFilter(document.getElementById("gender-filter")?.value);
       handleInitialHash();
+
+      // 🔍 Indexar productos
+      if (allProducts.length > 0 && !productsIndexed) {
+        indexProducts(allProducts);
+      }
+
     } catch (err) {
       console.error(err);
     } finally {
       isLoading = false;
       hideLoader();
     }
+
     return;
   }
-  
+
+  // --- CARGA INSTANTÁNEA DESDE CACHÉ ---
   const cached = getCachedProducts();
   if (cached && cached.length > 0) {
     console.log("⚡ CARGA INSTANTÁNEA desde caché");
+
     allProducts = cached;
     filteredProducts = [...allProducts];
     currentPage = 1;
+
     renderProductsPage(true);
     populateCategoryFilter(document.getElementById("gender-filter")?.value);
     handleInitialHash();
-    
+
+    // Restaurar scroll
     const savedScroll = sessionStorage.getItem('index_scroll_position');
     if (savedScroll && !initialHashHandled) {
       setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
       sessionStorage.removeItem('index_scroll_position');
     }
-    
+
+    // 🔍 Indexar productos
+    if (allProducts.length > 0 && !productsIndexed) {
+      indexProducts(allProducts);
+    }
+
+    // Cargar en segundo plano
     loadProductsInBackground();
     return;
   }
-  
+
+  // --- CARGA NORMAL DESDE API ---
   isLoading = true;
   showLoader("Cargando productos...");
-  
+
   try {
     const res = await fetch(API_URL);
     const data = await res.json();
+
     allProducts = (data.products || data || []).slice(0, 500);
     setCachedProducts(allProducts);
+
     filteredProducts = [...allProducts];
     currentPage = 1;
+
     renderProductsPage(true);
     populateCategoryFilter(document.getElementById("gender-filter")?.value);
     handleInitialHash();
+
+    // 🔍 Indexar productos
+    if (allProducts.length > 0 && !productsIndexed) {
+      indexProducts(allProducts);
+    }
+
   } catch (err) {
     console.error(err);
+
+    // --- FALLBACK A CACHÉ VIEJA ---
     const staleCache = localStorage.getItem(CACHE_KEY);
     if (staleCache) {
       const { data } = JSON.parse(staleCache);
       if (data && data.length > 0) {
         allProducts = data;
         filteredProducts = [...allProducts];
+
         renderProductsPage(true);
         populateCategoryFilter(document.getElementById("gender-filter")?.value);
+
+        // 🔍 Indexar productos
+        if (allProducts.length > 0 && !productsIndexed) {
+          indexProducts(allProducts);
+        }
       }
     }
+
   } finally {
     isLoading = false;
     hideLoader();
   }
 }
+
 
 async function loadProductsInBackground() {
   try {
@@ -185,25 +320,25 @@ function applyFilters() {
   renderProductsPage(true);
 }
 
-function populateCategoryFilter(genderFilter = null) {
+function populateCategoryOptimized(genderFilter = null) {
   const select = document.getElementById("category-filter");
   if (!select) return;
+  
   const currentValue = select.value;
   if (genderFilter === null) {
     const genderSelect = document.getElementById("gender-filter");
     if (genderSelect) genderFilter = genderSelect.value;
   }
-  const categories = new Set();
-  allProducts.forEach((p) => {
-    if (p.Categoria) {
-      if (genderFilter) {
-        const productGender = getGenderFromCategory(p.Categoria);
-        if (productGender === genderFilter) categories.add(p.Categoria);
-      } else {
-        categories.add(p.Categoria);
-      }
-    }
-  });
+  
+  let categories;
+  if (genderFilter && productsByGender.has(genderFilter)) {
+    // Obtener categorías únicas de productos filtrados por género
+    const products = productsByGender.get(genderFilter);
+    categories = new Set(products.map(p => p.Categoria).filter(Boolean));
+  } else {
+    categories = new Set(allProducts.map(p => p.Categoria).filter(Boolean));
+  }
+  
   select.innerHTML = '<option value="">Todas las categorías</option>';
   Array.from(categories).sort().forEach((cat) => {
     const opt = document.createElement("option");
@@ -211,9 +346,13 @@ function populateCategoryFilter(genderFilter = null) {
     opt.textContent = cat;
     select.appendChild(opt);
   });
+  
   if (currentValue && categories.has(currentValue)) select.value = currentValue;
   else select.value = "";
 }
+
+// Reemplazar la función
+window.populateCategoryFilter = populateCategoryOptimized;
 
 function renderProductsPage(reset = false) {
   const container = document.getElementById("products-container");
