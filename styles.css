@@ -2212,5 +2212,32 @@ body {
   pointer-events: none;
 }
 
+/* En styles.css - Añadir o actualizar */
+.lazy {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  min-height: 100px;
+  background: #f5f5f8;
+}
 
+.lazy.loaded {
+  opacity: 1;
+}
+
+/* Placeholder mientras carga la imagen */
+.look-slot-img {
+  background: linear-gradient(135deg, #f0f0f5, #e8e8f0);
+}
+
+/* Animación de carga */
+@keyframes imagePulse {
+  0% { background-position: 0% 0%; }
+  100% { background-position: -200% 0%; }
+}
+
+.lazy:not(.loaded) {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: imagePulse 1.5s ease-in-out infinite;
+}
 
