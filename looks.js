@@ -10,6 +10,142 @@ let looksPerPage = 10;
 let isGeneratingLooks = false;
 let preloadedNextPage = null;
 let lazyImageObserver = null;
+let weatherData = null;
+let weatherLoadStarted = false;
+let weatherLoadPromise = null;
+let precomputedOrders = {
+  calor: null,
+  frio: null,
+  templado: null,
+  lluvioso: null
+};
+let isReordering = false;
+
+// Pre-calcular todos los órdenes posibles
+function precomputeAllOrders(looksArray) {
+  const startTime = performance.now();
+  
+  for (const weather of ['calor', 'frio', 'templado', 'lluvioso']) {
+    precomputedOrders[weather] = [...looksArray].sort((a, b) => 
+      (WEATHER_PRIORITY_SCORES[weather]?.[b.id?.toLowerCase()] || 0) - 
+      (WEATHER_PRIORITY_SCORES[weather]?.[a.id?.toLowerCase()] || 0)
+    );
+  }
+  
+  console.log(`📊 Órdenes de clima precalculadas en ${(performance.now() - startTime).toFixed(0)}ms`);
+}
+
+// Aplicar orden por clima instantáneamente
+function applyWeatherOrderInstant(weatherType) {
+  if (isReordering) return false;
+  
+  const newOrder = precomputedOrders[weatherType];
+  if (!newOrder || newOrder.length === 0) return false;
+  
+  // Solo reordenar si realmente cambió
+  const currentIds = allLooks.map(l => l.id).join(',');
+  const newIds = newOrder.map(l => l.id).join(',');
+  if (currentIds === newIds) return false;
+  
+  console.log(`🌤️ Reordenando looks para clima: ${weatherType}`);
+  isReordering = true;
+  
+  // Animar la transición
+  animateLooksReordering(newOrder).then(() => {
+    allLooks = newOrder;
+    looks = [...allLooks];
+    currentLooksPage = 1;
+    renderLooks();
+    isReordering = false;
+  });
+  
+  return true;
+}
+
+// Animación suave para reordenación
+async function animateLooksReordering(newLooks) {
+  const container = document.getElementById("looks-container");
+  if (!container) return Promise.resolve();
+  
+  const cards = container.querySelectorAll('.look-card:not(.skeleton-card)');
+  if (cards.length === 0) return Promise.resolve();
+  
+  // Fade-out rápido
+  cards.forEach(card => {
+    card.style.transition = 'opacity 0.15s ease';
+    card.style.opacity = '0';
+  });
+  
+  await new Promise(resolve => setTimeout(resolve, 150));
+  
+  // Mostrar mensaje sutil
+  const weatherMsg = document.querySelector('.weather-update-toast');
+  if (!weatherMsg) {
+    const toast = document.createElement('div');
+    toast.className = 'weather-update-toast';
+    toast.innerHTML = '🌤️ Actualizando sugerencias según el clima...';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-size: 12px;
+      z-index: 1000;
+      animation: fadeInUp 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
+  
+  return Promise.resolve();
+}
+
+// Cargar clima sin bloquear
+async function loadWeatherNonBlocking() {
+  if (weatherLoadStarted) return weatherLoadPromise;
+  weatherLoadStarted = true;
+  
+  weatherLoadPromise = (async () => {
+    try {
+      // Timeout de 2 segundos
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      
+      const response = await fetch(`${WEATHER_API_URL}?action=getWeather`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      const data = await response.json();
+      
+      if (data.ok && data.weatherType) {
+        weatherData = data;
+        console.log("🌤️ Clima obtenido:", data.weatherType, data.temperature);
+        
+        // Reordenar looks instantáneamente
+        if (precomputedOrders[data.weatherType]) {
+          setTimeout(() => {
+            applyWeatherOrderInstant(data.weatherType);
+          }, 100);
+        }
+        
+        addWeatherNotification(data);
+        return data;
+      }
+    } catch (err) {
+      console.log("⏱️ Clima timeout o error, usando default");
+    }
+    
+    weatherData = { weatherType: 'templado', temperature: 22, city: 'Default' };
+    return weatherData;
+  })();
+  
+  return weatherLoadPromise;
+}
 
 window.addEventListener('beforeunload', () => {
   sessionStorage.setItem('looks_scroll_position', window.scrollY);
@@ -453,7 +589,9 @@ async function generateLooksProgressive() {
     const allBuiltLooks = [];
     let currentIndex = 0;
     
-    function processBatch() {
+   
+    
+     function processBatch() {
       const batchSize = 3;
       const end = Math.min(currentIndex + batchSize, LOOKS_CONFIG.length);
       
@@ -477,23 +615,38 @@ async function generateLooksProgressive() {
       
       currentIndex = end;
       
+      // Renderizar progresivamente
       if (allBuiltLooks.length > 0) {
-        const currentLooks = sortLooksByWeather([...allBuiltLooks]);
-        allLooks = currentLooks;
+        // Orden neutro inicial (por ID)
+        const neutralOrder = [...allBuiltLooks].sort((a, b) => a.id.localeCompare(b.id));
+        allLooks = neutralOrder;
         looks = [...allLooks];
         renderLooks();
         initLazyImagesAfterRender();
       }
       
       if (currentIndex < LOOKS_CONFIG.length) {
-        setTimeout(processBatch, 50);
+        setTimeout(processBatch, 30); // Más rápido
       } else {
-        allLooks = sortLooksByWeather(allBuiltLooks);
+        // Orden final según clima (si ya tenemos) o neutro
+        if (weatherData && weatherData.weatherType) {
+          allLooks = sortLooksByWeather(allBuiltLooks);
+        } else {
+          allLooks = [...allBuiltLooks].sort((a, b) => a.id.localeCompare(b.id));
+        }
+        
         looks = [...allLooks];
+        
+        // NUEVO: Precalcular órdenes para cambio instantáneo
+        precomputeAllOrders(allLooks);
+        
         saveLooksToCacheOptimized(allLooks);
         renderLooks();
         initLazyImagesAfterRender();
         preloadAdjacentPages();
+        
+        // Cargar clima en segundo plano (NO BLOQUEANTE)
+        loadWeatherNonBlocking();
         
         const endTime = performance.now();
         console.log(`✅ Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
@@ -561,19 +714,19 @@ function preloadLooksPage(pageNumber) {
 async function loadProducts() {
   showSkeletonLooks();
   
-  if (!navigator.onLine) {
-    console.log('📡 Offline - Cargando looks desde caché');
-    if (window.ConnectionMonitor && window.ConnectionMonitor.showOfflineBanner) {
-      window.ConnectionMonitor.showOfflineBanner();
-    }
-  }
-  
+  // PRIMERO: Intentar caché instantáneo
   const cachedLooks = getCachedLooksOptimized();
   if (cachedLooks && cachedLooks.length > 0) {
     console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
-    allLooks = cachedLooks;
+    
+    // Orden neutro para mostrar rápido
+    const neutralOrder = [...cachedLooks].sort((a, b) => a.id.localeCompare(b.id));
+    allLooks = neutralOrder;
     looks = [...allLooks];
     currentLooksPage = 1;
+    
+    // Precalcular órdenes con los datos en caché
+    precomputeAllOrders(allLooks);
     
     const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
       ? window.CacheManager.getSessionProductsCache() 
@@ -581,29 +734,28 @@ async function loadProducts() {
     
     if (cachedProducts && cachedProducts.length > 0) {
       allProducts = cachedProducts;
+      if (window.indexProducts) indexProducts(allProducts);
     }
     
-    await getWeather();
-    
+    // Renderizar inmediatamente
     setTimeout(() => {
       renderLooks();
       initLazyImagesAfterRender();
       preloadAdjacentPages();
       hideSkeletonLooks();
-    }, 50);
+    }, 10);
     
-    const savedScroll = sessionStorage.getItem('looks_scroll_position');
-    if (savedScroll) {
-      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
-      sessionStorage.removeItem('looks_scroll_position');
-    }
+    // Cargar clima en segundo plano
+    loadWeatherNonBlocking();
     
+    // Cargar datos frescos en background
     if (navigator.onLine && !isGeneratingLooks) {
       loadFreshProductsInBackground();
     }
     return;
   }
   
+  // SEGUNDO: Si no hay caché, cargar productos primero
   const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
     ? window.CacheManager.getSessionProductsCache() 
     : getCachedProducts();
@@ -611,15 +763,19 @@ async function loadProducts() {
   if (cachedProducts && cachedProducts.length > 0) {
     console.log("⚡ Productos desde caché, generando looks progresivamente...");
     allProducts = cachedProducts;
-    await getWeather();
-    await generateLooksProgressive();
-    hideSkeletonLooks();
+    if (window.indexProducts) indexProducts(allProducts);
     
-    const savedScroll = sessionStorage.getItem('looks_scroll_position');
-    if (savedScroll) {
-      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
-      sessionStorage.removeItem('looks_scroll_position');
+    // Mostrar orden neutro primero
+    const neutralLooks = generateNeutralLooksOrder(allProducts);
+    if (neutralLooks.length > 0) {
+      allLooks = neutralLooks;
+      looks = [...allLooks];
+      renderLooks();
+      hideSkeletonLooks();
     }
+    
+    // Generar looks completos en background
+    await generateLooksProgressive();
     
     if (navigator.onLine) {
       loadFreshProductsInBackground();
@@ -627,6 +783,7 @@ async function loadProducts() {
     return;
   }
   
+  // TERCERO: Carga normal desde red
   try {
     await getWeather();
     const controller = new AbortController();
@@ -637,6 +794,7 @@ async function loadProducts() {
     
     const data = await res.json();
     allProducts = data.products || data || [];
+    if (window.indexProducts) indexProducts(allProducts);
     setCachedProducts(allProducts);
     await generateLooksProgressive();
     hideSkeletonLooks();
@@ -649,6 +807,43 @@ async function loadProducts() {
     hideSkeletonLooks();
   }
 }
+
+
+
+
+function generateNeutralLooksOrder(products) {
+  const productsWithImages = products.filter(p => 
+    (p.Imagen1 || p.Imagen2 || p.Imagen3) && Number(p.Stock || 0) > 0
+  );
+  
+  const quickLooks = [];
+  const maxQuickLooks = 6;
+  
+  for (let i = 0; i < Math.min(maxQuickLooks, LOOKS_CONFIG.length); i++) {
+    const config = LOOKS_CONFIG[i];
+    const selectedProducts = selectProductsForLook(config, productsWithImages);
+    const productCount = Object.keys(selectedProducts).length;
+    
+    if (productCount > 0) {
+      quickLooks.push({
+        id: config.id.toLowerCase(),
+        name: config.name,
+        description: config.description,
+        category: config.category,
+        products: selectedProducts,
+        config: config,
+        productCount: productCount
+      });
+    }
+  }
+  
+  return quickLooks.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+
+
+
+
 
 async function loadFreshProductsInBackground() {
   if (isGeneratingLooks) return;
