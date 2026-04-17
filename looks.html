@@ -178,6 +178,302 @@
   </footer>
 
 
+
+
+
+
+
+
+
+
+
+
+<div id="debugConsoleWrapper" style="position:fixed; bottom:20px; right:20px; z-index:99999; min-width:280px; min-height:40px; max-width:90vw; max-height:80vh; background:#0a0a0f; border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,0.5); overflow:hidden; resize:both;">
+    <div id="consoleHeader" style="background:#1e1e2f; color:#0f0; font-family:'Segoe UI',monospace; font-weight:bold; padding:8px 12px; cursor:grab; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #3a3a4a; user-select:none;">
+        <div style="font-size:13px; display:flex; align-items:center; gap:8px;">
+            🖥️ CONSOLA INTERACTIVA <span style="background:#2a2a3a; padding:2px 8px; border-radius:20px; font-size:10px;">LIVE</span>
+        </div>
+        <div style="display:flex; gap:12px;">
+            <button id="minimizeBtn" style="background:none; border:none; color:#0f0; font-size:16px; font-weight:bold; cursor:pointer; padding:0 6px; border-radius:5px; font-family:monospace;">─</button>
+            <button id="closeBtn" style="background:none; border:none; color:#0f0; font-size:16px; font-weight:bold; cursor:pointer; padding:0 6px; border-radius:5px; font-family:monospace;">✕</button>
+        </div>
+    </div>
+    <div id="debugConsole" style="background:#0a0a0f; color:#0f0; font-family:'Fira Code','Courier New',monospace; font-size:12px; padding:8px 10px; height:240px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; line-height:1.4;">
+        <div style="border-left:3px solid #33ccff; margin-bottom:4px; padding:3px 6px; background:#111116; border-radius:4px;">
+            <span style="color:#88ff88; font-size:10px; margin-right:8px;">⏱️ iniciado</span>
+            <span>✅ Consola avanzada activa. Capturando todos los logs, errores y advertencias en tiempo real.</span>
+        </div>
+        <div style="border-left:3px solid #33ccff; margin-bottom:4px; padding:3px 6px; background:#111116; border-radius:4px;">
+            <span style="color:#88ff88; font-size:10px; margin-right:8px;">🖱️</span>
+            <span>💡 Arrastra la barra superior para mover. Usa el botón ─ para minimizar / restaurar.</span>
+        </div>
+    </div>
+</div>
+<div id="consoleMiniBadge" style="position:fixed; bottom:20px; right:20px; background:#111; color:#0f0; border-radius:30px; padding:8px 14px; font-family:monospace; font-weight:bold; z-index:99998; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,0.3); border:1px solid #0f0; display:none; backdrop-filter:blur(4px);">
+    📟 CONSOLA (minimizada)
+</div>
+
+<script>
+(function() {
+    const wrapper = document.getElementById('debugConsoleWrapper');
+    const consoleDiv = document.getElementById('debugConsole');
+    const header = document.getElementById('consoleHeader');
+    const minimizeBtn = document.getElementById('minimizeBtn');
+    const closeBtn = document.getElementById('closeBtn');
+    const miniBadge = document.getElementById('consoleMiniBadge');
+
+    let isMinimized = false;
+    let isHidden = false;
+    let originalHeight = '240px';
+
+    function minimizeConsole() {
+        if (isHidden) return;
+        isMinimized = true;
+        consoleDiv.style.display = 'none';
+        wrapper.style.resize = 'none';
+        wrapper.style.height = `${header.offsetHeight}px`;
+        minimizeBtn.textContent = '□';
+        minimizeBtn.title = 'Restaurar';
+    }
+
+    function restoreConsole() {
+        if (isHidden) return;
+        isMinimized = false;
+        consoleDiv.style.display = 'block';
+        wrapper.style.height = 'auto';
+        wrapper.style.maxHeight = '80vh';
+        consoleDiv.style.height = originalHeight;
+        wrapper.style.resize = 'both';
+        minimizeBtn.textContent = '─';
+        minimizeBtn.title = 'Minimizar';
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
+
+    function toggleMinimize() {
+        if (isHidden) return;
+        if (isMinimized) restoreConsole();
+        else minimizeConsole();
+    }
+
+    function hideConsole() {
+        isHidden = true;
+        wrapper.style.display = 'none';
+        miniBadge.style.display = 'flex';
+    }
+
+    function showConsole() {
+        isHidden = false;
+        wrapper.style.display = 'block';
+        miniBadge.style.display = 'none';
+        if (isMinimized) {
+            consoleDiv.style.display = 'none';
+            wrapper.style.height = `${header.offsetHeight}px`;
+        } else {
+            consoleDiv.style.display = 'block';
+            wrapper.style.height = 'auto';
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        enforceBoundaries();
+    }
+
+    // Arrastre
+    let isDragging = false;
+    let dragOffsetX = 0, dragOffsetY = 0;
+
+    function onMouseMove(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+        let newLeft = e.clientX - dragOffsetX;
+        let newTop = e.clientY - dragOffsetY;
+        const winWidth = window.innerWidth;
+        const winHeight = window.innerHeight;
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const maxLeft = winWidth - wrapperRect.width;
+        const maxTop = winHeight - wrapperRect.height;
+        newLeft = Math.min(maxLeft, Math.max(0, newLeft));
+        newTop = Math.min(maxTop, Math.max(0, newTop));
+        wrapper.style.left = newLeft + 'px';
+        wrapper.style.top = newTop + 'px';
+        wrapper.style.right = 'auto';
+        wrapper.style.bottom = 'auto';
+    }
+
+    function onMouseUp() {
+        isDragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        header.style.cursor = 'grab';
+        document.body.style.userSelect = '';
+    }
+
+    function onMouseDown(e) {
+        if (e.target.closest('button')) return;
+        if (isHidden) return;
+        e.preventDefault();
+        const rect = wrapper.getBoundingClientRect();
+        dragOffsetX = e.clientX - rect.left;
+        dragOffsetY = e.clientY - rect.top;
+        isDragging = true;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        header.style.cursor = 'grabbing';
+    }
+
+    header.addEventListener('mousedown', onMouseDown);
+
+    function enforceBoundaries() {
+        if (wrapper.style.display === 'none') return;
+        const rect = wrapper.getBoundingClientRect();
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
+        let newLeft = rect.left;
+        let newTop = rect.top;
+        let changed = false;
+        if (rect.right > winW) { newLeft = winW - rect.width; changed = true; }
+        if (rect.left < 0) { newLeft = 0; changed = true; }
+        if (rect.bottom > winH) { newTop = winH - rect.height; changed = true; }
+        if (rect.top < 0) { newTop = 0; changed = true; }
+        if (changed) {
+            wrapper.style.left = newLeft + 'px';
+            wrapper.style.top = newTop + 'px';
+            wrapper.style.right = 'auto';
+            wrapper.style.bottom = 'auto';
+        }
+    }
+
+    window.addEventListener('resize', enforceBoundaries);
+    
+    wrapper.style.position = 'fixed';
+    wrapper.style.bottom = '20px';
+    wrapper.style.right = '20px';
+    enforceBoundaries();
+
+    minimizeBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleMinimize(); });
+    closeBtn.addEventListener('click', (e) => { e.stopPropagation(); hideConsole(); });
+    miniBadge.addEventListener('click', showConsole);
+
+    // Captura de console y errores
+    function formatArg(arg) {
+        if (arg === undefined) return 'undefined';
+        if (arg === null) return 'null';
+        if (typeof arg === 'string') return arg;
+        if (typeof arg === 'number' || typeof arg === 'boolean') return String(arg);
+        if (arg instanceof Error) return `${arg.name}: ${arg.message}\n${arg.stack || ''}`;
+        if (typeof arg === 'object') {
+            try {
+                return JSON.stringify(arg, (key, value) => {
+                    if (typeof value === 'object' && value !== null) {
+                        if (value === window) return '[Window]';
+                        if (value === document) return '[Document]';
+                    }
+                    return value;
+                }, 2);
+            } catch(e) { return String(arg); }
+        }
+        return String(arg);
+    }
+
+    function formatArgs(args) {
+        return Array.from(args).map(arg => formatArg(arg)).join(' ');
+    }
+
+    function getTimestamp() {
+        const now = new Date();
+        return `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}.${now.getMilliseconds().toString().padStart(3,'0')}`;
+    }
+
+    function addConsoleEntry(type, message, isError = false, isWarn = false, isUncaught = false) {
+        if (!consoleDiv) return;
+        const entry = document.createElement('div');
+        entry.style.borderLeft = `3px solid ${isError ? '#ff5555' : (isWarn ? '#ffaa33' : (isUncaught ? '#ff3366' : '#0f0'))}`;
+        entry.style.marginBottom = '4px';
+        entry.style.padding = '3px 6px';
+        entry.style.background = isError ? '#2a1010' : (isWarn ? '#2a1f0a' : '#111116');
+        entry.style.borderRadius = '4px';
+        entry.style.color = isError ? '#ff9999' : (isWarn ? '#ffcc77' : '#0f0');
+        
+        const timestampSpan = document.createElement('span');
+        timestampSpan.style.color = '#88ff88';
+        timestampSpan.style.fontSize = '10px';
+        timestampSpan.style.marginRight = '8px';
+        timestampSpan.textContent = `[${getTimestamp()}]`;
+        
+        const typeSpan = document.createElement('span');
+        typeSpan.style.fontWeight = 'bold';
+        typeSpan.style.marginRight = '8px';
+        typeSpan.style.color = isError ? '#ff8888' : (isWarn ? '#ffcc88' : '#88ff88');
+        typeSpan.textContent = isError ? '❌ ERROR' : (isWarn ? '⚠️ WARN' : (isUncaught ? '💀 UNCAUGHT' : `📢 ${type}`));
+        
+        const contentSpan = document.createElement('span');
+        contentSpan.style.wordBreak = 'break-word';
+        contentSpan.style.whiteSpace = 'pre-wrap';
+        contentSpan.textContent = message;
+        
+        entry.appendChild(timestampSpan);
+        entry.appendChild(typeSpan);
+        entry.appendChild(contentSpan);
+        consoleDiv.appendChild(entry);
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        
+        while (consoleDiv.children.length > 2000) consoleDiv.removeChild(consoleDiv.firstChild);
+    }
+
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    const originalInfo = console.info;
+    const originalDebug = console.debug;
+
+    console.log = function(...args) { addConsoleEntry('LOG', formatArgs(args), false, false); originalLog.apply(console, args); };
+    console.error = function(...args) { addConsoleEntry('ERROR', formatArgs(args), true, false); originalError.apply(console, args); };
+    console.warn = function(...args) { addConsoleEntry('WARN', formatArgs(args), false, true); originalWarn.apply(console, args); };
+    console.info = function(...args) { addConsoleEntry('INFO', formatArgs(args), false, false); originalInfo.apply(console, args); };
+    console.debug = function(...args) { addConsoleEntry('DEBUG', formatArgs(args), false, false); originalDebug.apply(console, args); };
+
+    window.onerror = function(msg, source, lineno, colno, error) {
+        let errorMsg = `${msg} (${source}:${lineno}:${colno})`;
+        if (error && error.stack) errorMsg += `\n${error.stack}`;
+        addConsoleEntry('UNCAUGHT ERROR', errorMsg, true, false, true);
+        return false;
+    };
+
+    window.addEventListener('unhandledrejection', function(event) {
+        let reasonMsg = event.reason instanceof Error ? `${event.reason.name}: ${event.reason.message}\n${event.reason.stack || ''}` : formatArg(event.reason);
+        addConsoleEntry('UNHANDLED REJECTION', `Promise rejection: ${reasonMsg}`, true, false, true);
+    });
+
+    window.addEventListener('error', function(event) {
+        const target = event.target;
+        if (target && (target.tagName === 'IMG' || target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+            addConsoleEntry('RESOURCE ERROR', `Error cargando: ${target.tagName} - ${target.src || target.href}`, true, false, true);
+        }
+        return false;
+    }, true);
+
+    window.clearDebugConsole = function() {
+        while (consoleDiv.firstChild) consoleDiv.removeChild(consoleDiv.firstChild);
+        addConsoleEntry('INFO', '🧹 Consola limpiada', false, false);
+    };
+
+    header.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) window.clearDebugConsole(); });
+    
+    console.info('🚀 Consola avanzada lista: Todos los logs, errores y promesas rechazadas serán capturados.');
+})();
+</script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
   
 </body>
 </html>
