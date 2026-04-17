@@ -2166,9 +2166,51 @@ body {
   color: white;
 }
 
-/* Animación para el badge de notificaciones */
 @keyframes pulse {
   0% { transform: scale(1); }
   50% { transform: scale(1.2); background: #ff9800; }
   100% { transform: scale(1); }
 }
+
+
+/* En styles.css - Añadir al final */
+
+/* Animación para el toast de clima */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Transición suave para reordenación de looks */
+.look-card {
+  transition: opacity 0.15s ease, transform 0.2s ease;
+}
+
+.look-card.reordering {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* Badge de rendimiento (opcional, para debug) */
+.performance-badge {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.6);
+  color: #0f0;
+  font-family: monospace;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+
+
