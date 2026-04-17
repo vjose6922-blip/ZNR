@@ -21,7 +21,19 @@ let precomputedOrders = {
 };
 let isReordering = false;
 
-// Pre-calcular todos los órdenes posibles
+if (typeof getGenderFromCategory === 'undefined') {
+  console.warn("⚠️ getGenderFromCategory no está disponible, usando fallback");
+  window.getGenderFromCategory = function(categoria) {
+    if (!categoria) return null;
+    const cat = categoria.toLowerCase();
+    if (cat.includes('hombre') || cat.includes('caballero')) return 'HOMBRE';
+    if (cat.includes('mujer') || cat.includes('dama')) return 'MUJER';
+    return null;
+  };
+}
+
+
+
 function precomputeAllOrders(looksArray) {
   const startTime = performance.now();
   
@@ -714,7 +726,13 @@ function preloadLooksPage(pageNumber) {
 async function loadProducts() {
   showSkeletonLooks();
   
-  // PRIMERO: Intentar caché instantáneo
+  if (!navigator.onLine) {
+    console.log('📡 Offline - Cargando looks desde caché');
+    if (window.ConnectionMonitor && window.ConnectionMonitor.showOfflineBanner) {
+      window.ConnectionMonitor.showOfflineBanner();
+    }
+  }
+  
   const cachedLooks = getCachedLooksOptimized();
   if (cachedLooks && cachedLooks.length > 0) {
     console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
@@ -726,7 +744,9 @@ async function loadProducts() {
     currentLooksPage = 1;
     
     // Precalcular órdenes con los datos en caché
-    precomputeAllOrders(allLooks);
+    if (typeof precomputeAllOrders === 'function') {
+      precomputeAllOrders(allLooks);
+    }
     
     const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
       ? window.CacheManager.getSessionProductsCache() 
@@ -734,7 +754,10 @@ async function loadProducts() {
     
     if (cachedProducts && cachedProducts.length > 0) {
       allProducts = cachedProducts;
-      if (window.indexProducts) indexProducts(allProducts);
+      // Solo indexar si la función existe
+      if (typeof window.indexProducts === 'function') {
+        window.indexProducts(allProducts);
+      }
     }
     
     // Renderizar inmediatamente
@@ -746,7 +769,11 @@ async function loadProducts() {
     }, 10);
     
     // Cargar clima en segundo plano
-    loadWeatherNonBlocking();
+    if (typeof loadWeatherNonBlocking === 'function') {
+      loadWeatherNonBlocking();
+    } else {
+      getWeather();
+    }
     
     // Cargar datos frescos en background
     if (navigator.onLine && !isGeneratingLooks) {
@@ -755,7 +782,6 @@ async function loadProducts() {
     return;
   }
   
-  // SEGUNDO: Si no hay caché, cargar productos primero
   const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
     ? window.CacheManager.getSessionProductsCache() 
     : getCachedProducts();
@@ -763,7 +789,9 @@ async function loadProducts() {
   if (cachedProducts && cachedProducts.length > 0) {
     console.log("⚡ Productos desde caché, generando looks progresivamente...");
     allProducts = cachedProducts;
-    if (window.indexProducts) indexProducts(allProducts);
+    if (typeof window.indexProducts === 'function') {
+      window.indexProducts(allProducts);
+    }
     
     // Mostrar orden neutro primero
     const neutralLooks = generateNeutralLooksOrder(allProducts);
@@ -774,7 +802,7 @@ async function loadProducts() {
       hideSkeletonLooks();
     }
     
-    // Generar looks completos en background
+    await getWeather();
     await generateLooksProgressive();
     
     if (navigator.onLine) {
@@ -783,7 +811,6 @@ async function loadProducts() {
     return;
   }
   
-  // TERCERO: Carga normal desde red
   try {
     await getWeather();
     const controller = new AbortController();
@@ -794,7 +821,9 @@ async function loadProducts() {
     
     const data = await res.json();
     allProducts = data.products || data || [];
-    if (window.indexProducts) indexProducts(allProducts);
+    if (typeof window.indexProducts === 'function') {
+      window.indexProducts(allProducts);
+    }
     setCachedProducts(allProducts);
     await generateLooksProgressive();
     hideSkeletonLooks();
