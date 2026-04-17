@@ -74,7 +74,6 @@ function applyWeatherOrderInstant(weatherType) {
   return true;
 }
 
-// Animación suave para reordenación
 async function animateLooksReordering(newLooks) {
   const container = document.getElementById("looks-container");
   if (!container) return Promise.resolve();
@@ -90,30 +89,71 @@ async function animateLooksReordering(newLooks) {
   
   await new Promise(resolve => setTimeout(resolve, 150));
   
-  // Mostrar mensaje sutil
-  const weatherMsg = document.querySelector('.weather-update-toast');
-  if (!weatherMsg) {
-    const toast = document.createElement('div');
-    toast.className = 'weather-update-toast';
-    toast.innerHTML = '🌤️ Actualizando sugerencias según el clima...';
-    toast.style.cssText = `
-      position: fixed;
-      bottom: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.8);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 30px;
-      font-size: 12px;
-      z-index: 1000;
-      animation: fadeInUp 0.3s ease;
-    `;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
-  }
+  // Actualizar datos
+  allLooks = newLooks;
+  currentLooksPage = 1;
+  renderLooks();
+  
+  // NUEVO: Forzar carga de imágenes lazy después de renderizar
+  setTimeout(() => {
+    forceLazyImagesLoad();
+    // También re-inicializar el observer
+    if (lazyImageObserver) {
+      const lazyImages = document.querySelectorAll('.lazy');
+      lazyImages.forEach(img => {
+        if (img.getAttribute('data-src') && !img.src) {
+          lazyImageObserver.observe(img);
+        }
+      });
+    }
+  }, 100);
+  
+  // Fade-in
+  requestAnimationFrame(() => {
+    const newCards = container.querySelectorAll('.look-card');
+    newCards.forEach(card => {
+      card.style.opacity = '0';
+      card.style.transition = 'opacity 0.3s ease';
+      requestAnimationFrame(() => {
+        card.style.opacity = '1';
+      });
+    });
+  });
   
   return Promise.resolve();
+}
+
+// NUEVA FUNCIÓN: Forzar carga de imágenes lazy visibles
+function forceLazyImagesLoad() {
+  const lazyImages = document.querySelectorAll('.lazy:not(.loaded)');
+  console.log(`🖼️ Forzando carga de ${lazyImages.length} imágenes lazy`);
+  
+  lazyImages.forEach(img => {
+    const dataSrc = img.getAttribute('data-src');
+    if (dataSrc && !img.src) {
+      // Crear una nueva imagen para precargar
+      const tempImg = new Image();
+      tempImg.onload = () => {
+        img.src = dataSrc;
+        img.classList.add('loaded');
+        img.removeAttribute('data-src');
+      };
+      tempImg.onerror = () => {
+        // Si falla, intentar con URL optimizada
+        const optimizedUrl = optimizeDriveUrl(dataSrc, 200);
+        if (optimizedUrl !== dataSrc) {
+          const tempImg2 = new Image();
+          tempImg2.onload = () => {
+            img.src = optimizedUrl;
+            img.classList.add('loaded');
+            img.removeAttribute('data-src');
+          };
+          tempImg2.src = optimizedUrl;
+        }
+      };
+      tempImg.src = dataSrc;
+    }
+  });
 }
 
 // Cargar clima sin bloquear
@@ -343,9 +383,50 @@ function initLazyLoading() {
 
 function initLazyImagesAfterRender() {
   const lazyImages = document.querySelectorAll('.lazy');
+  
   if (lazyImageObserver) {
-    lazyImages.forEach(img => lazyImageObserver.observe(img));
+    // Desconectar observer existente para reiniciar
+    lazyImageObserver.disconnect();
+    lazyImageObserver = null;
   }
+  
+  // Crear nuevo observer
+  if ('IntersectionObserver' in window) {
+    lazyImageObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          const dataSrc = img.getAttribute('data-src');
+          if (dataSrc) {
+            img.src = dataSrc;
+            img.classList.add('loaded');
+            img.removeAttribute('data-src');
+          }
+          lazyImageObserver.unobserve(img);
+        }
+      });
+    }, {
+      rootMargin: '100px 0px',
+      threshold: 0.01
+    });
+    
+    lazyImages.forEach(img => {
+      lazyImageObserver.observe(img);
+    });
+  } else {
+    // Fallback: cargar todas las imágenes
+    lazyImages.forEach(img => {
+      const dataSrc = img.getAttribute('data-src');
+      if (dataSrc) {
+        img.src = dataSrc;
+        img.classList.add('loaded');
+        img.removeAttribute('data-src');
+      }
+    });
+  }
+  
+  // También forzar carga de imágenes visibles inmediatamente
+  setTimeout(() => forceVisibleLazyImages(), 50);
 }
 
 function compressLooksData(looks) {
@@ -932,6 +1013,34 @@ function renderLooks() {
   
   renderLooksPagination(totalPages);
   preloadAdjacentPages();
+  
+  // NUEVO: Inicializar lazy loading después de renderizar
+  setTimeout(() => {
+    initLazyImagesAfterRender();
+    // Forzar carga de primeras imágenes visibles
+    forceVisibleLazyImages();
+  }, 50);
+}
+
+// NUEVA FUNCIÓN: Cargar solo imágenes visibles en viewport
+function forceVisibleLazyImages() {
+  const lazyImages = document.querySelectorAll('.lazy:not(.loaded)');
+  const viewportHeight = window.innerHeight;
+  const scrollTop = window.scrollY;
+  
+  lazyImages.forEach(img => {
+    const rect = img.getBoundingClientRect();
+    const isVisible = rect.top < viewportHeight + 100 && rect.bottom > -100;
+    
+    if (isVisible) {
+      const dataSrc = img.getAttribute('data-src');
+      if (dataSrc) {
+        img.src = dataSrc;
+        img.classList.add('loaded');
+        img.removeAttribute('data-src');
+      }
+    }
+  });
 }
 
 function createLookCardWithLazy(look) {
@@ -940,7 +1049,6 @@ function createLookCardWithLazy(look) {
   let productCount = 0;
   let imagesHtml = '';
   const slotOrder = ["torso", "piernas", "pies"];
-  const slotNames = { torso: 'Prenda superior', piernas: 'Prenda inferior', pies: 'Calzado' };
   
   for (const slotKey of slotOrder) {
     const product = look.products[slotKey];
@@ -949,9 +1057,14 @@ function createLookCardWithLazy(look) {
     totalPrice += product.price;
     const productImgOptimized = optimizeDriveUrl(product.image, 200);
     
+    // Mejorado: Asegurar que la imagen tiene data-src y un placeholder
     imagesHtml += `
       <div class="look-slot-image" data-slot="${slotKey}" onclick="openImageModal('${optimizeDriveUrl(product.image, 800)}')">
-        <img class="look-slot-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
+        <img class="look-slot-img lazy" 
+             data-src="${productImgOptimized}" 
+             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" 
+             alt="${escapeHtml(product.name)}"
+             loading="lazy">
       </div>
     `;
     
@@ -1020,8 +1133,9 @@ function renderLooksPagination(totalPages) {
     const pageBtn = createPaginationButton(i.toString(), () => {
       currentLooksPage = i;
       renderLooks();
-      initLazyImagesAfterRender();
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      // NUEVO: Forzar carga después de cambiar página
+      setTimeout(() => forceVisibleLazyImages(), 300);
     });
     if (i === currentLooksPage) pageBtn.classList.add("active-page");
     paginationDiv.appendChild(pageBtn);
@@ -1031,8 +1145,8 @@ function renderLooksPagination(totalPages) {
     const nextBtn = createPaginationButton("Siguiente →", () => {
       currentLooksPage++;
       renderLooks();
-      initLazyImagesAfterRender();
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => forceVisibleLazyImages(), 300);
     });
     paginationDiv.appendChild(nextBtn);
   }
@@ -1281,6 +1395,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const requestBtn = document.getElementById("request-purchase-btn");
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 });
+// Añadir al final de looks.js, dentro del DOMContentLoaded
+let scrollTimeout;
+window.addEventListener('scroll', function() {
+  if (scrollTimeout) clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    forceVisibleLazyImages();
+  }, 100);
+});
 
+// También cuando se cambia de página en la paginación
+function goToLooksPage(page) {
+  currentLooksPage = page;
+  renderLooks();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Forzar carga después del scroll
+  setTimeout(() => forceVisibleLazyImages(), 300);
+}
 
 
