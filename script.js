@@ -12,6 +12,18 @@ let filterCache = new Map();
 let lastFilterKey = '';
 
 
+
+if (typeof getGenderFromCategory === 'undefined') {
+  // Fallback
+  window.getGenderFromCategory = function(categoria) {
+    if (!categoria) return null;
+    const cat = categoria.toLowerCase();
+    if (cat.includes('hombre') || cat.includes('caballero')) return 'HOMBRE';
+    if (cat.includes('mujer') || cat.includes('dama')) return 'MUJER';
+    return null;
+  };
+}
+
 function getFilterKey(searchValue, categoryValue, genderValue, sortValue) {
   return `${searchValue}|${categoryValue}|${genderValue}|${sortValue}`;
 }
@@ -108,28 +120,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 
-function getGenderFromCategory(categoria) {
-  if (!categoria) return null;
-  const categoriaLower = categoria.toLowerCase().trim();
-  const genderMap = {
-    "playeras": "HOMBRE",
-    "pantalon para caballero": "HOMBRE",
-    "short para caballero": "HOMBRE",
-    "calzado para caballero": "HOMBRE",
-    "sueter para caballero": "HOMBRE",
-    "chamarra para caballero": "HOMBRE",
-    "blusas": "MUJER",
-    "pantalon para dama": "MUJER",
-    "short para dama": "MUJER",
-    "vestidos": "MUJER",
-    "calzado para dama": "MUJER",
-    "sueter para dama": "MUJER",
-    "chamarra para dama": "MUJER",
-    "faldas": "MUJER",
-    "accesorios": "UNISEX"
-  };
-  return genderMap[categoriaLower] || null;
-}
+
 
 async function fetchProducts(force = false) {
 
