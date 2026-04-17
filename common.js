@@ -14,6 +14,37 @@ let productsByGender = new Map();
 let productsById = new Map();
 let productsIndexed = false;
 
+
+
+
+function getGenderFromCategory(categoria) {
+  if (!categoria) return null;
+  const categoriaLower = categoria.toLowerCase().trim();
+  const genderMap = {
+    "playeras": "HOMBRE",
+    "pantalon para caballero": "HOMBRE",
+    "short para caballero": "HOMBRE",
+    "calzado para caballero": "HOMBRE",
+    "sueter para caballero": "HOMBRE",
+    "chamarra para caballero": "HOMBRE",
+    "blusas": "MUJER",
+    "pantalon para dama": "MUJER",
+    "short para dama": "MUJER",
+    "vestidos": "MUJER",
+    "calzado para dama": "MUJER",
+    "sueter para dama": "MUJER",
+    "chamarra para dama": "MUJER",
+    "faldas": "MUJER",
+    "accesorios": "UNISEX"
+  };
+  return genderMap[categoriaLower] || null;
+}
+window.getGenderFromCategory = getGenderFromCategory;
+
+
+
+
+
 function indexProducts(products) {
   if (!products || products.length === 0) return;
   
@@ -33,7 +64,8 @@ function indexProducts(products) {
     }
     productsByCategory.get(cat).push(product);
     
-    const gender = getGenderFromCategory(cat);
+    // AHORA getGenderFromCategory está definida
+    const gender = window.getGenderFromCategory ? window.getGenderFromCategory(cat) : getGenderFromCategory(cat);
     if (gender) {
       if (!productsByGender.has(gender)) {
         productsByGender.set(gender, []);
@@ -62,14 +94,21 @@ function getProductById(id) {
   return productsById.get(String(id));
 }
 
-const originalSetCachedProducts = setCachedProducts;
+// Mejorar setCachedProducts para mantener índices
+const originalSetCachedProducts = window.setCachedProducts || function(products) {
+  try { 
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: products, timestamp: Date.now() })); 
+  } catch (e) { console.warn("No se pudo guardar en caché:", e); }
+};
+
 window.setCachedProducts = function(products) {
   originalSetCachedProducts(products);
-  if (products && products.length > 0) {
+  if (products && products.length > 0 && !productsIndexed) {
     indexProducts(products);
   }
 };
 
+// Exportar funciones al window
 window.indexProducts = indexProducts;
 window.getProductsByCategory = getProductsByCategory;
 window.getProductsByGender = getProductsByGender;
