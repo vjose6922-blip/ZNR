@@ -9,8 +9,71 @@ let imageObserver = null;
 let activeModal = null;
 let connectionBanner = null;
 let isOnline = navigator.onLine;
+let productsByCategory = new Map();
+let productsByGender = new Map();
+let productsById = new Map();
+let productsIndexed = false;
 
+function indexProducts(products) {
+  if (!products || products.length === 0) return;
+  
+  const startTime = performance.now();
+  
+  productsByCategory.clear();
+  productsByGender.clear();
+  productsById.clear();
+  
+  products.forEach(product => {
+    const id = String(product.ID || '');
+    if (id) productsById.set(id, product);
+    
+    const cat = product.Categoria || 'sin_categoria';
+    if (!productsByCategory.has(cat)) {
+      productsByCategory.set(cat, []);
+    }
+    productsByCategory.get(cat).push(product);
+    
+    const gender = getGenderFromCategory(cat);
+    if (gender) {
+      if (!productsByGender.has(gender)) {
+        productsByGender.set(gender, []);
+      }
+      productsByGender.get(gender).push(product);
+    }
+  });
+  
+  productsIndexed = true;
+  const endTime = performance.now();
+  console.log(`📊 Productos indexados: ${products.length} productos en ${productsByCategory.size} categorías (${(endTime - startTime).toFixed(0)}ms)`);
+}
 
+function getProductsByCategory(category) {
+  if (!productsIndexed) return null;
+  return productsByCategory.get(category) || [];
+}
+
+function getProductsByGender(gender) {
+  if (!productsIndexed) return null;
+  return productsByGender.get(gender) || [];
+}
+
+function getProductById(id) {
+  if (!productsIndexed) return null;
+  return productsById.get(String(id));
+}
+
+const originalSetCachedProducts = setCachedProducts;
+window.setCachedProducts = function(products) {
+  originalSetCachedProducts(products);
+  if (products && products.length > 0) {
+    indexProducts(products);
+  }
+};
+
+window.indexProducts = indexProducts;
+window.getProductsByCategory = getProductsByCategory;
+window.getProductsByGender = getProductsByGender;
+window.getProductById = getProductById;
 
 
 function showLoader(text = "Cargando...") {
