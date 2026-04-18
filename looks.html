@@ -91,77 +91,70 @@
   </script>
 
   <script defer>
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('🚀 Inicializando página con modales personalizados...');
-        
-        window.changePhoneNumber = changePhoneNumber;
-        window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
-        window.openCartDrawer = openCartDrawer;
-        window.closeCartDrawer = closeCartDrawer;
-        window.renderCart = renderCart;
-        window.addToCart = addToCart;
-        
-        const floatingCartBtn = document.getElementById('floating-cart-btn');
-        if (floatingCartBtn) {
-            const newBtn = floatingCartBtn.cloneNode(true);
-            floatingCartBtn.parentNode.replaceChild(newBtn, floatingCartBtn);
-            newBtn.addEventListener('click', () => {
-                console.log('🛒 Abriendo carrito');
-                if (typeof window.openCartDrawer === 'function') {
-                    window.openCartDrawer();
-                }
-            });
-        }
-        
-        const closeCartBtn = document.getElementById('close-cart-btn');
-        if (closeCartBtn) {
-            const newBtn = closeCartBtn.cloneNode(true);
-            closeCartBtn.parentNode.replaceChild(newBtn, closeCartBtn);
-            newBtn.addEventListener('click', () => {
-                console.log('❌ Cerrando carrito');
-                if (typeof window.closeCartDrawer === 'function') {
-                    window.closeCartDrawer();
-                }
-            });
-        }
-        
-        const overlay = document.getElementById('overlay');
-        if (overlay) {
-            const newOverlay = overlay.cloneNode(true);
-            overlay.parentNode.replaceChild(newOverlay, overlay);
-            newOverlay.addEventListener('click', () => {
-                if (typeof window.closeCartDrawer === 'function') {
-                    window.closeCartDrawer();
-                }
-                if (typeof closeImageModal === 'function') {
-                    closeImageModal();
-                }
-            });
-        }
-        
-        if (typeof loadCartFromStorage === 'function') {
-            loadCartFromStorage();
-        }
-        
-        if (typeof renderCart === 'function') {
-            renderCart();
-        }
-        
-        if (typeof updateSavedPhoneDisplay === 'function') {
-            updateSavedPhoneDisplay();
-        }
-        
-    });
+let cartInitialized = false;
 
-    window.addEventListener('cartUpdated', function() {
-        if (typeof renderCart === 'function') {
-            renderCart();
-        }
-        if (typeof updateCartBadge === 'function') {
-            updateCartBadge();
-        }
-    });
-  </script>
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("🚀 Inicializando página con modales personalizados...");
+
+    window.changePhoneNumber = changePhoneNumber;
+    window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
+    window.openCartDrawer = openCartDrawer;
+    window.closeCartDrawer = closeCartDrawer;
+    window.renderCart = renderCart;
+    window.addToCart = addToCart;
+
+    const floatingCartBtn = document.getElementById("floating-cart-btn");
+    if (floatingCartBtn) {
+        const newBtn = floatingCartBtn.cloneNode(true);
+        floatingCartBtn.parentNode.replaceChild(newBtn, floatingCartBtn);
+        newBtn.addEventListener("click", () => {
+            console.log("🛒 Abriendo carrito");
+            if (typeof window.openCartDrawer === "function") {
+                window.openCartDrawer();
+            }
+        });
+    }
+
+    const closeCartBtn = document.getElementById("close-cart-btn");
+    if (closeCartBtn) {
+        const newBtn = closeCartBtn.cloneNode(true);
+        closeCartBtn.parentNode.replaceChild(newBtn, closeCartBtn);
+        newBtn.addEventListener("click", () => {
+            console.log("❌ Cerrando carrito");
+            if (typeof window.closeCartDrawer === "function") {
+                window.closeCartDrawer();
+            }
+        });
+    }
+
+    const overlay = document.getElementById("overlay");
+    if (overlay) {
+        const newOverlay = overlay.cloneNode(true);
+        overlay.parentNode.replaceChild(newOverlay, overlay);
+        newOverlay.addEventListener("click", () => {
+            if (typeof window.closeCartDrawer === "function") {
+                window.closeCartDrawer();
+            }
+            if (typeof closeImageModal === "function") {
+                closeImageModal();
+            }
+        });
+    }
+
+    if (!cartInitialized) {
+        if (typeof loadCartFromStorage === "function") loadCartFromStorage();
+        if (typeof renderCart === "function") renderCart();
+        if (typeof updateSavedPhoneDisplay === "function") updateSavedPhoneDisplay();
+        cartInitialized = true;
+    }
+});
+
+window.addEventListener("cartUpdated", () => {
+    if (typeof renderCart === "function") renderCart();
+    if (typeof updateCartBadge === "function") updateCartBadge();
+});
+</script>
+
 
   <footer class="app-footer">
     <div class="footer-content">
@@ -200,7 +193,6 @@
   if(window.__DBG_ULTRA_PRO__) return;
   window.__DBG_ULTRA_PRO__ = true;
 
-  // ============ CREAR ESTRUCTURA HTML DINÁMICAMENTE ============
   const consoleHTML = `
   <div id="dbgWrap" style="position:fixed;right:18px;bottom:18px;width:550px;height:520px;max-width:96vw;max-height:86vh;background:#0b0b11;border:1px solid #2a2a35;border-radius:14px;z-index:999999;box-shadow:0 22px 60px rgba(0,0,0,.65);overflow:hidden;resize:both;font-family:'Segoe UI',Consolas,monospace;color:#fff;display:flex;flex-direction:column;">
     
