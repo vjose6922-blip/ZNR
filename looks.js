@@ -1,6 +1,11 @@
 const WEATHER_API_URL = API_URL;
 const LOOKS_CACHE_KEY = 'zr_looks_generated_v2';
+const MAX_WEATHER_RETRIES = 5;
+const RETRY_DELAYS = [1000, 3000, 5000, 10000, 30000];
 
+let weatherRetryCount = 0;
+let weatherRetryTimer = null;
+let weatherUpdateInterval = null;
 let currentWeather = null;
 let allProducts = [];
 let looks = [];
@@ -564,182 +569,310 @@ function preloadLooksPage(pageNumber) {
   }
 }
 
-// MODIFICAR la función loadProducts()
+// ===== VARIABLES GLOBALES PARA CONTROL =====
+let isBackgroundServicesStarted = false;
+let isLoadingProducts = false;
+
 async function loadProducts() {
-  showSkeletonLooks();
+  // Evitar ejecuciones múltiples simultáneas
+  if (isLoadingProducts) {
+    console.log("⏭️ Carga de productos ya en progreso, omitiendo...");
+    return;
+  }
   
+  isLoadingProducts = true;
+  showSkeletonLooks();
+
+  // Mostrar banner offline si aplica
   if (!navigator.onLine) {
     console.log('📡 Offline - Cargando looks desde caché');
-    if (window.ConnectionMonitor && window.ConnectionMonitor.showOfflineBanner) {
+    if (window.ConnectionMonitor?.showOfflineBanner) {
       window.ConnectionMonitor.showOfflineBanner();
     }
   }
+
+  // ===== FUNCIONES AUXILIARES =====
   
-  const cachedLooks = getCachedLooksOptimized();
-  if (cachedLooks && cachedLooks.length > 0) {
-    console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
-    allLooks = cachedLooks;
-    looks = [...allLooks];
-    currentLooksPage = 1;
+  // Función para asegurar que el índice de productos existe
+  const ensureProductIndex = (products) => {
+    if (!products?.length) return false;
     
-    const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
-      ? window.CacheManager.getSessionProductsCache() 
-      : getCachedProducts();
-    
-    if (cachedProducts && cachedProducts.length > 0) {
-      allProducts = cachedProducts;
-      if (typeof buildProductIndex === 'function') {
-        buildProductIndex(allProducts); // Indexar productos también
-      }
+    if (typeof window.buildProductIndex === "function") {
+      window.buildProductIndex(products);
+      return true;
+    } else if (typeof buildProductIndex === "function") {
+      buildProductIndex(products);
+      return true;
     }
-    
-    // CLIMA NO BLOQUEANTE: usar valor por defecto primero
-    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
-    
+    return false;
+  };
+
+  // Función para obtener productos desde caché (unificado)
+  const getCachedProductsUnified = () => {
+    return window.CacheManager?.getSessionProductsCache?.() || getCachedProducts() || [];
+  };
+
+  // Función para restaurar posición de scroll
+  const restoreScrollPosition = () => {
+    const savedScroll = sessionStorage.getItem("looks_scroll_position");
+    if (savedScroll) {
+      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
+      sessionStorage.removeItem("looks_scroll_position");
+    }
+  };
+
+  // Función para renderizado inicial rápido
+  const renderInitialLooks = () => {
     setTimeout(() => {
       renderLooks();
       initLazyImagesAfterRender();
       preloadAdjacentPages();
       hideSkeletonLooks();
     }, 50);
-    
-    const savedScroll = sessionStorage.getItem('looks_scroll_position');
-    if (savedScroll) {
-      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
-      sessionStorage.removeItem('looks_scroll_position');
+  };
+
+  // Función para iniciar servicios en background (solo una vez)
+  const startBackgroundServices = () => {
+    if (isBackgroundServicesStarted) {
+      console.log("⏭️ Servicios background ya iniciados previamente");
+      return;
     }
     
-    // OBTENER CLIMA EN BACKGROUND (NO BLOQUEANTE)
-    fetchWeatherAndReorder();
+    isBackgroundServicesStarted = true;
+    console.log("🚀 Iniciando servicios en background...");
     
-    if (navigator.onLine && !isGeneratingLooks) {
+    // Obtener clima real (con reintentos)
+    if (typeof fetchWeatherAndReorder === "function") {
+      fetchWeatherAndReorder();
+    }
+    
+    // Iniciar monitoreo periódico del clima
+    if (typeof startWeatherMonitoring === "function") {
+      startWeatherMonitoring();
+    }
+    
+    // Cargar productos frescos si hay conexión
+    if (navigator.onLine && !isGeneratingLooks && typeof loadFreshProductsInBackground === "function") {
       loadFreshProductsInBackground();
     }
+  };
+
+  // ===== 1) INTENTAR CARGAR LOOKS DESDE CACHÉ =====
+  const cachedLooks = getCachedLooksOptimized();
+  
+  if (cachedLooks?.length > 0) {
+    console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
+
+    allLooks = cachedLooks;
+    looks = [...allLooks];
+    currentLooksPage = 1;
+
+    // Cargar productos desde caché
+    const cachedProducts = getCachedProductsUnified();
+    if (cachedProducts.length > 0) {
+      allProducts = cachedProducts;
+      ensureProductIndex(allProducts);
+    }
+
+    // Clima por defecto antes de renderizar
+    currentWeather = currentWeather || { weatherType: "templado", temperature: 22, city: "Default" };
+
+    // Render inicial rápido
+    renderInitialLooks();
+
+    // Restaurar scroll
+    restoreScrollPosition();
+
+    // Iniciar servicios en background
+    startBackgroundServices();
+
+    isLoadingProducts = false;
     return;
   }
+
+  // ===== 2) NO HAY LOOKS, PERO HAY PRODUCTOS EN CACHÉ =====
+  const cachedProducts = getCachedProductsUnified();
   
-  const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
-    ? window.CacheManager.getSessionProductsCache() 
-    : getCachedProducts();
-  
-  if (cachedProducts && cachedProducts.length > 0) {
+  if (cachedProducts.length > 0) {
     console.log("⚡ Productos desde caché, generando looks progresivamente...");
+
     allProducts = cachedProducts;
-    if (typeof buildProductIndex === 'function') {
-      buildProductIndex(allProducts);
-    }
-    
-    // CLIMA NO BLOQUEANTE: valor por defecto
-    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
-    
+    ensureProductIndex(allProducts);
+
+    currentWeather = currentWeather || { weatherType: "templado", temperature: 22, city: "Default" };
+
     await generateLooksProgressive();
     hideSkeletonLooks();
-    
-    const savedScroll = sessionStorage.getItem('looks_scroll_position');
-    if (savedScroll) {
-      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
-      sessionStorage.removeItem('looks_scroll_position');
-    }
-    
-    // OBTENER CLIMA REAL EN BACKGROUND
-    fetchWeatherAndReorder();
-    
-    if (navigator.onLine) {
-      loadFreshProductsInBackground();
-    }
+
+    // Restaurar scroll
+    restoreScrollPosition();
+
+    // Iniciar servicios en background
+    startBackgroundServices();
+
+    isLoadingProducts = false;
     return;
   }
-  
+
+  // ===== 3) NO HAY CACHÉ → CARGAR DESDE API =====
   try {
-    // CLIMA NO BLOQUEANTE: iniciar con valor por defecto
-    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
+    console.log("🌐 No hay caché, cargando desde API...");
     
+    currentWeather = { weatherType: "templado", temperature: 22, city: "Default" };
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
-    
+
     const res = await fetch(API_URL, { signal: controller.signal });
     clearTimeout(timeoutId);
-    
+
     const data = await res.json();
     allProducts = data.products || data || [];
     setCachedProducts(allProducts);
-    if (typeof buildProductIndex === 'function') {
-      buildProductIndex(allProducts);
-    }
-    
+
+    ensureProductIndex(allProducts);
+
     await generateLooksProgressive();
     hideSkeletonLooks();
-    
-    // OBTENER CLIMA REAL
-    fetchWeatherAndReorder();
-    
+
+    // Iniciar servicios en background
+    startBackgroundServices();
+
   } catch (err) {
-    console.error("Error cargando productos:", err);
+    console.error("❌ Error cargando productos:", err);
+
     const container = document.getElementById("looks-container");
-    if (container && !container.querySelector('.look-card')) {
-      container.innerHTML = '<div class="empty-looks">❌ Error al cargar los productos. Intenta de nuevo.</div>';
+    if (container && !container.querySelector(".look-card")) {
+      container.innerHTML = `
+        <div class="empty-looks">
+          <p>❌ Error al cargar los productos.</p>
+          <p>Verifica tu conexión a internet e <a href="#" onclick="location.reload()">intenta nuevamente</a>.</p>
+        </div>
+      `;
     }
+
     hideSkeletonLooks();
+  } finally {
+    isLoadingProducts = false;
   }
 }
 
-// NUEVA FUNCIÓN: Obtener clima y reordenar sin bloquear
-async function fetchWeatherAndReorder() {
+// ===== FUNCIÓN PARA RESETEAR SERVICIOS (útil en logout o errores críticos) =====
+function resetBackgroundServices() {
+  isBackgroundServicesStarted = false;
+  weatherRetryCount = 0;
+  if (typeof stopWeatherMonitoring === "function") {
+    stopWeatherMonitoring();
+  }
+  console.log("🔄 Servicios background reiniciados");
+}
+
+// Exponer funciones útiles globalmente
+window.resetBackgroundServices = resetBackgroundServices;
+
+
+
+
+
+async function fetchWeatherAndReorder(forceRetry = false) {
+  const cachedWeather = sessionStorage.getItem('zr_weather_cache');
+  if (!forceRetry && cachedWeather) {
+    try {
+      const { timestamp } = JSON.parse(cachedWeather);
+      if (Date.now() - timestamp < 300000) { 
+        console.log("🌤️ Clima reciente en caché, no se necesita actualizar");
+        return;
+      }
+    } catch(e) {}
+  }
+  
   try {
-    // Intentar clima desde caché de sessionStorage (instantáneo)
-    const cachedWeather = sessionStorage.getItem('zr_weather_cache');
-    if (cachedWeather) {
-      try {
-        const { weatherType, temperature, city, timestamp } = JSON.parse(cachedWeather);
-        if (Date.now() - timestamp < 600000) { // 10 minutos
-          console.log("🌤️ Clima desde caché");
-          if (currentWeather.weatherType !== weatherType) {
-            currentWeather = { weatherType, temperature, city };
-            reorderLooksDynamically();
-          }
-          addWeatherNotification(currentWeather);
-          return;
-        }
-      } catch(e) {}
-    }
+    console.log("🌤️ Obteniendo clima actual...");
     
-    // Fetch real con timeout corto (3s max)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // Aumentar a 5 segundos
     
     const response = await fetch(`${WEATHER_API_URL}?action=getWeather`, { signal: controller.signal });
     clearTimeout(timeoutId);
     
     const data = await response.json();
+    
     if (data.ok && data.weatherType) {
-      // Guardar en caché
       sessionStorage.setItem('zr_weather_cache', JSON.stringify({
         ...data,
         timestamp: Date.now()
       }));
       
-      // Solo reordenar si cambió el clima
-      if (currentWeather.weatherType !== data.weatherType) {
+      weatherRetryCount = 0;
+      if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
+      
+      if (currentWeather?.weatherType !== data.weatherType) {
+        console.log(`🌤️ Clima actualizado: ${currentWeather?.weatherType || 'ninguno'} → ${data.weatherType}`);
         currentWeather = data;
         reorderLooksDynamically();
+        addWeatherNotification(data);
       } else {
         currentWeather = data;
       }
       
-      addWeatherNotification(data);
+      return true;
+    } else {
+      throw new Error("Respuesta inválida del API");
     }
+    
   } catch (err) {
-    console.log("Clima no disponible, manteniendo orden por defecto");
+    console.warn(`⚠️ Error obteniendo clima (intento ${weatherRetryCount + 1}/${MAX_WEATHER_RETRIES}):`, err.message);
+    
+    if (weatherRetryCount < MAX_WEATHER_RETRIES) {
+      const delay = RETRY_DELAYS[weatherRetryCount] || 30000;
+      console.log(`🔄 Reintentando clima en ${delay/1000} segundos...`);
+      
+      if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
+      weatherRetryTimer = setTimeout(() => {
+        weatherRetryCount++;
+        fetchWeatherAndReorder(true);
+      }, delay);
+    } else {
+      console.log("❌ Máximos reintentos alcanzados para el clima. Usando orden por defecto.");
+      weatherRetryCount = 0;
+      
+      showTemporaryMessage("No se pudo obtener el clima. Mostrando orden estándar.", "info");
+    }
+    
+    return false;
   }
 }
 
-// NUEVA FUNCIÓN: Reordenar looks dinámicamente
+function startWeatherMonitoring() {
+  if (weatherUpdateInterval) clearInterval(weatherUpdateInterval);
+  
+  weatherUpdateInterval = setInterval(() => {
+    console.log("🔄 Actualización periódica del clima...");
+    fetchWeatherAndReorder(true);
+  }, 720000); 
+  
+  window.addEventListener('online', () => {
+    console.log("🟢 Conexión recuperada - actualizando clima...");
+    fetchWeatherAndReorder(true);
+  });
+}
+
+function stopWeatherMonitoring() {
+  if (weatherUpdateInterval) {
+    clearInterval(weatherUpdateInterval);
+    weatherUpdateInterval = null;
+  }
+  if (weatherRetryTimer) {
+    clearTimeout(weatherRetryTimer);
+    weatherRetryTimer = null;
+  }
+}
+
 function reorderLooksDynamically() {
   if (!allLooks.length) return;
   
   const newOrder = sortLooksByWeather([...allLooks]);
   
-  // Verificar si el orden realmente cambió
   const currentIds = looks.map(l => l.id).join(',');
   const newIds = newOrder.map(l => l.id).join(',');
   
@@ -747,7 +880,6 @@ function reorderLooksDynamically() {
     looks = newOrder;
     allLooks = [...looks];
     
-    // Actualizar UI sin recargar todo
     const container = document.getElementById("looks-container");
     if (container && container.children.length > 0) {
       const currentPageLooks = looks.slice(
@@ -755,16 +887,13 @@ function reorderLooksDynamically() {
         currentLooksPage * looksPerPage
       );
       
-      // Actualizar solo los visibles
       const cards = container.querySelectorAll('.look-card:not(.skeleton-card)');
       if (cards.length === currentPageLooks.length) {
         cards.forEach((card, index) => {
           if (currentPageLooks[index]) {
-            // Animar reorden con fade sutil
             card.style.transition = 'all 0.3s ease';
             card.style.opacity = '0';
             setTimeout(() => {
-              // Reconstruir la card con los datos actualizados
               const newCard = createLookCardWithLazy(currentPageLooks[index]);
               card.replaceWith(newCard);
               newCard.style.opacity = '0';
@@ -777,7 +906,7 @@ function reorderLooksDynamically() {
           }
         });
       } else {
-        renderLooks(); // Fallback
+        renderLooks();
       }
     }
     
@@ -790,9 +919,8 @@ async function loadFreshProductsInBackground() {
   isGeneratingLooks = true;
   
   try {
-    // Reducir timeout de 5000ms a 3000ms
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // Antes: 5000
+    const timeoutId = setTimeout(() => controller.abort(), 3000); 
     
     const res = await fetch(API_URL, { signal: controller.signal });
     clearTimeout(timeoutId);
