@@ -172,15 +172,15 @@ function renderAdminProductsList(products) {
     }
     
     row.innerHTML = `
-      <div class="admin-product-id">#${p.ID || "N/A"}</div>
-      <div class="admin-product-name">${escapeHtml(p.Nombre || "Sin nombre")}</div>
-      <div class="admin-product-price">${formatCurrency(p.Precio)}</div>
-      <div class="admin-product-stock ${stockClass}">${stockText}</div>
-      <div class="admin-product-actions">
-        <button class="edit-product-btn" data-id="${p.ID}">✏️ Editar</button>
-        <button class="delete-product-btn" data-id="${p.ID}">🗑️ Eliminar</button>
-      </div>
-    `;
+  <div class="admin-product-id">#${escapeHtml(String(p.ID || "N/A"))}</div>
+  <div class="admin-product-name">${escapeHtml(p.Nombre || "Sin nombre")}</div>
+  <div class="admin-product-price">${formatCurrency(p.Precio)}</div>
+  <div class="admin-product-stock ${stockClass}">${escapeHtml(stockText)}</div>
+  <div class="admin-product-actions">
+    <button class="edit-product-btn" data-id="${escapeHtml(String(p.ID))}">✏️ Editar</button>
+    <button class="delete-product-btn" data-id="${escapeHtml(String(p.ID))}">🗑️ Eliminar</button>
+  </div>
+`;
     list.appendChild(row);
   });
   
