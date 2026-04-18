@@ -10,6 +10,7 @@ let looksPerPage = 10;
 let isGeneratingLooks = false;
 let preloadedNextPage = null;
 let lazyImageObserver = null;
+let isPreloading = false;
 
 window.addEventListener('beforeunload', () => {
   sessionStorage.setItem('looks_scroll_position', window.scrollY);
@@ -506,6 +507,9 @@ async function generateLooksProgressive() {
 }
 
 function preloadAdjacentPages() {
+  if (isPreloading) return; 
+  isPreloading = true;
+  
   const totalPages = Math.ceil(allLooks.length / looksPerPage);
   
   if (currentLooksPage < totalPages) {
@@ -515,6 +519,8 @@ function preloadAdjacentPages() {
   if (currentLooksPage > 1) {
     preloadLooksPage(currentLooksPage - 1);
   }
+  
+  setTimeout(() => { isPreloading = false; }, 500);
 }
 
 function preloadLooksPage(pageNumber) {
@@ -784,8 +790,9 @@ async function loadFreshProductsInBackground() {
   isGeneratingLooks = true;
   
   try {
+    // Reducir timeout de 5000ms a 3000ms
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // Antes: 5000
     
     const res = await fetch(API_URL, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -797,10 +804,9 @@ async function loadFreshProductsInBackground() {
       allProducts = freshProducts;
       setCachedProducts(allProducts);
       await generateLooksProgressive();
-      showTemporaryMessage("✨ Outfits actualizados", "info");
     }
   } catch (err) {
-    console.log("Background update falló:", err.message);
+    console.log("Background update falló (timeout esperado):", err.message);
   } finally {
     isGeneratingLooks = false;
   }
