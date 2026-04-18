@@ -943,65 +943,98 @@ function createLookCardWithLazy(look) {
   let productsHtml = '';
   let productCount = 0;
   let imagesHtml = '';
+
   const slotOrder = ["torso", "piernas", "pies"];
   const slotNames = { torso: 'Prenda superior', piernas: 'Prenda inferior', pies: 'Calzado' };
-  
+
+  // Sanitización del look
+  const safeLookName = escapeHtml(look.name || "Look");
+  const safeLookDescription = escapeHtml(look.description || "");
+  const safeLookCategory = escapeHtml(look.category || "");
+
   for (const slotKey of slotOrder) {
     const product = look.products[slotKey];
     if (!product) continue;
+
     productCount++;
     totalPrice += product.price;
-    const productImgOptimized = optimizeDriveUrl(product.image, 200);
-    
+
+    const optimizedImg = optimizeDriveUrl(product.image, 200);
+    const optimizedModalImg = optimizeDriveUrl(product.image, 800);
+
+    // Imagen del slot
     imagesHtml += `
-      <div class="look-slot-image" data-slot="${slotKey}" onclick="openImageModal('${optimizeDriveUrl(product.image, 800)}')">
-        <img class="look-slot-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
+      <div class="look-slot-image" data-slot="${escapeHtml(slotKey)}"
+           onclick="openImageModal('${escapeJsString(optimizedModalImg)}')">
+        <img class="look-slot-img lazy"
+             data-src="${escapeHtml(optimizedImg)}"
+             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
+             alt="${escapeHtml(product.name)}">
       </div>
     `;
-    
+
+    // Productos del look
     productsHtml += `
-      <div class="look-product-item" data-slot="${slotKey}">
+      <div class="look-product-item" data-slot="${escapeHtml(slotKey)}">
         <div class="look-product-info">
           <div class="look-product-name">${escapeHtml(product.name)}</div>
           <div class="look-product-price">${formatCurrency(product.price)}</div>
           <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
         </div>
+
         <div class="look-product-actions">
-          <button class="look-product-add" onclick="addToCart({ID:'${escapeHtml(String(product.id))}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${escapeHtml(product.image)}', Talla:'${escapeHtml(product.size || '')}'})">🛒</button>
-          <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">⟳</button>
+          <button class="look-product-add"
+            onclick="addToCart({
+              ID:'${escapeJsString(String(product.id))}',
+              Nombre:'${escapeJsString(product.name)}',
+              Precio:${product.price},
+              Imagen1:'${escapeJsString(product.image)}',
+              Talla:'${escapeJsString(product.size || '')}'
+            })">🛒</button>
+
+          <button class="look-product-reload"
+            onclick="reloadSlot('${escapeJsString(look.id)}', '${escapeJsString(slotKey)}', event)"
+            title="Cambiar esta prenda">⟳</button>
         </div>
       </div>
     `;
   }
-  
+
   const card = document.createElement("div");
   card.className = "look-card";
-  
+
   card.innerHTML = `
     <div class="look-images-container">
       ${imagesHtml || '<div class="look-slot-image empty">Sin imágenes</div>'}
     </div>
+
     <div class="look-info">
       <div class="look-header">
-        <span class="look-category">${escapeHtml(look.category)}</span>
+        <span class="look-category">${safeLookCategory}</span>
         <span class="look-item-count">${productCount} prenda${productCount !== 1 ? 's' : ''}</span>
       </div>
-      <h2 class="look-title">${escapeHtml(look.name)}</h2>
-      <p class="look-description">${escapeHtml(look.description)}</p>
+
+      <h2 class="look-title">${safeLookName}</h2>
+      <p class="look-description">${safeLookDescription}</p>
+
       <div class="look-products">
         <div class="look-products-title"><span>Este outfit incluye:</span></div>
         <div class="look-products-list">${productsHtml}</div>
+
         <div class="look-total">
           <span class="look-total-label">Precio total:</span>
           <span class="look-total-price">${formatCurrency(totalPrice)}</span>
         </div>
       </div>
-      <button class="buy-look-btn" onclick="addLookToCart('${look.id}')">🛒 Comprar todo</button>
+
+      <button class="buy-look-btn"
+        onclick="addLookToCart('${escapeJsString(look.id)}')">🛒 Comprar todo</button>
     </div>
   `;
-  
+
   return card;
 }
+
 
 function renderLooksPagination(totalPages) {
   const container = document.getElementById("looks-container");
