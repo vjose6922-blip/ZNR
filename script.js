@@ -1,3 +1,5 @@
+// script.js - VERSIÓN CORREGIDA
+
 const PAGE_SIZE = 10;
 let allProducts = [];
 let filteredProducts = [];
@@ -10,63 +12,7 @@ let secretTapCount = 0;
 let secretTapTimeout = null;
 let isBackgroundLoading = false;
 
-async function loadProductsInBackground() {
-  await backgroundQueue.request();
-}
-  
-  if (!navigator.onLine) {
-    console.log("📡 Offline, no se carga background");
-    return;
-  }
-  
-  isBackgroundLoading = true;
-  console.log("🔄 Actualizando productos en background...");
-  
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    const res = await fetch(API_URL, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    const data = await res.json();
-    const freshProducts = (data.products || data || []).slice(0, 500);
-    
-    if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
-      console.log("✨ Productos actualizados en background");
-      allProducts = freshProducts;
-      setCachedProducts(allProducts);
-      
-      if (typeof buildProductIndex === "function") {
-        buildProductIndex(allProducts);
-      }
-      
-      const currentGender = document.getElementById("gender-filter")?.value || "";
-      const currentCategory = document.getElementById("category-filter")?.value || "";
-      const currentSearch = document.getElementById("search-input")?.value || "";
-      
-      if (currentGender || currentCategory || currentSearch || currentPage > 1) {
-        applyFilters();
-      } else {
-        filteredProducts = [...allProducts];
-        renderProductsPage(true);
-        populateCategoryFilter(currentGender);
-      }
-      
-      showTemporaryMessage("✨ Catálogo actualizado", "info");
-    }
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      console.log("⏱️ Actualización background timeout (normal)");
-    } else {
-      console.warn("Error en actualización background:", err.message);
-    }
-  } finally {
-    isBackgroundLoading = false; // ← GARANTIZAR que siempre se libera
-  }
-}
-
-// Versión mejorada con Queue para evitar acumulación
+// ========== BACKGROUND LOAD QUEUE ==========
 class BackgroundLoadQueue {
   constructor() {
     this.isLoading = false;
@@ -88,7 +34,6 @@ class BackgroundLoadQueue {
     } finally {
       this.isLoading = false;
       
-      // Si hay una solicitud pendiente, ejecutarla inmediatamente
       if (this.pending) {
         console.log("🔄 Ejecutando solicitud pendiente");
         this.request();
@@ -135,7 +80,7 @@ class BackgroundLoadQueue {
           populateCategoryFilter(currentGender);
         }
         
-        showTemporaryMessage("Catálogo actualizado", "info");
+        showTemporaryMessage("✨ Catálogo actualizado", "info");
       }
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -148,6 +93,13 @@ class BackgroundLoadQueue {
 }
 
 const backgroundQueue = new BackgroundLoadQueue();
+
+// ========== FUNCIÓN PRINCIPAL ==========
+async function loadProductsInBackground() {
+  await backgroundQueue.request();
+}
+
+// El resto de tu código (getGenderFromCategory, fetchProducts, etc.) continúa igual...
 
 
 
