@@ -232,7 +232,17 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
-
+function escapeJsString(str) {
+  return String(str)
+    .replace(/\\/g, "\\\\")   
+    .replace(/'/g, "\\'")     
+    .replace(/"/g, '\\"')     
+    .replace(/\n/g, "\\n")    
+    .replace(/\r/g, "\\r")
+    .replace(/\t/g, "\\t")
+    .replace(/\u2028/g, "\\u2028") 
+    .replace(/\u2029/g, "\\u2029");
+}
 
 
 function optimizeDriveUrl(url, size = 400) {
