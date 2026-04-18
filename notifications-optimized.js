@@ -8,7 +8,8 @@ let currentPage = 1;
 let totalPages = 1;
 let isLoading = false;
 let autoRefreshInterval = null;
-let pendingRefresh = false;
+let refreshTimeout = null;
+let lazyImageObserver = null;
 
 // ========== CACHÉ LOCAL ==========
 function getCachedNotifications() {
@@ -18,7 +19,6 @@ function getCachedNotifications() {
     
     const { data, timestamp, version } = JSON.parse(cached);
     
-    // Verificar versión y expiración
     if (version !== '2.0') return null;
     if (Date.now() - timestamp > NOTIF_CACHE_TTL) {
       localStorage.removeItem(NOTIF_CACHE_KEY);
@@ -53,11 +53,12 @@ function invalidateNotificationsCache() {
 
 // ========== CARGA PRINCIPAL CON CACHÉ ==========
 async function loadNotificationsOptimized(forceRefresh = false, targetPage = 1) {
-  // Verificar que API_URL existe
   if (typeof API_URL === 'undefined') {
-    console.error("❌ API_URL no está definida. Asegúrate de que common.js se cargó primero.");
-    document.getElementById("notifications").innerHTML = 
-      '<div class="empty">❌ Error de configuración. Recarga la página.</div>';
+    console.error("❌ API_URL no está definida");
+    const container = document.getElementById("notifications");
+    if (container) {
+      container.innerHTML = '<div class="empty">❌ Error de configuración. Recarga la página.</div>';
+    }
     return;
   }
   
@@ -69,30 +70,24 @@ async function loadNotificationsOptimized(forceRefresh = false, targetPage = 1) 
   isLoading = true;
   currentPage = targetPage;
   
-  // Mostrar skeleton loading
   showSkeletonNotifications();
   
   try {
     let data;
     
-    // Intentar caché primero (solo si no es forceRefresh y es página 1)
     if (!forceRefresh && targetPage === 1) {
       const cached = getCachedNotifications();
       if (cached) {
         data = cached;
         renderNotificationsFromData(data);
-        
-        // Actualizar en background silenciosamente
         refreshInBackground();
         isLoading = false;
         return;
       }
     }
     
-    // Cargar desde API
-    showLoader("Cargando solicitudes...");
+    if (typeof showLoader === 'function') showLoader("Cargando solicitudes...");
     
-    // CORREGIDO: usar API_URL en lugar de API
     const url = `${API_URL}?action=notificationsBatch&page=${targetPage}&pageSize=20&noCache=${forceRefresh ? 'true' : 'false'}`;
     console.log("📡 Cargando desde:", url);
     
@@ -105,7 +100,6 @@ async function loadNotificationsOptimized(forceRefresh = false, targetPage = 1) 
     
     data = result;
     
-    // Guardar en caché solo para página 1
     if (targetPage === 1) {
       setCachedNotifications(data);
     }
@@ -115,7 +109,6 @@ async function loadNotificationsOptimized(forceRefresh = false, targetPage = 1) 
   } catch (err) {
     console.error("Error:", err);
     
-    // Intentar caché de respaldo
     const fallbackCache = getCachedNotifications();
     if (fallbackCache) {
       console.log("⚠️ Usando caché de respaldo por error");
@@ -124,8 +117,10 @@ async function loadNotificationsOptimized(forceRefresh = false, targetPage = 1) 
         showTemporaryMessage("⚠️ Usando datos guardados - Error de conexión", "error");
       }
     } else {
-      document.getElementById("notifications").innerHTML = 
-        `<div class="empty">❌ Error cargando solicitudes: ${err.message}</div>`;
+      const container = document.getElementById("notifications");
+      if (container) {
+        container.innerHTML = `<div class="empty">❌ Error cargando solicitudes: ${err.message}</div>`;
+      }
     }
   } finally {
     if (typeof hideLoader === 'function') hideLoader();
@@ -147,7 +142,6 @@ function renderNotificationsFromData(data) {
     return;
   }
   
-  // Usar DocumentFragment para mejor rendimiento
   const fragment = document.createDocumentFragment();
   
   for (const group of data.groups) {
@@ -158,14 +152,11 @@ function renderNotificationsFromData(data) {
   container.innerHTML = '';
   container.appendChild(fragment);
   
-  // Renderizar paginación
   renderPagination();
-  
-  // Inicializar lazy loading para imágenes
   initLazyImagesInNotifications();
 }
 
-// ========== TARJETA OPTIMIZADA CON IMÁGENES LAZY ==========
+// ========== TARJETA OPTIMIZADA ==========
 function createOptimizedNotificationCard(group) {
   const card = document.createElement("div");
   card.className = "request-card";
@@ -175,10 +166,8 @@ function createOptimizedNotificationCard(group) {
   const formattedDate = firstDate.toLocaleString();
   const totalAmount = group.totalAmount || 0;
   
-  // Versión optimizada de la imagen (thumbnail)
   const getOptimizedThumbnail = (imagenUrl) => {
     if (!imagenUrl) return 'https://placehold.co/70x70/eee/999?text=No+img';
-    // Usar thumbnail de Google Drive si es posible
     if (imagenUrl.includes('lh3.googleusercontent.com')) {
       return imagenUrl.replace(/=w[0-9]+/, '=w100');
     }
@@ -268,7 +257,6 @@ function renderPagination() {
     flex-wrap: wrap;
   `;
   
-  // Botón anterior
   if (currentPage > 1) {
     const prevBtn = createPaginationButton("← Anterior", () => {
       loadNotificationsOptimized(false, currentPage - 1);
@@ -277,7 +265,6 @@ function renderPagination() {
     paginationDiv.appendChild(prevBtn);
   }
   
-  // Números de página (máximo 5)
   let startPage = Math.max(1, currentPage - 2);
   let endPage = Math.min(totalPages, startPage + 4);
   
@@ -294,7 +281,6 @@ function renderPagination() {
     paginationDiv.appendChild(pageBtn);
   }
   
-  // Botón siguiente
   if (currentPage < totalPages) {
     const nextBtn = createPaginationButton("Siguiente →", () => {
       loadNotificationsOptimized(false, currentPage + 1);
@@ -322,14 +308,11 @@ function createPaginationButton(text, onClick) {
 }
 
 // ========== BACKGROUND REFRESH ==========
-let refreshTimeout = null;
-
 function refreshInBackground() {
   if (refreshTimeout) clearTimeout(refreshTimeout);
   
   refreshTimeout = setTimeout(async () => {
     if (document.hidden) {
-      // Si la pestaña no está visible, esperar más
       refreshTimeout = setTimeout(() => refreshInBackground(), 5000);
       return;
     }
@@ -341,20 +324,17 @@ function refreshInBackground() {
       const result = await response.json();
       
       if (result.ok) {
-        // Solo actualizar si hay cambios
         const currentGroups = document.querySelectorAll('.request-card');
         if (currentGroups.length !== result.groups?.length) {
           console.log("✨ Cambios detectados, actualizando vista");
           setCachedNotifications(result);
           
-          // Solo recargar si estamos en página 1
           if (currentPage === 1) {
             renderNotificationsFromData(result);
             if (typeof showTemporaryMessage === 'function') {
               showTemporaryMessage("✨ Solicitudes actualizadas", "info");
             }
           } else {
-            // Mostrar indicador de que hay cambios
             showRefreshIndicator();
           }
         }
@@ -402,7 +382,6 @@ function showSkeletonNotifications() {
   const container = document.getElementById("notifications");
   if (!container) return;
   
-  // Solo mostrar skeleton si está vacío
   if (container.children.length > 0 && container.querySelector('.request-card')) return;
   
   const skeletonCards = [];
@@ -432,12 +411,9 @@ function hideSkeletonNotifications() {
   });
 }
 
-// ========== LAZY LOADING PARA IMÁGENES ==========
-let lazyImageObserver = null;
-
+// ========== LAZY LOADING ==========
 function initLazyImagesInNotifications() {
   if (!('IntersectionObserver' in window)) {
-    // Fallback: cargar todas inmediatamente
     document.querySelectorAll('.lazy-notif').forEach(img => {
       const dataSrc = img.getAttribute('data-src');
       if (dataSrc) img.src = dataSrc;
@@ -470,14 +446,12 @@ function initLazyImagesInNotifications() {
 function startAutoRefresh() {
   if (autoRefreshInterval) clearInterval(autoRefreshInterval);
   
-  // Refresh cada 30 segundos solo si la página está visible
   autoRefreshInterval = setInterval(() => {
     if (!document.hidden && currentPage === 1) {
       refreshInBackground();
     }
   }, 30000);
   
-  // Escuchar visibilidad de la página
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && currentPage === 1) {
       refreshInBackground();
@@ -492,21 +466,113 @@ function stopAutoRefresh() {
   }
 }
 
+// ========== FUNCIONES DE ACCIÓN ==========
+async function removeOutOfStockNotifications(requestId) {
+  if (!confirm("¿Eliminar los productos sin stock de esta solicitud?")) return;
+  
+  if (typeof showLoader === 'function') showLoader("Eliminando...");
+  
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "removeOutOfStockNotifications", requestId: requestId })
+    });
+    const data = await response.json();
+    
+    if (data.ok) {
+      alert(`✅ Eliminados ${data.removedCount} producto(s) sin stock`);
+      invalidateNotificationsCache();
+      loadNotificationsOptimized(true, 1);
+    } else {
+      throw new Error(data.error || "Error");
+    }
+  } catch (err) {
+    alert(`❌ Error: ${err.message}`);
+  } finally {
+    if (typeof hideLoader === 'function') hideLoader();
+  }
+}
+
+async function confirmGroupPurchase(requestId) {
+  if (!confirm(`¿Confirmar TODOS los productos con stock disponible de esta solicitud?`)) return;
+  
+  if (typeof showLoader === 'function') showLoader("Procesando solicitud completa...");
+  
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "confirmGroupPurchase", requestId: requestId })
+    });
+    const data = await response.json();
+    
+    if (!data.ok) throw new Error(data.error || "Error al confirmar");
+    
+    let summary = `✅ ${data.message}\n\n`;
+    if (data.approvedCount > 0) {
+      summary += `💰 Total a pagar: $${(data.totalAmount || 0).toLocaleString()}\n`;
+    }
+    if (data.paymentLink) {
+      summary += `\n🔗 Link de pago generado. Se enviará al cliente por WhatsApp.`;
+    }
+    
+    alert(summary);
+    
+    if (data.whatsappUrl) {
+      window.open(data.whatsappUrl, '_blank');
+    }
+    
+    setTimeout(() => {
+      invalidateNotificationsCache();
+      loadNotificationsOptimized(true, 1);
+    }, 2000);
+    
+  } catch (err) {
+    alert(`❌ Error: ${err.message}`);
+    if (typeof hideLoader === 'function') hideLoader();
+  }
+}
+
+async function cancelGroupPurchase(requestId) {
+  if (!confirm("¿Cancelar TODA la solicitud de compra?")) return;
+  
+  if (typeof showLoader === 'function') showLoader("Cancelando...");
+  
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "cancelGroupPurchase", requestId: requestId })
+    });
+    const data = await response.json();
+    
+    if (data.ok) {
+      alert(`✅ Solicitud cancelada (${data.cancelledCount} productos)`);
+      invalidateNotificationsCache();
+      loadNotificationsOptimized(true, 1);
+    } else {
+      throw new Error(data.error || "Error");
+    }
+  } catch (err) {
+    alert(`❌ Error: ${err.message}`);
+  } finally {
+    if (typeof hideLoader === 'function') hideLoader();
+  }
+}
+
 // ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
-  // Pequeño delay para asegurar que common.js cargó API_URL
   setTimeout(() => {
     if (typeof API_URL !== 'undefined') {
       loadNotificationsOptimized();
       startAutoRefresh();
     } else {
-      console.error("❌ API_URL no disponible después de 1 segundo");
-      document.getElementById("notifications").innerHTML = 
-        '<div class="empty">❌ Error de carga. Recarga la página.</div>';
+      console.error("❌ API_URL no disponible");
+      const container = document.getElementById("notifications");
+      if (container) {
+        container.innerHTML = '<div class="empty">❌ Error de carga. Recarga la página.</div>';
+      }
     }
   }, 100);
   
-  // Botón de refresh manual
   const refreshBtn = document.querySelector('.refresh-btn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
@@ -516,8 +582,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Limpiar al salir
 window.addEventListener('beforeunload', () => {
   stopAutoRefresh();
   if (lazyImageObserver) lazyImageObserver.disconnect();
 });
+
+// Exportar funciones globalmente para que onclick las encuentre
+window.removeOutOfStockNotifications = removeOutOfStockNotifications;
+window.confirmGroupPurchase = confirmGroupPurchase;
+window.cancelGroupPurchase = cancelGroupPurchase;
+window.loadNotificationsOptimized = loadNotificationsOptimized;
+window.invalidateNotificationsCache = invalidateNotificationsCache;
