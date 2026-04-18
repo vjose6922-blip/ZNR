@@ -1158,3 +1158,83 @@ window.getProductsByCategoryIndexed = getProductsByCategoryIndexed;
 window.getIndexedProducts = getIndexedProducts;
 window.clearProductIndex = clearProductIndex;
 
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  console.log('📱 PWA instalable detectada');
+  e.preventDefault();
+  deferredPrompt = e;
+  
+  // Mostrar botón de instalación después de 2 segundos
+  setTimeout(() => {
+    showPWAInstallButton();
+  }, 2000);
+});
+
+function showPWAInstallButton() {
+  if (document.getElementById('pwa-install-btn')) return;
+  
+  const installBtn = document.createElement('button');
+  installBtn.id = 'pwa-install-btn';
+  installBtn.innerHTML = '📲 Instalar App Z&R';
+  installBtn.style.cssText = `
+    position: fixed;
+    bottom: 90px;
+    left: 16px;
+    background: linear-gradient(135deg, #ff4f81, #ff7a4f);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 9999;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideInLeft 0.3s ease;
+  `;
+  
+  installBtn.onclick = async () => {
+    if (!deferredPrompt) return;
+    installBtn.style.display = 'none';
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`Instalación: ${outcome}`);
+    deferredPrompt = null;
+  };
+  
+  document.body.appendChild(installBtn);
+  
+  // Ocultar después de 15 segundos
+  setTimeout(() => {
+    if (installBtn && installBtn.parentNode) {
+      installBtn.style.opacity = '0';
+      setTimeout(() => installBtn.remove(), 300);
+    }
+  }, 15000);
+}
+
+// Detectar si ya está instalada como app
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  console.log('📱 Z&R ejecutándose como app instalada');
+  document.body.classList.add('pwa-mode');
+}
+
+// Agregar animación
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-100px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+`;
+document.head.appendChild(style);
