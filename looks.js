@@ -854,7 +854,6 @@ function reorderLooksDynamically() {
       
       const cards = container.querySelectorAll('.look-card:not(.skeleton-card)');
       if (cards.length === currentPageLooks.length) {
-        let pendingCards = cards.length;
         cards.forEach((card, index) => {
           if (currentPageLooks[index]) {
             card.style.transition = 'all 0.3s ease';
@@ -868,7 +867,6 @@ function reorderLooksDynamically() {
                 newCard.style.opacity = '1';
                 newCard.style.transform = '';
               }, 50);
-              // Register new lazy images after each card is inserted
               if (lazyImageObserver) {
                 newCard.querySelectorAll('img.lazy').forEach(img => lazyImageObserver.observe(img));
               }
@@ -941,7 +939,6 @@ function renderLooks() {
   
   renderLooksPagination(totalPages);
   preloadAdjacentPages();
-  initLazyImagesAfterRender();
 }
 
 function createLookCardWithLazy(look) {
@@ -953,8 +950,10 @@ function createLookCardWithLazy(look) {
   const slotOrder = ["torso", "piernas", "pies"];
   const slotNames = { torso: 'Prenda superior', piernas: 'Prenda inferior', pies: 'Calzado' };
 
-  // Los campos de texto se asignar\u00E1n con textContent despu\u00E9s del innerHTML
-  // para preservar emojis correctamente (escapeHtml los convierte en entidades)
+  // Sanitizaci\u00F3n del look
+  const safeLookName = escapeHtml(look.name || "Look");
+  const safeLookDescription = escapeHtml(look.description || "");
+  const safeLookCategory = escapeHtml(look.category || "");
 
   for (const slotKey of slotOrder) {
     const product = look.products[slotKey];
@@ -981,9 +980,9 @@ function createLookCardWithLazy(look) {
     productsHtml += `
       <div class="look-product-item" data-slot="${escapeHtml(slotKey)}">
         <div class="look-product-info">
-          <div class="look-product-name" data-text="${escapeHtml(product.name)}"></div>
+          <div class="look-product-name">${escapeHtml(product.name)}</div>
           <div class="look-product-price">${formatCurrency(product.price)}</div>
-          <div class="look-product-size" data-text="${escapeHtml(product.size || 'Talla no especificada')}"></div>
+          <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
         </div>
 
         <div class="look-product-actions">
@@ -1014,12 +1013,12 @@ function createLookCardWithLazy(look) {
 
     <div class="look-info">
       <div class="look-header">
-        <span class="look-category" data-text="${escapeHtml(look.category || '')}"></span>
+        <span class="look-category">${safeLookCategory}</span>
         <span class="look-item-count">${productCount} prenda${productCount !== 1 ? 's' : ''}</span>
       </div>
 
-      <h2 class="look-title" data-text="${escapeHtml(look.name || 'Look')}"></h2>
-      <p class="look-description" data-text="${escapeHtml(look.description || '')}"></p>
+      <h2 class="look-title">${safeLookName}</h2>
+      <p class="look-description">${safeLookDescription}</p>
 
       <div class="look-products">
         <div class="look-products-title"><span>Este outfit incluye:</span></div>
@@ -1035,12 +1034,6 @@ function createLookCardWithLazy(look) {
         onclick="addLookToCart('${escapeJsString(look.id)}')">\u{1F6D2} Comprar todo</button>
     </div>
   `;
-
-  // Asignar textos con textContent para preservar emojis
-  card.querySelectorAll('[data-text]').forEach(el => {
-    el.textContent = el.getAttribute('data-text');
-    el.removeAttribute('data-text');
-  });
 
   return card;
 }
