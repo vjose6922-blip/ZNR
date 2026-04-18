@@ -1,11 +1,6 @@
 const WEATHER_API_URL = API_URL;
 const LOOKS_CACHE_KEY = 'zr_looks_generated_v2';
-const MAX_WEATHER_ATTEMPTS = 2;
 
-let cartRenderTimeout = null;
-let isLoadingProducts = false;
-let isGenerating = false;
-let pendingRender = false;
 let currentWeather = null;
 let allProducts = [];
 let looks = [];
@@ -15,184 +10,6 @@ let looksPerPage = 10;
 let isGeneratingLooks = false;
 let preloadedNextPage = null;
 let lazyImageObserver = null;
-let weatherData = null;
-let weatherLoadStarted = false;
-let weatherLoadPromise = null;
-let weatherLoadAttempts = 0;
-let preloadedPages = new Set();
-let precomputedOrders = {
-  calor: null,
-  frio: null,
-  templado: null,
-  lluvioso: null
-};
-let isReordering = false;
-
-if (typeof getGenderFromCategory === 'undefined') {
-  console.warn("⚠️ getGenderFromCategory no está disponible, usando fallback");
-  window.getGenderFromCategory = function(categoria) {
-    if (!categoria) return null;
-    const cat = categoria.toLowerCase();
-    if (cat.includes('hombre') || cat.includes('caballero')) return 'HOMBRE';
-    if (cat.includes('mujer') || cat.includes('dama')) return 'MUJER';
-    return null;
-  };
-}
-
-
-
-function precomputeAllOrders(looksArray) {
-  const startTime = performance.now();
-  
-  for (const weather of ['calor', 'frio', 'templado', 'lluvioso']) {
-    precomputedOrders[weather] = [...looksArray].sort((a, b) => 
-      (WEATHER_PRIORITY_SCORES[weather]?.[b.id?.toLowerCase()] || 0) - 
-      (WEATHER_PRIORITY_SCORES[weather]?.[a.id?.toLowerCase()] || 0)
-    );
-  }
-  
-  console.log(`📊 Órdenes de clima precalculadas en ${(performance.now() - startTime).toFixed(0)}ms`);
-}
-
-function applyWeatherOrderInstant(weatherType) {
-  if (isReordering) return false;
-  
-  const newOrder = precomputedOrders[weatherType];
-  if (!newOrder || newOrder.length === 0) return false;
-  
-  const currentIds = allLooks.map(l => l.id).join(',');
-  const newIds = newOrder.map(l => l.id).join(',');
-  if (currentIds === newIds) return false;
-  
-  console.log(`🌤️ Reordenando looks para clima: ${weatherType}`);
-  isReordering = true;
-  
-  animateLooksReordering(newOrder).then(() => {
-    allLooks = newOrder;
-    looks = [...allLooks];
-    currentLooksPage = 1;
-    renderLooks();
-    isReordering = false;
-  });
-  
-  return true;
-}
-
-async function animateLooksReordering(newLooks) {
-  const container = document.getElementById("looks-container");
-  if (!container) return Promise.resolve();
-  
-  const cards = container.querySelectorAll('.look-card:not(.skeleton-card)');
-  if (cards.length === 0) return Promise.resolve();
-  
-  cards.forEach(card => {
-    card.style.transition = 'opacity 0.15s ease';
-    card.style.opacity = '0';
-  });
-  
-  await new Promise(resolve => setTimeout(resolve, 150));
-  
-  allLooks = newLooks;
-  currentLooksPage = 1;
-  renderLooks();
-  
-  setTimeout(() => {
-    forceLazyImagesLoad();
-    if (lazyImageObserver) {
-      const lazyImages = document.querySelectorAll('.lazy');
-      lazyImages.forEach(img => {
-        if (img.getAttribute('data-src') && !img.src) {
-          lazyImageObserver.observe(img);
-        }
-      });
-    }
-  }, 100);
-  
-  requestAnimationFrame(() => {
-    const newCards = container.querySelectorAll('.look-card');
-    newCards.forEach(card => {
-      card.style.opacity = '0';
-      card.style.transition = 'opacity 0.3s ease';
-      requestAnimationFrame(() => {
-        card.style.opacity = '1';
-      });
-    });
-  });
-  
-  return Promise.resolve();
-}
-
-function forceLazyImagesLoad() {
-  const lazyImages = document.querySelectorAll('.lazy:not(.loaded)');
-  console.log(`🖼️ Forzando carga de ${lazyImages.length} imágenes lazy`);
-  
-  lazyImages.forEach(img => {
-    const dataSrc = img.getAttribute('data-src');
-    if (dataSrc && !img.src) {
-      const tempImg = new Image();
-      tempImg.onload = () => {
-        img.src = dataSrc;
-        img.classList.add('loaded');
-        img.removeAttribute('data-src');
-      };
-      tempImg.onerror = () => {
-        const optimizedUrl = optimizeDriveUrl(dataSrc, 200);
-        if (optimizedUrl !== dataSrc) {
-          const tempImg2 = new Image();
-          tempImg2.onload = () => {
-            img.src = optimizedUrl;
-            img.classList.add('loaded');
-            img.removeAttribute('data-src');
-          };
-          tempImg2.src = optimizedUrl;
-        }
-      };
-      tempImg.src = dataSrc;
-    }
-  });
-}
-// Cargar clima sin bloquear
-async function loadWeatherNonBlocking() {
-  if (weatherLoadStarted) return weatherLoadPromise;
-  weatherLoadStarted = true;
-  
-  weatherLoadPromise = (async () => {
-    try {
-      // Timeout de 2 segundos
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-      
-      const response = await fetch(`${WEATHER_API_URL}?action=getWeather`, {
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      
-      const data = await response.json();
-      
-      if (data.ok && data.weatherType) {
-        weatherData = data;
-        console.log("🌤️ Clima obtenido:", data.weatherType, data.temperature);
-        
-        // Reordenar looks instantáneamente
-        if (precomputedOrders[data.weatherType]) {
-          setTimeout(() => {
-            applyWeatherOrderInstant(data.weatherType);
-          }, 100);
-        }
-        
-        addWeatherNotification(data);
-        return data;
-      }
-    } catch (err) {
-      console.log("⏱️ Clima timeout o error, usando default");
-    }
-    
-    weatherData = { weatherType: 'templado', temperature: 22, city: 'Default' };
-    return weatherData;
-  })();
-  
-  return weatherLoadPromise;
-}
 
 window.addEventListener('beforeunload', () => {
   sessionStorage.setItem('looks_scroll_position', window.scrollY);
@@ -378,50 +195,9 @@ function initLazyLoading() {
 
 function initLazyImagesAfterRender() {
   const lazyImages = document.querySelectorAll('.lazy');
-  
   if (lazyImageObserver) {
-    // Desconectar observer existente para reiniciar
-    lazyImageObserver.disconnect();
-    lazyImageObserver = null;
+    lazyImages.forEach(img => lazyImageObserver.observe(img));
   }
-  
-  // Crear nuevo observer
-  if ('IntersectionObserver' in window) {
-    lazyImageObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const img = entry.target;
-          const dataSrc = img.getAttribute('data-src');
-          if (dataSrc) {
-            img.src = dataSrc;
-            img.classList.add('loaded');
-            img.removeAttribute('data-src');
-          }
-          lazyImageObserver.unobserve(img);
-        }
-      });
-    }, {
-      rootMargin: '100px 0px',
-      threshold: 0.01
-    });
-    
-    lazyImages.forEach(img => {
-      lazyImageObserver.observe(img);
-    });
-  } else {
-    // Fallback: cargar todas las imágenes
-    lazyImages.forEach(img => {
-      const dataSrc = img.getAttribute('data-src');
-      if (dataSrc) {
-        img.src = dataSrc;
-        img.classList.add('loaded');
-        img.removeAttribute('data-src');
-      }
-    });
-  }
-  
-  // También forzar carga de imágenes visibles inmediatamente
-  setTimeout(() => forceVisibleLazyImages(), 50);
 }
 
 function compressLooksData(looks) {
@@ -515,62 +291,23 @@ function getProductsQuickHash() {
 }
 
 async function getWeather() {
-  if (weatherLoadPromise) {
-    console.log("🌤️ Esperando carga de clima existente...");
-    return weatherLoadPromise;
-  }
-  
-  weatherLoadAttempts++;
-  
-  weatherLoadPromise = (async () => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500);
-    
-    try {
-      console.log(`🌤️ Intentando obtener clima (intento ${weatherLoadAttempts})...`);
-      const response = await fetch(`${WEATHER_API_URL}?action=getWeather`, {
-        signal: controller.signal,
-        cache: 'no-cache'
-      });
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      
-      if (data.ok && data.weatherType) {
-        console.log(`🌤️ Clima obtenido: ${data.weatherType} ${data.temperature}°C ${data.city || ''}`);
-        currentWeather = data;
-        return data;
-      }
-      throw new Error("Respuesta inválida");
-    } catch (err) {
-      console.log(`⏱️ Clima ${err.name === 'AbortError' ? 'timeout' : 'error'}, usando default`);
-      
-      if (weatherLoadAttempts === 1 && MAX_WEATHER_ATTEMPTS > 1) {
-        console.log("🔄 Reintentando clima en 1 segundo...");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        weatherLoadPromise = null;
-        return getWeather();
-      }
-      
+  try {
+    const response = await fetch(`${WEATHER_API_URL}?action=getWeather`);
+    const data = await response.json();
+    if (data.ok && data.weatherType) {
+      currentWeather = data;
+      console.log("🌤️ Clima actual:", data.weatherType, data.temperature, data.city);
+      addWeatherNotification(data);
+      return data;
+    } else {
       currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
       return currentWeather;
-    } finally {
-      setTimeout(() => {
-        if (weatherLoadPromise === weatherLoadPromise) {
-          weatherLoadPromise = null;
-        }
-      }, 1000);
     }
-  })();
-  
-  return weatherLoadPromise;
-}
-
-
-function fetchWeatherInBackground() {
-  if (weatherLoadPromise) return weatherLoadPromise;
-  return getWeather().catch(() => null);
+  } catch (err) {
+    console.error("Error obteniendo clima:", err);
+    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
+    return currentWeather;
+  }
 }
 
 function addWeatherNotification(weather) {
@@ -704,15 +441,8 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
   }
   return selected;
 }
+
 async function generateLooksProgressive() {
-  if (isGenerating) {
-    console.log("⏳ Ya generando looks, esperando...");
-    pendingRender = true;
-    return;
-  }
-  
-  isGenerating = true;
-  
   return new Promise((resolve) => {
     const startTime = performance.now();
     
@@ -747,40 +477,26 @@ async function generateLooksProgressive() {
       
       currentIndex = end;
       
-      // CORREGIDO: Renderizar progresivamente CADA batch
       if (allBuiltLooks.length > 0) {
-        const neutralOrder = [...allBuiltLooks].sort((a, b) => a.id.localeCompare(b.id));
-        allLooks = neutralOrder;
+        const currentLooks = sortLooksByWeather([...allBuiltLooks]);
+        allLooks = currentLooks;
         looks = [...allLooks];
         renderLooks();
         initLazyImagesAfterRender();
       }
       
       if (currentIndex < LOOKS_CONFIG.length) {
-        setTimeout(processBatch, 30);
+        setTimeout(processBatch, 50);
       } else {
-        // Finalizar - ordenar por clima si está disponible
-        if (currentWeather && currentWeather.weatherType) {
-          allLooks = sortLooksByWeather(allBuiltLooks);
-        } else {
-          allLooks = [...allBuiltLooks].sort((a, b) => a.id.localeCompare(b.id));
-        }
-        
+        allLooks = sortLooksByWeather(allBuiltLooks);
         looks = [...allLooks];
-        precomputeAllOrders(allLooks);
         saveLooksToCacheOptimized(allLooks);
         renderLooks();
         initLazyImagesAfterRender();
         preloadAdjacentPages();
         
         const endTime = performance.now();
-        console.log(`✅ Looks generados: ${allLooks.length} de ${LOOKS_CONFIG.length} posibles en ${(endTime - startTime).toFixed(0)}ms`);
-        
-        isGenerating = false;
-        if (pendingRender) {
-          pendingRender = false;
-          renderLooks();
-        }
+        console.log(`✅ Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
         resolve();
       }
     }
@@ -791,15 +507,17 @@ async function generateLooksProgressive() {
 
 function preloadAdjacentPages() {
   const totalPages = Math.ceil(allLooks.length / looksPerPage);
-  clearPreloadCache();
   
   if (currentLooksPage < totalPages) {
     preloadLooksPage(currentLooksPage + 1);
   }
+  
+  if (currentLooksPage > 1) {
+    preloadLooksPage(currentLooksPage - 1);
+  }
 }
 
 function preloadLooksPage(pageNumber) {
-  if (preloadedPages.has(pageNumber)) return;
   if (preloadedNextPage === pageNumber) return;
   
   const start = (pageNumber - 1) * looksPerPage;
@@ -807,9 +525,6 @@ function preloadLooksPage(pageNumber) {
   const pageLooks = allLooks.slice(start, end);
   
   if (pageLooks.length === 0) return;
-  
-  preloadedPages.add(pageNumber);
-  preloadedNextPage = pageNumber;
   
   if (window.requestIdleCallback) {
     requestIdleCallback(() => {
@@ -824,6 +539,8 @@ function preloadLooksPage(pageNumber) {
           }
         });
       });
+      
+      preloadedNextPage = pageNumber;
       console.log(`🔮 Precargada página ${pageNumber} de looks`);
     });
   } else {
@@ -836,86 +553,80 @@ function preloadLooksPage(pageNumber) {
           }
         });
       });
-      console.log(`🔮 Precargada página ${pageNumber} de looks`);
+      preloadedNextPage = pageNumber;
     }, 100);
   }
 }
 
-function clearPreloadCache() {
-  preloadedPages.clear();
-  preloadedNextPage = null;
-}
-
-
 async function loadProducts() {
-  if (isLoadingProducts) {
-    console.log("⏳ Ya cargando productos, omitiendo...");
-    return;
-  }
-  
-  isLoadingProducts = true;
   showSkeletonLooks();
   
-  const weatherPromise = fetchWeatherInBackground();
+  if (!navigator.onLine) {
+    console.log('📡 Offline - Cargando looks desde caché');
+    if (window.ConnectionMonitor && window.ConnectionMonitor.showOfflineBanner) {
+      window.ConnectionMonitor.showOfflineBanner();
+    }
+  }
   
   const cachedLooks = getCachedLooksOptimized();
   if (cachedLooks && cachedLooks.length > 0) {
-    console.log(`⚡⚡ LOOKS DESDE CACHÉ: ${cachedLooks.length} looks`);
-    
-    // CORREGIDO: No usar neutralOrder si ya tenemos todos los looks
+    console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
     allLooks = cachedLooks;
     looks = [...allLooks];
     currentLooksPage = 1;
-    precomputeAllOrders(allLooks);
     
-    const cachedProducts = getCachedProducts();
+    const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
+      ? window.CacheManager.getSessionProductsCache() 
+      : getCachedProducts();
+    
     if (cachedProducts && cachedProducts.length > 0) {
       allProducts = cachedProducts;
-      if (typeof window.indexProducts === 'function') {
-        window.indexProducts(allProducts);
-      }
     }
     
-    renderLooks();
-    initLazyImagesAfterRender();
-    preloadAdjacentPages();
-    hideSkeletonLooks();
+    await getWeather();
     
-    const weather = await weatherPromise;
-    if (weather && weather.weatherType && precomputedOrders[weather.weatherType]) {
-      applyWeatherOrderInstant(weather.weatherType);
+    setTimeout(() => {
+      renderLooks();
+      initLazyImagesAfterRender();
+      preloadAdjacentPages();
+      hideSkeletonLooks();
+    }, 50);
+    
+    const savedScroll = sessionStorage.getItem('looks_scroll_position');
+    if (savedScroll) {
+      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
+      sessionStorage.removeItem('looks_scroll_position');
     }
     
     if (navigator.onLine && !isGeneratingLooks) {
       loadFreshProductsInBackground();
     }
-    
-    isLoadingProducts = false;
     return;
   }
   
-  // Si no hay caché, generar desde productos
-  const cachedProducts = getCachedProducts();
+  const cachedProducts = (window.CacheManager && window.CacheManager.getSessionProductsCache) 
+    ? window.CacheManager.getSessionProductsCache() 
+    : getCachedProducts();
+  
   if (cachedProducts && cachedProducts.length > 0) {
-    console.log(`⚡ Productos desde caché: ${cachedProducts.length} productos`);
+    console.log("⚡ Productos desde caché, generando looks progresivamente...");
     allProducts = cachedProducts;
-    if (typeof window.indexProducts === 'function') {
-      window.indexProducts(allProducts);
-    }
-    
     await getWeather();
     await generateLooksProgressive();
     hideSkeletonLooks();
     
+    const savedScroll = sessionStorage.getItem('looks_scroll_position');
+    if (savedScroll) {
+      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
+      sessionStorage.removeItem('looks_scroll_position');
+    }
+    
     if (navigator.onLine) {
       loadFreshProductsInBackground();
     }
-    
-    isLoadingProducts = false;
     return;
   }
   
-  // Carga desde red
   try {
     await getWeather();
     const controller = new AbortController();
@@ -926,9 +637,6 @@ async function loadProducts() {
     
     const data = await res.json();
     allProducts = data.products || data || [];
-    if (typeof window.indexProducts === 'function') {
-      window.indexProducts(allProducts);
-    }
     setCachedProducts(allProducts);
     await generateLooksProgressive();
     hideSkeletonLooks();
@@ -939,47 +647,8 @@ async function loadProducts() {
       container.innerHTML = '<div class="empty-looks">❌ Error al cargar los productos. Intenta de nuevo.</div>';
     }
     hideSkeletonLooks();
-  } finally {
-    isLoadingProducts = false;
   }
 }
-
-
-
-
-function generateNeutralLooksOrder(products) {
-  const productsWithImages = products.filter(p => 
-    (p.Imagen1 || p.Imagen2 || p.Imagen3) && Number(p.Stock || 0) > 0
-  );
-  
-  const quickLooks = [];
-  const maxQuickLooks = 6;
-  
-  for (let i = 0; i < Math.min(maxQuickLooks, LOOKS_CONFIG.length); i++) {
-    const config = LOOKS_CONFIG[i];
-    const selectedProducts = selectProductsForLook(config, productsWithImages);
-    const productCount = Object.keys(selectedProducts).length;
-    
-    if (productCount > 0) {
-      quickLooks.push({
-        id: config.id.toLowerCase(),
-        name: config.name,
-        description: config.description,
-        category: config.category,
-        products: selectedProducts,
-        config: config,
-        productCount: productCount
-      });
-    }
-  }
-  
-  return quickLooks.sort((a, b) => a.id.localeCompare(b.id));
-}
-
-
-
-
-
 
 async function loadFreshProductsInBackground() {
   if (isGeneratingLooks) return;
@@ -1039,31 +708,6 @@ function renderLooks() {
   
   renderLooksPagination(totalPages);
   preloadAdjacentPages();
-  
-  setTimeout(() => {
-    initLazyImagesAfterRender();
-    forceVisibleLazyImages();
-  }, 50);
-}
-
-// NUEVA FUNCIÓN: Cargar solo imágenes visibles en viewport
-function forceVisibleLazyImages() {
-  const lazyImages = document.querySelectorAll('.lazy:not(.loaded)');
-  const viewportHeight = window.innerHeight;
-  
-  lazyImages.forEach(img => {
-    const rect = img.getBoundingClientRect();
-    const isVisible = rect.top < viewportHeight + 100 && rect.bottom > -100;
-    
-    if (isVisible) {
-      const dataSrc = img.getAttribute('data-src');
-      if (dataSrc) {
-        img.src = dataSrc;
-        img.classList.add('loaded');
-        img.removeAttribute('data-src');
-      }
-    }
-  });
 }
 
 function createLookCardWithLazy(look) {
@@ -1072,6 +716,7 @@ function createLookCardWithLazy(look) {
   let productCount = 0;
   let imagesHtml = '';
   const slotOrder = ["torso", "piernas", "pies"];
+  const slotNames = { torso: 'Prenda superior', piernas: 'Prenda inferior', pies: 'Calzado' };
   
   for (const slotKey of slotOrder) {
     const product = look.products[slotKey];
@@ -1080,14 +725,9 @@ function createLookCardWithLazy(look) {
     totalPrice += product.price;
     const productImgOptimized = optimizeDriveUrl(product.image, 200);
     
-    // Mejorado: Asegurar que la imagen tiene data-src y un placeholder
     imagesHtml += `
       <div class="look-slot-image" data-slot="${slotKey}" onclick="openImageModal('${optimizeDriveUrl(product.image, 800)}')">
-        <img class="look-slot-img lazy" 
-             data-src="${productImgOptimized}" 
-             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" 
-             alt="${escapeHtml(product.name)}"
-             loading="lazy">
+        <img class="look-slot-img lazy" data-src="${productImgOptimized}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="${escapeHtml(product.name)}">
       </div>
     `;
     
@@ -1147,19 +787,7 @@ function renderLooksPagination(totalPages) {
   const paginationDiv = document.createElement("div");
   paginationDiv.className = "looks-pagination admin-pagination";
   paginationDiv.style.cssText = "display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap;";
-  
-  // Botón anterior
-  if (currentLooksPage > 1) {
-    const prevBtn = createPaginationButton("← Anterior", () => {
-      currentLooksPage--;
-      renderLooks();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      setTimeout(() => forceVisibleLazyImages(), 300);
-    });
-    paginationDiv.appendChild(prevBtn);
-  }
-  
-  // Números de página
+   
   let startPage = Math.max(1, currentLooksPage - 2);
   let endPage = Math.min(totalPages, startPage + 4);
   if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
@@ -1168,28 +796,20 @@ function renderLooksPagination(totalPages) {
     const pageBtn = createPaginationButton(i.toString(), () => {
       currentLooksPage = i;
       renderLooks();
+      initLazyImagesAfterRender();
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      setTimeout(() => forceVisibleLazyImages(), 300);
     });
     if (i === currentLooksPage) pageBtn.classList.add("active-page");
     paginationDiv.appendChild(pageBtn);
   }
   
-  // Botón siguiente
   if (currentLooksPage < totalPages) {
     const nextBtn = createPaginationButton("Siguiente →", () => {
       currentLooksPage++;
       renderLooks();
+      initLazyImagesAfterRender();
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      setTimeout(() => forceVisibleLazyImages(), 300);
     });
-    
-    nextBtn.addEventListener('mouseenter', () => {
-      if (currentLooksPage + 1 <= totalPages) {
-        preloadLooksPage(currentLooksPage + 1);
-      }
-    });
-    
     paginationDiv.appendChild(nextBtn);
   }
   
@@ -1436,24 +1056,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
   const requestBtn = document.getElementById("request-purchase-btn");
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
-  
-  // Scroll listener para lazy loading
-  let scrollTimeout;
-  window.addEventListener('scroll', function() {
-    if (scrollTimeout) clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      forceVisibleLazyImages();
-    }, 100);
-  });
 });
 
-// También cuando se cambia de página en la paginación
-function goToLooksPage(page) {
-  currentLooksPage = page;
-  renderLooks();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  // Forzar carga después del scroll
-  setTimeout(() => forceVisibleLazyImages(), 300);
-}
 
 
