@@ -1136,5 +1136,9 @@ if (document.readyState === 'loading') {
   const themeToggle = document.getElementById('theme-toggle');
   if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
 }
-
+// Al final de common.js, agregar:
+window.buildProductIndex = buildProductIndex;
+window.getProductsByCategoryIndexed = getProductsByCategoryIndexed;
+window.getIndexedProducts = getIndexedProducts;
+window.clearProductIndex = clearProductIndex;
 
