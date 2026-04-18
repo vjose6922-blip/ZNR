@@ -9,7 +9,39 @@ let imageObserver = null;
 let activeModal = null;
 let connectionBanner = null;
 let isOnline = navigator.onLine;
+let productsByCategoryMap = null;
+let allProductsIndexed = [];
 
+function buildProductIndex(products) {
+  if (!products || products.length === 0) return;
+  
+  allProductsIndexed = products;
+  productsByCategoryMap = new Map();
+  
+  productsByCategoryMap.set('TODOS', products);
+  
+  products.forEach(product => {
+    const category = product.Categoria;
+    if (!category) return;
+    
+    if (!productsByCategoryMap.has(category)) {
+      productsByCategoryMap.set(category, []);
+    }
+    productsByCategoryMap.get(category).push(product);
+  });
+  
+  console.log(`✅ Indexados ${products.length} productos en ${productsByCategoryMap.size - 1} categorías`);
+}
+
+function getProductsByCategoryIndexed(category) {
+  if (!category || category === '') return allProductsIndexed;
+  return productsByCategoryMap?.get(category) || [];
+}
+
+function clearProductIndex() {
+  productsByCategoryMap = null;
+  allProductsIndexed = [];
+}
 
 
 
@@ -713,19 +745,31 @@ async function continueCheckout() {
 }
 
 
-async function fetchProductsAPI() {
+async function fetchProductsAPI(shouldIndex = false) {
   const cached = getCachedProducts();
-  if (cached && cached.length > 0) return cached;
+  if (cached && cached.length > 0) {
+    if (shouldIndex) buildProductIndex(cached);
+    return cached;
+  }
+  
   try {
     const res = await fetch(API_URL);
     const data = await res.json();
     const products = data.products || data || [];
     setCachedProducts(products);
+    if (shouldIndex) buildProductIndex(products);
     return products;
   } catch (err) {
     console.error("Error fetching products:", err);
     return [];
   }
+}
+
+async function getIndexedProducts(forceRefresh = false) {
+  if (forceRefresh || !allProductsIndexed.length) {
+    await fetchProductsAPI(true);
+  }
+  return allProductsIndexed;
 }
 
 
