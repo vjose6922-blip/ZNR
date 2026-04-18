@@ -11,6 +11,7 @@ let connectionBanner = null;
 let isOnline = navigator.onLine;
 let productsByCategoryMap = null;
 let allProductsIndexed = [];
+let lastPhoneDisplayed = null;
 
 function buildProductIndex(products) {
   if (!products || products.length === 0) return;
@@ -265,8 +266,6 @@ function generateRequestId() {
 }
 
 function updateSavedPhoneDisplay() {
-  console.log("🔄 updateSavedPhoneDisplay() llamada");
-  
   const container = document.getElementById("saved-phone-container");
   const display = document.getElementById("saved-phone-display");
   const savedPhone = localStorage.getItem("client_phone");
@@ -274,15 +273,19 @@ function updateSavedPhoneDisplay() {
   if (container && display) {
     if (savedPhone && savedPhone.length === 10) {
       const formatted = `${savedPhone.slice(0,2)}-${savedPhone.slice(2,6)}-${savedPhone.slice(6)}`;
-      display.textContent = formatted;
-      container.style.display = "block";
-      console.log("📱 Mostrando número:", formatted);
-    } else {
+      
+      // Solo actualizar si cambió
+      if (lastPhoneDisplayed !== formatted) {
+        display.textContent = formatted;
+        container.style.display = "block";
+        lastPhoneDisplayed = formatted;
+        console.log("📱 Mostrando número:", formatted);
+      }
+    } else if (lastPhoneDisplayed !== null) {
       container.style.display = "none";
+      lastPhoneDisplayed = null;
       console.log("📱 No hay número guardado");
     }
-  } else {
-    console.warn("⚠️ No se encontraron elementos para mostrar el número");
   }
 }
 
