@@ -57,72 +57,72 @@ const WEATHER_PRIORITY_SCORES = {
 };
 
 const LOOKS_CONFIG = [
-  { id: "look_casual_dama", name: "ðŸ‘Ÿ Casual", description: "Para tu dÃ­a a dÃ­a", category: "Mujer",
+  { id: "look_casual_dama", name: "\u{1F45F} Casual", description: "Para tu d\u00EDa a d\u00EDa", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["vestir", "formal", "gala"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: [], excludeKeywords: ["formal", "vestir"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis"], excludeKeywords: ["formal", "tacÃ³n", "zapato"], required: true }
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis"], excludeKeywords: ["formal", "tac\u00F3n", "zapato"], required: true }
     ] },
-  { id: "look_elegante_dama", name: "ðŸ‘— Elegancia Femenina", description: "Para ocasiones especiales", category: "Mujer",
+  { id: "look_elegante_dama", name: "\u{1F457} Elegancia Femenina", description: "Para ocasiones especiales", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: ["Vestir"], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["Vestir"], excludeKeywords: ["short", "jeans", "mezclilla"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Zapatos"], excludeKeywords: ["tenis", "sandalias", "deportivo"], required: true }
     ] },
-  { id: "look_verano_dama", name: "â˜€ï¸ Verano Fresco", description: "Fresco para dÃ­as calurosos", category: "Mujer",
+  { id: "look_verano_dama", name: "\u2600\uFE0F Verano Fresco", description: "Fresco para d\u00EDas calurosos", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["vestir", "formal", "abrigo"], required: true },
-      { type: "piernas", categories: ["Short para Dama"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalÃ³n"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacÃ³n"], required: true }
+      { type: "piernas", categories: ["Short para Dama"], keywords: [], excludeKeywords: ["formal", "vestir", "pantal\u00F3n"], required: true },
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tac\u00F3n"], required: true }
     ] },
-  { id: "look_falda_dama", name: "ðŸŒ¸ Luce una Falda", description: "Look fresco con falda", category: "Mujer",
+  { id: "look_falda_dama", name: "\u{1F338} Luce una Falda", description: "Look fresco con falda", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["deportivo", "abrigo"], required: true },
-      { type: "piernas", categories: ["Faldas"], keywords: [], excludeKeywords: ["short", "pantalÃ³n"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacÃ³n"], required: true }
+      { type: "piernas", categories: ["Faldas"], keywords: [], excludeKeywords: ["short", "pantal\u00F3n"], required: true },
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tac\u00F3n"], required: true }
     ] },
-  { id: "look_vestido_dama", name: "ðŸ’ƒ Vestido Elegante", description: "Perfecto para citas", category: "Mujer",
+  { id: "look_vestido_dama", name: "\u{1F483} Vestido Elegante", description: "Perfecto para citas", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Vestidos"], keywords: [], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["tacones"], excludeKeywords: ["tenis", "deportivo", "sandalias"], required: true }
     ] },
-  { id: "look_confort_dama", name: "ðŸ›‹ï¸ Confort en Casa", description: "Comodidad en casa", category: "Mujer",
+  { id: "look_confort_dama", name: "\u{1F6CB}\uFE0F Confort en Casa", description: "Comodidad en casa", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Sueter para Dama"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants"], excludeKeywords: ["vestir", "formal"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacÃ³n"], required: true }
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tac\u00F3n"], required: true }
     ] },
-  { id: "look_chamarra_dama", name: "ðŸ§¥ðŸŸ£ Abrigate", description: "Ideal para dÃ­as frescos", category: "Mujer",
+  { id: "look_chamarra_dama", name: "\u{1F9E5}\u{1F7E3} Abrigate", description: "Ideal para d\u00EDas frescos", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Chamarra para Dama"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants", "pantalon"], excludeKeywords: ["vestir", "formal", "short"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacÃ³n"], required: true }
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tac\u00F3n"], required: true }
     ] },
-  { id: "look_casual_caballero", name: "ðŸ‘” Casual ", description: "Para el dÃ­a a dÃ­a", category: "Hombre",
+  { id: "look_casual_caballero", name: "\u{1F454} Casual ", description: "Para el d\u00EDa a d\u00EDa", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: [], excludeKeywords: ["vestir", "formal", "camisa"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "short"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis", "Botas"], excludeKeywords: ["formal", "zapato"], required: true }
     ] },
-  { id: "look_elegante_caballero", name: "ðŸ¤µ Elegancia Masculina", description: "Formal para ocasiones especiales", category: "Hombre",
+  { id: "look_elegante_caballero", name: "\u{1F935} Elegancia Masculina", description: "Formal para ocasiones especiales", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: ["Vestir"], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["Vestir"], excludeKeywords: ["short", "jeans", "mezclilla"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Zapatos"], excludeKeywords: ["tenis", "deportivo", "botas"], required: true }
     ] },
-  { id: "look_verano_caballero", name: "ðŸ–ï¸ Verano Hombre", description: "Fresco para el calor", category: "Hombre",
+  { id: "look_verano_caballero", name: "\u{1F3D6}\uFE0F Verano Hombre", description: "Fresco para el calor", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: [], excludeKeywords: ["vestir", "formal", "camisa"], required: true },
-      { type: "piernas", categories: ["Short para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalÃ³n"], required: true },
+      { type: "piernas", categories: ["Short para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "pantal\u00F3n"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "zapato"], required: true }
     ] },
-  { id: "look_chamarra_caballero", name: "ðŸ§¥ðŸ”µ Abrigate", description: "Luce tu chamarra", category: "Hombre",
+  { id: "look_chamarra_caballero", name: "\u{1F9E5}\u{1F535} Abrigate", description: "Luce tu chamarra", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Chamarra para Caballero"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["pants", "pantalon"], excludeKeywords: ["vestir", "formal", "short"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis"], excludeKeywords: ["formal", "zapato"], required: true }
     ] },
-  { id: "look_confort_caballero", name: "ðŸ›‹ï¸ Confort Hombre", description: "Comodidad para el hogar", category: "Hombre",
+  { id: "look_confort_caballero", name: "\u{1F6CB}\uFE0F Confort Hombre", description: "Comodidad para el hogar", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Sueter para Caballero"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["pants"], excludeKeywords: ["vestir", "formal", "short"], required: true },
@@ -244,7 +244,7 @@ function getCachedLooksOptimized() {
       const { looks: compressed, timestamp, productsHash } = JSON.parse(sessionCached);
       const currentHash = getProductsQuickHash();
       if (currentHash === productsHash && (Date.now() - timestamp) < 300000) {
-        console.log("âš¡ Looks desde sessionStorage (instantÃ¡neo)");
+        console.log("\u26A1 Looks desde sessionStorage (instant\u00E1neo)");
         return decompressLooksData(compressed);
       }
     }
@@ -254,7 +254,7 @@ function getCachedLooksOptimized() {
       const { looks: compressed, timestamp, productsHash } = JSON.parse(localCached);
       const currentHash = getProductsQuickHash();
       if (currentHash === productsHash && (Date.now() - timestamp) < 600000) {
-        console.log("ðŸ“¦ Looks desde localStorage");
+        console.log("\u{1F4E6} Looks desde localStorage");
         const decompressed = decompressLooksData(compressed);
         sessionStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify({
           looks: compressed,
@@ -267,7 +267,7 @@ function getCachedLooksOptimized() {
     
     return null;
   } catch(e) {
-    console.warn("Error cargando cachÃ© de looks:", e);
+    console.warn("Error cargando cach\u00E9 de looks:", e);
     return null;
   }
 }
@@ -285,9 +285,9 @@ function saveLooksToCacheOptimized(looks) {
     sessionStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify(cacheData));
     localStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify(cacheData));
     
-    console.log(`ðŸ’¾ Looks guardados en cachÃ©`);
+    console.log(`\u{1F4BE} Looks guardados en cach\u00E9`);
   } catch(e) {
-    console.warn("Error guardando cachÃ© de looks:", e);
+    console.warn("Error guardando cach\u00E9 de looks:", e);
   }
 }
 
@@ -302,7 +302,7 @@ async function getWeather() {
     const data = await response.json();
     if (data.ok && data.weatherType) {
       currentWeather = data;
-      console.log("ðŸŒ¤ï¸ Clima actual:", data.weatherType, data.temperature, data.city);
+      console.log("\u{1F324}\uFE0F Clima actual:", data.weatherType, data.temperature, data.city);
       addWeatherNotification(data);
       return data;
     } else {
@@ -319,29 +319,29 @@ async function getWeather() {
 function addWeatherNotification(weather) {
   const existing = document.querySelector('.weather-notification');
   if (existing) existing.remove();
-  let weatherIcon = "ðŸŒ¤ï¸";
+  let weatherIcon = "\u{1F324}\uFE0F";
   let weatherText = "";
   let recommendation = "";
   switch(weather.weatherType) {
     case 'calor':
-      weatherIcon = "â˜€ï¸ðŸ”¥";
-      weatherText = "Â¡DÃ­a caluroso!";
-      recommendation = "Te recomendamos looks frescos para el calor â˜€ï¸";
+      weatherIcon = "\u2600\uFE0F\u{1F525}";
+      weatherText = "\u00A1D\u00EDa caluroso!";
+      recommendation = "Te recomendamos looks frescos para el calor \u2600\uFE0F";
       break;
     case 'frio':
-      weatherIcon = "â„ï¸ðŸ¥¶";
-      weatherText = "Â¡DÃ­a frÃ­o!";
-      recommendation = "Te recomendamos looks abrigadores ðŸ§¥";
+      weatherIcon = "\u2744\uFE0F\u{1F976}";
+      weatherText = "\u00A1D\u00EDa fr\u00EDo!";
+      recommendation = "Te recomendamos looks abrigadores \u{1F9E5}";
       break;
     case 'lluvioso':
-      weatherIcon = "ðŸŒ§ï¸â˜”";
-      weatherText = "Â¡DÃ­a lluvioso!";
-      recommendation = "Te recomendamos looks con chamarra y calzado cerrado ðŸ§¥ðŸ‘Ÿ";
+      weatherIcon = "\u{1F327}\uFE0F\u2614";
+      weatherText = "\u00A1D\u00EDa lluvioso!";
+      recommendation = "Te recomendamos looks con chamarra y calzado cerrado \u{1F9E5}\u{1F45F}";
       break;
     default:
-      weatherIcon = "ðŸŒ¤ï¸";
+      weatherIcon = "\u{1F324}\uFE0F";
       weatherText = "Clima templado";
-      recommendation = "Looks casuales y elegantes para hoy âœ¨";
+      recommendation = "Looks casuales y elegantes para hoy \u2728";
   }
   const notif = document.createElement('div');
   notif.className = 'weather-notification';
@@ -349,10 +349,10 @@ function addWeatherNotification(weather) {
     <div class="weather-notification-content">
       <div class="weather-icon">${weatherIcon}</div>
       <div class="weather-info">
-        <div class="weather-text">${weatherText} ${weather.temperature ? `${weather.temperature}Â°C` : ''}</div>
+        <div class="weather-text">${weatherText} ${weather.temperature ? `${weather.temperature}\u00B0C` : ''}</div>
         <div class="weather-recommendation">${recommendation}</div>
       </div>
-      <button class="weather-close" onclick="this.closest('.weather-notification').remove()">âœ•</button>
+      <button class="weather-close" onclick="this.closest('.weather-notification').remove()">\u2715</button>
     </div>
   `;
   document.body.insertBefore(notif, document.body.firstChild);
@@ -502,7 +502,7 @@ async function generateLooksProgressive() {
         preloadAdjacentPages();
         
         const endTime = performance.now();
-        console.log(`âœ… Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
+        console.log(`\u2705 Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
         resolve();
       }
     }
@@ -552,7 +552,7 @@ function preloadLooksPage(pageNumber) {
       });
       
       preloadedNextPage = pageNumber;
-      console.log(`ðŸ”® Precargada pÃ¡gina ${pageNumber} de looks`);
+      console.log(`\u{1F52E} Precargada p\u00E1gina ${pageNumber} de looks`);
     });
   } else {
     setTimeout(() => {
@@ -574,7 +574,7 @@ let isLoadingProducts = false;
 
 async function loadProducts() {
   if (isLoadingProducts) {
-    console.log("â­ï¸ Carga de productos ya en progreso, omitiendo...");
+    console.log("\u23ED\uFE0F Carga de productos ya en progreso, omitiendo...");
     return;
   }
   
@@ -582,7 +582,7 @@ async function loadProducts() {
   showSkeletonLooks();
 
   if (!navigator.onLine) {
-    console.log('ðŸ“¡ Offline - Cargando looks desde cachÃ©');
+    console.log('\u{1F4E1} Offline - Cargando looks desde cach\u00E9');
     if (window.ConnectionMonitor?.showOfflineBanner) {
       window.ConnectionMonitor.showOfflineBanner();
     }
@@ -624,12 +624,12 @@ async function loadProducts() {
 
   const startBackgroundServices = () => {
     if (isBackgroundServicesStarted) {
-      console.log("â­ï¸ Servicios background ya iniciados previamente");
+      console.log("\u23ED\uFE0F Servicios background ya iniciados previamente");
       return;
     }
     
     isBackgroundServicesStarted = true;
-    console.log("ðŸš€ Iniciando servicios en background...");
+    console.log("\u{1F680} Iniciando servicios en background...");
     
     if (typeof fetchWeatherAndReorder === "function") {
       fetchWeatherAndReorder();
@@ -647,7 +647,7 @@ async function loadProducts() {
   const cachedLooks = getCachedLooksOptimized();
   
   if (cachedLooks?.length > 0) {
-    console.log("âš¡âš¡ LOOKS DESDE CACHÃ‰ - INSTANTÃNEO");
+    console.log("\u26A1\u26A1 LOOKS DESDE CACH\u00C9 - INSTANT\u00C1NEO");
 
     allLooks = cachedLooks;
     looks = [...allLooks];
@@ -672,7 +672,7 @@ async function loadProducts() {
   const cachedProducts = getCachedProductsUnified();
   
   if (cachedProducts.length > 0) {
-    console.log("âš¡ Productos desde cachÃ©, generando looks progresivamente...");
+    console.log("\u26A1 Productos desde cach\u00E9, generando looks progresivamente...");
 
     allProducts = cachedProducts;
     ensureProductIndex(allProducts);
@@ -707,13 +707,13 @@ async function loadProducts() {
     startBackgroundServices();
 
   } catch (err) {
-    console.error("âŒ Error cargando productos:", err);
+    console.error("\u274C Error cargando productos:", err);
     const container = document.getElementById("looks-container");
     if (container && !container.querySelector(".look-card")) {
       container.innerHTML = `
         <div class="empty-looks">
-          <p>âŒ Error al cargar los productos.</p>
-          <p>Verifica tu conexiÃ³n a internet e <a href="#" onclick="location.reload()">intenta nuevamente</a>.</p>
+          <p>\u274C Error al cargar los productos.</p>
+          <p>Verifica tu conexi\u00F3n a internet e <a href="#" onclick="location.reload()">intenta nuevamente</a>.</p>
         </div>
       `;
     }
@@ -730,7 +730,7 @@ function resetBackgroundServices() {
   if (typeof stopWeatherMonitoring === "function") {
     stopWeatherMonitoring();
   }
-  console.log("ðŸ”„ Servicios background reiniciados");
+  console.log("\u{1F504} Servicios background reiniciados");
 }
 
 window.resetBackgroundServices = resetBackgroundServices;
@@ -745,14 +745,14 @@ async function fetchWeatherAndReorder(forceRetry = false) {
     try {
       const { timestamp } = JSON.parse(cachedWeather);
       if (Date.now() - timestamp < 300000) { 
-        console.log("ðŸŒ¤ï¸ Clima reciente en cachÃ©, no se necesita actualizar");
+        console.log("\u{1F324}\uFE0F Clima reciente en cach\u00E9, no se necesita actualizar");
         return;
       }
     } catch(e) {}
   }
   
   try {
-    console.log("ðŸŒ¤ï¸ Obteniendo clima actual...");
+    console.log("\u{1F324}\uFE0F Obteniendo clima actual...");
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // Aumentar a 5 segundos
@@ -772,7 +772,7 @@ async function fetchWeatherAndReorder(forceRetry = false) {
       if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
       
       if (currentWeather?.weatherType !== data.weatherType) {
-        console.log(`ðŸŒ¤ï¸ Clima actualizado: ${currentWeather?.weatherType || 'ninguno'} â†’ ${data.weatherType}`);
+        console.log(`\u{1F324}\uFE0F Clima actualizado: ${currentWeather?.weatherType || 'ninguno'} \u2192 ${data.weatherType}`);
         currentWeather = data;
         reorderLooksDynamically();
         addWeatherNotification(data);
@@ -782,15 +782,15 @@ async function fetchWeatherAndReorder(forceRetry = false) {
       
       return true;
     } else {
-      throw new Error("Respuesta invÃ¡lida del API");
+      throw new Error("Respuesta inv\u00E1lida del API");
     }
     
   } catch (err) {
-    console.warn(`âš ï¸ Error obteniendo clima (intento ${weatherRetryCount + 1}/${MAX_WEATHER_RETRIES}):`, err.message);
+    console.warn(`\u26A0\uFE0F Error obteniendo clima (intento ${weatherRetryCount + 1}/${MAX_WEATHER_RETRIES}):`, err.message);
     
     if (weatherRetryCount < MAX_WEATHER_RETRIES) {
       const delay = RETRY_DELAYS[weatherRetryCount] || 30000;
-      console.log(`ðŸ”„ Reintentando clima en ${delay/1000} segundos...`);
+      console.log(`\u{1F504} Reintentando clima en ${delay/1000} segundos...`);
       
       if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
       weatherRetryTimer = setTimeout(() => {
@@ -798,10 +798,10 @@ async function fetchWeatherAndReorder(forceRetry = false) {
         fetchWeatherAndReorder(true);
       }, delay);
     } else {
-      console.log("âŒ MÃ¡ximos reintentos alcanzados para el clima. Usando orden por defecto.");
+      console.log("\u274C M\u00E1ximos reintentos alcanzados para el clima. Usando orden por defecto.");
       weatherRetryCount = 0;
       
-      showTemporaryMessage("No se pudo obtener el clima. Mostrando orden estÃ¡ndar.", "info");
+      showTemporaryMessage("No se pudo obtener el clima. Mostrando orden est\u00E1ndar.", "info");
     }
     
     return false;
@@ -812,12 +812,12 @@ function startWeatherMonitoring() {
   if (weatherUpdateInterval) clearInterval(weatherUpdateInterval);
   
   weatherUpdateInterval = setInterval(() => {
-    console.log("ðŸ”„ ActualizaciÃ³n periÃ³dica del clima...");
+    console.log("\u{1F504} Actualizaci\u00F3n peri\u00F3dica del clima...");
     fetchWeatherAndReorder(true);
   }, 720000); 
   
   window.addEventListener('online', () => {
-    console.log("ðŸŸ¢ ConexiÃ³n recuperada - actualizando clima...");
+    console.log("\u{1F7E2} Conexi\u00F3n recuperada - actualizando clima...");
     fetchWeatherAndReorder(true);
   });
 }
@@ -904,7 +904,7 @@ async function loadFreshProductsInBackground() {
       await generateLooksProgressive();
     }
   } catch (err) {
-    console.log("Background update fallÃ³ (timeout esperado):", err.message);
+    console.log("Background update fall\u00F3 (timeout esperado):", err.message);
   } finally {
     isGeneratingLooks = false;
   }
@@ -916,7 +916,7 @@ function renderLooks() {
   
   if (allLooks.length === 0) {
     if (!container.querySelector('.skeleton-card')) {
-      container.innerHTML = `<div class="empty-looks"><p>âœ¨ No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">catÃ¡logo</a> para ver nuestros productos.</p></div>`;
+      container.innerHTML = `<div class="empty-looks"><p>\u2728 No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">cat\u00E1logo</a> para ver nuestros productos.</p></div>`;
     }
     renderLooksPagination();
     return;
@@ -953,7 +953,7 @@ function createLookCardWithLazy(look) {
   const slotOrder = ["torso", "piernas", "pies"];
   const slotNames = { torso: 'Prenda superior', piernas: 'Prenda inferior', pies: 'Calzado' };
 
-  // Los campos de texto se asignarÃ¡n con textContent despuÃ©s del innerHTML
+  // Los campos de texto se asignar\u00E1n con textContent despu\u00E9s del innerHTML
   // para preservar emojis correctamente (escapeHtml los convierte en entidades)
 
   for (const slotKey of slotOrder) {
@@ -994,11 +994,11 @@ function createLookCardWithLazy(look) {
               Precio:${product.price},
               Imagen1:'${escapeJsString(product.image)}',
               Talla:'${escapeJsString(product.size || '')}'
-            })">ðŸ›’</button>
+            })">\u{1F6D2}</button>
 
           <button class="look-product-reload"
             onclick="reloadSlot('${escapeJsString(look.id)}', '${escapeJsString(slotKey)}', event)"
-            title="Cambiar esta prenda">âŸ³</button>
+            title="Cambiar esta prenda">\u27F3</button>
         </div>
       </div>
     `;
@@ -1009,7 +1009,7 @@ function createLookCardWithLazy(look) {
 
   card.innerHTML = `
     <div class="look-images-container">
-      ${imagesHtml || '<div class="look-slot-image empty">Sin imÃ¡genes</div>'}
+      ${imagesHtml || '<div class="look-slot-image empty">Sin im\u00E1genes</div>'}
     </div>
 
     <div class="look-info">
@@ -1032,7 +1032,7 @@ function createLookCardWithLazy(look) {
       </div>
 
       <button class="buy-look-btn"
-        onclick="addLookToCart('${escapeJsString(look.id)}')">ðŸ›’ Comprar todo</button>
+        onclick="addLookToCart('${escapeJsString(look.id)}')">\u{1F6D2} Comprar todo</button>
     </div>
   `;
 
@@ -1075,7 +1075,7 @@ function renderLooksPagination(totalPages) {
   }
   
   if (currentLooksPage < totalPages) {
-    const nextBtn = createPaginationButton("Siguiente â†’", () => {
+    const nextBtn = createPaginationButton("Siguiente \u2192", () => {
       currentLooksPage++;
       renderLooks();
       initLazyImagesAfterRender();
@@ -1092,11 +1092,11 @@ function createPaginationButton(text, onClick) {
   btn.textContent = text;
   btn.onclick = onClick;
   
-  if (text === "Siguiente â†’" && currentLooksPage < Math.ceil(allLooks.length / looksPerPage)) {
+  if (text === "Siguiente \u2192" && currentLooksPage < Math.ceil(allLooks.length / looksPerPage)) {
     btn.addEventListener('mouseenter', () => {
       preloadLooksPage(currentLooksPage + 1);
     });
-  } else if (text === "â† Anterior" && currentLooksPage > 1) {
+  } else if (text === "\u2190 Anterior" && currentLooksPage > 1) {
     btn.addEventListener('mouseenter', () => {
       preloadLooksPage(currentLooksPage - 1);
     });
@@ -1285,7 +1285,7 @@ window.addLookToCart = function(lookId) {
   const look = looks.find(l => l.id.toLowerCase() === lookId.toLowerCase());
   if (!look) return;
   const products = Object.values(look.products).filter(p => p !== null);
-  if (products.length === 0) { alert("âŒ No hay prendas disponibles."); return; }
+  if (products.length === 0) { alert("\u274C No hay prendas disponibles."); return; }
   products.forEach(product => { if (product.stock > 0) addToCart({ ID: product.id, Nombre: product.name, Precio: product.price, Imagen1: product.image, Talla: product.size }); });
   animateCartAdd();
 };
@@ -1297,15 +1297,15 @@ function initLooksLayoutToggle() {
   const savedLayout = localStorage.getItem("looks_layout");
   if (savedLayout === "grid") {
     looksContainer.classList.add("layout-grid");
-    toggleBtn.textContent = "â–¦";
+    toggleBtn.textContent = "\u25A6";
   } else {
-    toggleBtn.textContent = "â‰¡";
+    toggleBtn.textContent = "\u2261";
   }
   toggleBtn.addEventListener("click", () => {
     looksContainer.classList.toggle("layout-grid");
     const isGrid = looksContainer.classList.contains("layout-grid");
     localStorage.setItem("looks_layout", isGrid ? "grid" : "list");
-    toggleBtn.textContent = isGrid ? "â–¦" : "â‰¡";
+    toggleBtn.textContent = isGrid ? "\u25A6" : "\u2261";
   });
 }
 
