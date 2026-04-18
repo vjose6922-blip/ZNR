@@ -8,8 +8,74 @@ let initialHashHandled = false;
 const SECRET_TAPS_REQUIRED = 5;
 let secretTapCount = 0;
 let secretTapTimeout = null;
+let isBackgroundLoading = false;
 
-
+async function loadProductsInBackground() {
+  // Evitar múltiples cargas simultáneas
+  if (isBackgroundLoading) {
+    console.log("⏭️ Carga en background ya en progreso");
+    return;
+  }
+  
+  // Solo ejecutar si estamos online
+  if (!navigator.onLine) {
+    console.log("📡 Offline, no se carga background");
+    return;
+  }
+  
+  isBackgroundLoading = true;
+  console.log("🔄 Actualizando productos en background...");
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const res = await fetch(API_URL, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    const data = await res.json();
+    const freshProducts = (data.products || data || []).slice(0, 500);
+    
+    // Verificar si hay cambios significativos
+    if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
+      console.log("✨ Productos actualizados en background");
+      allProducts = freshProducts;
+      setCachedProducts(allProducts);
+      
+      // Re-indexar productos
+      if (typeof buildProductIndex === "function") {
+        buildProductIndex(allProducts);
+      }
+      
+      // Actualizar la UI solo si hay cambios
+      const currentGender = document.getElementById("gender-filter")?.value || "";
+      const currentCategory = document.getElementById("category-filter")?.value || "";
+      const currentSearch = document.getElementById("search-input")?.value || "";
+      
+      // Solo refrescar si hay filtros activos o si la página actual no es la primera
+      if (currentGender || currentCategory || currentSearch || currentPage > 1) {
+        applyFilters(); // Refrescar con los filtros actuales
+      } else {
+        filteredProducts = [...allProducts];
+        renderProductsPage(true);
+        populateCategoryFilter(currentGender);
+      }
+      
+      showTemporaryMessage("✨ Catálogo actualizado", "info");
+    } else {
+      console.log("✅ Productos ya están actualizados");
+    }
+  } catch (err) {
+    // Timeout o error son normales, no mostrar error al usuario
+    if (err.name === 'AbortError') {
+      console.log("⏱️ Actualización background timeout (normal)");
+    } else {
+      console.warn("Error en actualización background:", err.message);
+    }
+  } finally {
+    isBackgroundLoading = false;
+  }
+}
 async function checkOfflineOnStart() {
   if (!navigator.onLine) {
     console.log('📡 Iniciando en modo offline');
@@ -92,7 +158,7 @@ async function fetchProducts(force = false) {
   if (cached && cached.length > 0) {
     console.log("⚡ CARGA INSTANTÁNEA desde caché");
     allProducts = cached;
-    buildProductIndex(allProducts); // INDEXAR
+    buildProductIndex(allProducts); 
     filteredProducts = [...allProducts];
     currentPage = 1;
     renderProductsPage(true);
@@ -130,7 +196,7 @@ async function fetchProducts(force = false) {
       const { data } = JSON.parse(staleCache);
       if (data && data.length > 0) {
         allProducts = data;
-        buildProductIndex(allProducts); // INDEXAR
+        buildProductIndex(allProducts); 
         filteredProducts = [...allProducts];
         renderProductsPage(true);
         populateCategoryFilter(document.getElementById("gender-filter")?.value);
