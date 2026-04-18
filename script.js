@@ -393,113 +393,165 @@ function renderPagination() {
 
 function createProductCard(product) {
   const { ID, Nombre, Precio, Stock, Descripcion, Talla, Categoria, Imagen1, Imagen2, Imagen3, Badge } = product;
+
+  const safeNombre = escapeHtml(Nombre || "Producto");
+  const safeDescripcion = escapeHtml(Descripcion || "");
+  const safeTalla = escapeHtml(Talla || "Única");
+  const safeCategoria = escapeHtml(Categoria || "");
+  const safeBadge = Badge ? escapeHtml(Badge) : "";
+
   const card = document.createElement("article");
   card.className = "product-card";
   card.id = `producto-${ID}`;
-  
+
   const slider = document.createElement("div");
   slider.className = "product-slider";
   slider.dataset.productId = ID;
+
   const track = document.createElement("div");
   track.className = "product-slider-track";
-  const images = [Imagen1, Imagen2, Imagen3].map(u => optimizeDriveUrl(u)).filter(Boolean);
-  if (images.length === 0) images.push("https://via.placeholder.com/600x800/3b1f5f/ffffff?text=Sin+imagen");
+
+  const images = [Imagen1, Imagen2, Imagen3]
+    .map(u => optimizeDriveUrl(u))
+    .filter(Boolean);
+
+  if (images.length === 0) {
+    images.push("https://via.placeholder.com/600x800/3b1f5f/ffffff?text=Sin+imagen");
+  }
+
   images.forEach((url) => {
     const slide = document.createElement("div");
     slide.className = "product-slide";
+
     const img = document.createElement("img");
-    img.alt = Nombre || "Producto";
-    img.src = url; 
+    img.alt = safeNombre;
+    img.src = url;
     img.loading = "lazy";
     img.addEventListener("click", () => openImageModal(url));
+
     slide.appendChild(img);
     track.appendChild(slide);
   });
+
   slider.appendChild(track);
+
   const dotsContainer = document.createElement("div");
   dotsContainer.className = "slider-dots";
+
   images.forEach((_, index) => {
     const dot = document.createElement("div");
     dot.className = "slider-dot" + (index === 0 ? " active" : "");
     dot.dataset.index = index;
     dotsContainer.appendChild(dot);
   });
+
   slider.appendChild(dotsContainer);
-  if (Badge) {
+
+  if (safeBadge) {
     const badgeEl = document.createElement("div");
     badgeEl.className = "product-badge";
-    badgeEl.textContent = Badge;
+    badgeEl.textContent = safeBadge;
     slider.appendChild(badgeEl);
   }
+
   attachSliderEvents(slider, images.length);
-  
+
   const info = document.createElement("div");
   info.className = "product-info";
+
   const titleRow = document.createElement("div");
   titleRow.className = "product-title-row";
+
   const nameEl = document.createElement("h2");
   nameEl.className = "product-name";
-  nameEl.textContent = Nombre || "Producto";
+  nameEl.textContent = safeNombre;
+
   const priceEl = document.createElement("div");
   priceEl.className = "product-price";
   priceEl.textContent = formatCurrency(Precio);
+
   titleRow.appendChild(nameEl);
   titleRow.appendChild(priceEl);
+
   const metaRow = document.createElement("div");
   metaRow.className = "product-meta-row";
-  if (Categoria) {
+
+  if (safeCategoria) {
     const categoryEl = document.createElement("span");
     categoryEl.className = "category-badge";
-    categoryEl.textContent = Categoria;
+    categoryEl.textContent = safeCategoria;
     metaRow.appendChild(categoryEl);
   }
+
   const gender = getGenderFromCategory(Categoria);
   if (gender) {
     const genderBadge = document.createElement("span");
     genderBadge.className = `gender-badge gender-${gender.toLowerCase()}`;
-    if (gender === "UNISEX") { genderBadge.textContent = "⚪"; genderBadge.style.background = "#9b59b6"; }
-    else if (gender === "HOMBRE") genderBadge.textContent = "👔";
-    else if (gender === "MUJER") genderBadge.textContent = "👗";
+    genderBadge.textContent =
+      gender === "UNISEX" ? "⚪" :
+      gender === "HOMBRE" ? "👔" :
+      "👗";
     metaRow.appendChild(genderBadge);
   }
+
   const stockNum = Number(Stock || 0);
   const stockEl = document.createElement("span");
   stockEl.className = "stock-badge";
+
   if (stockNum <= 0) {
     stockEl.classList.add("out-of-stock");
     stockEl.innerHTML = "❌ Sin stock";
   } else {
     stockEl.innerHTML = `📦 Stock: ${stockNum}`;
   }
+
   metaRow.appendChild(stockEl);
+
   const descEl = document.createElement("p");
   descEl.className = "product-description";
-  descEl.textContent = Descripcion || "";
+  descEl.textContent = safeDescripcion;
+
   const sizesEl = document.createElement("div");
   sizesEl.className = "product-sizes";
-  sizesEl.textContent = Talla || "Única";
+  sizesEl.textContent = safeTalla;
+
   info.appendChild(titleRow);
   info.appendChild(metaRow);
   info.appendChild(descEl);
   info.appendChild(sizesEl);
-  
+
   const actions = document.createElement("div");
   actions.className = "product-actions";
-  const leftActions = document.createElement("div");
-  leftActions.className = "product-actions-left";
-  const isOutOfStock = stockNum <= 0;
+
   const addBtn = document.createElement("button");
   addBtn.className = "primary-button";
+
+  const isOutOfStock = stockNum <= 0;
+
   addBtn.textContent = isOutOfStock ? "Sin stock" : "Añadir al carrito";
-  if (!isOutOfStock) addBtn.addEventListener("click", () => addToCart(product));
-  else addBtn.disabled = true;
-  actions.appendChild(leftActions);
+  addBtn.disabled = isOutOfStock;
+
+  if (!isOutOfStock) {
+    const addToCartHandler = `addToCart({
+      ID:'${escapeJsString(String(ID))}',
+      Nombre:'${escapeJsString(Nombre || "Producto")}',
+      Precio:${Number(Precio || 0)},
+      Imagen1:'${escapeJsString(Imagen1 || "")}',
+      Talla:'${escapeJsString(Talla || "")}'
+    })`;
+
+    addBtn.setAttribute("onclick", addToCartHandler);
+  }
+
   actions.appendChild(addBtn);
+
   card.appendChild(slider);
   card.appendChild(info);
   card.appendChild(actions);
+
   return card;
 }
+
 
 function attachSliderEvents(slider, totalSlides) {
   const productId = slider.dataset.productId;
