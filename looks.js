@@ -953,10 +953,8 @@ function createLookCardWithLazy(look) {
   const slotOrder = ["torso", "piernas", "pies"];
   const slotNames = { torso: 'Prenda superior', piernas: 'Prenda inferior', pies: 'Calzado' };
 
-  // SanitizaciÃ³n del look
-  const safeLookName = escapeHtml(look.name || "Look");
-  const safeLookDescription = escapeHtml(look.description || "");
-  const safeLookCategory = escapeHtml(look.category || "");
+  // Los campos de texto se asignarÃ¡n con textContent despuÃ©s del innerHTML
+  // para preservar emojis correctamente (escapeHtml los convierte en entidades)
 
   for (const slotKey of slotOrder) {
     const product = look.products[slotKey];
@@ -983,9 +981,9 @@ function createLookCardWithLazy(look) {
     productsHtml += `
       <div class="look-product-item" data-slot="${escapeHtml(slotKey)}">
         <div class="look-product-info">
-          <div class="look-product-name">${escapeHtml(product.name)}</div>
+          <div class="look-product-name" data-text="${escapeHtml(product.name)}"></div>
           <div class="look-product-price">${formatCurrency(product.price)}</div>
-          <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
+          <div class="look-product-size" data-text="${escapeHtml(product.size || 'Talla no especificada')}"></div>
         </div>
 
         <div class="look-product-actions">
@@ -1016,12 +1014,12 @@ function createLookCardWithLazy(look) {
 
     <div class="look-info">
       <div class="look-header">
-        <span class="look-category">${safeLookCategory}</span>
+        <span class="look-category" data-text="${escapeHtml(look.category || '')}"></span>
         <span class="look-item-count">${productCount} prenda${productCount !== 1 ? 's' : ''}</span>
       </div>
 
-      <h2 class="look-title">${safeLookName}</h2>
-      <p class="look-description">${safeLookDescription}</p>
+      <h2 class="look-title" data-text="${escapeHtml(look.name || 'Look')}"></h2>
+      <p class="look-description" data-text="${escapeHtml(look.description || '')}"></p>
 
       <div class="look-products">
         <div class="look-products-title"><span>Este outfit incluye:</span></div>
@@ -1037,6 +1035,12 @@ function createLookCardWithLazy(look) {
         onclick="addLookToCart('${escapeJsString(look.id)}')">ðŸ›’ Comprar todo</button>
     </div>
   `;
+
+  // Asignar textos con textContent para preservar emojis
+  card.querySelectorAll('[data-text]').forEach(el => {
+    el.textContent = el.getAttribute('data-text');
+    el.removeAttribute('data-text');
+  });
 
   return card;
 }
