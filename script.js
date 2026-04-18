@@ -11,13 +11,9 @@ let secretTapTimeout = null;
 let isBackgroundLoading = false;
 
 async function loadProductsInBackground() {
-  // Evitar múltiples cargas simultáneas
-  if (isBackgroundLoading) {
-    console.log("⏭️ Carga en background ya en progreso");
-    return;
-  }
+  await backgroundQueue.request();
+}
   
-  // Solo ejecutar si estamos online
   if (!navigator.onLine) {
     console.log("📡 Offline, no se carga background");
     return;
@@ -36,25 +32,21 @@ async function loadProductsInBackground() {
     const data = await res.json();
     const freshProducts = (data.products || data || []).slice(0, 500);
     
-    // Verificar si hay cambios significativos
     if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
       console.log("✨ Productos actualizados en background");
       allProducts = freshProducts;
       setCachedProducts(allProducts);
       
-      // Re-indexar productos
       if (typeof buildProductIndex === "function") {
         buildProductIndex(allProducts);
       }
       
-      // Actualizar la UI solo si hay cambios
       const currentGender = document.getElementById("gender-filter")?.value || "";
       const currentCategory = document.getElementById("category-filter")?.value || "";
       const currentSearch = document.getElementById("search-input")?.value || "";
       
-      // Solo refrescar si hay filtros activos o si la página actual no es la primera
       if (currentGender || currentCategory || currentSearch || currentPage > 1) {
-        applyFilters(); // Refrescar con los filtros actuales
+        applyFilters();
       } else {
         filteredProducts = [...allProducts];
         renderProductsPage(true);
@@ -62,20 +54,103 @@ async function loadProductsInBackground() {
       }
       
       showTemporaryMessage("✨ Catálogo actualizado", "info");
-    } else {
-      console.log("✅ Productos ya están actualizados");
     }
   } catch (err) {
-    // Timeout o error son normales, no mostrar error al usuario
     if (err.name === 'AbortError') {
       console.log("⏱️ Actualización background timeout (normal)");
     } else {
       console.warn("Error en actualización background:", err.message);
     }
   } finally {
-    isBackgroundLoading = false;
+    isBackgroundLoading = false; // ← GARANTIZAR que siempre se libera
   }
 }
+
+// Versión mejorada con Queue para evitar acumulación
+class BackgroundLoadQueue {
+  constructor() {
+    this.isLoading = false;
+    this.pending = false;
+  }
+  
+  async request() {
+    if (this.isLoading) {
+      this.pending = true;
+      console.log("⏳ Carga en progreso, encolando...");
+      return;
+    }
+    
+    this.isLoading = true;
+    this.pending = false;
+    
+    try {
+      await this.execute();
+    } finally {
+      this.isLoading = false;
+      
+      // Si hay una solicitud pendiente, ejecutarla inmediatamente
+      if (this.pending) {
+        console.log("🔄 Ejecutando solicitud pendiente");
+        this.request();
+      }
+    }
+  }
+  
+  async execute() {
+    if (!navigator.onLine) {
+      console.log("📡 Offline, no se carga background");
+      return;
+    }
+    
+    console.log("🔄 Actualizando productos en background...");
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const res = await fetch(API_URL, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      const data = await res.json();
+      const freshProducts = (data.products || data || []).slice(0, 500);
+      
+      if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
+        console.log("✨ Productos actualizados en background");
+        allProducts = freshProducts;
+        setCachedProducts(allProducts);
+        
+        if (typeof buildProductIndex === "function") {
+          buildProductIndex(allProducts);
+        }
+        
+        const currentGender = document.getElementById("gender-filter")?.value || "";
+        const currentCategory = document.getElementById("category-filter")?.value || "";
+        const currentSearch = document.getElementById("search-input")?.value || "";
+        
+        if (currentGender || currentCategory || currentSearch || currentPage > 1) {
+          applyFilters();
+        } else {
+          filteredProducts = [...allProducts];
+          renderProductsPage(true);
+          populateCategoryFilter(currentGender);
+        }
+        
+        showTemporaryMessage("Catálogo actualizado", "info");
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        console.log("⏱️ Actualización background timeout (normal)");
+      } else {
+        console.warn("Error en actualización background:", err.message);
+      }
+    }
+  }
+}
+
+const backgroundQueue = new BackgroundLoadQueue();
+
+
+
 async function checkOfflineOnStart() {
   if (!navigator.onLine) {
     console.log('📡 Iniciando en modo offline');
