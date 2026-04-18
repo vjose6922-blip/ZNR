@@ -558,6 +558,7 @@ function preloadLooksPage(pageNumber) {
   }
 }
 
+// MODIFICAR la función loadProducts()
 async function loadProducts() {
   showSkeletonLooks();
   
@@ -581,9 +582,13 @@ async function loadProducts() {
     
     if (cachedProducts && cachedProducts.length > 0) {
       allProducts = cachedProducts;
+      if (typeof buildProductIndex === 'function') {
+        buildProductIndex(allProducts); // Indexar productos también
+      }
     }
     
-    await getWeather();
+    // CLIMA NO BLOQUEANTE: usar valor por defecto primero
+    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
     
     setTimeout(() => {
       renderLooks();
@@ -598,6 +603,9 @@ async function loadProducts() {
       sessionStorage.removeItem('looks_scroll_position');
     }
     
+    // OBTENER CLIMA EN BACKGROUND (NO BLOQUEANTE)
+    fetchWeatherAndReorder();
+    
     if (navigator.onLine && !isGeneratingLooks) {
       loadFreshProductsInBackground();
     }
@@ -611,7 +619,13 @@ async function loadProducts() {
   if (cachedProducts && cachedProducts.length > 0) {
     console.log("⚡ Productos desde caché, generando looks progresivamente...");
     allProducts = cachedProducts;
-    await getWeather();
+    if (typeof buildProductIndex === 'function') {
+      buildProductIndex(allProducts);
+    }
+    
+    // CLIMA NO BLOQUEANTE: valor por defecto
+    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
+    
     await generateLooksProgressive();
     hideSkeletonLooks();
     
@@ -621,6 +635,9 @@ async function loadProducts() {
       sessionStorage.removeItem('looks_scroll_position');
     }
     
+    // OBTENER CLIMA REAL EN BACKGROUND
+    fetchWeatherAndReorder();
+    
     if (navigator.onLine) {
       loadFreshProductsInBackground();
     }
@@ -628,7 +645,9 @@ async function loadProducts() {
   }
   
   try {
-    await getWeather();
+    // CLIMA NO BLOQUEANTE: iniciar con valor por defecto
+    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
     
@@ -638,8 +657,16 @@ async function loadProducts() {
     const data = await res.json();
     allProducts = data.products || data || [];
     setCachedProducts(allProducts);
+    if (typeof buildProductIndex === 'function') {
+      buildProductIndex(allProducts);
+    }
+    
     await generateLooksProgressive();
     hideSkeletonLooks();
+    
+    // OBTENER CLIMA REAL
+    fetchWeatherAndReorder();
+    
   } catch (err) {
     console.error("Error cargando productos:", err);
     const container = document.getElementById("looks-container");
@@ -647,6 +674,108 @@ async function loadProducts() {
       container.innerHTML = '<div class="empty-looks">❌ Error al cargar los productos. Intenta de nuevo.</div>';
     }
     hideSkeletonLooks();
+  }
+}
+
+// NUEVA FUNCIÓN: Obtener clima y reordenar sin bloquear
+async function fetchWeatherAndReorder() {
+  try {
+    // Intentar clima desde caché de sessionStorage (instantáneo)
+    const cachedWeather = sessionStorage.getItem('zr_weather_cache');
+    if (cachedWeather) {
+      try {
+        const { weatherType, temperature, city, timestamp } = JSON.parse(cachedWeather);
+        if (Date.now() - timestamp < 600000) { // 10 minutos
+          console.log("🌤️ Clima desde caché");
+          if (currentWeather.weatherType !== weatherType) {
+            currentWeather = { weatherType, temperature, city };
+            reorderLooksDynamically();
+          }
+          addWeatherNotification(currentWeather);
+          return;
+        }
+      } catch(e) {}
+    }
+    
+    // Fetch real con timeout corto (3s max)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
+    const response = await fetch(`${WEATHER_API_URL}?action=getWeather`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    const data = await response.json();
+    if (data.ok && data.weatherType) {
+      // Guardar en caché
+      sessionStorage.setItem('zr_weather_cache', JSON.stringify({
+        ...data,
+        timestamp: Date.now()
+      }));
+      
+      // Solo reordenar si cambió el clima
+      if (currentWeather.weatherType !== data.weatherType) {
+        currentWeather = data;
+        reorderLooksDynamically();
+      } else {
+        currentWeather = data;
+      }
+      
+      addWeatherNotification(data);
+    }
+  } catch (err) {
+    console.log("Clima no disponible, manteniendo orden por defecto");
+  }
+}
+
+// NUEVA FUNCIÓN: Reordenar looks dinámicamente
+function reorderLooksDynamically() {
+  if (!allLooks.length) return;
+  
+  const newOrder = sortLooksByWeather([...allLooks]);
+  
+  // Verificar si el orden realmente cambió
+  const currentIds = looks.map(l => l.id).join(',');
+  const newIds = newOrder.map(l => l.id).join(',');
+  
+  if (currentIds !== newIds && newOrder.length > 0) {
+    looks = newOrder;
+    allLooks = [...looks];
+    
+    // Actualizar UI sin recargar todo
+    const container = document.getElementById("looks-container");
+    if (container && container.children.length > 0) {
+      const currentPageLooks = looks.slice(
+        (currentLooksPage - 1) * looksPerPage,
+        currentLooksPage * looksPerPage
+      );
+      
+      // Actualizar solo los visibles
+      const cards = container.querySelectorAll('.look-card:not(.skeleton-card)');
+      if (cards.length === currentPageLooks.length) {
+        cards.forEach((card, index) => {
+          if (currentPageLooks[index]) {
+            // Animar reorden con fade sutil
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '0';
+            setTimeout(() => {
+              // Reconstruir la card con los datos actualizados
+              const newCard = createLookCardWithLazy(currentPageLooks[index]);
+              card.replaceWith(newCard);
+              newCard.style.opacity = '0';
+              newCard.style.transform = 'translateY(10px)';
+              setTimeout(() => {
+                newCard.style.opacity = '1';
+                newCard.style.transform = '';
+              }, 50);
+            }, 150);
+          }
+        });
+      } else {
+        renderLooks(); // Fallback
+      }
+    }
+    
+    saveLooksToCacheOptimized(allLooks);
   }
 }
 
