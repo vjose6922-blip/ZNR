@@ -967,7 +967,7 @@ function createLookCardWithLazy(look) {
           <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
         </div>
         <div class="look-product-actions">
-          <button class="look-product-add" onclick="addToCart({ID:'${product.id}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${product.image}', Talla:'${escapeHtml(product.size || '')}'})">🛒</button>
+          <button class="look-product-add" onclick="addToCart({ID:'${escapeHtml(String(product.id))}', Nombre:'${escapeHtml(product.name)}', Precio:${product.price}, Imagen1:'${escapeHtml(product.image)}', Talla:'${escapeHtml(product.size || '')}'})">🛒</button>
           <button class="look-product-reload" onclick="reloadSlot('${look.id}', '${slotKey}', event)" title="Cambiar esta prenda">⟳</button>
         </div>
       </div>
