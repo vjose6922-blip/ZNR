@@ -107,21 +107,6 @@
       <script src="common.js" defer></script>
   <script src="script.js" defer></script>
   <script src="cache-manager.js" defer></script>
-  <script defer>
-  // Asegurar que todas las funciones globales están disponibles
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ DOM listo, verificando funciones globales...');
-    
-    // Verificar funciones críticas
-    const requiredFunctions = ['getGenderFromCategory', 'indexProducts', 'formatCurrency', 'escapeHtml'];
-    requiredFunctions.forEach(fn => {
-      if (typeof window[fn] === 'undefined' && typeof eval(fn) !== 'undefined') {
-        window[fn] = eval(fn);
-      }
-      console.log(`${fn}: ${typeof window[fn] !== 'undefined' ? '✅' : '❌'}`);
-    });
-  });
-</script>
   <script>
     // Este script NO tiene defer - debe ejecutarse rápido para registrar el SW
     if ('serviceWorker' in navigator) {
