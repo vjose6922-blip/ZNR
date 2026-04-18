@@ -569,12 +569,10 @@ function preloadLooksPage(pageNumber) {
   }
 }
 
-// ===== VARIABLES GLOBALES PARA CONTROL =====
 let isBackgroundServicesStarted = false;
 let isLoadingProducts = false;
 
 async function loadProducts() {
-  // Evitar ejecuciones múltiples simultáneas
   if (isLoadingProducts) {
     console.log("⏭️ Carga de productos ya en progreso, omitiendo...");
     return;
@@ -583,17 +581,13 @@ async function loadProducts() {
   isLoadingProducts = true;
   showSkeletonLooks();
 
-  // Mostrar banner offline si aplica
   if (!navigator.onLine) {
     console.log('📡 Offline - Cargando looks desde caché');
     if (window.ConnectionMonitor?.showOfflineBanner) {
       window.ConnectionMonitor.showOfflineBanner();
     }
   }
-
-  // ===== FUNCIONES AUXILIARES =====
   
-  // Función para asegurar que el índice de productos existe
   const ensureProductIndex = (products) => {
     if (!products?.length) return false;
     
@@ -607,12 +601,10 @@ async function loadProducts() {
     return false;
   };
 
-  // Función para obtener productos desde caché (unificado)
   const getCachedProductsUnified = () => {
     return window.CacheManager?.getSessionProductsCache?.() || getCachedProducts() || [];
   };
 
-  // Función para restaurar posición de scroll
   const restoreScrollPosition = () => {
     const savedScroll = sessionStorage.getItem("looks_scroll_position");
     if (savedScroll) {
@@ -621,7 +613,6 @@ async function loadProducts() {
     }
   };
 
-  // Función para renderizado inicial rápido
   const renderInitialLooks = () => {
     setTimeout(() => {
       renderLooks();
@@ -631,7 +622,6 @@ async function loadProducts() {
     }, 50);
   };
 
-  // Función para iniciar servicios en background (solo una vez)
   const startBackgroundServices = () => {
     if (isBackgroundServicesStarted) {
       console.log("⏭️ Servicios background ya iniciados previamente");
@@ -641,23 +631,19 @@ async function loadProducts() {
     isBackgroundServicesStarted = true;
     console.log("🚀 Iniciando servicios en background...");
     
-    // Obtener clima real (con reintentos)
     if (typeof fetchWeatherAndReorder === "function") {
       fetchWeatherAndReorder();
     }
     
-    // Iniciar monitoreo periódico del clima
     if (typeof startWeatherMonitoring === "function") {
       startWeatherMonitoring();
     }
     
-    // Cargar productos frescos si hay conexión
     if (navigator.onLine && !isGeneratingLooks && typeof loadFreshProductsInBackground === "function") {
       loadFreshProductsInBackground();
     }
   };
 
-  // ===== 1) INTENTAR CARGAR LOOKS DESDE CACHÉ =====
   const cachedLooks = getCachedLooksOptimized();
   
   if (cachedLooks?.length > 0) {
@@ -667,30 +653,22 @@ async function loadProducts() {
     looks = [...allLooks];
     currentLooksPage = 1;
 
-    // Cargar productos desde caché
     const cachedProducts = getCachedProductsUnified();
     if (cachedProducts.length > 0) {
       allProducts = cachedProducts;
       ensureProductIndex(allProducts);
     }
 
-    // Clima por defecto antes de renderizar
     currentWeather = currentWeather || { weatherType: "templado", temperature: 22, city: "Default" };
 
-    // Render inicial rápido
     renderInitialLooks();
-
-    // Restaurar scroll
     restoreScrollPosition();
-
-    // Iniciar servicios en background
     startBackgroundServices();
 
     isLoadingProducts = false;
     return;
   }
 
-  // ===== 2) NO HAY LOOKS, PERO HAY PRODUCTOS EN CACHÉ =====
   const cachedProducts = getCachedProductsUnified();
   
   if (cachedProducts.length > 0) {
@@ -703,21 +681,15 @@ async function loadProducts() {
 
     await generateLooksProgressive();
     hideSkeletonLooks();
-
-    // Restaurar scroll
     restoreScrollPosition();
-
-    // Iniciar servicios en background
     startBackgroundServices();
 
     isLoadingProducts = false;
     return;
   }
 
-  // ===== 3) NO HAY CACHÉ → CARGAR DESDE API =====
   try {
-    console.log("🌐 No hay caché, cargando desde API...");
-    
+   
     currentWeather = { weatherType: "templado", temperature: 22, city: "Default" };
 
     const controller = new AbortController();
@@ -729,18 +701,13 @@ async function loadProducts() {
     const data = await res.json();
     allProducts = data.products || data || [];
     setCachedProducts(allProducts);
-
     ensureProductIndex(allProducts);
-
     await generateLooksProgressive();
     hideSkeletonLooks();
-
-    // Iniciar servicios en background
     startBackgroundServices();
 
   } catch (err) {
     console.error("❌ Error cargando productos:", err);
-
     const container = document.getElementById("looks-container");
     if (container && !container.querySelector(".look-card")) {
       container.innerHTML = `
@@ -757,7 +724,6 @@ async function loadProducts() {
   }
 }
 
-// ===== FUNCIÓN PARA RESETEAR SERVICIOS (útil en logout o errores críticos) =====
 function resetBackgroundServices() {
   isBackgroundServicesStarted = false;
   weatherRetryCount = 0;
@@ -767,7 +733,6 @@ function resetBackgroundServices() {
   console.log("🔄 Servicios background reiniciados");
 }
 
-// Exponer funciones útiles globalmente
 window.resetBackgroundServices = resetBackgroundServices;
 
 
