@@ -54,6 +54,7 @@ async function fetchProducts(force = false) {
     const cached = getCachedProducts();
     if (cached && cached.length > 0) {
       allProducts = cached;
+      buildProductIndex(allProducts); // INDEXAR
       filteredProducts = [...allProducts];
       currentPage = 1;
       renderProductsPage(true);
@@ -72,6 +73,7 @@ async function fetchProducts(force = false) {
       const data = await res.json();
       allProducts = (data.products || data || []).slice(0, 500);
       setCachedProducts(allProducts);
+      buildProductIndex(allProducts); // INDEXAR
       filteredProducts = [...allProducts];
       currentPage = 1;
       renderProductsPage(true);
@@ -90,6 +92,7 @@ async function fetchProducts(force = false) {
   if (cached && cached.length > 0) {
     console.log("⚡ CARGA INSTANTÁNEA desde caché");
     allProducts = cached;
+    buildProductIndex(allProducts); // INDEXAR
     filteredProducts = [...allProducts];
     currentPage = 1;
     renderProductsPage(true);
@@ -114,6 +117,7 @@ async function fetchProducts(force = false) {
     const data = await res.json();
     allProducts = (data.products || data || []).slice(0, 500);
     setCachedProducts(allProducts);
+    buildProductIndex(allProducts); // INDEXAR
     filteredProducts = [...allProducts];
     currentPage = 1;
     renderProductsPage(true);
@@ -126,6 +130,7 @@ async function fetchProducts(force = false) {
       const { data } = JSON.parse(staleCache);
       if (data && data.length > 0) {
         allProducts = data;
+        buildProductIndex(allProducts); // INDEXAR
         filteredProducts = [...allProducts];
         renderProductsPage(true);
         populateCategoryFilter(document.getElementById("gender-filter")?.value);
@@ -137,23 +142,6 @@ async function fetchProducts(force = false) {
   }
 }
 
-async function loadProductsInBackground() {
-  try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
-    const freshProducts = (data.products || data || []).slice(0, 500);
-    if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
-      allProducts = freshProducts;
-      setCachedProducts(allProducts);
-      filteredProducts = [...allProducts];
-      renderProductsPage(true);
-      populateCategoryFilter(document.getElementById("gender-filter")?.value);
-    }
-  } catch (err) {
-    console.error("Error en carga background:", err);
-  }
-}
-
 function applyFilters() {
   const searchValue = document.getElementById("search-input")?.value.trim().toLowerCase() || "";
   const categoryValue = document.getElementById("category-filter")?.value || "";
@@ -162,19 +150,24 @@ function applyFilters() {
 
   populateCategoryFilter(genderValue);
 
-  filteredProducts = allProducts.filter((p) => {
+  // USAR ÍNDICE PARA CATEGORÍA (rápido O(1))
+  let productsByCat = getProductsByCategoryIndexed(categoryValue);
+  
+  // Filtrar por género y búsqueda
+  filteredProducts = productsByCat.filter((p) => {
     const matchesSearch = !searchValue ||
       (p.Nombre || "").toLowerCase().includes(searchValue) ||
       (p.Descripcion || "").toLowerCase().includes(searchValue);
-    const matchesCategory = !categoryValue || (p.Categoria || "") === categoryValue;
+    
     let matchesGender = true;
     if (genderValue) {
       const productGender = getGenderFromCategory(p.Categoria);
       matchesGender = productGender === genderValue;
     }
-    return matchesSearch && matchesCategory && matchesGender;
+    return matchesSearch && matchesGender;
   });
 
+  // Ordenar
   if (sortValue === "price-asc") {
     filteredProducts.sort((a, b) => Number(a.Precio || 0) - Number(b.Precio || 0));
   } else if (sortValue === "price-desc") {
