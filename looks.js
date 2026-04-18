@@ -722,7 +722,6 @@ async function generateLooksProgressive() {
     
     const allBuiltLooks = [];
     let currentIndex = 0;
-    let firstRenderDone = false;
     
     function processBatch() {
       const batchSize = 3;
@@ -748,18 +747,19 @@ async function generateLooksProgressive() {
       
       currentIndex = end;
       
-      if (!firstRenderDone && allBuiltLooks.length > 0) {
+      // CORREGIDO: Renderizar progresivamente CADA batch
+      if (allBuiltLooks.length > 0) {
         const neutralOrder = [...allBuiltLooks].sort((a, b) => a.id.localeCompare(b.id));
         allLooks = neutralOrder;
         looks = [...allLooks];
         renderLooks();
         initLazyImagesAfterRender();
-        firstRenderDone = true;
       }
       
       if (currentIndex < LOOKS_CONFIG.length) {
         setTimeout(processBatch, 30);
       } else {
+        // Finalizar - ordenar por clima si está disponible
         if (currentWeather && currentWeather.weatherType) {
           allLooks = sortLooksByWeather(allBuiltLooks);
         } else {
@@ -769,16 +769,12 @@ async function generateLooksProgressive() {
         looks = [...allLooks];
         precomputeAllOrders(allLooks);
         saveLooksToCacheOptimized(allLooks);
-        
-        if (JSON.stringify(allLooks) !== JSON.stringify(looks)) {
-          renderLooks();
-          initLazyImagesAfterRender();
-        }
-        
+        renderLooks();
+        initLazyImagesAfterRender();
         preloadAdjacentPages();
         
         const endTime = performance.now();
-        console.log(`✅ Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
+        console.log(`✅ Looks generados: ${allLooks.length} de ${LOOKS_CONFIG.length} posibles en ${(endTime - startTime).toFixed(0)}ms`);
         
         isGenerating = false;
         if (pendingRender) {
@@ -864,10 +860,10 @@ async function loadProducts() {
   
   const cachedLooks = getCachedLooksOptimized();
   if (cachedLooks && cachedLooks.length > 0) {
-    console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
+    console.log(`⚡⚡ LOOKS DESDE CACHÉ: ${cachedLooks.length} looks`);
     
-    const neutralOrder = [...cachedLooks].sort((a, b) => a.id.localeCompare(b.id));
-    allLooks = neutralOrder;
+    // CORREGIDO: No usar neutralOrder si ya tenemos todos los looks
+    allLooks = cachedLooks;
     looks = [...allLooks];
     currentLooksPage = 1;
     precomputeAllOrders(allLooks);
@@ -898,7 +894,28 @@ async function loadProducts() {
     return;
   }
   
-  // Si no hay caché, cargar desde red
+  // Si no hay caché, generar desde productos
+  const cachedProducts = getCachedProducts();
+  if (cachedProducts && cachedProducts.length > 0) {
+    console.log(`⚡ Productos desde caché: ${cachedProducts.length} productos`);
+    allProducts = cachedProducts;
+    if (typeof window.indexProducts === 'function') {
+      window.indexProducts(allProducts);
+    }
+    
+    await getWeather();
+    await generateLooksProgressive();
+    hideSkeletonLooks();
+    
+    if (navigator.onLine) {
+      loadFreshProductsInBackground();
+    }
+    
+    isLoadingProducts = false;
+    return;
+  }
+  
+  // Carga desde red
   try {
     await getWeather();
     const controller = new AbortController();
