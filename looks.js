@@ -582,7 +582,7 @@ async function loadProducts() {
   showSkeletonLooks();
 
   if (!navigator.onLine) {
-    console.log('\u{1F4E1} Offline - Cargando looks desde cach\u00E9');
+    console.log('📡 Offline - Cargando looks desde caché');
     if (window.ConnectionMonitor?.showOfflineBanner) {
       window.ConnectionMonitor.showOfflineBanner();
     }
@@ -623,31 +623,61 @@ async function loadProducts() {
   };
 
   const startBackgroundServices = () => {
-    if (isBackgroundServicesStarted) {
-      console.log("\u23ED\uFE0F Servicios background ya iniciados previamente");
-      return;
+  if (isBackgroundServicesStarted) {
+    console.log("⏭️ Servicios background ya iniciados previamente");
+    return;
+  }
+  
+  isBackgroundServicesStarted = true;
+  console.log("🚀 Iniciando servicios en background...");
+  
+  // ✅ FORZAR ACTUALIZACIÓN INMEDIATA DEL CLIMA (ignorar caché)
+  if (typeof fetchWeatherAndReorder === "function") {
+    fetchWeatherAndReorder(true);  // ← true = forceRetry, ignora caché
+  }
+  
+  if (typeof startWeatherMonitoring === "function") {
+    startWeatherMonitoring();
+  }
+  
+  if (navigator.onLine && !isGeneratingLooks && typeof loadFreshProductsInBackground === "function") {
+    loadFreshProductsInBackground();
+  }
+};
+
+  // En loadProducts(), encuentra la función initializeWeatherFromCache:
+
+const initializeWeatherFromCache = () => {
+  // Intentar cargar clima desde caché primero
+  try {
+    const cached = sessionStorage.getItem('zr_weather_cache');
+    if (cached) {
+      const { weatherType, temperature, city, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < 300000) { // 5 minutos
+        currentWeather = { weatherType, temperature, city };
+        console.log("🌤️ Clima cargado desde caché:", weatherType, temperature + "°C");
+        return true;
+      }
     }
-    
-    isBackgroundServicesStarted = true;
-    console.log("\u{1F680} Iniciando servicios en background...");
-    
-    if (typeof fetchWeatherAndReorder === "function") {
-      fetchWeatherAndReorder();
-    }
-    
-    if (typeof startWeatherMonitoring === "function") {
-      startWeatherMonitoring();
-    }
-    
-    if (navigator.onLine && !isGeneratingLooks && typeof loadFreshProductsInBackground === "function") {
-      loadFreshProductsInBackground();
-    }
-  };
+  } catch(e) {
+    console.warn("Error cargando clima desde caché:", e);
+  }
+  
+  // ✅ NO usar valor por defecto, dejar como null para que muestre "Cargando..."
+  // hasta que fetchWeatherAndReorder obtenga el clima real
+  currentWeather = null;
+  console.log("🌤️ Sin caché de clima - esperando API...");
+  return false;
+};
+
+  // ===== INICIALIZAR CLIMA ANTES DE CUALQUIER RENDERIZADO =====
+  initializeWeatherFromCache();
+  updateWeatherWidget(); // Actualizar widget inmediatamente
 
   const cachedLooks = getCachedLooksOptimized();
   
   if (cachedLooks?.length > 0) {
-    console.log("\u26A1\u26A1 LOOKS DESDE CACH\u00C9 - INSTANT\u00C1NEO");
+    console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
 
     allLooks = cachedLooks;
     looks = [...allLooks];
@@ -658,8 +688,6 @@ async function loadProducts() {
       allProducts = cachedProducts;
       ensureProductIndex(allProducts);
     }
-
-    currentWeather = currentWeather || { weatherType: "templado", temperature: 22, city: "Default" };
 
     renderInitialLooks();
     restoreScrollPosition();
@@ -672,12 +700,10 @@ async function loadProducts() {
   const cachedProducts = getCachedProductsUnified();
   
   if (cachedProducts.length > 0) {
-    console.log("\u26A1 Productos desde cach\u00E9, generando looks progresivamente...");
+    console.log("⚡ Productos desde caché, generando looks progresivamente...");
 
     allProducts = cachedProducts;
     ensureProductIndex(allProducts);
-
-    currentWeather = currentWeather || { weatherType: "templado", temperature: 22, city: "Default" };
 
     await generateLooksProgressive();
     hideSkeletonLooks();
@@ -689,8 +715,8 @@ async function loadProducts() {
   }
 
   try {
-   
-    currentWeather = { weatherType: "templado", temperature: 22, city: "Default" };
+    // Ya tenemos clima inicializado desde caché o por defecto
+    console.log("🌐 Cargando productos desde red...");
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -707,13 +733,13 @@ async function loadProducts() {
     startBackgroundServices();
 
   } catch (err) {
-    console.error("\u274C Error cargando productos:", err);
+    console.error("❌ Error cargando productos:", err);
     const container = document.getElementById("looks-container");
     if (container && !container.querySelector(".look-card")) {
       container.innerHTML = `
         <div class="empty-looks">
-          <p>\u274C Error al cargar los productos.</p>
-          <p>Verifica tu conexi\u00F3n a internet e <a href="#" onclick="location.reload()">intenta nuevamente</a>.</p>
+          <p>❌ Error al cargar los productos.</p>
+          <p>Verifica tu conexión a internet e <a href="#" onclick="location.reload()">intenta nuevamente</a>.</p>
         </div>
       `;
     }
@@ -723,6 +749,164 @@ async function loadProducts() {
     isLoadingProducts = false;
   }
 }
+
+
+
+function updateWeatherWidget() {
+  const widget = document.getElementById('weather-widget');
+  if (!widget) {
+    console.log("⚠️ Widget de clima no encontrado en el DOM");
+    return;
+  }
+  
+  console.log("🌤️ Actualizando widget con:", currentWeather);
+  
+  // ✅ Si no hay clima o está cargando, mostrar indicador
+  if (!currentWeather || !currentWeather.weatherType) {
+    widget.innerHTML = `<span class="weather-icon">🌡️</span><span>Cargando...</span>`;
+    widget.classList.add('loading');
+    return;
+  }
+  
+  let weatherIcon = "🌡️";
+  let weatherText = "";
+  
+  switch(currentWeather.weatherType) {
+    case 'calor':
+      weatherIcon = "☀️🔥";
+      weatherText = "Calor";
+      break;
+    case 'frio':
+      weatherIcon = "❄️🥶";
+      weatherText = "Frío";
+      break;
+    case 'lluvioso':
+      weatherIcon = "🌧️☔";
+      weatherText = "Lluvia";
+      break;
+    default:
+      weatherIcon = "🌤️";
+      weatherText = "Templado";
+  }
+  
+  const temp = currentWeather.temperature ? `${Math.round(currentWeather.temperature)}°C` : '';
+  
+  widget.innerHTML = `
+    <span class="weather-icon">${weatherIcon}</span>
+    <span class="weather-temp">${weatherText} ${temp}</span>
+  `;
+  widget.classList.remove('loading');
+  
+  console.log(`✅ Widget actualizado: ${weatherText} ${temp}`);
+}
+
+
+
+
+
+async function fetchWeatherAndReorder(forceRetry = false) {
+  // Verificar caché primero
+  const cachedWeather = sessionStorage.getItem('zr_weather_cache');
+  if (!forceRetry && cachedWeather) {
+    try {
+      const { weatherType, temperature, city, timestamp } = JSON.parse(cachedWeather);
+      if (Date.now() - timestamp < 300000) { // 5 minutos
+        console.log("🌤️ Clima desde caché:", weatherType, temperature);
+        
+        if (currentWeather?.weatherType !== weatherType) {
+          currentWeather = { weatherType, temperature, city };
+          reorderLooksDynamically();
+          addWeatherNotification(currentWeather);
+          updateWeatherWidget();
+        } else if (!currentWeather) {
+          currentWeather = { weatherType, temperature, city };
+          updateWeatherWidget();
+        }
+        return;
+      }
+    } catch(e) {}
+  }
+  
+  try {
+    console.log("🌤️ Obteniendo clima actual del backend...");
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(`${WEATHER_API_URL}?action=getWeather`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    const data = await response.json();
+    
+    if (data.ok && data.weatherType) {
+      // Guardar en caché (sessionStorage)
+      const cacheData = {
+        weatherType: data.weatherType,
+        temperature: data.temperature,
+        city: data.city,
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem('zr_weather_cache', JSON.stringify(cacheData));
+      
+      weatherRetryCount = 0;
+      if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
+      
+      if (currentWeather?.weatherType !== data.weatherType) {
+        console.log(`🌤️ Clima actualizado: ${currentWeather?.weatherType || 'ninguno'} → ${data.weatherType}`);
+        currentWeather = data;
+        reorderLooksDynamically();
+        addWeatherNotification(data);
+        updateWeatherWidget();
+      } else {
+        currentWeather = data;
+        updateWeatherWidget();
+      }
+      
+      return true;
+    } else {
+      throw new Error("Respuesta inválida del API");
+    }
+    
+  } catch (err) {
+    console.warn(`⚠️ Error obteniendo clima (intento ${weatherRetryCount + 1}/${MAX_WEATHER_RETRIES}):`, err.message);
+    
+    if (weatherRetryCount < MAX_WEATHER_RETRIES) {
+      const delay = RETRY_DELAYS[weatherRetryCount] || 30000;
+      console.log(`🔄 Reintentando clima en ${delay/1000} segundos...`);
+      
+      if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
+      weatherRetryTimer = setTimeout(() => {
+        weatherRetryCount++;
+        fetchWeatherAndReorder(true);
+      }, delay);
+    } else {
+      console.log("❌ Máximos reintentos alcanzados para el clima. Usando orden por defecto.");
+      weatherRetryCount = 0;
+      
+      // Intentar usar caché aunque esté expirada como fallback
+      const expiredCache = sessionStorage.getItem('zr_weather_cache');
+      if (expiredCache && !currentWeather) {
+        try {
+          const { weatherType, temperature, city } = JSON.parse(expiredCache);
+          currentWeather = { weatherType, temperature, city };
+          updateWeatherWidget();
+          console.log("⚠️ Usando caché expirada como fallback");
+        } catch(e) {}
+      }
+      
+      if (!currentWeather) {
+        currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
+        updateWeatherWidget();
+      }
+      
+      showTemporaryMessage("No se pudo obtener el clima. Mostrando orden estándar.", "info");
+    }
+    
+    return false;
+  }
+}
+
+
 
 function resetBackgroundServices() {
   isBackgroundServicesStarted = false;
@@ -738,86 +922,17 @@ window.resetBackgroundServices = resetBackgroundServices;
 
 
 
-
-async function fetchWeatherAndReorder(forceRetry = false) {
-  const cachedWeather = sessionStorage.getItem('zr_weather_cache');
-  if (!forceRetry && cachedWeather) {
-    try {
-      const { timestamp } = JSON.parse(cachedWeather);
-      if (Date.now() - timestamp < 300000) { 
-        console.log("\u{1F324}\uFE0F Clima reciente en cach\u00E9, no se necesita actualizar");
-        return;
-      }
-    } catch(e) {}
-  }
-  
-  try {
-    console.log("\u{1F324}\uFE0F Obteniendo clima actual...");
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // Aumentar a 5 segundos
-    
-    const response = await fetch(`${WEATHER_API_URL}?action=getWeather`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    const data = await response.json();
-    
-    if (data.ok && data.weatherType) {
-      sessionStorage.setItem('zr_weather_cache', JSON.stringify({
-        ...data,
-        timestamp: Date.now()
-      }));
-      
-      weatherRetryCount = 0;
-      if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
-      
-      if (currentWeather?.weatherType !== data.weatherType) {
-        console.log(`\u{1F324}\uFE0F Clima actualizado: ${currentWeather?.weatherType || 'ninguno'} \u2192 ${data.weatherType}`);
-        currentWeather = data;
-        reorderLooksDynamically();
-        addWeatherNotification(data);
-      } else {
-        currentWeather = data;
-      }
-      
-      return true;
-    } else {
-      throw new Error("Respuesta inv\u00E1lida del API");
-    }
-    
-  } catch (err) {
-    console.warn(`\u26A0\uFE0F Error obteniendo clima (intento ${weatherRetryCount + 1}/${MAX_WEATHER_RETRIES}):`, err.message);
-    
-    if (weatherRetryCount < MAX_WEATHER_RETRIES) {
-      const delay = RETRY_DELAYS[weatherRetryCount] || 30000;
-      console.log(`\u{1F504} Reintentando clima en ${delay/1000} segundos...`);
-      
-      if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
-      weatherRetryTimer = setTimeout(() => {
-        weatherRetryCount++;
-        fetchWeatherAndReorder(true);
-      }, delay);
-    } else {
-      console.log("\u274C M\u00E1ximos reintentos alcanzados para el clima. Usando orden por defecto.");
-      weatherRetryCount = 0;
-      
-      showTemporaryMessage("No se pudo obtener el clima. Mostrando orden est\u00E1ndar.", "info");
-    }
-    
-    return false;
-  }
-}
-
 function startWeatherMonitoring() {
   if (weatherUpdateInterval) clearInterval(weatherUpdateInterval);
   
+  // Actualización periódica cada 10 minutos (en lugar de 12)
   weatherUpdateInterval = setInterval(() => {
-    console.log("\u{1F504} Actualizaci\u00F3n peri\u00F3dica del clima...");
+    console.log("🔄 Actualización periódica del clima...");
     fetchWeatherAndReorder(true);
-  }, 720000); 
+  }, 600000); // 10 minutos
   
   window.addEventListener('online', () => {
-    console.log("\u{1F7E2} Conexi\u00F3n recuperada - actualizando clima...");
+    console.log("🟢 Conexión recuperada - actualizando clima...");
     fetchWeatherAndReorder(true);
   });
 }
@@ -948,12 +1063,14 @@ function createLookCardWithLazy(look) {
   let imagesHtml = '';
 
   const slotOrder = ["torso", "piernas", "pies"];
-  const slotNames = { torso: 'Prenda superior', piernas: 'Prenda inferior', pies: 'Calzado' };
+  const slotNames = { torso: '👕 Superior', piernas: '👖 Inferior', pies: '👟 Calzado' };
 
-  // Sanitizaci\u00F3n del look
   const safeLookName = escapeHtml(look.name || "Look");
   const safeLookDescription = escapeHtml(look.description || "");
   const safeLookCategory = escapeHtml(look.category || "");
+
+  const wishlistActive = isLookInWishlist(look.id);
+  const wishlistHtml = `<button class="look-wishlist-btn ${wishlistActive ? 'active' : ''}" data-look-id="${escapeJsString(look.id)}" onclick="toggleLookWishlist('${escapeJsString(look.id)}', event)">${wishlistActive ? '❤️' : '🤍'}</button>`;
 
   for (const slotKey of slotOrder) {
     const product = look.products[slotKey];
@@ -964,19 +1081,19 @@ function createLookCardWithLazy(look) {
 
     const optimizedImg = optimizeDriveUrl(product.image, 200);
     const optimizedModalImg = optimizeDriveUrl(product.image, 800);
+    const slotName = slotNames[slotKey] || slotKey;
 
-    // Imagen del slot
     imagesHtml += `
       <div class="look-slot-image" data-slot="${escapeHtml(slotKey)}"
            onclick="openImageModal('${escapeJsString(optimizedModalImg)}')">
         <img class="look-slot-img lazy"
              data-src="${escapeHtml(optimizedImg)}"
              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
-             alt="${escapeHtml(product.name)}">
+             alt="${escapeHtml(product.name)}"
+             loading="lazy">
       </div>
     `;
 
-    // Productos del look
     productsHtml += `
       <div class="look-product-item" data-slot="${escapeHtml(slotKey)}">
         <div class="look-product-info">
@@ -984,7 +1101,6 @@ function createLookCardWithLazy(look) {
           <div class="look-product-price">${formatCurrency(product.price)}</div>
           <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
         </div>
-
         <div class="look-product-actions">
           <button class="look-product-add"
             onclick="addToCart({
@@ -993,11 +1109,10 @@ function createLookCardWithLazy(look) {
               Precio:${product.price},
               Imagen1:'${escapeJsString(product.image)}',
               Talla:'${escapeJsString(product.size || '')}'
-            })">\u{1F6D2}</button>
-
+            })">🛒</button>
           <button class="look-product-reload"
             onclick="reloadSlot('${escapeJsString(look.id)}', '${escapeJsString(slotKey)}', event)"
-            title="Cambiar esta prenda">\u27F3</button>
+            title="Cambiar esta prenda">⟳</button>
         </div>
       </div>
     `;
@@ -1008,34 +1123,164 @@ function createLookCardWithLazy(look) {
 
   card.innerHTML = `
     <div class="look-images-container">
-      ${imagesHtml || '<div class="look-slot-image empty">Sin im\u00E1genes</div>'}
+      ${imagesHtml || '<div class="look-slot-image empty">Sin imágenes</div>'}
     </div>
 
     <div class="look-info">
       <div class="look-header">
         <span class="look-category">${safeLookCategory}</span>
         <span class="look-item-count">${productCount} prenda${productCount !== 1 ? 's' : ''}</span>
+        ${wishlistHtml}
       </div>
 
       <h2 class="look-title">${safeLookName}</h2>
       <p class="look-description">${safeLookDescription}</p>
 
       <div class="look-products">
-        <div class="look-products-title"><span>Este outfit incluye:</span></div>
+        <div class="look-products-title"><span>✨ Este outfit incluye:</span></div>
         <div class="look-products-list">${productsHtml}</div>
 
         <div class="look-total">
-          <span class="look-total-label">Precio total:</span>
+          <span class="look-total-label">💵 Precio total:</span>
           <span class="look-total-price">${formatCurrency(totalPrice)}</span>
         </div>
       </div>
 
       <button class="buy-look-btn"
-        onclick="addLookToCart('${escapeJsString(look.id)}')">\u{1F6D2} Comprar todo</button>
+        onclick="addLookToCart('${escapeJsString(look.id)}')">🛒 Comprar todo</button>
     </div>
   `;
 
   return card;
+}
+
+
+
+
+
+function updateLookWishlistButtons(lookId, isActive) {
+  document.querySelectorAll(`.look-wishlist-btn[data-look-id="${lookId}"]`).forEach(btn => {
+    btn.classList.toggle('active', isActive);
+    btn.textContent = isActive ? '❤️' : '🤍';
+  });
+}
+
+function createLookCardMini(look) {
+  const div = document.createElement('div');
+  div.className = 'cart-item';
+  
+  let totalPrice = 0;
+  let productsList = '';
+  
+  // Crear miniaturas de los productos para el wishlist
+  for (const slot of ['torso', 'piernas', 'pies']) {
+    const product = look.products[slot];
+    if (product) {
+      totalPrice += product.price;
+      const productImg = optimizeDriveUrl(product.image, 60);
+      productsList += `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
+          <img src="${escapeHtml(productImg)}" alt="${escapeHtml(product.name)}" 
+               style="width: 40px; height: 40px; object-fit: contain; background: #f5f5f8; border-radius: 8px;">
+          <div style="flex: 1;">
+            <div style="font-size: 12px; font-weight: 500;">${escapeHtml(product.name)}</div>
+            <div style="font-size: 11px; color: #ff4f81;">${formatCurrency(product.price)}</div>
+            <div style="font-size: 10px; color: #888;">${escapeHtml(product.size || 'Talla no especificada')}</div>
+          </div>
+        </div>
+      `;
+    }
+  }
+  
+  div.innerHTML = `
+    <div class="cart-item-info" style="flex:1">
+      <div class="cart-item-title" style="font-size: 16px; margin-bottom: 8px;">✨ ${escapeHtml(look.name)}</div>
+      <div style="margin-bottom: 8px; max-height: 200px; overflow-y: auto;">
+        ${productsList}
+      </div>
+      <div class="cart-item-meta" style="font-weight:bold; color:#ff4f81; margin: 8px 0;">
+        Total: ${formatCurrency(totalPrice)}
+      </div>
+      <div class="cart-item-actions" style="margin-top: 8px; display: flex; gap: 8px;">
+        <button class="add-look-to-cart" data-look-id="${look.id}" style="background:#e8e8ff; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">🛒 Agregar todo</button>
+        <button class="remove-look-from-wishlist" data-look-id="${look.id}" style="background:#ffe8e8; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">🗑 Eliminar</button>
+      </div>
+    </div>
+  `;
+  
+  // Botón "Agregar todo" - CORREGIDO
+  div.querySelector('.add-look-to-cart')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    addLookToCart(look.id);
+    showTemporaryMessage(`✅ ${look.name} agregado al carrito`, 'success');
+  });
+  
+  // Botón "Eliminar" - CORREGIDO con actualización de badge
+  div.querySelector('.remove-look-from-wishlist')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    let wishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+    wishlist = wishlist.filter(id => id !== look.id);
+    localStorage.setItem('zr_looks_wishlist', JSON.stringify(wishlist));
+    updateLookWishlistButtons(look.id, false);
+    renderWishlistLooks();
+    
+    // ✅ Actualizar badge del wishlist flotante
+    const badge = document.getElementById("wishlist-count-looks");
+    if (badge) badge.textContent = wishlist.length;
+    
+    showTemporaryMessage('💔 Look eliminado de favoritos', 'info');
+  });
+  
+  return div;
+}
+
+
+
+function isLookInWishlist(lookId) {
+  const wishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+  return wishlist.includes(lookId);
+}
+
+function toggleLookWishlist(lookId, event) {
+  if (event) event.stopPropagation();
+  let wishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+  const idx = wishlist.indexOf(lookId);
+  if (idx >= 0) {
+    wishlist.splice(idx, 1);
+    showTemporaryMessage('💔 Look eliminado de favoritos', 'info');
+  } else {
+    wishlist.push(lookId);
+    showTemporaryMessage('❤️ Look agregado a favoritos', 'success');
+  }
+  localStorage.setItem('zr_looks_wishlist', JSON.stringify(wishlist));
+  updateLookWishlistButtons(lookId, idx === -1);
+  renderWishlistLooks();
+  
+  // ✅ Actualizar badge del wishlist flotante
+  const badge = document.getElementById("wishlist-count-looks");
+  if (badge) badge.textContent = wishlist.length;
+}
+
+
+function renderWishlistLooks() {
+  const container = document.getElementById("wishlist-looks-container");
+  if (!container) return;
+  const wishlistIds = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+  const wishlistLooks = allLooks.filter(look => wishlistIds.includes(look.id));
+  
+  if (wishlistLooks.length === 0) {
+    container.innerHTML = '<div class="cart-empty-state"><div class="cart-empty-icon">❤️</div><p class="helper-text">No hay looks guardados</p><p class="cart-empty-hint">❤️ Agrega looks que te gusten</p></div>';
+  } else {
+    container.innerHTML = '';
+    wishlistLooks.forEach(look => {
+      const card = createLookCardMini(look);
+      container.appendChild(card);
+    });
+  }
+  
+  // ✅ Actualizar badge del wishlist flotante
+  const badge = document.getElementById("wishlist-count-looks");
+  if (badge) badge.textContent = wishlistIds.length;
 }
 
 
@@ -1278,11 +1523,34 @@ window.addLookToCart = function(lookId) {
   const look = looks.find(l => l.id.toLowerCase() === lookId.toLowerCase());
   if (!look) return;
   const products = Object.values(look.products).filter(p => p !== null);
-  if (products.length === 0) { alert("\u274C No hay prendas disponibles."); return; }
-  products.forEach(product => { if (product.stock > 0) addToCart({ ID: product.id, Nombre: product.name, Precio: product.price, Imagen1: product.image, Talla: product.size }); });
+  if (products.length === 0) { 
+    return; 
+  }
+  
+  products.forEach(product => { 
+    if (product.stock > 0) {
+      addToCart({ 
+        ID: product.id, 
+        Nombre: product.name, 
+        Precio: product.price, 
+        Imagen1: product.image, 
+        Talla: product.size 
+      });
+    }
+  });
+  
+  let lookWishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+  const wasInWishlist = lookWishlist.includes(lookId);
+  if (wasInWishlist) {
+    lookWishlist = lookWishlist.filter(id => id !== lookId);
+    localStorage.setItem('zr_looks_wishlist', JSON.stringify(lookWishlist));
+    updateLookWishlistButtons(lookId, false);
+    if (typeof renderWishlistLooks === 'function') renderWishlistLooks();
+  } else {
+  }
+  
   animateCartAdd();
 };
-
 function initLooksLayoutToggle() {
   const looksContainer = document.getElementById("looks-container");
   const toggleBtn = document.getElementById("layout-toggle-looks");
