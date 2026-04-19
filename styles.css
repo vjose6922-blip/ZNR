@@ -2176,38 +2176,66 @@ body {
 
 
 
-/* ===== ESTILOS PARA NÚMERO GUARDADO EN MÓVIL ===== */
+/* ===== FORZAR VISIBILIDAD DEL NÚMERO GUARDADO EN MÓVIL ===== */
+/* Este bloque debe ir al FINAL de tu archivo styles.css */
+
 #saved-phone-container {
-  font-size: 11px;
-  text-align: center;
-  margin: 8px 0;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 30px;
+  display: block !important;
+  font-size: 12px !important;
+  text-align: center !important;
+  margin: 10px 0 !important;
+  padding: 10px 12px !important;
+  background: rgba(255, 79, 129, 0.1) !important;
+  border-radius: 40px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#saved-phone-container * {
+  display: inline !important;
+}
+
+#saved-phone-display {
+  font-weight: 700 !important;
+  color: #ff4f81 !important;
+  font-size: 12px !important;
 }
 
 #saved-phone-container button {
-  background: none;
-  border: none;
-  color: #ff4f81;
-  cursor: pointer;
-  text-decoration: underline;
-  margin-left: 5px;
-  font-size: 11px;
-  padding: 4px 8px;
+  display: inline-block !important;
+  background: transparent !important;
+  border: none !important;
+  color: #3b1f5f !important;
+  cursor: pointer !important;
+  text-decoration: underline !important;
+  margin-left: 8px !important;
+  font-size: 11px !important;
+  padding: 4px 8px !important;
 }
 
 [data-theme="light"] #saved-phone-container {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(0, 0, 0, 0.05) !important;
 }
 
-@media (max-width: 768px) {
+[data-theme="light"] #saved-phone-container button {
+  color: #ff4f81 !important;
+}
+
+/* Forzar visibilidad en cualquier tamaño de pantalla */
+@media screen and (max-width: 480px) {
   #saved-phone-container {
     display: block !important;
-    font-size: 11px;
+    font-size: 11px !important;
+    padding: 8px 10px !important;
   }
   
   #saved-phone-display {
-    font-weight: 600;
+    font-size: 11px !important;
   }
+}
+
+/* Asegurar que el botón change-phone-btn sea clickeable */
+#change-phone-btn {
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
 }
