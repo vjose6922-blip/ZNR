@@ -287,10 +287,10 @@ function updateSavedPhoneDisplay() {
     if (savedPhone && savedPhone.length === 10) {
       const formatted = `${savedPhone.slice(0,2)}-${savedPhone.slice(2,6)}-${savedPhone.slice(6)}`;
       
-      // Solo actualizar si cambió
       if (lastPhoneDisplayed !== formatted) {
         display.textContent = formatted;
         container.style.display = "block";
+        container.style.setProperty('display', 'block', 'important');
         lastPhoneDisplayed = formatted;
         console.log("📱 Mostrando número:", formatted);
       }
@@ -545,9 +545,11 @@ function renderCart() {
   if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
   if (totalEl) totalEl.textContent = formatCurrency(subtotal);
   
+  // Configurar botón de cambio de número (VERSIÓN MEJORADA)
   setTimeout(() => {
     const changePhoneBtn = document.getElementById('change-phone-btn');
     if (changePhoneBtn) {
+      console.log("📞 Configurando botón change-phone-btn");
       const newBtn = changePhoneBtn.cloneNode(true);
       changePhoneBtn.parentNode.replaceChild(newBtn, changePhoneBtn);
       
@@ -561,17 +563,20 @@ function renderCart() {
           await changePhoneNumber();
         } else {
           console.error("❌ changePhoneNumber no está definida");
-          showCustomAlert({
-            title: "Error",
-            message: "Función no disponible. Recarga la página.",
-            icon: "❌",
-            confirmText: "Aceptar"
-          });
+          if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+              title: "Error",
+              message: "Función no disponible. Recarga la página.",
+              icon: "❌",
+              confirmText: "Aceptar"
+            });
+          }
         }
       });
-      
+    } else {
+      console.warn("📞 No se encontró el botón change-phone-btn en el DOM");
     }
-  }, 10);
+  }, 100);
   
   updateSavedPhoneDisplay();
 }
