@@ -595,6 +595,7 @@ async function openWhatsAppCheckout() {
 async function continueCheckout() {
   const items = Object.values(localCart);
   if (items.length === 0) return;
+  
   let clientPhone = localStorage.getItem("client_phone");
   if (!clientPhone) {
     clientPhone = await prompt(
@@ -612,30 +613,40 @@ async function continueCheckout() {
     }
     localStorage.setItem("client_phone", clientPhone);
   }
+  
   showLoader("Enviando solicitud...");
   const requestId = generateRequestId();
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n\n";
-  adminMessage += `*Cliente:* +52 ${clientPhone}\n`;
-  adminMessage += `*Solicitud ID:* ${requestId}\n`;
+  
+  // Mensaje mejorado para el administrador
+  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n";
   adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += "*📦 Productos:*\n";
-  items.forEach((item) => {
-    adminMessage += `• ${item.name}\n`;
-    adminMessage += `  Cantidad: ${item.quantity}\n`;
-    adminMessage += `  Precio unitario: $${item.price.toLocaleString()}\n`;
+  adminMessage += `👤 *Cliente:* +52 ${clientPhone}\n`;
+  adminMessage += `🆔 *ID:* ${requestId}\n`;
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += "*📦 PRODUCTOS:*\n\n";
+  
+  items.forEach((item, index) => {
+    adminMessage += `• *${item.name}*\n`;
+    adminMessage += `  Cantidad: ${item.quantity} | $${item.price.toLocaleString()} c/u\n`;
     adminMessage += `  Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
-    adminMessage += "------------------------\n";
+    if (index < items.length - 1) adminMessage += "────────────────────\n";
   });
-  adminMessage += `*💰 Total: $${total.toLocaleString()} MXN*\n\n`;
-  adminMessage += `_✅ Para continuar con el pago espera el mensaje de confirmacion\n`;
+  
+  adminMessage += "\n━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += `💵 *TOTAL:* $${total.toLocaleString()} MXN\n`;
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += "Una vez confirmado tu pedido te enviaremos un mensaje por este chat.\n";
+  
   const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
   window.open(whatsappAdminUrl, '_blank');
+  
   try {
     await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({ action: "saveClientPhone", requestId: requestId, phone: clientPhone })
     });
+    
     const notificationItems = items.map(item => ({
       productId: item.id,
       nombre: item.name,
@@ -643,14 +654,17 @@ async function continueCheckout() {
       imagen: item.Imagen1 || "",
       talla: item.Talla || ""
     }));
+    
     await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({ action: "createNotification", items: notificationItems, requestId: requestId })
     });
+    
     localCart = {};
     saveCartToStorage();
     updateCartBadge();
     if (typeof renderCart === 'function') renderCart();
+    
     showTemporaryMessage(`✅ ¡Solicitud enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`, "success");
     closeCartDrawer();
     startSilentPolling(requestId, clientPhone);
@@ -667,24 +681,55 @@ function startSilentPolling(requestId, clientPhone) {
     try {
       const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${requestId}`);
       const data = await response.json();
+      
       if (data.ok && data.status === 'approved' && data.paymentLink) {
         clearInterval(interval);
-        let message = `✅ *¡TU PEDIDO HA SIDO CONFIRMADO!*\n\n`;
-        message += `*💰 TOTAL A PAGAR: $${(data.totalAmount || 0).toLocaleString()} MXN*\n\n`;
-        message += `🔗 *LINK DE PAGO SEGURO:*\n${data.paymentLink}\n\n`;
-        message += `⚠️ *El enlace expira en 30 minutos*\n`;
-        message += `¡Gracias por tu compra! 🛍️`;
+        
+        // Mensaje mejorado para el cliente
+        let message = "✅ *¡PEDIDO CONFIRMADO!*\n";
+        message += "━━━━━━━━━━━━━━━━━━━━\n\n";
+        message += `💰 *Total a pagar:* $${(data.totalAmount || 0).toLocaleString()} MXN\n\n`;
+        message += "🔗 *Link de pago seguro* (válido 30 min):\n";
+        message += `${data.paymentLink}\n\n`;
+        message += "━━━━━━━━━━━━━━━━━━━━\n";
+        message += "💳 *Transferencia directa:*\n";
+        message += "Banco: Mercado Pago\n";
+        message += "Cuenta: 1234 5678 9012\n";
+        message += "CLABE: 000000000000000000\n\n";
+        message += "━━━━━━━━━━━━━━━━━━━━\n";
+        message += "⚠️ *Importante:*\n";
+        message += "• El enlace expira en 30 minutos\n";
+        message += "• Envía tu comprobante por este chat\n";
+        message += "• Tu pedido se enviará al confirmar el pago\n\n";
+	message += "• Si lo prefieres tambien paga al recibirlo.\n\n";
+        message += "¡Gracias por tu compra! 🛍️";
+        
         let cleanPhone = String(clientPhone).replace(/[^0-9]/g, '');
         if (cleanPhone.length === 10) cleanPhone = "52" + cleanPhone;
+        
         window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
         localStorage.removeItem('pending_purchase_' + requestId);
+        
+        // Mostrar mensaje de éxito también en la página
+        showTemporaryMessage("✅ ¡Pago confirmado! Revisa WhatsApp para tu link de pago.", "success");
       }
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error en polling:", err);
     }
   }, 5000);
-  setTimeout(() => { clearInterval(interval); localStorage.removeItem('pending_purchase_' + requestId); }, 600000);
+  
+  // Timeout después de 10 minutos
+  setTimeout(() => { 
+    clearInterval(interval); 
+    localStorage.removeItem('pending_purchase_' + requestId);
+  }, 600000);
 }
+
+
+
+
+
+
 
 async function pagarConMercadoPago() {
   const items = Object.values(localCart).map(item => ({
