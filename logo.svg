@@ -4,17 +4,22 @@
       <stop offset="0%" style="stop-color:#ff4f81"/>
       <stop offset="100%" style="stop-color:#ff7a4f"/>
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.1"/>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
   </defs>
   
-  <!-- Fondo blanco con bordes redondeados y sombra sutil -->
-  <rect width="200" height="200" rx="45" fill="#FFFFFF" filter="url(#shadow)"/>
+  <!-- Fondo morado (se mantiene) -->
+  <rect width="200" height="200" rx="45" fill="#3b1f5f"/>
   
-  <!-- Sutil borde gris muy claro -->
-  <rect width="200" height="200" rx="45" fill="none" stroke="#EEEEEE" stroke-width="1.5"/>
-  
-  <!-- Texto principal -->
-  <text x="100" y="128" font-size="82" text-anchor="middle" fill="url(#grad)" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="900" letter-spacing="2">Z&amp;R</text>
+  <!-- Texto Z&R con efecto brillo y más estilo -->
+  <text x="100" y="128" font-size="84" text-anchor="middle" fill="url(#grad)" 
+        font-family="'Trebuchet MS', 'Arial Black', Arial, sans-serif" 
+        font-weight="900" 
+        letter-spacing="3"
+        filter="url(#glow)">Z&amp;R</text>
 </svg>
