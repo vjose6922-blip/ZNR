@@ -79,7 +79,25 @@
     <span class="cart-icon">🛒</span>
     <span class="cart-badge" id="cart-count">0</span>
   </button>
+<!-- Botón flotante de Wishlist -->
+<button class="floating-wishlist" id="floating-wishlist-btn" aria-label="Ver lista de deseos">
+  <span class="wishlist-icon">❤️</span>
+  <span class="wishlist-badge" id="wishlist-count">0</span>
+</button>
 
+<!-- Wishlist Drawer -->
+<aside class="cart-drawer" id="wishlist-drawer" aria-hidden="true">
+  <div class="cart-header">
+    <h2>❤️ Lista de deseos</h2>
+    <button class="icon-button" id="close-wishlist-btn" aria-label="Cerrar wishlist">✕</button>
+  </div>
+  <div class="cart-body" id="wishlist-items-container"></div>
+  <div class="cart-footer">
+    <button id="add-all-wishlist-to-cart" class="primary-button full-width" style="background: linear-gradient(135deg, #ff4f81, #ff7a4f);">
+      🛒 Agregar todo al carrito
+    </button>
+  </div>
+</aside>
   <aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
     <div class="cart-header">
       <h2>Tu carrito</h2>
@@ -149,6 +167,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+// Actualizar badge de wishlist al cargar
+if (typeof updateWishlistBadge === 'function') updateWishlistBadge();
+
 
     const closeCartBtn = document.getElementById('close-cart-btn');
     if (closeCartBtn) {
@@ -188,6 +209,53 @@ window.addEventListener('cartUpdated', function () {
     if (typeof renderCart === 'function') renderCart();
     if (typeof updateCartBadge === 'function') updateCartBadge();
 });
+
+
+
+// Botón flotante de Wishlist
+const floatingWishlistBtn = document.getElementById('floating-wishlist-btn');
+if (floatingWishlistBtn) {
+    floatingWishlistBtn.addEventListener('click', () => {
+        if (typeof window.openWishlistDrawer === 'function') {
+            window.openWishlistDrawer();
+        }
+    });
+}
+
+// Botón cerrar wishlist
+const closeWishlistBtn = document.getElementById('close-wishlist-btn');
+if (closeWishlistBtn) {
+    closeWishlistBtn.addEventListener('click', () => {
+        if (typeof window.closeWishlistDrawer === 'function') {
+            window.closeWishlistDrawer();
+        }
+    });
+}
+
+// Botón agregar todo al carrito
+const addAllWishlistBtn = document.getElementById('add-all-wishlist-to-cart');
+if (addAllWishlistBtn) {
+    addAllWishlistBtn.addEventListener('click', () => {
+        if (typeof window.addAllWishlistToCart === 'function') {
+            window.addAllWishlistToCart();
+            closeWishlistDrawer();
+        }
+    });
+}
+
+// Escuchar cambios en wishlist
+window.addEventListener('wishlistUpdated', () => {
+    const wishlist = getWishlist();
+    wishlist.forEach(item => {
+        updateAllWishlistButtons(item.id, true);
+    });
+});
+
+
+
+
+
+
 </script>
 
 
@@ -207,41 +275,6 @@ window.addEventListener('cartUpdated', function () {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
   
 </body>
 </html>
