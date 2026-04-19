@@ -1,4 +1,3 @@
-
 const WHATSAPP_NUMBER = "528671781272";
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; 
@@ -292,18 +291,15 @@ function updateSavedPhoneDisplay() {
         container.style.display = "block";
         container.style.setProperty('display', 'block', 'important');
         lastPhoneDisplayed = formatted;
-        console.log("📱 Mostrando número:", formatted);
       }
     } else if (lastPhoneDisplayed !== null) {
       container.style.display = "none";
       lastPhoneDisplayed = null;
-      console.log("📱 No hay número guardado");
     }
   }
 }
 
 async function changePhoneNumber() {
-  console.log("📱 changePhoneNumber() llamada - Usando modales personalizados");
   
   const currentPhone = localStorage.getItem("client_phone") || "";
   const formattedCurrent = currentPhone && currentPhone.length === 10 
@@ -324,7 +320,6 @@ async function changePhoneNumber() {
   });
   
   if (newPhone === null) {
-    console.log("📱 Usuario canceló");
     return;
   }
   
@@ -388,7 +383,7 @@ function showPrivacyModal(onAccept) {
           <ul><li>✓ Confirmar tu identidad en las solicitudes de compra</li><li>✓ Enviarte el link de pago cuando el administrador confirme tu pedido</li><li>✓ Comunicarme contigo sobre el estado de tu compra</li></ul>
           <h3>🚫 No compartimos tus datos</h3><p>Tu número de teléfono NO será vendido, cedido ni compartido con terceros. Solo será visible para el administrador de Z&R para procesar tu pedido.</p>
           <h3>⏰ Conservación</h3><p>Tus datos se conservarán únicamente durante el tiempo necesario para cumplir con las finalidades descritas.</p>
-          <h3>✋ Tus derechos (ARCO)</h3><p>Puedes solicitar acceso, rectificación, cancelación u oposición de tus datos escribiendo a: <strong>zrstore@email.com</strong></p>
+          <h3>✋ Tus derechos (ARCO)</h3><p>Puedes solicitar la eliminacíon de tus datos escribiendo a: <strong>zrstore@email.com</strong></p>
           <p class="privacy-date">Última actualización: Abril 2026</p>
         </div>
         <div class="privacy-modal-footer">
@@ -431,6 +426,17 @@ function addToCart(product) {
   saveCartToStorage();
   updateCartBadge();
   animateCartAdd();
+  
+  let wishlist = getWishlist();
+  const existedInWishlist = wishlist.some(item => item.id === String(id));
+  if (existedInWishlist) {
+    wishlist = wishlist.filter(item => item.id !== String(id));
+    saveWishlist(wishlist);
+    updateAllWishlistButtons(id, false);
+    if (typeof renderWishlist === 'function') renderWishlist();
+  } else {
+  }
+  
   window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart }));
 }
 
@@ -502,20 +508,43 @@ function renderCart() {
   const items = Object.values(localCart);
   
   if (items.length === 0) {
-    container.innerHTML = '<p class="helper-text">Tu carrito está vacío.</p>';
+    container.innerHTML = `
+      <div class="cart-empty-state">
+        <div class="cart-empty-icon">🛍️</div>
+        <p class="helper-text">Tu carrito está vacío.</p>
+        <p class="cart-empty-hint">Agrega productos para comenzar</p>
+      </div>`;
   } else {
     items.forEach((item) => {
       const row = document.createElement("div");
       row.className = "cart-item";
+      
+      // Build image HTML - use optimized drive URL if available
+      const imgUrl = item.Imagen1 ? optimizeDriveUrl(item.Imagen1, 120) : '';
+      const imgHtml = imgUrl
+        ? `<div class="cart-item-img-wrap">
+             <img class="cart-item-img" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'">
+           </div>`
+        : `<div class="cart-item-img-wrap cart-item-img-placeholder">
+             <span>👕</span>
+           </div>`;
+
+      // Talla badge if available
+      const tallaBadge = item.Talla
+        ? `<span class="cart-item-talla">Talla: ${escapeHtml(item.Talla)}</span>`
+        : '';
+
       row.innerHTML = `
+        ${imgHtml}
         <div class="cart-item-info">
           <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
+          ${tallaBadge}
           <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
           <div class="cart-item-actions">
             <button class="qty-btn" data-action="decrement" data-id="${item.id}">−</button>
             <span class="qty-value">${item.quantity}</span>
             <button class="qty-btn" data-action="increment" data-id="${item.id}">+</button>
-            <button class="cart-item-remove" data-action="remove" data-id="${item.id}">Eliminar</button>
+            <button class="cart-item-remove" data-action="remove" data-id="${item.id}">🗑</button>
           </div>
         </div>
       `;
@@ -1047,7 +1076,6 @@ window.ConnectionMonitor = {
 
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // ===== TAREAS CRÍTICAS (ejecutar inmediatamente) =====
   loadCartFromStorage();
   createImageObserver();
   
@@ -1056,7 +1084,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("✅ Carrito renderizado al inicio");
   }
   
-  // Configurar eventos esenciales de UI inmediatamente
   const floatingCartBtn = document.getElementById("floating-cart-btn");
   if (floatingCartBtn) floatingCartBtn.addEventListener("click", openCartDrawer);
   
@@ -1066,15 +1093,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   const changePhoneBtn = document.getElementById("change-phone-btn");
   if (changePhoneBtn) changePhoneBtn.addEventListener("click", changePhoneNumber);
   
+  // ===== OVERLAY ACTUALIZADO - CIERRA TODO =====
   const overlay = document.getElementById("overlay");
-  if (overlay) overlay.addEventListener("click", () => { closeCartDrawer(); closeImageModal(); });
+  if (overlay) {
+    const newOverlay = overlay.cloneNode(true);
+    overlay.parentNode.replaceChild(newOverlay, overlay);
+    newOverlay.addEventListener("click", () => {
+      // Cerrar carrito
+      if (typeof closeCartDrawer === 'function') closeCartDrawer();
+      
+      // Cerrar wishlist de productos (index)
+      const wishlistDrawer = document.getElementById("wishlist-drawer");
+      if (wishlistDrawer && wishlistDrawer.classList.contains("open")) {
+        wishlistDrawer.classList.remove("open");
+      }
+      
+      // Cerrar wishlist de looks (looks.html)
+      const looksWishlistDrawer = document.getElementById("wishlist-looks-drawer");
+      if (looksWishlistDrawer && looksWishlistDrawer.classList.contains("open")) {
+        looksWishlistDrawer.classList.remove("open");
+      }
+      
+      // Cerrar modal de imagen
+      if (typeof closeImageModal === 'function') closeImageModal();
+      
+      // Remover clase visible del overlay
+      newOverlay.classList.remove("visible");
+    });
+  }
   
   const closeImageBtn = document.getElementById("close-image-modal");
   if (closeImageBtn) closeImageBtn.addEventListener("click", closeImageModal);
   
   updateSavedPhoneDisplay();
   
-  // ===== TAREAS NO CRÍTICAS (ejecutar cuando el navegador esté inactivo) =====
   const deferTask = (task) => {
     if (window.requestIdleCallback) {
       requestIdleCallback(task, { timeout: 3000 });
@@ -1101,7 +1153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await checkIfOfflineMode();
   });
   
-  // ===== EVENTOS GLOBALES (no bloquean) =====
+  // ===== EVENTOS GLOBALES =====
   window.addEventListener('cartUpdated', () => {
     if (typeof renderCart === 'function') renderCart();
     updateCartBadge();
@@ -1118,8 +1170,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
-
-
 
 
 
@@ -1162,6 +1212,8 @@ window.buildProductIndex = buildProductIndex;
 window.getProductsByCategoryIndexed = getProductsByCategoryIndexed;
 window.getIndexedProducts = getIndexedProducts;
 window.clearProductIndex = clearProductIndex;
+// Expose indexed products for wishlist button injection
+Object.defineProperty(window, 'allProductsIndexed', { get: () => allProductsIndexed, configurable: true });
 
 let deferredPrompt;
 
@@ -1243,3 +1295,295 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ========== WISHLIST ==========
+const WISHLIST_KEY = 'zr_wishlist';
+
+function getWishlist() {
+  try { return JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveWishlist(list) {
+  localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
+  updateWishlistBadge(); // ✅ Actualizar badge al guardar
+  // ✅ Disparar evento para actualizar cualquier UI
+  window.dispatchEvent(new CustomEvent('wishlistUpdated'));
+}
+
+function isInWishlist(productId) {
+  return getWishlist().some(item => item.id === String(productId));
+}
+
+function toggleWishlist(product) {
+  const id = String(product.ID || product.id);
+  let list = getWishlist();
+  const idx = list.findIndex(item => item.id === id);
+
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    saveWishlist(list);
+    updateAllWishlistButtons(id, false);
+    showTemporaryMessage('💔 Quitado de favoritos', 'info');
+  } else {
+    list.push({
+      id,
+      name: product.Nombre || product.name || 'Producto',
+      price: Number(product.Precio || product.price || 0),
+      Imagen1: product.Imagen1 || '',
+      Talla: product.Talla || '',
+      addedAt: Date.now()
+    });
+    saveWishlist(list);
+    updateAllWishlistButtons(id, true);
+    showTemporaryMessage('❤️ Agregado a favoritos', 'success');
+  }
+}
+
+function addAllWishlistToCart() {
+  const list = getWishlist();
+  if (list.length === 0) {
+    showTemporaryMessage("No hay productos en tu lista de deseos", "info");
+    return;
+  }
+  
+  list.forEach(item => {
+    addToCart({
+      ID: item.id,
+      Nombre: item.name,
+      Precio: item.price,
+      Imagen1: item.Imagen1,
+      Talla: item.Talla
+    });
+  });
+  saveWishlist([]);
+  if (typeof renderWishlist === 'function') renderWishlist();
+  updateWishlistBadge();
+  }
+
+
+
+function updateAllWishlistButtons(id, active) {
+  document.querySelectorAll(`.wishlist-btn[data-id="${id}"]`).forEach(btn => {
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active);
+    btn.textContent = active ? '❤️' : '🤍';
+  });
+}
+
+function createWishlistButton(product) {
+  const id = String(product.ID || product.id);
+  const active = isInWishlist(id);
+  const btn = document.createElement('button');
+  btn.className = `wishlist-btn${active ? ' active' : ''}`;
+  btn.setAttribute('data-id', id);
+  btn.setAttribute('aria-label', active ? 'Quitar de favoritos' : 'Agregar a favoritos');
+  btn.setAttribute('aria-pressed', active);
+  btn.textContent = active ? '❤️' : '🤍';
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    toggleWishlist(product);
+  });
+  return btn;
+}
+
+function openWishlistDrawer() {
+  console.log("❤️ Abriendo wishlist drawer");
+  const drawer = document.getElementById("wishlist-drawer");
+  const overlay = document.getElementById("overlay");
+  if (drawer) drawer.classList.add("open");
+  if (overlay) overlay.classList.add("visible");
+  renderWishlist();
+}
+
+function closeWishlistDrawer() {
+  const drawer = document.getElementById("wishlist-drawer");
+  const overlay = document.getElementById("overlay");
+  if (drawer) drawer.classList.remove("open");
+  if (overlay) overlay.classList.remove("visible");
+}
+
+function renderWishlist() {
+  const container = document.getElementById("wishlist-items-container");
+  if (!container) return;
+  
+  const items = getWishlist();
+  container.innerHTML = "";
+  
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="cart-empty-state">
+        <div class="cart-empty-icon">❤️</div>
+        <p class="helper-text">Tu lista de deseos está vacía.</p>
+        <p class="cart-empty-hint">Agrega productos que te gusten</p>
+      </div>`;
+  } else {
+    items.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "cart-item";
+      const imgUrl = item.Imagen1 ? optimizeDriveUrl(item.Imagen1, 120) : '';
+      const imgHtml = imgUrl
+        ? `<div class="cart-item-img-wrap"><img class="cart-item-img" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(item.name)}" loading="lazy"></div>`
+        : `<div class="cart-item-img-wrap cart-item-img-placeholder"><span>👕</span></div>`;
+      
+      row.innerHTML = `
+        ${imgHtml}
+        <div class="cart-item-info">
+          <div class="cart-item-title">${escapeHtml(item.name)}</div>
+          <div class="cart-item-meta">${formatCurrency(item.price)}</div>
+          <div class="cart-item-actions">
+            <button class="add-to-cart-wishlist" data-id="${item.id}" data-name="${escapeHtml(item.name)}" data-price="${item.price}" data-img="${escapeHtml(item.Imagen1)}" data-talla="${escapeHtml(item.Talla || '')}">🛒 Agregar al carrito</button>
+            <button class="remove-from-wishlist" data-id="${item.id}">🗑 Eliminar</button>
+          </div>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+    
+    // ✅ Usar manejadores separados para evitar problemas de eventos duplicados
+    document.querySelectorAll('.add-to-cart-wishlist').forEach(btn => {
+      btn.removeEventListener('click', handleAddFromWishlist);
+      btn.addEventListener('click', handleAddFromWishlist);
+    });
+    
+    document.querySelectorAll('.remove-from-wishlist').forEach(btn => {
+      btn.removeEventListener('click', handleRemoveFromWishlist);
+      btn.addEventListener('click', handleRemoveFromWishlist);
+    });
+  }
+  
+  updateWishlistBadge();
+}
+
+// ✅ Manejadores separados para el wishlist
+function handleAddFromWishlist(e) {
+  const btn = e.currentTarget;
+  const id = btn.dataset.id;
+  const name = btn.dataset.name;
+  const price = parseFloat(btn.dataset.price);
+  const img = btn.dataset.img;
+  const talla = btn.dataset.talla;
+  
+  addToCart({ ID: id, Nombre: name, Precio: price, Imagen1: img, Talla: talla });
+  showTemporaryMessage(`✅ ${name} agregado al carrito`, 'success');
+}
+
+function handleRemoveFromWishlist(e) {
+  const btn = e.currentTarget;
+  const id = btn.dataset.id;
+  let list = getWishlist();
+  const removedItem = list.find(i => i.id === id);
+  list = list.filter(i => i.id !== id);
+  saveWishlist(list);
+  updateAllWishlistButtons(id, false);
+  renderWishlist();
+  if (removedItem) {
+    showTemporaryMessage(`💔 ${removedItem.name} eliminado de favoritos`, 'info');
+  }
+}
+
+function updateWishlistBadge() {
+  const count = getWishlist().length;
+  const badge = document.getElementById("wishlist-count");
+  if (badge) badge.textContent = count;
+  console.log("❤️ Wishlist badge actualizado:", count);
+}
+
+// ✅ Exponer funciones globalmente
+window.openWishlistDrawer = openWishlistDrawer;
+window.closeWishlistDrawer = closeWishlistDrawer;
+window.renderWishlist = renderWishlist;
+window.addAllWishlistToCart = addAllWishlistToCart;
+window.updateWishlistBadge = updateWishlistBadge;
+
+// Auto-inject wishlist buttons
+(function watchProductCards() {
+  function injectWishlistBtn(card) {
+    if (card.querySelector('.wishlist-btn')) return;
+    const slider = card.querySelector('.product-slider');
+    if (!slider) return;
+    const id = card.id?.replace('producto-', '') || '';
+    if (!id) return;
+    let product = null;
+    if (window.allProductsIndexed && Array.isArray(window.allProductsIndexed)) {
+      product = window.allProductsIndexed.find(p => String(p.ID) === id);
+    }
+    if (!product) {
+      const nameEl = card.querySelector('.product-name');
+      const priceEl = card.querySelector('.product-price');
+      product = {
+        ID: id,
+        Nombre: nameEl?.textContent || '',
+        Precio: priceEl?.textContent?.replace(/[^0-9]/g, '') || 0,
+        Imagen1: card.querySelector('img')?.src || ''
+      };
+    }
+    const btn = createWishlistButton(product);
+    slider.style.position = 'relative';
+    slider.appendChild(btn);
+  }
+  
+  function injectAll() {
+    document.querySelectorAll('.product-card').forEach(injectWishlistBtn);
+  }
+  
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(mut => {
+      mut.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        if (node.classList?.contains('product-card')) {
+          injectWishlistBtn(node);
+        } else {
+          node.querySelectorAll?.('.product-card').forEach(injectWishlistBtn);
+        }
+      });
+    });
+  });
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      injectAll();
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+  } else {
+    injectAll();
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+})();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
