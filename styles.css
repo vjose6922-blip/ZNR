@@ -2171,3 +2171,43 @@ body {
   50% { transform: scale(1.2); background: #ff9800; }
   100% { transform: scale(1); }
 }
+
+
+
+
+
+/* ===== ESTILOS PARA NÚMERO GUARDADO EN MÓVIL ===== */
+#saved-phone-container {
+  font-size: 11px;
+  text-align: center;
+  margin: 8px 0;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 30px;
+}
+
+#saved-phone-container button {
+  background: none;
+  border: none;
+  color: #ff4f81;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-left: 5px;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+[data-theme="light"] #saved-phone-container {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+@media (max-width: 768px) {
+  #saved-phone-container {
+    display: block !important;
+    font-size: 11px;
+  }
+  
+  #saved-phone-display {
+    font-weight: 600;
+  }
+}
