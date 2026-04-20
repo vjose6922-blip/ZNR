@@ -222,6 +222,26 @@ function formatCurrency(value) {
   return `$${num.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`;
 }
 
+
+
+
+function hasFreeShipping(price) {
+  const numericPrice = Number(price) || 0;
+  return numericPrice >= 300;
+}
+
+function getShippingBadge(price) {
+  if (hasFreeShipping(price)) {
+    return `<span class="shipping-badge" title="Envío a domicilio o punto intermedio">🚚</span>`;
+  }
+  return '';
+}
+
+
+
+
+
+
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -519,7 +539,6 @@ function renderCart() {
       const row = document.createElement("div");
       row.className = "cart-item";
       
-      // Build image HTML - use optimized drive URL if available
       const imgUrl = item.Imagen1 ? optimizeDriveUrl(item.Imagen1, 120) : '';
       const imgHtml = imgUrl
         ? `<div class="cart-item-img-wrap">
@@ -529,7 +548,6 @@ function renderCart() {
              <span>👕</span>
            </div>`;
 
-      // Talla badge if available
       const tallaBadge = item.Talla
         ? `<span class="cart-item-talla">Talla: ${escapeHtml(item.Talla)}</span>`
         : '';
@@ -574,7 +592,30 @@ function renderCart() {
   if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
   if (totalEl) totalEl.textContent = formatCurrency(subtotal);
   
-  // Configurar botón de cambio de número (VERSIÓN MEJORADA)
+  // ========== 🚚 AGREGAR INFORMACIÓN DE ENVÍO EN EL CARRITO ==========
+  const hasShippingItem = items.some(item => hasFreeShipping(item.price));
+  const footer = document.querySelector('#cart-drawer .cart-footer');
+  const existingShipping = footer ? footer.querySelector('.cart-shipping-info') : null;
+  
+  if (hasShippingItem && footer && !existingShipping) {
+    const requestBtn = footer.querySelector('#request-purchase-btn');
+    if (requestBtn) {
+      const shippingHtml = `
+        <div class="cart-shipping-info">
+          <div class="shipping-badge-cart">🚚 Envío disponible</div>
+          <p class="shipping-note">📦 Las entregas pueden variar dependiendo la distancia. Se puede realizar a domicilio o punto intermedio.</p>
+        </div>
+      `;
+      requestBtn.insertAdjacentHTML('beforebegin', shippingHtml);
+    }
+  } else if (!hasShippingItem && existingShipping) {
+    existingShipping.remove();
+  } else if (hasShippingItem && existingShipping) {
+    // Ya existe, no hacer nada
+  }
+  // ========== FIN AGREGADO ==========
+  
+  // Configurar botón de cambio de número
   setTimeout(() => {
     const changePhoneBtn = document.getElementById('change-phone-btn');
     if (changePhoneBtn) {
@@ -609,7 +650,6 @@ function renderCart() {
   
   updateSavedPhoneDisplay();
 }
-
 function handleDecrement(e) {
   e.stopPropagation();
   const id = e.currentTarget.getAttribute('data-id');
@@ -743,20 +783,34 @@ async function continueCheckout() {
   const requestId = generateRequestId();
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
-  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n\n";
-  adminMessage += `*Cliente:* +52 ${clientPhone}\n`;
-  adminMessage += `*Solicitud ID:* ${requestId}\n`;
-  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += "*📦 Productos:*\n";
-  items.forEach((item) => {
-    adminMessage += `• ${item.name}\n`;
-    adminMessage += `  Cantidad: ${item.quantity}\n`;
-    adminMessage += `  Precio unitario: $${item.price.toLocaleString()}\n`;
-    adminMessage += `  Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
-    adminMessage += "------------------------\n";
+  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n";
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += `👤 *Cliente:* +52 ${clientPhone}\n`;
+  adminMessage += `🆔 *ID Solicitud:* ${requestId}\n`;
+  adminMessage += `📅 *Fecha:* ${new Date().toLocaleString()}\n`;
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += "*📦 DETALLE DE PRODUCTOS:*\n\n";
+
+  items.forEach((item, index) => {
+    adminMessage += `┌──────────────────────────────┐\n`;
+    adminMessage += `│ *${item.name}*\n`;
+    adminMessage += `├──────────────────────────────┤\n`;
+    adminMessage += `│ 🆔 ID: ${item.id}\n`;
+    adminMessage += `│ 📏 Talla: ${item.Talla || "No especificada"}\n`;
+    adminMessage += `│ 🔢 Cantidad: ${item.quantity}\n`;
+    adminMessage += `│ 💰 Precio: $${item.price.toLocaleString()} c/u\n`;
+    adminMessage += `│ 💵 Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
+    if (hasFreeShipping(item.price)) {
+      adminMessage += `│ 🚚 Envío disponible\n`;
+    }
+    adminMessage += `└──────────────────────────────┘\n`;
+    if (index < items.length - 1) adminMessage += `\n`;
   });
-  adminMessage += `*💰 Total: $${total.toLocaleString()} MXN*\n\n`;
-  adminMessage += `_✅ Para continuar con el pago espera el mensaje de confirmacion_\n`;
+
+  adminMessage += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += `💰 *TOTAL: $${total.toLocaleString()} MXN*\n`;
+  adminMessage += `🚚 *Envío:* ${items.some(i => hasFreeShipping(i.price)) ? 'Disponible (consultar)' : 'No disponible'}\n`;
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
   
   const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
   window.open(whatsappAdminUrl, '_blank');
@@ -767,13 +821,15 @@ async function continueCheckout() {
       body: JSON.stringify({ action: "saveClientPhone", requestId: requestId, phone: clientPhone })
     });
     
-    const notificationItems = items.map(item => ({
-      productId: item.id,
-      nombre: item.name,
-      cantidad: item.quantity,
-      imagen: item.Imagen1 || "",
-      talla: item.Talla || ""
-    }));
+   // En common.js, función continueCheckout()
+const notificationItems = items.map(item => ({
+  productId: item.id,
+  nombre: item.name,
+  cantidad: item.quantity,
+  imagen: item.Imagen1 || "",
+  talla: item.Talla || "",
+  precio: item.price || 0          // ← AÑADIR ESTO
+}));
     
     await fetch(API_URL, {
       method: "POST",
@@ -793,7 +849,6 @@ async function continueCheckout() {
     hideLoader();
   }
 }
-
 
 async function fetchProductsAPI(shouldIndex = false) {
   const cached = getCachedProducts();
@@ -1571,19 +1626,3 @@ window.updateWishlistBadge = updateWishlistBadge;
     observer.observe(document.body, { childList: true, subtree: true });
   }
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
