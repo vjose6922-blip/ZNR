@@ -343,6 +343,17 @@ function renderPagination() {
   }
 }
 
+
+
+function hasFreeShipping(price) {
+  const numericPrice = Number(price) || 0;
+  return numericPrice >= 300;
+}
+
+
+
+
+
 function createProductCard(product) {
   const { ID, Nombre, Precio, Stock, Descripcion, Talla, Categoria, Imagen1, Imagen2, Imagen3, Badge } = product;
 
@@ -458,6 +469,13 @@ function createProductCard(product) {
   }
 
   metaRow.appendChild(stockEl);
+  if (hasFreeShipping(Precio)) {
+  const shippingEl = document.createElement('span');
+  shippingEl.className = 'shipping-badge';
+  shippingEl.innerHTML = '🚚';
+  shippingEl.title = 'Envío a domicilio o punto intermedio';
+  metaRow.appendChild(shippingEl);
+}
 
   const descEl = document.createElement("p");
   descEl.className = "product-description";
@@ -647,13 +665,15 @@ async function continueCheckout() {
       body: JSON.stringify({ action: "saveClientPhone", requestId: requestId, phone: clientPhone })
     });
     
-    const notificationItems = items.map(item => ({
-      productId: item.id,
-      nombre: item.name,
-      cantidad: item.quantity,
-      imagen: item.Imagen1 || "",
-      talla: item.Talla || ""
-    }));
+    // En common.js, función continueCheckout()
+const notificationItems = items.map(item => ({
+  productId: item.id,
+  nombre: item.name,
+  cantidad: item.quantity,
+  imagen: item.Imagen1 || "",
+  talla: item.Talla || "",
+  precio: item.price || 0          // ← AÑADIR ESTO
+}));
     
     await fetch(API_URL, {
       method: "POST",
@@ -685,24 +705,49 @@ function startSilentPolling(requestId, clientPhone) {
       if (data.ok && data.status === 'approved' && data.paymentLink) {
         clearInterval(interval);
         
-        // Mensaje mejorado para el cliente
+        // Obtener los items del carrito (pueden venir en data.items o del localStorage)
+        const itemsFromRequest = data.items || Object.values(localCart);
+        
+        // ========== MENSAJE MEJORADO PARA EL CLIENTE ==========
         let message = "✅ *¡PEDIDO CONFIRMADO!*\n";
-        message += "━━━━━━━━━━━━━━━━━━━━\n\n";
+        message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
         message += `💰 *Total a pagar:* $${(data.totalAmount || 0).toLocaleString()} MXN\n\n`;
-        message += "🔗 *Link de pago seguro* (válido 30 min):\n";
-        message += `${data.paymentLink}\n\n`;
-        message += "━━━━━━━━━━━━━━━━━━━━\n";
+        
+        // Agregar resumen de productos
+        message += "*📦 Tu pedido:*\n";
+        itemsFromRequest.forEach((item, idx) => {
+          message += `${idx+1}. *${item.name || item.Nombre}*\n`;
+          message += `   📏 Talla: ${item.Talla || item.talla || "N/A"} | 🔢 ${item.quantity || item.cantidad || 1} x $${(item.price || item.Precio || 0).toLocaleString()}\n`;
+        });
+        message += "\n";
+        
+        message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        message += "*💳 OPCIONES DE PAGO:*\n\n";
+        message += `🔗 *Link de pago seguro* (válido 30 min):\n${data.paymentLink}\n\n`;
         message += "💳 *Transferencia directa:*\n";
-        message += "Banco: Mercado Pago\n";
-        message += "Cuenta: 1234 5678 9012\n";
-        message += "CLABE: 000000000000000000\n\n";
-        message += "━━━━━━━━━━━━━━━━━━━━\n";
+        message += "Banco: BBVA\n";
+        message += "Cuenta: **** **** **** 1234\n";
+        message += "CLABE: 0123 4567 8901 2345 67\n\n";
+        message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        message += "*🚚 INFORMACIÓN DE ENTREGA:*\n";
+        
+        // Verificar si hay productos con envío disponible
+        const hasShippingItems = itemsFromRequest.some(i => hasFreeShipping(i.price || i.Precio || 0));
+        if (hasShippingItems) {
+          message += "✅ Tienes productos que califican para envío\n";
+          message += "📍 Las entregas pueden ser a domicilio o punto intermedio\n";
+          message += "⏰ Los tiempos varían según la distancia\n\n";
+        } else {
+          message += "⚠️ Los productos seleccionados no califican para envío\n";
+          message += "📦 Acuerda la recolección o punto de entrega\n\n";
+        }
+        
+        message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
         message += "⚠️ *Importante:*\n";
-        message += "• El enlace expira en 30 minutos\n";
-        message += "• Envía tu comprobante por este chat\n";
-        message += "• Tu pedido se enviará al confirmar el pago\n\n";
-	message += "• Si lo prefieres tambien paga al recibirlo.\n\n";
-        message += "¡Gracias por tu compra! 🛍️";
+        message += "• Envía tu comprobante de pago por este chat\n";
+        message += "• Tu pedido se enviará al confirmar el pago\n";
+        message += "• Cualquier duda, responde a este mensaje\n\n";
+        message += "¡Gracias por tu compra! 🛍️✨";
         
         let cleanPhone = String(clientPhone).replace(/[^0-9]/g, '');
         if (cleanPhone.length === 10) cleanPhone = "52" + cleanPhone;
@@ -724,7 +769,6 @@ function startSilentPolling(requestId, clientPhone) {
     localStorage.removeItem('pending_purchase_' + requestId);
   }, 600000);
 }
-
 
 
 
@@ -860,4 +904,3 @@ window.addEventListener('cartUpdated', () => {
   if (typeof renderCart === 'function') renderCart();
   updateCartBadge();
 });
-
