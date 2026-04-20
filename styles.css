@@ -2627,13 +2627,6 @@ body {
   border-radius: 40px;
   white-space: nowrap;
   transition: all 0.2s;
-  /* COLORES PARA MODO OSCURO (por defecto) */
-  color: #ffffff;
-}
-
-.weather-widget .weather-temp {
-  font-size: 12px;
-  color: #ffffff;  /* Blanco en modo oscuro */
 }
 
 .weather-widget.loading {
@@ -2644,17 +2637,10 @@ body {
   font-size: 16px;
 }
 
-/* ===== MODO CLARO ===== */
-[data-theme="light"] .weather-widget {
-  background: rgba(0, 0, 0, 0.08);
-  color: #2c1810;
+.weather-widget .weather-temp {
+  font-size: 12px;
 }
 
-[data-theme="light"] .weather-widget .weather-temp {
-  color: #2c1810;
-}
-
-/* ===== RESPONSIVE ===== */
 @media (max-width: 480px) {
   .weather-widget {
     padding: 4px 10px;
@@ -2665,4 +2651,272 @@ body {
   }
 }
 
+/* ===== BADGE DE ENVÍO EN TARJETA DE PRODUCTO ===== */
+.shipping-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #e3f2fd;
+  color: #1565c0;
+  margin-left: 6px;
+  white-space: nowrap;
+}
 
+[data-theme="dark"] .shipping-badge {
+  background: #0d2b3e;
+  color: #64b5f6;
+}
+
+/* ===== INFORMACIÓN DE ENVÍO EN EL CARRITO ===== */
+.cart-shipping-info {
+  background: #e3f2fd;
+  border-radius: 12px;
+  padding: 12px;
+  margin: 12px 0;
+  animation: fadeInShipping 0.3s ease;
+}
+
+[data-theme="dark"] .cart-shipping-info {
+  background: #0d2b3e;
+}
+
+.shipping-badge-cart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1565c0;
+  margin-bottom: 8px;
+}
+
+[data-theme="dark"] .shipping-badge-cart {
+  color: #64b5f6;
+}
+
+.shipping-note {
+  font-size: 11px;
+  color: #555;
+  margin: 0;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .shipping-note {
+  color: #aaa;
+}
+
+@keyframes fadeInShipping {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ajuste responsive para móvil */
+@media (max-width: 480px) {
+  .shipping-badge {
+    font-size: 9px;
+    padding: 3px 8px;
+  }
+  
+  .cart-shipping-info {
+    padding: 10px;
+    margin: 10px 0;
+  }
+  
+  .shipping-badge-cart {
+    font-size: 12px;
+  }
+  
+  .shipping-note {
+    font-size: 10px;
+  }
+}
+
+
+
+
+
+/* ===== FILTROS DE NOTIFICACIONES ===== */
+.notifications-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  position: sticky;
+  top: 70px;
+  background: var(--color-surface);
+  padding: 12px 20px;
+  border-radius: 60px;
+  z-index: 15;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  border: 1px solid var(--color-border-subtle);
+  backdrop-filter: blur(8px);
+}
+
+.filter-btn {
+  transition: all 0.2s ease !important;
+}
+
+.filter-btn:active {
+  transform: scale(0.96);
+}
+
+/* Badge de estado del grupo */
+.group-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 10px;
+}
+
+.group-status-badge.pending {
+  background: #fff3e0;
+  color: #f97316;
+}
+
+.group-status-badge.confirmed {
+  background: #e8f5e9;
+  color: #22c55e;
+}
+
+.group-status-badge.rejected {
+  background: #ffebee;
+  color: #ef4444;
+}
+
+/* Badge de completado en acciones */
+.completed-badge {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 13px;
+  width: 100%;
+  text-align: center;
+}
+
+.completed-badge.confirmed {
+  background: #e8f5e9;
+  color: #22c55e;
+}
+
+.completed-badge.rejected {
+  background: #ffebee;
+  color: #ef4444;
+}
+
+/* Responsive para filtros */
+@media (max-width: 480px) {
+  .notifications-filters {
+    gap: 6px;
+    padding: 10px 12px;
+    top: 65px;
+  }
+  
+  .filter-btn {
+    padding: 6px 12px !important;
+    font-size: 11px !important;
+  }
+  
+  #filter-result-counter {
+    font-size: 10px !important;
+    padding: 3px 10px !important;
+  }
+}
+
+/* Animación de carga para los filtros */
+@keyframes filterBadgePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.filter-btn.active {
+  animation: filterBadgePulse 0.3s ease;
+}
+
+
+.status-confirmed {
+  background: #e8f5e9;
+  color: #22c55e;
+}
+
+/* Badge de estado del grupo */
+.group-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 10px;
+}
+
+.group-status-badge.pending {
+  background: #fff3e0;
+  color: #f97316;
+}
+
+.group-status-badge.confirmed {
+  background: #e8f5e9;
+  color: #22c55e;
+}
+
+.group-status-badge.rejected {
+  background: #ffebee;
+  color: #ef4444;
+}
+
+.completed-badge {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 13px;
+  width: 100%;
+  text-align: center;
+}
+
+.completed-badge.confirmed {
+  background: #e8f5e9;
+  color: #22c55e;
+}
+
+.completed-badge.rejected {
+  background: #ffebee;
+  color: #ef4444;
+}
+
+/* Filtros */
+.notifications-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  position: sticky;
+  top: 70px;
+  background: var(--color-surface);
+  padding: 12px 20px;
+  border-radius: 60px;
+  z-index: 15;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  border: 1px solid var(--color-border-subtle);
+}
