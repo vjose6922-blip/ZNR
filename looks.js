@@ -1590,4 +1590,3 @@ document.addEventListener("DOMContentLoaded", () => {
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 });
 
-
