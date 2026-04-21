@@ -25,7 +25,7 @@ const WEATHER_IMAGES = {
   'dia_calor': '1ABC123...',
   'dia_frio': '1ABC123...',
   'dia_lluvia_fuerte': '1ABC123...',
-  'dia_lluvia': '1ABC123...',
+  'dia_lluvia': '1RZmReM6hkm6E4GSKvx68_1ogXvL_mKz8',
   'dia_nublado_con_lluvia': '1ABC123...',
   'dia_nublado_parcial': '1ABC123...',
   'dia_nublado': '1ABC123...',
