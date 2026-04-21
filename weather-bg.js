@@ -2,7 +2,7 @@
 // weather-bg.js - Sistema de imágenes dinámicas por clima
 // ============================================
 
-const WEATHER_API_URL = 'https://wttr.in';
+const WEATHER_BG_API_URL = 'https://wttr.in';
 const DEFAULT_COORDS = '27.4863,-99.5162'; // Nuevo Laredo
 
 // Mapeo de imágenes de Google Drive (IDs públicos)
@@ -67,7 +67,7 @@ async function fetchWeatherData(coords = DEFAULT_COORDS) {
   const timeoutId = setTimeout(() => controller.abort(), 5000);
   
   try {
-    const url = `${WEATHER_API_URL}/${coords}?format=j1&lang=es&u`;
+    const url = `${WEATHER_BG_API_URL}/${coords}?format=j1&lang=es&u`;
     const response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
     
