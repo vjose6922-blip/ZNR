@@ -52,7 +52,7 @@ const WEATHER_IMAGES = {
   // Especiales
   'tormenta_viento_fuerte': '1ABC123...',
   'nieve': '1ABC123...',
-  'default': '1ABC123...'  // Imagen por defecto
+  'default': '1RZmReM6hkm6E4GSKvx68_1ogXvL_mKz8'  // Imagen por defecto
 };
 
 // Configuración de URLs de imágenes (se construye con el ID)
