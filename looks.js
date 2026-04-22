@@ -10,6 +10,10 @@ const DEFAULT_COORDS = '27.4863,-99.5162'; // Nuevo Laredo
 
 let weatherRetryCount = 0;
 let weatherRetryTimer = null;
+let bgProductsRetryCount = 0;
+let bgProductsRetryTimer = null;
+const MAX_BG_PRODUCTS_RETRIES = 5;
+const BG_PRODUCTS_RETRY_DELAYS = [3000, 6000, 10000, 20000, 30000];
 let weatherUpdateInterval = null;
 let currentWeather = null;
 let allProducts = [];
@@ -235,8 +239,8 @@ function updateWeatherWidgetUI(classified) {
   else if (classified.condition === 'nublado_parcial') icon = '⛅';
   else if (classified.condition === 'viento_fuerte') icon = '💨';
   
-  // Actualizar directamente el contenido
-  widget.innerHTML = `<span class="weather-icon">${icon}</span><span class="weather-text">${temp}°C</span>`;
+  // FIX: usar clase CSS correcta "weather-temp" (no "weather-text")
+  widget.innerHTML = `<span class="weather-icon">${icon}</span><span class="weather-temp">${temp}°C</span>`;
   widget.classList.remove('loading');
   
   console.log(`✅ Widget actualizado: ${icon} ${temp}°C`);
@@ -304,11 +308,49 @@ async function initWeatherAndBackground() {
   console.log('Inicializando clima y fondo...');
   const widget = document.getElementById('weather-widget');
   if (widget) {
-    widget.innerHTML = '<span class="weather-icon">🌡️</span><span>Cargando...</span>';
+    widget.innerHTML = '<span class="weather-icon">🌡️</span><span class="weather-temp">Cargando...</span>';
     widget.classList.add('loading');
   }
   
   const weatherData = await fetchWeatherData();
+  
+  if (!weatherData) {
+    // API falló — programar reintentos con delays progresivos
+    if (weatherRetryCount < MAX_WEATHER_RETRIES) {
+      const delay = RETRY_DELAYS[weatherRetryCount] || 30000;
+      console.warn(`⚠️ Clima no disponible. Reintentando en ${delay / 1000}s... (intento ${weatherRetryCount + 1}/${MAX_WEATHER_RETRIES})`);
+      
+      if (widget) {
+        widget.innerHTML = `<span class="weather-icon">🔄</span><span class="weather-temp">Reintentando...</span>`;
+      }
+      
+      if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
+      weatherRetryTimer = setTimeout(async () => {
+        weatherRetryCount++;
+        await initWeatherAndBackground();
+      }, delay);
+    } else {
+      // Se agotaron los reintentos — usar valores por defecto
+      console.warn('❌ Se agotaron los reintentos de clima. Usando valores estimados.');
+      weatherRetryCount = 0;
+      weatherRetryTimer = null;
+      const classified = classifyWeather(null); // retorna valores por defecto
+      updateWeatherWidgetUI(classified);
+      updateLooksNavBackground(selectBackgroundImage(classified));
+      const c = classified.condition;
+      currentWeather = {
+        weatherType: (c === 'calor' ? 'calor' : (c === 'frio' ? 'frio' : (c.includes('lluvia') || c.includes('tormenta') ? 'lluvioso' : 'templado'))),
+        temperature: classified.temperature,
+        city: 'Nuevo Laredo'
+      };
+    }
+    return;
+  }
+  
+  // API respondió correctamente — resetear contadores y aplicar datos reales
+  weatherRetryCount = 0;
+  if (weatherRetryTimer) { clearTimeout(weatherRetryTimer); weatherRetryTimer = null; }
+  
   const classified = classifyWeather(weatherData);
   updateWeatherWidgetUI(classified);
   updateLooksNavBackground(selectBackgroundImage(classified));
@@ -744,9 +786,10 @@ async function generateLooksProgressive() {
       if (currentIndex < LOOKS_CONFIG.length) {
         setTimeout(processBatch, 50);
       } else {
+        // FIX: guardar en caché SIN ordenar por clima, para que el orden se aplique fresco en cada carga
+        saveLooksToCacheOptimized(allBuiltLooks);
         allLooks = sortLooksByWeather(allBuiltLooks);
         looks = [...allLooks];
-        saveLooksToCacheOptimized(allLooks);
         renderLooks();
         initLazyImagesAfterRender();
         preloadAdjacentPages();
@@ -1440,7 +1483,8 @@ async function loadProducts() {
   if (cachedLooks?.length > 0) {
     console.log("LOOKS DESDE CACHE - INSTANTANEO");
 
-    allLooks = cachedLooks;
+    // FIX: re-ordenar los looks del caché con el clima actual (no el clima de cuando se guardaron)
+    allLooks = sortLooksByWeather(cachedLooks);
     looks = [...allLooks];
     currentLooksPage = 1;
 
@@ -1513,24 +1557,48 @@ async function loadProducts() {
 async function loadFreshProductsInBackground() {
   if (isGeneratingLooks) return;
   isGeneratingLooks = true;
-  
+
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); 
-    
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     const res = await fetch(API_URL, { signal: controller.signal });
     clearTimeout(timeoutId);
-    
+
     const data = await res.json();
     const freshProducts = data.products || data || [];
-    
+
+    // Éxito — resetear contadores de retry
+    bgProductsRetryCount = 0;
+    if (bgProductsRetryTimer) { clearTimeout(bgProductsRetryTimer); bgProductsRetryTimer = null; }
+
     if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
       allProducts = freshProducts;
       setCachedProducts(allProducts);
       await generateLooksProgressive();
+      console.log('✅ Productos actualizados en background.');
+    } else {
+      console.log('ℹ️ Productos en background sin cambios.');
     }
+
   } catch (err) {
-    console.log("Background update fallo (timeout esperado):", err.message);
+    console.warn(`⚠️ Background productos falló: ${err.message}`);
+
+    if (bgProductsRetryCount < MAX_BG_PRODUCTS_RETRIES) {
+      const delay = BG_PRODUCTS_RETRY_DELAYS[bgProductsRetryCount] || 30000;
+      console.log(`🔄 Reintentando productos en background en ${delay / 1000}s... (intento ${bgProductsRetryCount + 1}/${MAX_BG_PRODUCTS_RETRIES})`);
+      if (bgProductsRetryTimer) clearTimeout(bgProductsRetryTimer);
+      bgProductsRetryTimer = setTimeout(() => {
+        bgProductsRetryCount++;
+        isGeneratingLooks = false; // liberar antes de reintentar
+        loadFreshProductsInBackground();
+      }, delay);
+      return; // no ejecutar finally todavía
+    } else {
+      console.warn('❌ Se agotaron los reintentos de productos en background.');
+      bgProductsRetryCount = 0;
+      bgProductsRetryTimer = null;
+    }
   } finally {
     isGeneratingLooks = false;
   }
