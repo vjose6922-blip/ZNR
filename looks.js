@@ -260,7 +260,8 @@ async function fetchWeatherData(coords = DEFAULT_COORDS) {
   const timeoutId = setTimeout(() => controller.abort(), 5000);
   
   try {
-    const url = `https://wttr.in/${coords}?format=j1&lang=es&u`;
+    // ELIMINAR &u - usar unidades métricas por defecto
+    const url = `https://wttr.in/${coords}?format=j1&lang=es`;
     const response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -288,11 +289,11 @@ function classifyWeather(weatherData) {
   const current = weatherData.current_condition[0];
   const hourly = weatherData.weather?.[0]?.hourly?.[0] || {};
   
-  // Siempre usamos la hora local del dispositivo para clasificar el momento del dia.
-  // localObsDateTime de wttr.in puede estar desfasada 1-2 horas respecto a la hora real.
   const hour = new Date().getHours();
   const weatherDesc = current.weatherDesc?.[0]?.value || '';
   const weatherCode = current.weatherCode;
+  
+  // FORZAR lectura correcta de Celsius (sin &u ya no hay ambigüedad)
   const temp = parseFloat(current.temp_C) || 22;
   const feelsLike = parseFloat(current.FeelsLikeC) || temp;
   const windSpeed = parseFloat(current.windspeedKmph) || 0;
@@ -322,7 +323,7 @@ function classifyWeather(weatherData) {
     hasRainWithNubes,
     isDefault: false
   };
-}
+    }
 
 async function initWeatherAndBackground() {
   console.log('🌤️ Inicializando clima y fondo...');
@@ -387,10 +388,25 @@ async function initWeatherAndBackground() {
     temperature: classified.temperature,
     city: 'Nuevo Laredo',
     timestamp: Date.now(),
-    fullData: classified
-  }));
+async function initWeatherAndBackground() {
+  console.log('🌤️ Inicializando clima y fondo...');
   
-  // Actualizar UI
+  // Mostrar estado de carga
+  const widget = document.getElementById('weather-widget');
+  if (widget) {
+    widget.innerHTML = '<span class="weather-icon">🌡️</span><span>Cargando...</span>';
+    widget.classList.add('loading');
+  }
+  
+  // ELIMINAR VERIFICACIÓN DE CACHÉ - siempre consultar API fresca
+  // El clima cambia constantemente y la petición es muy ligera (~2KB)
+  
+  const weatherData = await fetchWeatherData();
+  const classified = classifyWeather(weatherData);
+  
+  // ELIMINAR sessionStorage.setItem - no cachear el clima
+  // Ya no guardamos en caché para evitar datos desactualizados
+  
   updateWeatherWidgetUI(classified);
   const imageUrl = selectBackgroundImage(classified);
   updateLooksNavBackground(imageUrl);
@@ -413,7 +429,7 @@ async function initWeatherAndBackground() {
     temperatura: classified.temperature,
     imagen: imageUrl ? '✅' : '❌'
   });
-    }
+}
 
 // ========== FUNCIONES DE PRIORIDAD DE LOOKS POR CLIMA ==========
 const WEATHER_PRIORITY_SCORES = {
