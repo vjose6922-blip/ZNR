@@ -11,13 +11,13 @@
   <link rel="preload" href="styles.css" as="style">
   <link rel="stylesheet" href="styles.css" />
   <!-- PWA Meta Tags -->
-<link rel="manifest" href="/ZNR/manifest.json">
-<meta name="theme-color" content="#3b1f5f">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Z&R">
-<link rel="apple-touch-icon" href="/ZNR/logo.svg">
-<meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/ZNR/manifest.json">
+  <meta name="theme-color" content="#3b1f5f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Z&R">
+  <link rel="apple-touch-icon" href="/ZNR/logo.svg">
+  <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body class="theme-aeromexico">
   <div id="global-loader" class="global-loader hidden">
@@ -42,44 +42,41 @@
   </header>
 
   <div class="looks-nav" id="looks-nav-bg">
-  <div class="looks-nav-content">
-    <a href="index.html" class="looks-nav-link">📋 Catálogo</a>
-    <div id="weather-widget" class="weather-widget loading">
-      <span class="weather-icon">🌡️</span>
-      <span class="weather-text">Cargando clima...</span>
+    <div class="looks-nav-content">
+      <a href="index.html" class="looks-nav-link">📋 Catálogo</a>
+      <div id="weather-widget" class="weather-widget loading">
+        <span class="weather-icon">🌡️</span>
+        <span class="weather-text">Cargando clima...</span>
+      </div>
     </div>
   </div>
-</div>
 
-    <div class="looks-grid" id="looks-container"></div>
+  <div class="looks-grid" id="looks-container"></div>
 
   <button class="floating-cart" id="floating-cart-btn" aria-label="Ver carrito">
     <span class="cart-icon">🛒</span>
     <span class="cart-badge" id="cart-count">0</span>
   </button>
 
+  <!-- Botón flotante de Wishlist para Looks -->
+  <button class="floating-wishlist" id="floating-wishlist-looks-btn" aria-label="Ver lista de deseos">
+    <span class="wishlist-icon">❤️</span>
+    <span class="wishlist-badge" id="wishlist-count-looks">0</span>
+  </button>
 
-
-<!-- Botón flotante de Wishlist para Looks -->
-<button class="floating-wishlist" id="floating-wishlist-looks-btn" aria-label="Ver lista de deseos">
-  <span class="wishlist-icon">❤️</span>
-  <span class="wishlist-badge" id="wishlist-count-looks">0</span>
-</button>
-
-<!-- Wishlist Drawer para Looks -->
-<aside class="cart-drawer" id="wishlist-looks-drawer" aria-hidden="true">
-  <div class="cart-header">
-    <h2>❤️ Looks favoritos</h2>
-    <button class="icon-button" id="close-wishlist-looks-btn" aria-label="Cerrar">✕</button>
-  </div>
-  <div class="cart-body" id="wishlist-looks-container"></div>
-  <div class="cart-footer">
-    <button id="add-all-looks-to-cart" class="primary-button full-width" style="background: linear-gradient(135deg, #ff4f81, #ff7a4f);">
-      🛒 Agregar todos los looks al carrito
-    </button>
-  </div>
-</aside>
-
+  <!-- Wishlist Drawer para Looks -->
+  <aside class="cart-drawer" id="wishlist-looks-drawer" aria-hidden="true">
+    <div class="cart-header">
+      <h2>❤️ Looks favoritos</h2>
+      <button class="icon-button" id="close-wishlist-looks-btn" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="cart-body" id="wishlist-looks-container"></div>
+    <div class="cart-footer">
+      <button id="add-all-looks-to-cart" class="primary-button full-width" style="background: linear-gradient(135deg, #ff4f81, #ff7a4f);">
+        🛒 Agregar todos los looks al carrito
+      </button>
+    </div>
+  </aside>
 
   <aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
     <div class="cart-header">
@@ -113,17 +110,11 @@
     <img id="image-modal-img" alt="Vista de producto" />
   </div>
 
-
-
-
   <script src="common.js" defer></script>
-<script src="looks.js" defer></script>
-<script src="cache-manager.js" defer></script>
-<script src="weather-bg.js" defer></script>
+  <script src="looks.js" defer></script>
+  <script src="cache-manager.js" defer></script>
 
-  
   <script>
-    // Este script NO tiene defer - debe ejecutarse rápido para registrar el SW
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/ZNR/sw.js')
@@ -170,31 +161,25 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Modifica el evento del overlay existente, agrega el cierre del wishlist de looks
-const overlay = document.getElementById("overlay");
-if (overlay) {
-    const newOverlay = overlay.cloneNode(true);
-    overlay.parentNode.replaceChild(newOverlay, overlay);
-    newOverlay.addEventListener("click", () => {
-        // Cerrar carrito
-        if (typeof window.closeCartDrawer === "function") {
-            window.closeCartDrawer();
-        }
-        // Cerrar wishlist de productos
-        if (typeof window.closeWishlistDrawer === "function") {
-            window.closeWishlistDrawer();
-        }
-        // Cerrar wishlist de looks
-        const looksDrawer = document.getElementById("wishlist-looks-drawer");
-        if (looksDrawer) looksDrawer.classList.remove("open");
-        // Cerrar modal de imagen
-        if (typeof closeImageModal === "function") {
-            closeImageModal();
-        }
-        // Cerrar overlay
-        newOverlay.classList.remove("visible");
-    });
-}
+    const overlay = document.getElementById("overlay");
+    if (overlay) {
+        const newOverlay = overlay.cloneNode(true);
+        overlay.parentNode.replaceChild(newOverlay, overlay);
+        newOverlay.addEventListener("click", () => {
+            if (typeof window.closeCartDrawer === "function") {
+                window.closeCartDrawer();
+            }
+            if (typeof window.closeWishlistDrawer === "function") {
+                window.closeWishlistDrawer();
+            }
+            const looksDrawer = document.getElementById("wishlist-looks-drawer");
+            if (looksDrawer) looksDrawer.classList.remove("open");
+            if (typeof closeImageModal === "function") {
+                closeImageModal();
+            }
+            newOverlay.classList.remove("visible");
+        });
+    }
 
     if (!cartInitialized) {
         if (typeof loadCartFromStorage === "function") loadCartFromStorage();
@@ -208,8 +193,6 @@ window.addEventListener("cartUpdated", () => {
     if (typeof renderCart === "function") renderCart();
     if (typeof updateCartBadge === "function") updateCartBadge();
 });
-
-
 
 // Wishlist looks
 const floatingWishlistLooksBtn = document.getElementById("floating-wishlist-looks-btn");
@@ -242,22 +225,17 @@ if (addAllLooksToCartBtn) {
   });
 }
 
-
-// Al final del script defer en looks.html, agrega:
 function updateLooksWishlistBadge() {
     const count = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]').length;
     const badge = document.getElementById("wishlist-count-looks");
     if (badge) badge.textContent = count;
 }
 
-// Llamar al cargar y cuando cambie
 updateLooksWishlistBadge();
 window.addEventListener('storage', (e) => {
     if (e.key === 'zr_looks_wishlist') updateLooksWishlistBadge();
 });
-
-</script>
-
+  </script>
 
   <footer class="app-footer">
     <div class="footer-content">
@@ -287,15 +265,6 @@ window.addEventListener('storage', (e) => {
 
 
 
-
-
-
-
-
-
-
-
-  
 
 
 <script>
@@ -943,8 +912,8 @@ window.addEventListener('storage', (e) => {
 </script>
 
 
-  
 
-  
+
+
 </body>
 </html>
