@@ -1,7 +1,12 @@
+// ============================================
+// looks.js - VERSIÓN UNIFICADA CON CLIMA AVANZADO
+// ============================================
+
 const WEATHER_API_URL = API_URL;
 const LOOKS_CACHE_KEY = 'zr_looks_generated_v2';
 const MAX_WEATHER_RETRIES = 5;
 const RETRY_DELAYS = [1000, 3000, 5000, 10000, 30000];
+const DEFAULT_COORDS = '27.4863,-99.5162'; // Nuevo Laredo
 
 let weatherRetryCount = 0;
 let weatherRetryTimer = null;
@@ -17,10 +22,345 @@ let preloadedNextPage = null;
 let lazyImageObserver = null;
 let isPreloading = false;
 
-window.addEventListener('beforeunload', () => {
-  sessionStorage.setItem('looks_scroll_position', window.scrollY);
-});
 
+const WEATHER_IMAGES = {
+  // Amanecer
+  'amanecer_aguanieve': '1nhMnXB76Y4iWrP9LXoKZt0UbIw9_xwlO',
+  'amanecer_lluvia_ligera': '1U8Clnj-ub65qX5RiuVb928MGJGvLUDY-',
+  'amanecer_lluvia': '1GRFUjoe1lV8yOj_f04_xXA-B1rScCkzp',
+  'amanecer_nublado_parcial': '1Xmi9084iduw7KotQa_CHQAHPXW0kfTxK',
+  'amanecer_nublado': '1Nsmbk5ZfxCgsnjAAXb8cDkajnI4LLtoa',
+  'amanecer_nieve': '1jrl3QNGjquK3znKmv7aqzZ9eirbV5XCS',
+  
+  // Atardecer
+  'atardecer_nublado_parcial': '1HhTVJBbrZGMDQrJGW7_a9Wsqs_aqZojm',
+  'atardecer_nublado': '1i7FpkNS22Lo2B9gO3PZigCYSqn66c7e8',
+  'atardecer': '1vsbL1ecVHapE_i6IFetayLnQE0JKtYQ6',
+  
+  // Día
+  'dia_calor': '1LIjulG9gfJI7gH97rvYsSXlbdQpa25QZ',
+  'dia_frio': '1xmZlWh7kUGszRImJY5aOtx4GdPmXFrL6',
+  'dia_lluvia_fuerte': '1RZmReM6hkm6E4GSKvx68_1ogXvL_mKz8',
+  'dia_lluvia': '1RZmReM6hkm6E4GSKvx68_1ogXvL_mKz8',
+  'dia_nublado_con_lluvia': '1RZmReM6hkm6E4GSKvx68_1ogXvL_mKz8',
+  'dia_nublado_parcial': '1ANwRMoStv_mdgCoXI9sdC3dsD22hKaBO',
+  'dia_nublado': '1ZCofR0LsGBrEpmnt1J7pyIsxfWoRRy8x',
+  'dia_soleado': '1Po-6qWC9qfsO_-svdOY6zzoh_suCPLCE',
+  'dia_tormenta': '1PD3UhJ0DwPzgGiVPoUCnu7GGbv3Ca9rQ',
+  
+  // Noche
+  'noche_aguanieve': '1s0VQzWFLK-B2PNDwnGV0RahObItO_NoP',
+  'noche_lluvia': '1Yca47R8c0scCINJjtINcksJc3AL2X_PC',
+  'noche_con_nubes': '1QEWLrYWPfzHar7gVEOGZUXO3EOZ4wZRt',
+  'noche_nublada': '1WHKUUwDNLFmjhgcPUvkJhpnu3HnX-mqa',
+  'noche_tormenta': '102tPkkum3VJBHgYeAvocs3Ac7IJudO9T',
+  
+  // Tarde
+  'tarde_aguanieve': '1K4_0yLksIGQPxL3m-6A4Q5QOB5OCuXxl',
+  'tarde_despejada': '13zDRnNL-y6tywCk7IY3J-OvvZt36MD6E',
+  'tarde_lluvia_fuerte': '1Z9h76cUX-KAykP9FttlnUtvYwy6NXWim',
+  'tarde_lluvia': '1sojz2uI_eXPeJtWRx-tT2nMuL1B3EYAm',
+  'tarde_nublado_parcial': '1IEdBME6kox9zLJx7z_yxzlxWAS8ELgUs',
+  'tarde_nublado': '1CUz5vvA5ehTRDgvpRpUNxJc5Emc1as3d',
+  'tarde_soleado': '1i2xsSnE92pgbNDNWxl-gbvcWo0I2-Dzn',
+  'tarde_tormenta': '1ES-72omJuliBo08CCbK57fZle1-jygX9',
+  
+  // Especiales
+  'tormenta_viento_fuerte': '19QkReOvxAEaJtVs93wl9RFa1N33REMgZ',
+  'nieve': '1n5dfGyPU36LsPrSV1-iOXmdOCFlv9WXd',
+  'default': '1WHKUUwDNLFmjhgcPUvkJhpnu3HnX-mqa'
+};
+
+function getImageUrl(fileId, size = 1200) {
+  // Si no hay ID o es el marcador de posición, usar imagen por defecto
+  if (!fileId) {
+    console.warn('getImageUrl: No hay fileId');
+    return null;
+  }
+  
+  // Usar el formato que ya comprobaste que funciona
+  const url = `https://lh3.googleusercontent.com/d/${fileId}=w${size}`;
+  console.log('🔗 URL generada:', url);
+  return url;
+}
+
+function classifyTimeOfDay(hour) {
+  if (hour >= 5 && hour < 8) return 'amanecer';
+  if (hour >= 8 && hour < 12) return 'dia';
+  if (hour >= 12 && hour < 18) return 'tarde';
+  if (hour >= 18 && hour < 20) return 'atardecer';
+  return 'noche';
+}
+
+function classifyWeatherCondition(weatherDesc, weatherCode, windSpeed, chanceOfRain, precipMM) {
+  const desc = (weatherDesc || '').toLowerCase();
+  const code = String(weatherCode || '');
+  const isStrongWind = windSpeed > 35;
+  
+  if (desc.includes('tormenta') || desc.includes('thunder') || desc.includes('storm') || code === '127' || code === '128') {
+    return isStrongWind ? 'tormenta_viento_fuerte' : 'tormenta';
+  }
+  if (desc.includes('nieve') || desc.includes('snow') || desc.includes('sleet') || code === '179' || code === '182' || code === '227' || code === '230') {
+    return 'nieve';
+  }
+  if (desc.includes('aguanieve') || desc.includes('sleet')) {
+    return 'aguanieve';
+  }
+  const isRain = desc.includes('lluvia') || desc.includes('rain') || code === '176' || code === '185' || code === '299' || code === '302' || code === '305' || code === '308';
+  if (isRain) {
+    const isHeavy = (chanceOfRain > 70) || (precipMM > 5);
+    return isHeavy ? 'lluvia_fuerte' : 'lluvia';
+  }
+  if (desc.includes('nublado') || desc.includes('overcast') || desc.includes('cloudy') || code === '119' || code === '122') {
+    return 'nublado';
+  }
+  if (desc.includes('parcialmente') || desc.includes('poco nuboso') || desc.includes('few clouds') || code === '116') {
+    return 'nublado_parcial';
+  }
+  if (isStrongWind) {
+    return 'viento_fuerte';
+  }
+  return 'soleado';
+}
+
+function classifyTemperature(feelsLike) {
+  if (feelsLike >= 28) return 'calor';
+  if (feelsLike <= 15) return 'frio';
+  return 'templado';
+}
+
+function getImageKey(timeOfDay, condition, hasRainWithNubes = false) {
+  if (condition === 'tormenta_viento_fuerte') return 'tormenta_viento_fuerte';
+  if (condition === 'nieve') return 'nieve';
+  if (condition === 'lluvia' && hasRainWithNubes) {
+    return `${timeOfDay}_nublado_con_lluvia`;
+  }
+  if (timeOfDay === 'noche' && condition === 'nublado_parcial') {
+    return 'noche_con_nubes';
+  }
+  
+  const conditionMap = {
+    'aguanieve': 'aguanieve',
+    'lluvia_fuerte': 'lluvia_fuerte',
+    'lluvia': 'lluvia',
+    'nublado': 'nublado',
+    'nublado_parcial': 'nublado_parcial',
+    'soleado': 'soleado',
+    'tormenta': 'tormenta',
+    'calor': 'calor',
+    'frio': 'frio',
+    'viento_fuerte': 'viento_fuerte'
+  };
+  
+  const mappedCondition = conditionMap[condition] || condition;
+  
+  if (timeOfDay === 'amanecer' && mappedCondition === 'nieve') return 'amanecer_nieve';
+  if (timeOfDay === 'amanecer' && mappedCondition === 'aguanieve') return 'amanecer_aguanieve';
+  if (timeOfDay === 'tarde' && mappedCondition === 'soleado') return 'tarde_soleado';
+  if (timeOfDay === 'tarde' && mappedCondition === 'despejado') return 'tarde_despejada';
+  
+  return `${timeOfDay}_${mappedCondition}`;
+}
+
+function selectBackgroundImage(classified) {
+  const imageKey = getImageKey(classified.timeOfDay, classified.condition, classified.hasRainWithNubes);
+    console.log('🔑 Clave de imagen buscada:', imageKey);
+  
+  let fileId = WEATHER_IMAGES[imageKey];
+    if (!fileId) {
+    const fallbackKey = `${classified.timeOfDay}_${classified.condition.replace('_fuerte', '').replace('_ligera', '')}`;
+    fileId = WEATHER_IMAGES[fallbackKey];
+    console.log('🔄 Usando fallback:', fallbackKey);
+  }
+  
+  if (!fileId) {
+    fileId = WEATHER_IMAGES['default'];
+    console.log('⚠️ Usando imagen por defecto');
+  }
+  return getImageUrl(fileId, 1200);
+}
+
+
+
+
+
+
+function updateLooksNavBackground(imageUrl) {
+  const looksNav = document.getElementById('looks-nav-bg');
+  if (!looksNav) {
+    console.warn('⚠️ No se encontró #looks-nav-bg');
+    return;
+  }
+  
+  if (imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined') {
+    const img = new Image();
+    img.onload = () => {
+      // SOLO aplicar la imagen, nada más
+      looksNav.style.backgroundImage = `url('${imageUrl}')`;
+      
+      // Eliminar clases de fallback
+      looksNav.classList.remove('default-bg');
+      looksNav.classList.remove('fallback-bg');
+      
+      console.log('✅ Fondo actualizado con imagen');
+    };
+    img.onerror = () => {
+      console.error('❌ Error cargando imagen, usando color de fondo');
+      applyFallbackBackground(looksNav);
+    };
+    img.src = imageUrl;
+  } else {
+    applyFallbackBackground(looksNav);
+  }
+}
+
+function applyFallbackBackground(looksNav) {
+  looksNav.style.backgroundImage = 'none';
+  looksNav.classList.add('fallback-bg');
+}
+
+
+function updateWeatherWidgetUI(classified) {
+  const widget = document.getElementById('weather-widget');
+  if (!widget) return;
+  
+  const temp = Math.round(classified.temperature);
+  
+  let icon = '🌡️';
+  if (classified.condition.includes('lluvia')) icon = '☔';
+  else if (classified.condition === 'tormenta') icon = '⛈️';
+  else if (classified.condition === 'nieve') icon = '❄️';
+  else if (classified.condition === 'soleado' || classified.condition === 'calor') icon = '☀️';
+  else if (classified.condition === 'nublado') icon = '☁️';
+  else if (classified.condition === 'nublado_parcial') icon = '⛅';
+  else if (classified.condition === 'viento_fuerte') icon = '💨';
+  
+  widget.innerHTML = `<span class="weather-icon">${icon}</span><span>${temp}°C</span>`;
+  widget.classList.remove('loading');
+}
+
+async function fetchWeatherData(coords = DEFAULT_COORDS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  
+  try {
+    const url = `https://wttr.in/${coords}?format=j1&lang=es&u`;
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.warn('⚠️ Error obteniendo clima:', error.message);
+    return null;
+  }
+}
+
+function classifyWeather(weatherData) {
+  if (!weatherData || !weatherData.current_condition) {
+    const now = new Date();
+    return {
+      timeOfDay: classifyTimeOfDay(now.getHours()),
+      condition: 'soleado',
+      temperature: 22,
+      feelsLike: 22,
+      weatherDesc: 'Estimado',
+      isDefault: true
+    };
+  }
+  
+  const current = weatherData.current_condition[0];
+  const hourly = weatherData.weather?.[0]?.hourly?.[0] || {};
+  
+  const localTime = current.localObsDateTime || new Date().toISOString();
+  const hour = parseInt(localTime.split(' ')[1]?.split(':')[0]) || new Date().getHours();
+  const weatherDesc = current.weatherDesc?.[0]?.value || '';
+  const weatherCode = current.weatherCode;
+  const temp = parseFloat(current.temp_C) || 22;
+  const feelsLike = parseFloat(current.FeelsLikeC) || temp;
+  const windSpeed = parseFloat(current.windspeedKmph) || 0;
+  const chanceOfRain = parseFloat(hourly.chanceofrain) || 0;
+  const precipMM = parseFloat(hourly.precipMM) || 0;
+  
+  const timeOfDay = classifyTimeOfDay(hour);
+  let condition = classifyWeatherCondition(weatherDesc, weatherCode, windSpeed, chanceOfRain, precipMM);
+  const tempCategory = classifyTemperature(feelsLike);
+  
+  if (tempCategory === 'calor' && condition === 'soleado') {
+    condition = 'calor';
+  } else if (tempCategory === 'frio' && condition === 'soleado') {
+    condition = 'frio';
+  }
+  
+  const hasRainWithNubes = condition === 'lluvia' && weatherDesc.includes('nublado');
+  
+  return {
+    timeOfDay,
+    condition,
+    temperature: temp,
+    feelsLike: feelsLike,
+    weatherDesc: weatherDesc,
+    windSpeed: windSpeed,
+    chanceOfRain: chanceOfRain,
+    hasRainWithNubes,
+    isDefault: false
+  };
+}
+
+async function initWeatherAndBackground() {
+  console.log('🌤️ Inicializando clima y fondo...');
+  
+  const widget = document.getElementById('weather-widget');
+  if (widget) {
+    widget.innerHTML = '<span class="weather-icon">🌡️</span><span>Cargando...</span>';
+    widget.classList.add('loading');
+  }
+  
+  const cached = sessionStorage.getItem('zr_weather_cache');
+  if (cached) {
+    try {
+      const { weatherType, temperature, city, timestamp, fullData } = JSON.parse(cached);
+      if (Date.now() - timestamp < 300000 && fullData) {
+        console.log('🌤️ Clima desde caché');
+        updateWeatherWidgetUI(fullData);
+        const imageUrl = selectBackgroundImage(fullData);
+        updateLooksNavBackground(imageUrl);
+        currentWeather = { weatherType, temperature, city };
+        return;
+      }
+    } catch(e) {}
+  }
+  
+  const weatherData = await fetchWeatherData();
+  const classified = classifyWeather(weatherData);
+  
+  sessionStorage.setItem('zr_weather_cache', JSON.stringify({
+    weatherType: classified.condition,
+    temperature: classified.temperature,
+    city: 'Nuevo Laredo',
+    timestamp: Date.now(),
+    fullData: classified
+  }));
+  
+  updateWeatherWidgetUI(classified);
+  const imageUrl = selectBackgroundImage(classified);
+  updateLooksNavBackground(imageUrl);
+  
+  currentWeather = {
+    weatherType: classified.condition,
+    temperature: classified.temperature,
+    city: 'Nuevo Laredo'
+  };
+  
+  console.log('🌤️ Clima aplicado:', {
+    hora: classified.timeOfDay,
+    condición: classified.condition,
+    temperatura: classified.temperature,
+    imagen: imageUrl ? '✅' : '❌'
+  });
+}
+
+// ========== FUNCIONES DE PRIORIDAD DE LOOKS POR CLIMA ==========
 const WEATHER_PRIORITY_SCORES = {
   calor: {
     "look_verano_dama": 100, "look_verano_caballero": 100,
@@ -56,73 +396,74 @@ const WEATHER_PRIORITY_SCORES = {
   }
 };
 
+// ========== CONFIGURACIÓN DE LOOKS ==========
 const LOOKS_CONFIG = [
-  { id: "look_casual_dama", name: "\u{1F45F} Casual", description: "Para tu d\u00EDa a d\u00EDa", category: "Mujer",
+  { id: "look_casual_dama", name: "👗 Casual", description: "Para tu día a día", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["vestir", "formal", "gala"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: [], excludeKeywords: ["formal", "vestir"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis"], excludeKeywords: ["formal", "tac\u00F3n", "zapato"], required: true }
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis"], excludeKeywords: ["formal", "tacón", "zapato"], required: true }
     ] },
-  { id: "look_elegante_dama", name: "\u{1F457} Elegancia Femenina", description: "Para ocasiones especiales", category: "Mujer",
+  { id: "look_elegante_dama", name: "👠 Elegancia Femenina", description: "Para ocasiones especiales", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: ["Vestir"], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["Vestir"], excludeKeywords: ["short", "jeans", "mezclilla"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Zapatos"], excludeKeywords: ["tenis", "sandalias", "deportivo"], required: true }
     ] },
-  { id: "look_verano_dama", name: "\u2600\uFE0F Verano Fresco", description: "Fresco para d\u00EDas calurosos", category: "Mujer",
+  { id: "look_verano_dama", name: "☀️ Verano Fresco", description: "Fresco para días calurosos", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["vestir", "formal", "abrigo"], required: true },
-      { type: "piernas", categories: ["Short para Dama"], keywords: [], excludeKeywords: ["formal", "vestir", "pantal\u00F3n"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tac\u00F3n"], required: true }
+      { type: "piernas", categories: ["Short para Dama"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalón"], required: true },
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacón"], required: true }
     ] },
-  { id: "look_falda_dama", name: "\u{1F338} Luce una Falda", description: "Look fresco con falda", category: "Mujer",
+  { id: "look_falda_dama", name: "🌸 Luce una Falda", description: "Look fresco con falda", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["deportivo", "abrigo"], required: true },
-      { type: "piernas", categories: ["Faldas"], keywords: [], excludeKeywords: ["short", "pantal\u00F3n"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tac\u00F3n"], required: true }
+      { type: "piernas", categories: ["Faldas"], keywords: [], excludeKeywords: ["short", "pantalón"], required: true },
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacón"], required: true }
     ] },
-  { id: "look_vestido_dama", name: "\u{1F483} Vestido Elegante", description: "Perfecto para citas", category: "Mujer",
+  { id: "look_vestido_dama", name: "💃 Vestido Elegante", description: "Perfecto para citas", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Vestidos"], keywords: [], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["tacones"], excludeKeywords: ["tenis", "deportivo", "sandalias"], required: true }
     ] },
-  { id: "look_confort_dama", name: "\u{1F6CB}\uFE0F Confort en Casa", description: "Comodidad en casa", category: "Mujer",
+  { id: "look_confort_dama", name: "🛋️ Confort en Casa", description: "Comodidad en casa", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Sueter para Dama"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants"], excludeKeywords: ["vestir", "formal"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tac\u00F3n"], required: true }
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacón"], required: true }
     ] },
-  { id: "look_chamarra_dama", name: "\u{1F9E5}\u{1F7E3} Abrigate", description: "Ideal para d\u00EDas frescos", category: "Mujer",
+  { id: "look_chamarra_dama", name: "🧥 Abrigate", description: "Ideal para días frescos", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Chamarra para Dama"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants", "pantalon"], excludeKeywords: ["vestir", "formal", "short"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tac\u00F3n"], required: true }
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacón"], required: true }
     ] },
-  { id: "look_casual_caballero", name: "\u{1F454} Casual ", description: "Para el d\u00EDa a d\u00EDa", category: "Hombre",
+  { id: "look_casual_caballero", name: "👔 Casual Hombre", description: "Para el día a día", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: [], excludeKeywords: ["vestir", "formal", "camisa"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "short"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis", "Botas"], excludeKeywords: ["formal", "zapato"], required: true }
     ] },
-  { id: "look_elegante_caballero", name: "\u{1F935} Elegancia Masculina", description: "Formal para ocasiones especiales", category: "Hombre",
+  { id: "look_elegante_caballero", name: "🤵 Elegancia Masculina", description: "Formal para ocasiones especiales", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: ["Vestir"], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["Vestir"], excludeKeywords: ["short", "jeans", "mezclilla"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Zapatos"], excludeKeywords: ["tenis", "deportivo", "botas"], required: true }
     ] },
-  { id: "look_verano_caballero", name: "\u{1F3D6}\uFE0F Verano Hombre", description: "Fresco para el calor", category: "Hombre",
+  { id: "look_verano_caballero", name: "🏖️ Verano Hombre", description: "Fresco para el calor", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: [], excludeKeywords: ["vestir", "formal", "camisa"], required: true },
-      { type: "piernas", categories: ["Short para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "pantal\u00F3n"], required: true },
+      { type: "piernas", categories: ["Short para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalón"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "zapato"], required: true }
     ] },
-  { id: "look_chamarra_caballero", name: "\u{1F9E5}\u{1F535} Abrigate", description: "Luce tu chamarra", category: "Hombre",
+  { id: "look_chamarra_caballero", name: "🧥 Abrigate Hombre", description: "Luce tu chamarra", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Chamarra para Caballero"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["pants", "pantalon"], excludeKeywords: ["vestir", "formal", "short"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis"], excludeKeywords: ["formal", "zapato"], required: true }
     ] },
-  { id: "look_confort_caballero", name: "\u{1F6CB}\uFE0F Confort Hombre", description: "Comodidad para el hogar", category: "Hombre",
+  { id: "look_confort_caballero", name: "🛋️ Confort Hombre", description: "Comodidad para el hogar", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Sueter para Caballero"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["pants"], excludeKeywords: ["vestir", "formal", "short"], required: true },
@@ -130,6 +471,7 @@ const LOOKS_CONFIG = [
     ] }
 ];
 
+// ========== FUNCIONES DE SKELETON Y UI ==========
 function showSkeletonLooks() {
   const container = document.getElementById("looks-container");
   if (!container) return;
@@ -192,10 +534,7 @@ function initLazyLoading() {
           lazyImageObserver.unobserve(img);
         }
       });
-    }, {
-      rootMargin: '100px 0px',
-      threshold: 0.01
-    });
+    }, { rootMargin: '100px 0px', threshold: 0.01 });
   }
 }
 
@@ -206,6 +545,7 @@ function initLazyImagesAfterRender() {
   }
 }
 
+// ========== FUNCIONES DE CACHÉ DE LOOKS ==========
 function compressLooksData(looks) {
   return looks.map(look => ({
     id: look.id,
@@ -244,7 +584,7 @@ function getCachedLooksOptimized() {
       const { looks: compressed, timestamp, productsHash } = JSON.parse(sessionCached);
       const currentHash = getProductsQuickHash();
       if (currentHash === productsHash && (Date.now() - timestamp) < 300000) {
-        console.log("\u26A1 Looks desde sessionStorage (instant\u00E1neo)");
+        console.log("⚡ Looks desde sessionStorage (instantáneo)");
         return decompressLooksData(compressed);
       }
     }
@@ -254,7 +594,7 @@ function getCachedLooksOptimized() {
       const { looks: compressed, timestamp, productsHash } = JSON.parse(localCached);
       const currentHash = getProductsQuickHash();
       if (currentHash === productsHash && (Date.now() - timestamp) < 600000) {
-        console.log("\u{1F4E6} Looks desde localStorage");
+        console.log("📦 Looks desde localStorage");
         const decompressed = decompressLooksData(compressed);
         sessionStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify({
           looks: compressed,
@@ -267,7 +607,7 @@ function getCachedLooksOptimized() {
     
     return null;
   } catch(e) {
-    console.warn("Error cargando cach\u00E9 de looks:", e);
+    console.warn("Error cargando caché de looks:", e);
     return null;
   }
 }
@@ -285,9 +625,9 @@ function saveLooksToCacheOptimized(looks) {
     sessionStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify(cacheData));
     localStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify(cacheData));
     
-    console.log(`\u{1F4BE} Looks guardados en cach\u00E9`);
+    console.log(`💾 Looks guardados en caché`);
   } catch(e) {
-    console.warn("Error guardando cach\u00E9 de looks:", e);
+    console.warn("Error guardando caché de looks:", e);
   }
 }
 
@@ -296,69 +636,7 @@ function getProductsQuickHash() {
   return allProducts.slice(0, 100).map(p => `${p.ID}:${p.Stock}`).join('|');
 }
 
-async function getWeather() {
-  try {
-    const response = await fetch(`${WEATHER_API_URL}?action=getWeather`);
-    const data = await response.json();
-    if (data.ok && data.weatherType) {
-      currentWeather = data;
-      console.log("\u{1F324}\uFE0F Clima actual:", data.weatherType, data.temperature, data.city);
-      addWeatherNotification(data);
-      return data;
-    } else {
-      currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
-      return currentWeather;
-    }
-  } catch (err) {
-    console.error("Error obteniendo clima:", err);
-    currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
-    return currentWeather;
-  }
-}
-
-function addWeatherNotification(weather) {
-  const existing = document.querySelector('.weather-notification');
-  if (existing) existing.remove();
-  let weatherIcon = "\u{1F324}\uFE0F";
-  let weatherText = "";
-  let recommendation = "";
-  switch(weather.weatherType) {
-    case 'calor':
-      weatherIcon = "\u2600\uFE0F\u{1F525}";
-      weatherText = "\u00A1D\u00EDa caluroso!";
-      recommendation = "Te recomendamos looks frescos para el calor \u2600\uFE0F";
-      break;
-    case 'frio':
-      weatherIcon = "\u2744\uFE0F\u{1F976}";
-      weatherText = "\u00A1D\u00EDa fr\u00EDo!";
-      recommendation = "Te recomendamos looks abrigadores \u{1F9E5}";
-      break;
-    case 'lluvioso':
-      weatherIcon = "\u{1F327}\uFE0F\u2614";
-      weatherText = "\u00A1D\u00EDa lluvioso!";
-      recommendation = "Te recomendamos looks con chamarra y calzado cerrado \u{1F9E5}\u{1F45F}";
-      break;
-    default:
-      weatherIcon = "\u{1F324}\uFE0F";
-      weatherText = "Clima templado";
-      recommendation = "Looks casuales y elegantes para hoy \u2728";
-  }
-  const notif = document.createElement('div');
-  notif.className = 'weather-notification';
-  notif.innerHTML = `
-    <div class="weather-notification-content">
-      <div class="weather-icon">${weatherIcon}</div>
-      <div class="weather-info">
-        <div class="weather-text">${weatherText} ${weather.temperature ? `${weather.temperature}\u00B0C` : ''}</div>
-        <div class="weather-recommendation">${recommendation}</div>
-      </div>
-      <button class="weather-close" onclick="this.closest('.weather-notification').remove()">\u2715</button>
-    </div>
-  `;
-  document.body.insertBefore(notif, document.body.firstChild);
-  setTimeout(() => { if (notif && notif.parentNode) notif.remove(); }, 8000);
-}
-
+// ========== FUNCIONES DE GENERACIÓN DE LOOKS ==========
 function sortLooksByWeather(looksArray) {
   if (!currentWeather || !currentWeather.weatherType) return looksArray;
   const weatherType = currentWeather.weatherType.toLowerCase();
@@ -409,9 +687,11 @@ function getProductsForSlot(products, slot) {
 function selectProductsForLook(lookConfig, productsWithImages, currentSelection = {}) {
   const selected = {};
   const usedProductIds = [];
+  
   for (const slot of lookConfig.slots) {
     const slotKey = slot.type;
     const currentProductId = currentSelection[slotKey]?.id;
+    
     if (currentProductId && !currentSelection._reloading) {
       const existingProduct = productsWithImages.find(p => p.ID == currentProductId);
       if (existingProduct && existingProduct.Stock > 0) {
@@ -428,8 +708,10 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
         continue;
       }
     }
+    
     const availableProducts = getProductsForSlot(productsWithImages, slot);
     const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
+    
     if (freshProducts.length > 0) {
       const randomIndex = Math.floor(Math.random() * freshProducts.length);
       const product = freshProducts[randomIndex];
@@ -445,6 +727,7 @@ function selectProductsForLook(lookConfig, productsWithImages, currentSelection 
       usedProductIds.push(String(product.ID));
     }
   }
+  
   return selected;
 }
 
@@ -502,7 +785,7 @@ async function generateLooksProgressive() {
         preloadAdjacentPages();
         
         const endTime = performance.now();
-        console.log(`\u2705 Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
+        console.log(`✅ Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
         resolve();
       }
     }
@@ -511,6 +794,7 @@ async function generateLooksProgressive() {
   });
 }
 
+// ========== FUNCIONES DE RENDERIZADO ==========
 function preloadAdjacentPages() {
   if (isPreloading) return; 
   isPreloading = true;
@@ -552,7 +836,7 @@ function preloadLooksPage(pageNumber) {
       });
       
       preloadedNextPage = pageNumber;
-      console.log(`\u{1F52E} Precargada p\u00E1gina ${pageNumber} de looks`);
+      console.log(`🔎 Precargada página ${pageNumber} de looks`);
     });
   } else {
     setTimeout(() => {
@@ -567,493 +851,6 @@ function preloadLooksPage(pageNumber) {
       preloadedNextPage = pageNumber;
     }, 100);
   }
-}
-
-let isBackgroundServicesStarted = false;
-let isLoadingProducts = false;
-
-async function loadProducts() {
-  if (isLoadingProducts) {
-    console.log("\u23ED\uFE0F Carga de productos ya en progreso, omitiendo...");
-    return;
-  }
-  
-  isLoadingProducts = true;
-  showSkeletonLooks();
-
-  if (!navigator.onLine) {
-    console.log('📡 Offline - Cargando looks desde caché');
-    if (window.ConnectionMonitor?.showOfflineBanner) {
-      window.ConnectionMonitor.showOfflineBanner();
-    }
-  }
-  
-  const ensureProductIndex = (products) => {
-    if (!products?.length) return false;
-    
-    if (typeof window.buildProductIndex === "function") {
-      window.buildProductIndex(products);
-      return true;
-    } else if (typeof buildProductIndex === "function") {
-      buildProductIndex(products);
-      return true;
-    }
-    return false;
-  };
-
-  const getCachedProductsUnified = () => {
-    return window.CacheManager?.getSessionProductsCache?.() || getCachedProducts() || [];
-  };
-
-  const restoreScrollPosition = () => {
-    const savedScroll = sessionStorage.getItem("looks_scroll_position");
-    if (savedScroll) {
-      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
-      sessionStorage.removeItem("looks_scroll_position");
-    }
-  };
-
-  const renderInitialLooks = () => {
-    setTimeout(() => {
-      renderLooks();
-      initLazyImagesAfterRender();
-      preloadAdjacentPages();
-      hideSkeletonLooks();
-    }, 50);
-  };
-
-  const startBackgroundServices = () => {
-  if (isBackgroundServicesStarted) {
-    console.log("⏭️ Servicios background ya iniciados previamente");
-    return;
-  }
-  
-  isBackgroundServicesStarted = true;
-  console.log("🚀 Iniciando servicios en background...");
-  
-  // ✅ FORZAR ACTUALIZACIÓN INMEDIATA DEL CLIMA (ignorar caché)
-  if (typeof fetchWeatherAndReorder === "function") {
-    fetchWeatherAndReorder(true);  // ← true = forceRetry, ignora caché
-  }
-  
-  if (typeof startWeatherMonitoring === "function") {
-    startWeatherMonitoring();
-  }
-  
-  if (navigator.onLine && !isGeneratingLooks && typeof loadFreshProductsInBackground === "function") {
-    loadFreshProductsInBackground();
-  }
-};
-
-  // En loadProducts(), encuentra la función initializeWeatherFromCache:
-
-const initializeWeatherFromCache = () => {
-  // Intentar cargar clima desde caché primero
-  try {
-    const cached = sessionStorage.getItem('zr_weather_cache');
-    if (cached) {
-      const { weatherType, temperature, city, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < 300000) { // 5 minutos
-        currentWeather = { weatherType, temperature, city };
-        console.log("🌤️ Clima cargado desde caché:", weatherType, temperature + "°C");
-        return true;
-      }
-    }
-  } catch(e) {
-    console.warn("Error cargando clima desde caché:", e);
-  }
-  
-  // ✅ NO usar valor por defecto, dejar como null para que muestre "Cargando..."
-  // hasta que fetchWeatherAndReorder obtenga el clima real
-  currentWeather = null;
-  console.log("🌤️ Sin caché de clima - esperando API...");
-  return false;
-};
-
-  // ===== INICIALIZAR CLIMA ANTES DE CUALQUIER RENDERIZADO =====
-  initializeWeatherFromCache();
-  updateWeatherWidget(); // Actualizar widget inmediatamente
-
-  const cachedLooks = getCachedLooksOptimized();
-  
-  if (cachedLooks?.length > 0) {
-    console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
-
-    allLooks = cachedLooks;
-    looks = [...allLooks];
-    currentLooksPage = 1;
-
-    const cachedProducts = getCachedProductsUnified();
-    if (cachedProducts.length > 0) {
-      allProducts = cachedProducts;
-      ensureProductIndex(allProducts);
-    }
-
-    renderInitialLooks();
-    restoreScrollPosition();
-    startBackgroundServices();
-
-    isLoadingProducts = false;
-    return;
-  }
-
-  const cachedProducts = getCachedProductsUnified();
-  
-  if (cachedProducts.length > 0) {
-    console.log("⚡ Productos desde caché, generando looks progresivamente...");
-
-    allProducts = cachedProducts;
-    ensureProductIndex(allProducts);
-
-    await generateLooksProgressive();
-    hideSkeletonLooks();
-    restoreScrollPosition();
-    startBackgroundServices();
-
-    isLoadingProducts = false;
-    return;
-  }
-
-  try {
-    // Ya tenemos clima inicializado desde caché o por defecto
-    console.log("🌐 Cargando productos desde red...");
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-    const res = await fetch(API_URL, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    const data = await res.json();
-    allProducts = data.products || data || [];
-    setCachedProducts(allProducts);
-    ensureProductIndex(allProducts);
-    await generateLooksProgressive();
-    hideSkeletonLooks();
-    startBackgroundServices();
-
-  } catch (err) {
-    console.error("❌ Error cargando productos:", err);
-    const container = document.getElementById("looks-container");
-    if (container && !container.querySelector(".look-card")) {
-      container.innerHTML = `
-        <div class="empty-looks">
-          <p>❌ Error al cargar los productos.</p>
-          <p>Verifica tu conexión a internet e <a href="#" onclick="location.reload()">intenta nuevamente</a>.</p>
-        </div>
-      `;
-    }
-
-    hideSkeletonLooks();
-  } finally {
-    isLoadingProducts = false;
-  }
-}
-
-
-
-function updateWeatherWidget() {
-  const widget = document.getElementById('weather-widget');
-  if (!widget) {
-    console.log("⚠️ Widget de clima no encontrado en el DOM");
-    return;
-  }
-  
-  console.log("🌤️ Actualizando widget con:", currentWeather);
-  
-  // ✅ Si no hay clima o está cargando, mostrar indicador
-  if (!currentWeather || !currentWeather.weatherType) {
-    widget.innerHTML = `<span class="weather-icon">🌡️</span><span>Cargando...</span>`;
-    widget.classList.add('loading');
-    return;
-  }
-  
-  let weatherIcon = "🌡️";
-  let weatherText = "";
-  
-  switch(currentWeather.weatherType) {
-    case 'calor':
-      weatherIcon = "☀️🔥";
-      weatherText = "Calor";
-      break;
-    case 'frio':
-      weatherIcon = "❄️🥶";
-      weatherText = "Frío";
-      break;
-    case 'lluvioso':
-      weatherIcon = "🌧️☔";
-      weatherText = "Lluvia";
-      break;
-    default:
-      weatherIcon = "🌤️";
-      weatherText = "Templado";
-  }
-  
-  const temp = currentWeather.temperature ? `${Math.round(currentWeather.temperature)}°C` : '';
-  
-  widget.innerHTML = `
-    <span class="weather-icon">${weatherIcon}</span>
-    <span class="weather-temp">${weatherText} ${temp}</span>
-  `;
-  widget.classList.remove('loading');
-  
-  console.log(`✅ Widget actualizado: ${weatherText} ${temp}`);
-}
-
-
-
-
-
-async function fetchWeatherAndReorder(forceRetry = false) {
-  // Verificar caché primero
-  const cachedWeather = sessionStorage.getItem('zr_weather_cache');
-  if (!forceRetry && cachedWeather) {
-    try {
-      const { weatherType, temperature, city, timestamp } = JSON.parse(cachedWeather);
-      if (Date.now() - timestamp < 300000) { // 5 minutos
-        console.log("🌤️ Clima desde caché:", weatherType, temperature);
-        
-        if (currentWeather?.weatherType !== weatherType) {
-          currentWeather = { weatherType, temperature, city };
-          reorderLooksDynamically();
-          addWeatherNotification(currentWeather);
-          updateWeatherWidget();
-        } else if (!currentWeather) {
-          currentWeather = { weatherType, temperature, city };
-          updateWeatherWidget();
-        }
-        return;
-      }
-    } catch(e) {}
-  }
-  
-  try {
-    console.log("🌤️ Obteniendo clima actual del backend...");
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    const response = await fetch(`${WEATHER_API_URL}?action=getWeather`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    const data = await response.json();
-    
-    if (data.ok && data.weatherType) {
-      // Guardar en caché (sessionStorage)
-      const cacheData = {
-        weatherType: data.weatherType,
-        temperature: data.temperature,
-        city: data.city,
-        timestamp: Date.now()
-      };
-      sessionStorage.setItem('zr_weather_cache', JSON.stringify(cacheData));
-      
-      weatherRetryCount = 0;
-      if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
-      
-      if (currentWeather?.weatherType !== data.weatherType) {
-        console.log(`🌤️ Clima actualizado: ${currentWeather?.weatherType || 'ninguno'} → ${data.weatherType}`);
-        currentWeather = data;
-        reorderLooksDynamically();
-        addWeatherNotification(data);
-        updateWeatherWidget();
-      } else {
-        currentWeather = data;
-        updateWeatherWidget();
-      }
-      
-      return true;
-    } else {
-      throw new Error("Respuesta inválida del API");
-    }
-    
-  } catch (err) {
-    console.warn(`⚠️ Error obteniendo clima (intento ${weatherRetryCount + 1}/${MAX_WEATHER_RETRIES}):`, err.message);
-    
-    if (weatherRetryCount < MAX_WEATHER_RETRIES) {
-      const delay = RETRY_DELAYS[weatherRetryCount] || 30000;
-      console.log(`🔄 Reintentando clima en ${delay/1000} segundos...`);
-      
-      if (weatherRetryTimer) clearTimeout(weatherRetryTimer);
-      weatherRetryTimer = setTimeout(() => {
-        weatherRetryCount++;
-        fetchWeatherAndReorder(true);
-      }, delay);
-    } else {
-      console.log("❌ Máximos reintentos alcanzados para el clima. Usando orden por defecto.");
-      weatherRetryCount = 0;
-      
-      // Intentar usar caché aunque esté expirada como fallback
-      const expiredCache = sessionStorage.getItem('zr_weather_cache');
-      if (expiredCache && !currentWeather) {
-        try {
-          const { weatherType, temperature, city } = JSON.parse(expiredCache);
-          currentWeather = { weatherType, temperature, city };
-          updateWeatherWidget();
-          console.log("⚠️ Usando caché expirada como fallback");
-        } catch(e) {}
-      }
-      
-      if (!currentWeather) {
-        currentWeather = { weatherType: 'templado', temperature: 22, city: 'Default' };
-        updateWeatherWidget();
-      }
-      
-      showTemporaryMessage("No se pudo obtener el clima. Mostrando orden estándar.", "info");
-    }
-    
-    return false;
-  }
-}
-
-
-
-function resetBackgroundServices() {
-  isBackgroundServicesStarted = false;
-  weatherRetryCount = 0;
-  if (typeof stopWeatherMonitoring === "function") {
-    stopWeatherMonitoring();
-  }
-  console.log("\u{1F504} Servicios background reiniciados");
-}
-
-window.resetBackgroundServices = resetBackgroundServices;
-
-
-
-
-function startWeatherMonitoring() {
-  if (weatherUpdateInterval) clearInterval(weatherUpdateInterval);
-  
-  // Actualización periódica cada 10 minutos (en lugar de 12)
-  weatherUpdateInterval = setInterval(() => {
-    console.log("🔄 Actualización periódica del clima...");
-    fetchWeatherAndReorder(true);
-  }, 600000); // 10 minutos
-  
-  window.addEventListener('online', () => {
-    console.log("🟢 Conexión recuperada - actualizando clima...");
-    fetchWeatherAndReorder(true);
-  });
-}
-
-function stopWeatherMonitoring() {
-  if (weatherUpdateInterval) {
-    clearInterval(weatherUpdateInterval);
-    weatherUpdateInterval = null;
-  }
-  if (weatherRetryTimer) {
-    clearTimeout(weatherRetryTimer);
-    weatherRetryTimer = null;
-  }
-}
-
-function reorderLooksDynamically() {
-  if (!allLooks.length) return;
-  
-  const newOrder = sortLooksByWeather([...allLooks]);
-  
-  const currentIds = looks.map(l => l.id).join(',');
-  const newIds = newOrder.map(l => l.id).join(',');
-  
-  if (currentIds !== newIds && newOrder.length > 0) {
-    looks = newOrder;
-    allLooks = [...looks];
-    
-    const container = document.getElementById("looks-container");
-    if (container && container.children.length > 0) {
-      const currentPageLooks = looks.slice(
-        (currentLooksPage - 1) * looksPerPage,
-        currentLooksPage * looksPerPage
-      );
-      
-      const cards = container.querySelectorAll('.look-card:not(.skeleton-card)');
-      if (cards.length === currentPageLooks.length) {
-        cards.forEach((card, index) => {
-          if (currentPageLooks[index]) {
-            card.style.transition = 'all 0.3s ease';
-            card.style.opacity = '0';
-            setTimeout(() => {
-              const newCard = createLookCardWithLazy(currentPageLooks[index]);
-              card.replaceWith(newCard);
-              newCard.style.opacity = '0';
-              newCard.style.transform = 'translateY(10px)';
-              setTimeout(() => {
-                newCard.style.opacity = '1';
-                newCard.style.transform = '';
-              }, 50);
-              if (lazyImageObserver) {
-                newCard.querySelectorAll('img.lazy').forEach(img => lazyImageObserver.observe(img));
-              }
-            }, 150);
-          }
-        });
-      } else {
-        renderLooks();
-      }
-    }
-    
-    saveLooksToCacheOptimized(allLooks);
-  }
-}
-
-async function loadFreshProductsInBackground() {
-  if (isGeneratingLooks) return;
-  isGeneratingLooks = true;
-  
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); 
-    
-    const res = await fetch(API_URL, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    const data = await res.json();
-    const freshProducts = data.products || data || [];
-    
-    if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
-      allProducts = freshProducts;
-      setCachedProducts(allProducts);
-      await generateLooksProgressive();
-    }
-  } catch (err) {
-    console.log("Background update fall\u00F3 (timeout esperado):", err.message);
-  } finally {
-    isGeneratingLooks = false;
-  }
-}
-
-function renderLooks() {
-  const container = document.getElementById("looks-container");
-  if (!container) return;
-  
-  if (allLooks.length === 0) {
-    if (!container.querySelector('.skeleton-card')) {
-      container.innerHTML = `<div class="empty-looks"><p>\u2728 No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">cat\u00E1logo</a> para ver nuestros productos.</p></div>`;
-    }
-    renderLooksPagination();
-    return;
-  }
-  
-  const totalPages = Math.ceil(allLooks.length / looksPerPage);
-  const start = (currentLooksPage - 1) * looksPerPage;
-  const end = start + looksPerPage;
-  const looksToRender = allLooks.slice(start, end);
-  
-  const fragment = document.createDocumentFragment();
-  
-  looksToRender.forEach(look => {
-    const card = createLookCardWithLazy(look);
-    fragment.appendChild(card);
-  });
-  
-  const existingCards = container.querySelectorAll('.look-card:not(.skeleton-card)');
-  existingCards.forEach(card => card.remove());
-  
-  container.appendChild(fragment);
-  
-  renderLooksPagination(totalPages);
-  preloadAdjacentPages();
 }
 
 function createLookCardWithLazy(look) {
@@ -1154,135 +951,38 @@ function createLookCardWithLazy(look) {
   return card;
 }
 
-
-
-
-
-function updateLookWishlistButtons(lookId, isActive) {
-  document.querySelectorAll(`.look-wishlist-btn[data-look-id="${lookId}"]`).forEach(btn => {
-    btn.classList.toggle('active', isActive);
-    btn.textContent = isActive ? '❤️' : '🤍';
-  });
-}
-
-function createLookCardMini(look) {
-  const div = document.createElement('div');
-  div.className = 'cart-item';
-  
-  let totalPrice = 0;
-  let productsList = '';
-  
-  // Crear miniaturas de los productos para el wishlist
-  for (const slot of ['torso', 'piernas', 'pies']) {
-    const product = look.products[slot];
-    if (product) {
-      totalPrice += product.price;
-      const productImg = optimizeDriveUrl(product.image, 60);
-      productsList += `
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
-          <img src="${escapeHtml(productImg)}" alt="${escapeHtml(product.name)}" 
-               style="width: 40px; height: 40px; object-fit: contain; background: #f5f5f8; border-radius: 8px;">
-          <div style="flex: 1;">
-            <div style="font-size: 12px; font-weight: 500;">${escapeHtml(product.name)}</div>
-            <div style="font-size: 11px; color: #ff4f81;">${formatCurrency(product.price)}</div>
-            <div style="font-size: 10px; color: #888;">${escapeHtml(product.size || 'Talla no especificada')}</div>
-          </div>
-        </div>
-      `;
-    }
-  }
-  
-  div.innerHTML = `
-    <div class="cart-item-info" style="flex:1">
-      <div class="cart-item-title" style="font-size: 16px; margin-bottom: 8px;">✨ ${escapeHtml(look.name)}</div>
-      <div style="margin-bottom: 8px; max-height: 200px; overflow-y: auto;">
-        ${productsList}
-      </div>
-      <div class="cart-item-meta" style="font-weight:bold; color:#ff4f81; margin: 8px 0;">
-        Total: ${formatCurrency(totalPrice)}
-      </div>
-      <div class="cart-item-actions" style="margin-top: 8px; display: flex; gap: 8px;">
-        <button class="add-look-to-cart" data-look-id="${look.id}" style="background:#e8e8ff; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">🛒 Agregar todo</button>
-        <button class="remove-look-from-wishlist" data-look-id="${look.id}" style="background:#ffe8e8; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">🗑 Eliminar</button>
-      </div>
-    </div>
-  `;
-  
-  // Botón "Agregar todo" - CORREGIDO
-  div.querySelector('.add-look-to-cart')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    addLookToCart(look.id);
-    showTemporaryMessage(`✅ ${look.name} agregado al carrito`, 'success');
-  });
-  
-  // Botón "Eliminar" - CORREGIDO con actualización de badge
-  div.querySelector('.remove-look-from-wishlist')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    let wishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
-    wishlist = wishlist.filter(id => id !== look.id);
-    localStorage.setItem('zr_looks_wishlist', JSON.stringify(wishlist));
-    updateLookWishlistButtons(look.id, false);
-    renderWishlistLooks();
-    
-    // ✅ Actualizar badge del wishlist flotante
-    const badge = document.getElementById("wishlist-count-looks");
-    if (badge) badge.textContent = wishlist.length;
-    
-    showTemporaryMessage('💔 Look eliminado de favoritos', 'info');
-  });
-  
-  return div;
-}
-
-
-
-function isLookInWishlist(lookId) {
-  const wishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
-  return wishlist.includes(lookId);
-}
-
-function toggleLookWishlist(lookId, event) {
-  if (event) event.stopPropagation();
-  let wishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
-  const idx = wishlist.indexOf(lookId);
-  if (idx >= 0) {
-    wishlist.splice(idx, 1);
-    showTemporaryMessage('💔 Look eliminado de favoritos', 'info');
-  } else {
-    wishlist.push(lookId);
-    showTemporaryMessage('❤️ Look agregado a favoritos', 'success');
-  }
-  localStorage.setItem('zr_looks_wishlist', JSON.stringify(wishlist));
-  updateLookWishlistButtons(lookId, idx === -1);
-  renderWishlistLooks();
-  
-  // ✅ Actualizar badge del wishlist flotante
-  const badge = document.getElementById("wishlist-count-looks");
-  if (badge) badge.textContent = wishlist.length;
-}
-
-
-function renderWishlistLooks() {
-  const container = document.getElementById("wishlist-looks-container");
+function renderLooks() {
+  const container = document.getElementById("looks-container");
   if (!container) return;
-  const wishlistIds = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
-  const wishlistLooks = allLooks.filter(look => wishlistIds.includes(look.id));
   
-  if (wishlistLooks.length === 0) {
-    container.innerHTML = '<div class="cart-empty-state"><div class="cart-empty-icon">❤️</div><p class="helper-text">No hay looks guardados</p><p class="cart-empty-hint">❤️ Agrega looks que te gusten</p></div>';
-  } else {
-    container.innerHTML = '';
-    wishlistLooks.forEach(look => {
-      const card = createLookCardMini(look);
-      container.appendChild(card);
-    });
+  if (allLooks.length === 0) {
+    if (!container.querySelector('.skeleton-card')) {
+      container.innerHTML = `<div class="empty-looks"><p>✨ No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">catálogo</a> para ver nuestros productos.</p></div>`;
+    }
+    renderLooksPagination();
+    return;
   }
   
-  // ✅ Actualizar badge del wishlist flotante
-  const badge = document.getElementById("wishlist-count-looks");
-  if (badge) badge.textContent = wishlistIds.length;
+  const totalPages = Math.ceil(allLooks.length / looksPerPage);
+  const start = (currentLooksPage - 1) * looksPerPage;
+  const end = start + looksPerPage;
+  const looksToRender = allLooks.slice(start, end);
+  
+  const fragment = document.createDocumentFragment();
+  
+  looksToRender.forEach(look => {
+    const card = createLookCardWithLazy(look);
+    fragment.appendChild(card);
+  });
+  
+  const existingCards = container.querySelectorAll('.look-card:not(.skeleton-card)');
+  existingCards.forEach(card => card.remove());
+  
+  container.appendChild(fragment);
+  
+  renderLooksPagination(totalPages);
+  preloadAdjacentPages();
 }
-
 
 function renderLooksPagination(totalPages) {
   const container = document.getElementById("looks-container");
@@ -1301,6 +1001,16 @@ function renderLooksPagination(totalPages) {
   let endPage = Math.min(totalPages, startPage + 4);
   if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
   
+  if (currentLooksPage > 1) {
+    const prevBtn = createPaginationButton("← Anterior", () => {
+      currentLooksPage--;
+      renderLooks();
+      initLazyImagesAfterRender();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    paginationDiv.appendChild(prevBtn);
+  }
+  
   for (let i = startPage; i <= endPage; i++) {
     const pageBtn = createPaginationButton(i.toString(), () => {
       currentLooksPage = i;
@@ -1313,7 +1023,7 @@ function renderLooksPagination(totalPages) {
   }
   
   if (currentLooksPage < totalPages) {
-    const nextBtn = createPaginationButton("Siguiente \u2192", () => {
+    const nextBtn = createPaginationButton("Siguiente →", () => {
       currentLooksPage++;
       renderLooks();
       initLazyImagesAfterRender();
@@ -1330,11 +1040,11 @@ function createPaginationButton(text, onClick) {
   btn.textContent = text;
   btn.onclick = onClick;
   
-  if (text === "Siguiente \u2192" && currentLooksPage < Math.ceil(allLooks.length / looksPerPage)) {
+  if (text === "Siguiente →" && currentLooksPage < Math.ceil(allLooks.length / looksPerPage)) {
     btn.addEventListener('mouseenter', () => {
       preloadLooksPage(currentLooksPage + 1);
     });
-  } else if (text === "\u2190 Anterior" && currentLooksPage > 1) {
+  } else if (text === "← Anterior" && currentLooksPage > 1) {
     btn.addEventListener('mouseenter', () => {
       preloadLooksPage(currentLooksPage - 1);
     });
@@ -1343,6 +1053,7 @@ function createPaginationButton(text, onClick) {
   return btn;
 }
 
+// ========== FUNCIONES DE RECARGA DE SLOTS ==========
 window.reloadSlot = async function(lookId, slotType, event) {
   if (event) event.stopPropagation();
   
@@ -1519,6 +1230,7 @@ function updateSingleLookInDOM(look, lookIndex, changedSlotType, newProduct, pri
   if (buyBtn) buyBtn.setAttribute('onclick', `addLookToCart('${look.id}')`);
 }
 
+// ========== FUNCIONES DE CARRITO Y WISHLIST ==========
 window.addLookToCart = function(lookId) {
   const look = looks.find(l => l.id.toLowerCase() === lookId.toLowerCase());
   if (!look) return;
@@ -1546,11 +1258,127 @@ window.addLookToCart = function(lookId) {
     localStorage.setItem('zr_looks_wishlist', JSON.stringify(lookWishlist));
     updateLookWishlistButtons(lookId, false);
     if (typeof renderWishlistLooks === 'function') renderWishlistLooks();
-  } else {
   }
   
   animateCartAdd();
 };
+
+function isLookInWishlist(lookId) {
+  const wishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+  return wishlist.includes(lookId);
+}
+
+function updateLookWishlistButtons(lookId, isActive) {
+  document.querySelectorAll(`.look-wishlist-btn[data-look-id="${lookId}"]`).forEach(btn => {
+    btn.classList.toggle('active', isActive);
+    btn.textContent = isActive ? '❤️' : '🤍';
+  });
+}
+
+function toggleLookWishlist(lookId, event) {
+  if (event) event.stopPropagation();
+  let wishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+  const idx = wishlist.indexOf(lookId);
+  if (idx >= 0) {
+    wishlist.splice(idx, 1);
+    showTemporaryMessage('💔 Look eliminado de favoritos', 'info');
+  } else {
+    wishlist.push(lookId);
+    showTemporaryMessage('❤️ Look agregado a favoritos', 'success');
+  }
+  localStorage.setItem('zr_looks_wishlist', JSON.stringify(wishlist));
+  updateLookWishlistButtons(lookId, idx === -1);
+  renderWishlistLooks();
+  
+  const badge = document.getElementById("wishlist-count-looks");
+  if (badge) badge.textContent = wishlist.length;
+}
+
+function renderWishlistLooks() {
+  const container = document.getElementById("wishlist-looks-container");
+  if (!container) return;
+  const wishlistIds = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+  const wishlistLooks = allLooks.filter(look => wishlistIds.includes(look.id));
+  
+  if (wishlistLooks.length === 0) {
+    container.innerHTML = '<div class="cart-empty-state"><div class="cart-empty-icon">❤️</div><p class="helper-text">No hay looks guardados</p><p class="cart-empty-hint">❤️ Agrega looks que te gusten</p></div>';
+  } else {
+    container.innerHTML = '';
+    wishlistLooks.forEach(look => {
+      const card = createLookCardMini(look);
+      container.appendChild(card);
+    });
+  }
+  
+  const badge = document.getElementById("wishlist-count-looks");
+  if (badge) badge.textContent = wishlistIds.length;
+}
+
+function createLookCardMini(look) {
+  const div = document.createElement('div');
+  div.className = 'cart-item';
+  
+  let totalPrice = 0;
+  let productsList = '';
+  
+  for (const slot of ['torso', 'piernas', 'pies']) {
+    const product = look.products[slot];
+    if (product) {
+      totalPrice += product.price;
+      const productImg = optimizeDriveUrl(product.image, 60);
+      productsList += `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
+          <img src="${escapeHtml(productImg)}" alt="${escapeHtml(product.name)}" 
+               style="width: 40px; height: 40px; object-fit: contain; background: #f5f5f8; border-radius: 8px;">
+          <div style="flex: 1;">
+            <div style="font-size: 12px; font-weight: 500;">${escapeHtml(product.name)}</div>
+            <div style="font-size: 11px; color: #ff4f81;">${formatCurrency(product.price)}</div>
+            <div style="font-size: 10px; color: #888;">${escapeHtml(product.size || 'Talla no especificada')}</div>
+          </div>
+        </div>
+      `;
+    }
+  }
+  
+  div.innerHTML = `
+    <div class="cart-item-info" style="flex:1">
+      <div class="cart-item-title" style="font-size: 16px; margin-bottom: 8px;">✨ ${escapeHtml(look.name)}</div>
+      <div style="margin-bottom: 8px; max-height: 200px; overflow-y: auto;">
+        ${productsList}
+      </div>
+      <div class="cart-item-meta" style="font-weight:bold; color:#ff4f81; margin: 8px 0;">
+        Total: ${formatCurrency(totalPrice)}
+      </div>
+      <div class="cart-item-actions" style="margin-top: 8px; display: flex; gap: 8px;">
+        <button class="add-look-to-cart" data-look-id="${look.id}" style="background:#e8e8ff; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">🛒 Agregar todo</button>
+        <button class="remove-look-from-wishlist" data-look-id="${look.id}" style="background:#ffe8e8; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">🗑 Eliminar</button>
+      </div>
+    </div>
+  `;
+  
+  div.querySelector('.add-look-to-cart')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    addLookToCart(look.id);
+    showTemporaryMessage(`✅ ${look.name} agregado al carrito`, 'success');
+  });
+  
+  div.querySelector('.remove-look-from-wishlist')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    let wishlist = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+    wishlist = wishlist.filter(id => id !== look.id);
+    localStorage.setItem('zr_looks_wishlist', JSON.stringify(wishlist));
+    updateLookWishlistButtons(look.id, false);
+    renderWishlistLooks();
+    
+    const badge = document.getElementById("wishlist-count-looks");
+    if (badge) badge.textContent = wishlist.length;
+    
+    showTemporaryMessage('💔 Look eliminado de favoritos', 'info');
+  });
+  
+  return div;
+}
+
 function initLooksLayoutToggle() {
   const looksContainer = document.getElementById("looks-container");
   const toggleBtn = document.getElementById("layout-toggle-looks");
@@ -1558,18 +1386,190 @@ function initLooksLayoutToggle() {
   const savedLayout = localStorage.getItem("looks_layout");
   if (savedLayout === "grid") {
     looksContainer.classList.add("layout-grid");
-    toggleBtn.textContent = "\u25A6";
+    toggleBtn.textContent = "▦";
   } else {
-    toggleBtn.textContent = "\u2261";
+    toggleBtn.textContent = "≡";
   }
   toggleBtn.addEventListener("click", () => {
     looksContainer.classList.toggle("layout-grid");
     const isGrid = looksContainer.classList.contains("layout-grid");
     localStorage.setItem("looks_layout", isGrid ? "grid" : "list");
-    toggleBtn.textContent = isGrid ? "\u25A6" : "\u2261";
+    toggleBtn.textContent = isGrid ? "▦" : "≡";
   });
 }
 
+// ========== CARGA PRINCIPAL DE PRODUCTOS ==========
+let isBackgroundServicesStarted = false;
+let isLoadingProducts = false;
+
+async function loadProducts() {
+  if (isLoadingProducts) {
+    console.log("⏭️ Carga de productos ya en progreso, omitiendo...");
+    return;
+  }
+  
+  isLoadingProducts = true;
+  showSkeletonLooks();
+
+  if (!navigator.onLine) {
+    console.log('📡 Offline - Cargando looks desde caché');
+    if (window.ConnectionMonitor?.showOfflineBanner) {
+      window.ConnectionMonitor.showOfflineBanner();
+    }
+  }
+  
+  const ensureProductIndex = (products) => {
+    if (!products?.length) return false;
+    
+    if (typeof window.buildProductIndex === "function") {
+      window.buildProductIndex(products);
+      return true;
+    } else if (typeof buildProductIndex === "function") {
+      buildProductIndex(products);
+      return true;
+    }
+    return false;
+  };
+
+  const getCachedProductsUnified = () => {
+    return window.CacheManager?.getSessionProductsCache?.() || getCachedProducts() || [];
+  };
+
+  const restoreScrollPosition = () => {
+    const savedScroll = sessionStorage.getItem("looks_scroll_position");
+    if (savedScroll) {
+      setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 100);
+      sessionStorage.removeItem("looks_scroll_position");
+    }
+  };
+
+  const renderInitialLooks = () => {
+    setTimeout(() => {
+      renderLooks();
+      initLazyImagesAfterRender();
+      preloadAdjacentPages();
+      hideSkeletonLooks();
+    }, 50);
+  };
+
+  const startBackgroundServices = () => {
+    if (isBackgroundServicesStarted) {
+      console.log("⏭️ Servicios background ya iniciados previamente");
+      return;
+    }
+    
+    isBackgroundServicesStarted = true;
+    console.log("🚀 Iniciando servicios en background...");
+    
+    if (navigator.onLine && !isGeneratingLooks && typeof loadFreshProductsInBackground === "function") {
+      loadFreshProductsInBackground();
+    }
+  };
+
+  await initWeatherAndBackground();
+
+  const cachedLooks = getCachedLooksOptimized();
+  
+  if (cachedLooks?.length > 0) {
+    console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
+
+    allLooks = cachedLooks;
+    looks = [...allLooks];
+    currentLooksPage = 1;
+
+    const cachedProducts = getCachedProductsUnified();
+    if (cachedProducts.length > 0) {
+      allProducts = cachedProducts;
+      ensureProductIndex(allProducts);
+    }
+
+    renderInitialLooks();
+    restoreScrollPosition();
+    startBackgroundServices();
+
+    isLoadingProducts = false;
+    return;
+  }
+
+  const cachedProducts = getCachedProductsUnified();
+  
+  if (cachedProducts.length > 0) {
+    console.log("⚡ Productos desde caché, generando looks progresivamente...");
+
+    allProducts = cachedProducts;
+    ensureProductIndex(allProducts);
+
+    await generateLooksProgressive();
+    hideSkeletonLooks();
+    restoreScrollPosition();
+    startBackgroundServices();
+
+    isLoadingProducts = false;
+    return;
+  }
+
+  try {
+    console.log("🌐 Cargando productos desde red...");
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const res = await fetch(API_URL, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    const data = await res.json();
+    allProducts = data.products || data || [];
+    setCachedProducts(allProducts);
+    ensureProductIndex(allProducts);
+    await generateLooksProgressive();
+    hideSkeletonLooks();
+    startBackgroundServices();
+
+  } catch (err) {
+    console.error("❌ Error cargando productos:", err);
+    const container = document.getElementById("looks-container");
+    if (container && !container.querySelector(".look-card")) {
+      container.innerHTML = `
+        <div class="empty-looks">
+          <p>❌ Error al cargar los productos.</p>
+          <p>Verifica tu conexión a internet e <a href="#" onclick="location.reload()">intenta nuevamente</a>.</p>
+        </div>
+      `;
+    }
+
+    hideSkeletonLooks();
+  } finally {
+    isLoadingProducts = false;
+  }
+}
+
+async function loadFreshProductsInBackground() {
+  if (isGeneratingLooks) return;
+  isGeneratingLooks = true;
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); 
+    
+    const res = await fetch(API_URL, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    const data = await res.json();
+    const freshProducts = data.products || data || [];
+    
+    if (JSON.stringify(freshProducts) !== JSON.stringify(allProducts)) {
+      allProducts = freshProducts;
+      setCachedProducts(allProducts);
+      await generateLooksProgressive();
+    }
+  } catch (err) {
+    console.log("Background update falló (timeout esperado):", err.message);
+  } finally {
+    isGeneratingLooks = false;
+  }
+}
+
+// ========== INICIALIZACIÓN ==========
 document.addEventListener("DOMContentLoaded", () => {
   initLazyLoading();
   loadProducts();
@@ -1590,3 +1590,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 });
 
+// Exponer funciones globales
+window.reloadSlot = reloadSlot;
+window.addLookToCart = addLookToCart;
+window.toggleLookWishlist = toggleLookWishlist;
+window.renderWishlistLooks = renderWishlistLooks;
