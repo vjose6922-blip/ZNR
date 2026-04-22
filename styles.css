@@ -266,7 +266,7 @@ body {
   padding: 0;
   flex-wrap: wrap;
   gap: 12px;
-  
+  background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
 }
 
 
