@@ -273,6 +273,9 @@ async function fetchWeatherData(coords = DEFAULT_COORDS) {
   }
 }
 
+ 
+
+
 function classifyWeather(weatherData) {
   if (!weatherData || !weatherData.current_condition) {
     const now = new Date();
@@ -288,89 +291,54 @@ function classifyWeather(weatherData) {
   
   const current = weatherData.current_condition[0];
   const hourly = weatherData.weather?.[0]?.hourly?.[0] || {};
-  
   const hour = new Date().getHours();
   const weatherDesc = current.weatherDesc?.[0]?.value || '';
   const weatherCode = current.weatherCode;
-  
-  // FORZAR lectura correcta de Celsius (sin &u ya no hay ambigüedad)
   const temp = parseFloat(current.temp_C) || 22;
   const feelsLike = parseFloat(current.FeelsLikeC) || temp;
   const windSpeed = parseFloat(current.windspeedKmph) || 0;
   const chanceOfRain = parseFloat(hourly.chanceofrain) || 0;
   const precipMM = parseFloat(hourly.precipMM) || 0;
-  
   const timeOfDay = classifyTimeOfDay(hour);
   let condition = classifyWeatherCondition(weatherDesc, weatherCode, windSpeed, chanceOfRain, precipMM);
   const tempCategory = classifyTemperature(feelsLike);
   
-  if (tempCategory === 'calor' && condition === 'soleado') {
-    condition = 'calor';
-  } else if (tempCategory === 'frio' && condition === 'soleado') {
-    condition = 'frio';
-  }
-  
-  const hasRainWithNubes = condition === 'lluvia' && weatherDesc.includes('nublado');
+  if (tempCategory === 'calor' && condition === 'soleado') condition = 'calor';
+  else if (tempCategory === 'frio' && condition === 'soleado') condition = 'frio';
   
   return {
-    timeOfDay,
-    condition,
-    temperature: temp,
-    feelsLike: feelsLike,
-    weatherDesc: weatherDesc,
-    windSpeed: windSpeed,
-    chanceOfRain: chanceOfRain,
-    hasRainWithNubes,
+    timeOfDay, condition, temperature: temp, feelsLike, weatherDesc,
+    windSpeed, chanceOfRain, hasRainWithNubes: condition === 'lluvia' && weatherDesc.includes('nublado'),
     isDefault: false
   };
-    }
-
-
-  
-  
+}
 
 async function initWeatherAndBackground() {
-  console.log('🌤️ Inicializando clima y fondo...');
-  
-  // Mostrar estado de carga
+  console.log('Inicializando clima y fondo...');
   const widget = document.getElementById('weather-widget');
   if (widget) {
     widget.innerHTML = '<span class="weather-icon">🌡️</span><span>Cargando...</span>';
     widget.classList.add('loading');
   }
   
-  // ELIMINAR VERIFICACIÓN DE CACHÉ - siempre consultar API fresca
-  // El clima cambia constantemente y la petición es muy ligera (~2KB)
-  
   const weatherData = await fetchWeatherData();
   const classified = classifyWeather(weatherData);
-  
-  // ELIMINAR sessionStorage.setItem - no cachear el clima
-  // Ya no guardamos en caché para evitar datos desactualizados
-  
   updateWeatherWidgetUI(classified);
-  const imageUrl = selectBackgroundImage(classified);
-  updateLooksNavBackground(imageUrl);
+  updateLooksNavBackground(selectBackgroundImage(classified));
   
+  const c = classified.condition;
   currentWeather = {
-    weatherType: (() => {
-      const c = classified.condition;
-      if (c === 'calor') return 'calor';
-      if (c === 'frio') return 'frio';
-      if (c.includes('lluvia') || c.includes('tormenta')) return 'lluvioso';
-      return 'templado';
-    })(),
+    weatherType: (c === 'calor' ? 'calor' : (c === 'frio' ? 'frio' : (c.includes('lluvia') || c.includes('tormenta') ? 'lluvioso' : 'templado'))),
     temperature: classified.temperature,
     city: 'Nuevo Laredo'
   };
   
-  console.log('🌤️ Clima aplicado:', {
-    hora: classified.timeOfDay,
-    condicion: classified.condition,
-    temperatura: classified.temperature,
-    imagen: imageUrl ? '✅' : '❌'
-  });
+  console.log('Clima aplicado:', classified.timeOfDay, classified.condition, classified.temperature);
 }
+  
+
+
+  
 
 // ========== FUNCIONES DE PRIORIDAD DE LOOKS POR CLIMA ==========
 const WEATHER_PRIORITY_SCORES = {
