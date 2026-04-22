@@ -214,11 +214,17 @@ function applyFallbackBackground(looksNav) {
 }
 
 function updateWeatherWidgetUI(classified) {
-  const widget = document.getElementById('weather-widget');
-  if (!widget) return;
+  // Buscar el widget por ID (más confiable)
+  let widget = document.getElementById('weather-widget');
+  
+  if (!widget) {
+    console.error('❌ No se encontró el elemento #weather-widget en el DOM');
+    return;
+  }
   
   const temp = Math.round(classified.temperature);
   
+  // Determinar el icono según la condición
   let icon = '☀️';
   if (classified.condition.includes('lluvia')) icon = '☔';
   else if (classified.condition === 'tormenta') icon = '⛈️';
@@ -228,8 +234,25 @@ function updateWeatherWidgetUI(classified) {
   else if (classified.condition === 'nublado_parcial') icon = '⛅';
   else if (classified.condition === 'viento_fuerte') icon = '💨';
   
-  widget.innerHTML = `<span class="weather-icon">${icon}</span><span>${temp}°C</span>`;
+  // Actualizar el contenido manteniendo la estructura
+  const iconSpan = widget.querySelector('.weather-icon');
+  const textSpan = widget.querySelector('.weather-text');
+  
+  if (iconSpan) {
+    iconSpan.textContent = icon;
+  } else {
+    // Si no existe la estructura esperada, actualizar todo el innerHTML
+    widget.innerHTML = `<span class="weather-icon">${icon}</span><span class="weather-text">${temp}°C</span>`;
+  }
+  
+  if (textSpan) {
+    textSpan.textContent = `${temp}°C`;
+  }
+  
+  // Remover la clase loading
   widget.classList.remove('loading');
+  
+  console.log(`✅ Widget actualizado: ${icon} ${temp}°C`);
 }
 
 async function fetchWeatherData(coords = DEFAULT_COORDS) {
@@ -302,20 +325,37 @@ function classifyWeather(weatherData) {
 }
 
 async function initWeatherAndBackground() {
-  console.log('Inicializando clima y fondo...');
+  console.log('🌤️ Inicializando clima y fondo...');
   
-  const widget = document.getElementById('weather-widget');
-  if (widget) {
-    widget.innerHTML = '<span class="weather-icon">☀️</span><span>Cargando...</span>';
-    widget.classList.add('loading');
+  // Esperar a que el widget exista en el DOM (máximo 2 segundos)
+  let widget = document.getElementById('weather-widget');
+  let attempts = 0;
+  const maxAttempts = 20;
+  
+  while (!widget && attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    widget = document.getElementById('weather-widget');
+    attempts++;
   }
   
+  if (widget) {
+    // Actualizar solo el texto, no el HTML completo
+    const textSpan = widget.querySelector('.weather-text');
+    if (textSpan) {
+      textSpan.textContent = 'Cargando clima...';
+    }
+    widget.classList.add('loading');
+  } else {
+    console.error('❌ No se encontró #weather-widget después de 2 segundos');
+  }
+  
+  // Verificar cache primero
   const cached = sessionStorage.getItem('zr_weather_cache');
   if (cached) {
     try {
       const { weatherType, temperature, city, timestamp, fullData } = JSON.parse(cached);
       if (Date.now() - timestamp < 120000 && fullData) {
-        console.log('Clima desde cache');
+        console.log('🌤️ Clima desde cache');
         updateWeatherWidgetUI(fullData);
         const imageUrl = selectBackgroundImage(fullData);
         updateLooksNavBackground(imageUrl);
@@ -332,12 +372,16 @@ async function initWeatherAndBackground() {
         };
         return;
       }
-    } catch(e) {}
+    } catch(e) {
+      console.warn('Error leyendo cache:', e);
+    }
   }
   
+  // Obtener clima actual
   const weatherData = await fetchWeatherData();
   const classified = classifyWeather(weatherData);
   
+  // Guardar en cache
   sessionStorage.setItem('zr_weather_cache', JSON.stringify({
     weatherType: classified.condition,
     temperature: classified.temperature,
@@ -346,31 +390,30 @@ async function initWeatherAndBackground() {
     fullData: classified
   }));
   
+  // Actualizar UI
   updateWeatherWidgetUI(classified);
   const imageUrl = selectBackgroundImage(classified);
   updateLooksNavBackground(imageUrl);
   
   currentWeather = {
-    // Mapeamos la condicion al weatherType que usa WEATHER_PRIORITY_SCORES
-    // Las claves validas son: 'calor', 'frio', 'templado', 'lluvioso'
     weatherType: (() => {
       const c = classified.condition;
       if (c === 'calor') return 'calor';
       if (c === 'frio') return 'frio';
       if (c.includes('lluvia') || c.includes('tormenta')) return 'lluvioso';
-      return 'templado'; // soleado, nublado, nublado_parcial, etc.
+      return 'templado';
     })(),
     temperature: classified.temperature,
     city: 'Nuevo Laredo'
   };
   
-  console.log('Clima aplicado:', {
+  console.log('🌤️ Clima aplicado:', {
     hora: classified.timeOfDay,
     condicion: classified.condition,
     temperatura: classified.temperature,
-    imagen: imageUrl ? 'ok' : 'error'
+    imagen: imageUrl ? '✅' : '❌'
   });
-}
+    }
 
 // ========== FUNCIONES DE PRIORIDAD DE LOOKS POR CLIMA ==========
 const WEATHER_PRIORITY_SCORES = {
