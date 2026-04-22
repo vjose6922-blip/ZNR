@@ -1,5 +1,5 @@
 // ============================================
-// looks.js - VERSIÓN UNIFICADA CON CLIMA AVANZADO
+// looks.js - VERSIÃ“N UNIFICADA CON CLIMA AVANZADO
 // ============================================
 
 const WEATHER_API_URL = API_URL;
@@ -37,7 +37,7 @@ const WEATHER_IMAGES = {
   'atardecer_nublado': '1i7FpkNS22Lo2B9gO3PZigCYSqn66c7e8',
   'atardecer': '1vsbL1ecVHapE_i6IFetayLnQE0JKtYQ6',
   
-  // Día
+  // DÃ­a
   'dia_calor': '1LIjulG9gfJI7gH97rvYsSXlbdQpa25QZ',
   'dia_frio': '1xmZlWh7kUGszRImJY5aOtx4GdPmXFrL6',
   'dia_lluvia_fuerte': '1RZmReM6hkm6E4GSKvx68_1ogXvL_mKz8',
@@ -72,7 +72,7 @@ const WEATHER_IMAGES = {
 };
 
 function getImageUrl(fileId, size = 1200) {
-  // Si no hay ID o es el marcador de posición, usar imagen por defecto
+  // Si no hay ID o es el marcador de posiciÃ³n, usar imagen por defecto
   if (!fileId) {
     console.warn('getImageUrl: No hay fileId');
     return null;
@@ -80,7 +80,7 @@ function getImageUrl(fileId, size = 1200) {
   
   // Usar el formato que ya comprobaste que funciona
   const url = `https://lh3.googleusercontent.com/d/${fileId}=w${size}`;
-  console.log('🔗 URL generada:', url);
+  console.log('ðŸ”— URL generada:', url);
   return url;
 }
 
@@ -164,18 +164,18 @@ function getImageKey(timeOfDay, condition, hasRainWithNubes = false) {
 
 function selectBackgroundImage(classified) {
   const imageKey = getImageKey(classified.timeOfDay, classified.condition, classified.hasRainWithNubes);
-    console.log('🔑 Clave de imagen buscada:', imageKey);
+    console.log('ðŸ”‘ Clave de imagen buscada:', imageKey);
   
   let fileId = WEATHER_IMAGES[imageKey];
     if (!fileId) {
     const fallbackKey = `${classified.timeOfDay}_${classified.condition.replace('_fuerte', '').replace('_ligera', '')}`;
     fileId = WEATHER_IMAGES[fallbackKey];
-    console.log('🔄 Usando fallback:', fallbackKey);
+    console.log('ðŸ”„ Usando fallback:', fallbackKey);
   }
   
   if (!fileId) {
     fileId = WEATHER_IMAGES['default'];
-    console.log('⚠️ Usando imagen por defecto');
+    console.log('âš ï¸ Usando imagen por defecto');
   }
   return getImageUrl(fileId, 1200);
 }
@@ -188,24 +188,24 @@ function selectBackgroundImage(classified) {
 function updateLooksNavBackground(imageUrl) {
   const looksNav = document.getElementById('looks-nav-bg');
   if (!looksNav) {
-    console.warn('⚠️ No se encontró #looks-nav-bg');
+    console.warn('âš ï¸ No se encontrÃ³ #looks-nav-bg');
     return;
   }
   
   if (imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined') {
     const img = new Image();
     img.onload = () => {
-      // SOLO aplicar la imagen, nada más
+      // SOLO aplicar la imagen, nada mÃ¡s
       looksNav.style.backgroundImage = `url('${imageUrl}')`;
       
       // Eliminar clases de fallback
       looksNav.classList.remove('default-bg');
       looksNav.classList.remove('fallback-bg');
       
-      console.log('✅ Fondo actualizado con imagen');
+      console.log('âœ… Fondo actualizado con imagen');
     };
     img.onerror = () => {
-      console.error('❌ Error cargando imagen, usando color de fondo');
+      console.error('âŒ Error cargando imagen, usando color de fondo');
       applyFallbackBackground(looksNav);
     };
     img.src = imageUrl;
@@ -226,16 +226,16 @@ function updateWeatherWidgetUI(classified) {
   
   const temp = Math.round(classified.temperature);
   
-  let icon = '🌡️';
-  if (classified.condition.includes('lluvia')) icon = '☔';
-  else if (classified.condition === 'tormenta') icon = '⛈️';
-  else if (classified.condition === 'nieve') icon = '❄️';
-  else if (classified.condition === 'soleado' || classified.condition === 'calor') icon = '☀️';
-  else if (classified.condition === 'nublado') icon = '☁️';
-  else if (classified.condition === 'nublado_parcial') icon = '⛅';
-  else if (classified.condition === 'viento_fuerte') icon = '💨';
+  let icon = 'ðŸŒ¡ï¸';
+  if (classified.condition.includes('lluvia')) icon = 'â˜”';
+  else if (classified.condition === 'tormenta') icon = 'â›ˆï¸';
+  else if (classified.condition === 'nieve') icon = 'â„ï¸';
+  else if (classified.condition === 'soleado' || classified.condition === 'calor') icon = 'â˜€ï¸';
+  else if (classified.condition === 'nublado') icon = 'â˜ï¸';
+  else if (classified.condition === 'nublado_parcial') icon = 'â›…';
+  else if (classified.condition === 'viento_fuerte') icon = 'ðŸ’¨';
   
-  widget.innerHTML = `<span class="weather-icon">${icon}</span><span>${temp}°C</span>`;
+  widget.innerHTML = `<span class="weather-icon">${icon}</span><span>${temp}Â°C</span>`;
   widget.classList.remove('loading');
 }
 
@@ -251,7 +251,7 @@ async function fetchWeatherData(coords = DEFAULT_COORDS) {
     return await response.json();
   } catch (error) {
     clearTimeout(timeoutId);
-    console.warn('⚠️ Error obteniendo clima:', error.message);
+    console.warn('âš ï¸ Error obteniendo clima:', error.message);
     return null;
   }
 }
@@ -272,8 +272,9 @@ function classifyWeather(weatherData) {
   const current = weatherData.current_condition[0];
   const hourly = weatherData.weather?.[0]?.hourly?.[0] || {};
   
-  const localTime = current.localObsDateTime || new Date().toISOString();
-  const hour = parseInt(localTime.split(' ')[1]?.split(':')[0]) || new Date().getHours();
+  // Siempre usamos la hora local del dispositivo para clasificar el momento del dÃ­a.
+  // localObsDateTime de wttr.in puede estar desfasada 1-2 horas respecto a la hora real.
+  const hour = new Date().getHours();
   const weatherDesc = current.weatherDesc?.[0]?.value || '';
   const weatherCode = current.weatherCode;
   const temp = parseFloat(current.temp_C) || 22;
@@ -308,11 +309,11 @@ function classifyWeather(weatherData) {
 }
 
 async function initWeatherAndBackground() {
-  console.log('🌤️ Inicializando clima y fondo...');
+  console.log('ðŸŒ¤ï¸ Inicializando clima y fondo...');
   
   const widget = document.getElementById('weather-widget');
   if (widget) {
-    widget.innerHTML = '<span class="weather-icon">🌡️</span><span>Cargando...</span>';
+    widget.innerHTML = '<span class="weather-icon">ðŸŒ¡ï¸</span><span>Cargando...</span>';
     widget.classList.add('loading');
   }
   
@@ -320,12 +321,22 @@ async function initWeatherAndBackground() {
   if (cached) {
     try {
       const { weatherType, temperature, city, timestamp, fullData } = JSON.parse(cached);
-      if (Date.now() - timestamp < 300000 && fullData) {
-        console.log('🌤️ Clima desde caché');
+      if (Date.now() - timestamp < 120000 && fullData) {
+        console.log('ðŸŒ¤ï¸ Clima desde cachÃ©');
         updateWeatherWidgetUI(fullData);
         const imageUrl = selectBackgroundImage(fullData);
         updateLooksNavBackground(imageUrl);
-        currentWeather = { weatherType, temperature, city };
+        currentWeather = {
+          weatherType: (() => {
+            const c = weatherType;
+            if (c === 'calor') return 'calor';
+            if (c === 'frio') return 'frio';
+            if (c.includes('lluvia') || c.includes('tormenta')) return 'lluvioso';
+            return 'templado';
+          })(),
+          temperature,
+          city
+        };
         return;
       }
     } catch(e) {}
@@ -347,16 +358,24 @@ async function initWeatherAndBackground() {
   updateLooksNavBackground(imageUrl);
   
   currentWeather = {
-    weatherType: classified.condition,
+    // Mapeamos la condiciÃ³n al weatherType que usa WEATHER_PRIORITY_SCORES
+    // Las claves vÃ¡lidas son: 'calor', 'frio', 'templado', 'lluvioso'
+    weatherType: (() => {
+      const c = classified.condition;
+      if (c === 'calor') return 'calor';
+      if (c === 'frio') return 'frio';
+      if (c.includes('lluvia') || c.includes('tormenta')) return 'lluvioso';
+      return 'templado'; // soleado, nublado, nublado_parcial, etc.
+    })(),
     temperature: classified.temperature,
     city: 'Nuevo Laredo'
   };
   
-  console.log('🌤️ Clima aplicado:', {
+  console.log('ðŸŒ¤ï¸ Clima aplicado:', {
     hora: classified.timeOfDay,
-    condición: classified.condition,
+    condiciÃ³n: classified.condition,
     temperatura: classified.temperature,
-    imagen: imageUrl ? '✅' : '❌'
+    imagen: imageUrl ? 'âœ…' : 'âŒ'
   });
 }
 
@@ -396,74 +415,74 @@ const WEATHER_PRIORITY_SCORES = {
   }
 };
 
-// ========== CONFIGURACIÓN DE LOOKS ==========
+// ========== CONFIGURACIÃ“N DE LOOKS ==========
 const LOOKS_CONFIG = [
-  { id: "look_casual_dama", name: "👗 Casual", description: "Para tu día a día", category: "Mujer",
+  { id: "look_casual_dama", name: "ðŸ‘— Casual", description: "Para tu dÃ­a a dÃ­a", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["vestir", "formal", "gala"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: [], excludeKeywords: ["formal", "vestir"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis"], excludeKeywords: ["formal", "tacón", "zapato"], required: true }
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis"], excludeKeywords: ["formal", "tacÃ³n", "zapato"], required: true }
     ] },
-  { id: "look_elegante_dama", name: "👠 Elegancia Femenina", description: "Para ocasiones especiales", category: "Mujer",
+  { id: "look_elegante_dama", name: "ðŸ‘  Elegancia Femenina", description: "Para ocasiones especiales", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: ["Vestir"], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["Vestir"], excludeKeywords: ["short", "jeans", "mezclilla"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["Zapatos"], excludeKeywords: ["tenis", "sandalias", "deportivo"], required: true }
     ] },
-  { id: "look_verano_dama", name: "☀️ Verano Fresco", description: "Fresco para días calurosos", category: "Mujer",
+  { id: "look_verano_dama", name: "â˜€ï¸ Verano Fresco", description: "Fresco para dÃ­as calurosos", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["vestir", "formal", "abrigo"], required: true },
-      { type: "piernas", categories: ["Short para Dama"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalón"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacón"], required: true }
+      { type: "piernas", categories: ["Short para Dama"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalÃ³n"], required: true },
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacÃ³n"], required: true }
     ] },
-  { id: "look_falda_dama", name: "🌸 Luce una Falda", description: "Look fresco con falda", category: "Mujer",
+  { id: "look_falda_dama", name: "ðŸŒ¸ Luce una Falda", description: "Look fresco con falda", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Blusas"], keywords: [], excludeKeywords: ["deportivo", "abrigo"], required: true },
-      { type: "piernas", categories: ["Faldas"], keywords: [], excludeKeywords: ["short", "pantalón"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacón"], required: true }
+      { type: "piernas", categories: ["Faldas"], keywords: [], excludeKeywords: ["short", "pantalÃ³n"], required: true },
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "tacÃ³n"], required: true }
     ] },
-  { id: "look_vestido_dama", name: "💃 Vestido Elegante", description: "Perfecto para citas", category: "Mujer",
+  { id: "look_vestido_dama", name: "ðŸ’ƒ Vestido Elegante", description: "Perfecto para citas", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Vestidos"], keywords: [], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "pies", categories: ["Calzado para Dama"], keywords: ["tacones"], excludeKeywords: ["tenis", "deportivo", "sandalias"], required: true }
     ] },
-  { id: "look_confort_dama", name: "🛋️ Confort en Casa", description: "Comodidad en casa", category: "Mujer",
+  { id: "look_confort_dama", name: "ðŸ›‹ï¸ Confort en Casa", description: "Comodidad en casa", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Sueter para Dama"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants"], excludeKeywords: ["vestir", "formal"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacón"], required: true }
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacÃ³n"], required: true }
     ] },
-  { id: "look_chamarra_dama", name: "🧥 Abrigate", description: "Ideal para días frescos", category: "Mujer",
+  { id: "look_chamarra_dama", name: "ðŸ§¥ Abrigate", description: "Ideal para dÃ­as frescos", category: "Mujer",
     slots: [
       { type: "torso", categories: ["Chamarra para Dama"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Dama"], keywords: ["pants", "pantalon"], excludeKeywords: ["vestir", "formal", "short"], required: true },
-      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacón"], required: true }
+      { type: "pies", categories: ["Calzado para Dama"], keywords: ["Pantunflas"], excludeKeywords: ["tenis", "tacÃ³n"], required: true }
     ] },
-  { id: "look_casual_caballero", name: "👔 Casual Hombre", description: "Para el día a día", category: "Hombre",
+  { id: "look_casual_caballero", name: "ðŸ‘” Casual Hombre", description: "Para el dÃ­a a dÃ­a", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: [], excludeKeywords: ["vestir", "formal", "camisa"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "short"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis", "Botas"], excludeKeywords: ["formal", "zapato"], required: true }
     ] },
-  { id: "look_elegante_caballero", name: "🤵 Elegancia Masculina", description: "Formal para ocasiones especiales", category: "Hombre",
+  { id: "look_elegante_caballero", name: "ðŸ¤µ Elegancia Masculina", description: "Formal para ocasiones especiales", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: ["Vestir"], excludeKeywords: ["casual", "deportivo"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["Vestir"], excludeKeywords: ["short", "jeans", "mezclilla"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Zapatos"], excludeKeywords: ["tenis", "deportivo", "botas"], required: true }
     ] },
-  { id: "look_verano_caballero", name: "🏖️ Verano Hombre", description: "Fresco para el calor", category: "Hombre",
+  { id: "look_verano_caballero", name: "ðŸ–ï¸ Verano Hombre", description: "Fresco para el calor", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Playeras"], keywords: [], excludeKeywords: ["vestir", "formal", "camisa"], required: true },
-      { type: "piernas", categories: ["Short para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalón"], required: true },
+      { type: "piernas", categories: ["Short para Caballero"], keywords: [], excludeKeywords: ["formal", "vestir", "pantalÃ³n"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis", "sandalias"], excludeKeywords: ["formal", "zapato"], required: true }
     ] },
-  { id: "look_chamarra_caballero", name: "🧥 Abrigate Hombre", description: "Luce tu chamarra", category: "Hombre",
+  { id: "look_chamarra_caballero", name: "ðŸ§¥ Abrigate Hombre", description: "Luce tu chamarra", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Chamarra para Caballero"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["pants", "pantalon"], excludeKeywords: ["vestir", "formal", "short"], required: true },
       { type: "pies", categories: ["Calzado para Caballero"], keywords: ["Tenis"], excludeKeywords: ["formal", "zapato"], required: true }
     ] },
-  { id: "look_confort_caballero", name: "🛋️ Confort Hombre", description: "Comodidad para el hogar", category: "Hombre",
+  { id: "look_confort_caballero", name: "ðŸ›‹ï¸ Confort Hombre", description: "Comodidad para el hogar", category: "Hombre",
     slots: [
       { type: "torso", categories: ["Sueter para Caballero"], keywords: [], excludeKeywords: ["vestir", "formal"], required: true },
       { type: "piernas", categories: ["Pantalon para Caballero"], keywords: ["pants"], excludeKeywords: ["vestir", "formal", "short"], required: true },
@@ -545,7 +564,7 @@ function initLazyImagesAfterRender() {
   }
 }
 
-// ========== FUNCIONES DE CACHÉ DE LOOKS ==========
+// ========== FUNCIONES DE CACHÃ‰ DE LOOKS ==========
 function compressLooksData(looks) {
   return looks.map(look => ({
     id: look.id,
@@ -584,7 +603,7 @@ function getCachedLooksOptimized() {
       const { looks: compressed, timestamp, productsHash } = JSON.parse(sessionCached);
       const currentHash = getProductsQuickHash();
       if (currentHash === productsHash && (Date.now() - timestamp) < 300000) {
-        console.log("⚡ Looks desde sessionStorage (instantáneo)");
+        console.log("âš¡ Looks desde sessionStorage (instantÃ¡neo)");
         return decompressLooksData(compressed);
       }
     }
@@ -594,7 +613,7 @@ function getCachedLooksOptimized() {
       const { looks: compressed, timestamp, productsHash } = JSON.parse(localCached);
       const currentHash = getProductsQuickHash();
       if (currentHash === productsHash && (Date.now() - timestamp) < 600000) {
-        console.log("📦 Looks desde localStorage");
+        console.log("ðŸ“¦ Looks desde localStorage");
         const decompressed = decompressLooksData(compressed);
         sessionStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify({
           looks: compressed,
@@ -607,7 +626,7 @@ function getCachedLooksOptimized() {
     
     return null;
   } catch(e) {
-    console.warn("Error cargando caché de looks:", e);
+    console.warn("Error cargando cachÃ© de looks:", e);
     return null;
   }
 }
@@ -625,9 +644,9 @@ function saveLooksToCacheOptimized(looks) {
     sessionStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify(cacheData));
     localStorage.setItem(LOOKS_CACHE_KEY, JSON.stringify(cacheData));
     
-    console.log(`💾 Looks guardados en caché`);
+    console.log(`ðŸ’¾ Looks guardados en cachÃ©`);
   } catch(e) {
-    console.warn("Error guardando caché de looks:", e);
+    console.warn("Error guardando cachÃ© de looks:", e);
   }
 }
 
@@ -636,7 +655,7 @@ function getProductsQuickHash() {
   return allProducts.slice(0, 100).map(p => `${p.ID}:${p.Stock}`).join('|');
 }
 
-// ========== FUNCIONES DE GENERACIÓN DE LOOKS ==========
+// ========== FUNCIONES DE GENERACIÃ“N DE LOOKS ==========
 function sortLooksByWeather(looksArray) {
   if (!currentWeather || !currentWeather.weatherType) return looksArray;
   const weatherType = currentWeather.weatherType.toLowerCase();
@@ -785,7 +804,7 @@ async function generateLooksProgressive() {
         preloadAdjacentPages();
         
         const endTime = performance.now();
-        console.log(`✅ Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
+        console.log(`âœ… Looks generados en ${(endTime - startTime).toFixed(0)}ms`);
         resolve();
       }
     }
@@ -836,7 +855,7 @@ function preloadLooksPage(pageNumber) {
       });
       
       preloadedNextPage = pageNumber;
-      console.log(`🔎 Precargada página ${pageNumber} de looks`);
+      console.log(`ðŸ”Ž Precargada pÃ¡gina ${pageNumber} de looks`);
     });
   } else {
     setTimeout(() => {
@@ -860,14 +879,14 @@ function createLookCardWithLazy(look) {
   let imagesHtml = '';
 
   const slotOrder = ["torso", "piernas", "pies"];
-  const slotNames = { torso: '👕 Superior', piernas: '👖 Inferior', pies: '👟 Calzado' };
+  const slotNames = { torso: 'ðŸ‘• Superior', piernas: 'ðŸ‘– Inferior', pies: 'ðŸ‘Ÿ Calzado' };
 
   const safeLookName = escapeHtml(look.name || "Look");
   const safeLookDescription = escapeHtml(look.description || "");
   const safeLookCategory = escapeHtml(look.category || "");
 
   const wishlistActive = isLookInWishlist(look.id);
-  const wishlistHtml = `<button class="look-wishlist-btn ${wishlistActive ? 'active' : ''}" data-look-id="${escapeJsString(look.id)}" onclick="toggleLookWishlist('${escapeJsString(look.id)}', event)">${wishlistActive ? '❤️' : '🤍'}</button>`;
+  const wishlistHtml = `<button class="look-wishlist-btn ${wishlistActive ? 'active' : ''}" data-look-id="${escapeJsString(look.id)}" onclick="toggleLookWishlist('${escapeJsString(look.id)}', event)">${wishlistActive ? 'â¤ï¸' : 'ðŸ¤'}</button>`;
 
   for (const slotKey of slotOrder) {
     const product = look.products[slotKey];
@@ -906,10 +925,10 @@ function createLookCardWithLazy(look) {
               Precio:${product.price},
               Imagen1:'${escapeJsString(product.image)}',
               Talla:'${escapeJsString(product.size || '')}'
-            })">🛒</button>
+            })">ðŸ›’</button>
           <button class="look-product-reload"
             onclick="reloadSlot('${escapeJsString(look.id)}', '${escapeJsString(slotKey)}', event)"
-            title="Cambiar esta prenda">⟳</button>
+            title="Cambiar esta prenda">âŸ³</button>
         </div>
       </div>
     `;
@@ -920,7 +939,7 @@ function createLookCardWithLazy(look) {
 
   card.innerHTML = `
     <div class="look-images-container">
-      ${imagesHtml || '<div class="look-slot-image empty">Sin imágenes</div>'}
+      ${imagesHtml || '<div class="look-slot-image empty">Sin imÃ¡genes</div>'}
     </div>
 
     <div class="look-info">
@@ -934,17 +953,17 @@ function createLookCardWithLazy(look) {
       <p class="look-description">${safeLookDescription}</p>
 
       <div class="look-products">
-        <div class="look-products-title"><span>✨ Este outfit incluye:</span></div>
+        <div class="look-products-title"><span>âœ¨ Este outfit incluye:</span></div>
         <div class="look-products-list">${productsHtml}</div>
 
         <div class="look-total">
-          <span class="look-total-label">💵 Precio total:</span>
+          <span class="look-total-label">ðŸ’µ Precio total:</span>
           <span class="look-total-price">${formatCurrency(totalPrice)}</span>
         </div>
       </div>
 
       <button class="buy-look-btn"
-        onclick="addLookToCart('${escapeJsString(look.id)}')">🛒 Comprar todo</button>
+        onclick="addLookToCart('${escapeJsString(look.id)}')">ðŸ›’ Comprar todo</button>
     </div>
   `;
 
@@ -957,7 +976,7 @@ function renderLooks() {
   
   if (allLooks.length === 0) {
     if (!container.querySelector('.skeleton-card')) {
-      container.innerHTML = `<div class="empty-looks"><p>✨ No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">catálogo</a> para ver nuestros productos.</p></div>`;
+      container.innerHTML = `<div class="empty-looks"><p>âœ¨ No disponibles en este momento.</p><p>Visita el <a href="index.html" style="color:#ff4f81;">catÃ¡logo</a> para ver nuestros productos.</p></div>`;
     }
     renderLooksPagination();
     return;
@@ -1002,7 +1021,7 @@ function renderLooksPagination(totalPages) {
   if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
   
   if (currentLooksPage > 1) {
-    const prevBtn = createPaginationButton("← Anterior", () => {
+    const prevBtn = createPaginationButton("â† Anterior", () => {
       currentLooksPage--;
       renderLooks();
       initLazyImagesAfterRender();
@@ -1023,7 +1042,7 @@ function renderLooksPagination(totalPages) {
   }
   
   if (currentLooksPage < totalPages) {
-    const nextBtn = createPaginationButton("Siguiente →", () => {
+    const nextBtn = createPaginationButton("Siguiente â†’", () => {
       currentLooksPage++;
       renderLooks();
       initLazyImagesAfterRender();
@@ -1040,11 +1059,11 @@ function createPaginationButton(text, onClick) {
   btn.textContent = text;
   btn.onclick = onClick;
   
-  if (text === "Siguiente →" && currentLooksPage < Math.ceil(allLooks.length / looksPerPage)) {
+  if (text === "Siguiente â†’" && currentLooksPage < Math.ceil(allLooks.length / looksPerPage)) {
     btn.addEventListener('mouseenter', () => {
       preloadLooksPage(currentLooksPage + 1);
     });
-  } else if (text === "← Anterior" && currentLooksPage > 1) {
+  } else if (text === "â† Anterior" && currentLooksPage > 1) {
     btn.addEventListener('mouseenter', () => {
       preloadLooksPage(currentLooksPage - 1);
     });
@@ -1271,7 +1290,7 @@ function isLookInWishlist(lookId) {
 function updateLookWishlistButtons(lookId, isActive) {
   document.querySelectorAll(`.look-wishlist-btn[data-look-id="${lookId}"]`).forEach(btn => {
     btn.classList.toggle('active', isActive);
-    btn.textContent = isActive ? '❤️' : '🤍';
+    btn.textContent = isActive ? 'â¤ï¸' : 'ðŸ¤';
   });
 }
 
@@ -1281,10 +1300,10 @@ function toggleLookWishlist(lookId, event) {
   const idx = wishlist.indexOf(lookId);
   if (idx >= 0) {
     wishlist.splice(idx, 1);
-    showTemporaryMessage('💔 Look eliminado de favoritos', 'info');
+    showTemporaryMessage('ðŸ’” Look eliminado de favoritos', 'info');
   } else {
     wishlist.push(lookId);
-    showTemporaryMessage('❤️ Look agregado a favoritos', 'success');
+    showTemporaryMessage('â¤ï¸ Look agregado a favoritos', 'success');
   }
   localStorage.setItem('zr_looks_wishlist', JSON.stringify(wishlist));
   updateLookWishlistButtons(lookId, idx === -1);
@@ -1301,7 +1320,7 @@ function renderWishlistLooks() {
   const wishlistLooks = allLooks.filter(look => wishlistIds.includes(look.id));
   
   if (wishlistLooks.length === 0) {
-    container.innerHTML = '<div class="cart-empty-state"><div class="cart-empty-icon">❤️</div><p class="helper-text">No hay looks guardados</p><p class="cart-empty-hint">❤️ Agrega looks que te gusten</p></div>';
+    container.innerHTML = '<div class="cart-empty-state"><div class="cart-empty-icon">â¤ï¸</div><p class="helper-text">No hay looks guardados</p><p class="cart-empty-hint">â¤ï¸ Agrega looks que te gusten</p></div>';
   } else {
     container.innerHTML = '';
     wishlistLooks.forEach(look => {
@@ -1342,7 +1361,7 @@ function createLookCardMini(look) {
   
   div.innerHTML = `
     <div class="cart-item-info" style="flex:1">
-      <div class="cart-item-title" style="font-size: 16px; margin-bottom: 8px;">✨ ${escapeHtml(look.name)}</div>
+      <div class="cart-item-title" style="font-size: 16px; margin-bottom: 8px;">âœ¨ ${escapeHtml(look.name)}</div>
       <div style="margin-bottom: 8px; max-height: 200px; overflow-y: auto;">
         ${productsList}
       </div>
@@ -1350,8 +1369,8 @@ function createLookCardMini(look) {
         Total: ${formatCurrency(totalPrice)}
       </div>
       <div class="cart-item-actions" style="margin-top: 8px; display: flex; gap: 8px;">
-        <button class="add-look-to-cart" data-look-id="${look.id}" style="background:#e8e8ff; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">🛒 Agregar todo</button>
-        <button class="remove-look-from-wishlist" data-look-id="${look.id}" style="background:#ffe8e8; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">🗑 Eliminar</button>
+        <button class="add-look-to-cart" data-look-id="${look.id}" style="background:#e8e8ff; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">ðŸ›’ Agregar todo</button>
+        <button class="remove-look-from-wishlist" data-look-id="${look.id}" style="background:#ffe8e8; border:none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;">ðŸ—‘ Eliminar</button>
       </div>
     </div>
   `;
@@ -1359,7 +1378,7 @@ function createLookCardMini(look) {
   div.querySelector('.add-look-to-cart')?.addEventListener('click', (e) => {
     e.stopPropagation();
     addLookToCart(look.id);
-    showTemporaryMessage(`✅ ${look.name} agregado al carrito`, 'success');
+    showTemporaryMessage(`âœ… ${look.name} agregado al carrito`, 'success');
   });
   
   div.querySelector('.remove-look-from-wishlist')?.addEventListener('click', (e) => {
@@ -1373,7 +1392,7 @@ function createLookCardMini(look) {
     const badge = document.getElementById("wishlist-count-looks");
     if (badge) badge.textContent = wishlist.length;
     
-    showTemporaryMessage('💔 Look eliminado de favoritos', 'info');
+    showTemporaryMessage('ðŸ’” Look eliminado de favoritos', 'info');
   });
   
   return div;
@@ -1386,15 +1405,15 @@ function initLooksLayoutToggle() {
   const savedLayout = localStorage.getItem("looks_layout");
   if (savedLayout === "grid") {
     looksContainer.classList.add("layout-grid");
-    toggleBtn.textContent = "▦";
+    toggleBtn.textContent = "â–¦";
   } else {
-    toggleBtn.textContent = "≡";
+    toggleBtn.textContent = "â‰¡";
   }
   toggleBtn.addEventListener("click", () => {
     looksContainer.classList.toggle("layout-grid");
     const isGrid = looksContainer.classList.contains("layout-grid");
     localStorage.setItem("looks_layout", isGrid ? "grid" : "list");
-    toggleBtn.textContent = isGrid ? "▦" : "≡";
+    toggleBtn.textContent = isGrid ? "â–¦" : "â‰¡";
   });
 }
 
@@ -1404,7 +1423,7 @@ let isLoadingProducts = false;
 
 async function loadProducts() {
   if (isLoadingProducts) {
-    console.log("⏭️ Carga de productos ya en progreso, omitiendo...");
+    console.log("â­ï¸ Carga de productos ya en progreso, omitiendo...");
     return;
   }
   
@@ -1412,7 +1431,7 @@ async function loadProducts() {
   showSkeletonLooks();
 
   if (!navigator.onLine) {
-    console.log('📡 Offline - Cargando looks desde caché');
+    console.log('ðŸ“¡ Offline - Cargando looks desde cachÃ©');
     if (window.ConnectionMonitor?.showOfflineBanner) {
       window.ConnectionMonitor.showOfflineBanner();
     }
@@ -1454,12 +1473,12 @@ async function loadProducts() {
 
   const startBackgroundServices = () => {
     if (isBackgroundServicesStarted) {
-      console.log("⏭️ Servicios background ya iniciados previamente");
+      console.log("â­ï¸ Servicios background ya iniciados previamente");
       return;
     }
     
     isBackgroundServicesStarted = true;
-    console.log("🚀 Iniciando servicios en background...");
+    console.log("ðŸš€ Iniciando servicios en background...");
     
     if (navigator.onLine && !isGeneratingLooks && typeof loadFreshProductsInBackground === "function") {
       loadFreshProductsInBackground();
@@ -1471,7 +1490,7 @@ async function loadProducts() {
   const cachedLooks = getCachedLooksOptimized();
   
   if (cachedLooks?.length > 0) {
-    console.log("⚡⚡ LOOKS DESDE CACHÉ - INSTANTÁNEO");
+    console.log("âš¡âš¡ LOOKS DESDE CACHÃ‰ - INSTANTÃNEO");
 
     allLooks = cachedLooks;
     looks = [...allLooks];
@@ -1494,7 +1513,7 @@ async function loadProducts() {
   const cachedProducts = getCachedProductsUnified();
   
   if (cachedProducts.length > 0) {
-    console.log("⚡ Productos desde caché, generando looks progresivamente...");
+    console.log("âš¡ Productos desde cachÃ©, generando looks progresivamente...");
 
     allProducts = cachedProducts;
     ensureProductIndex(allProducts);
@@ -1509,7 +1528,7 @@ async function loadProducts() {
   }
 
   try {
-    console.log("🌐 Cargando productos desde red...");
+    console.log("ðŸŒ Cargando productos desde red...");
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -1526,13 +1545,13 @@ async function loadProducts() {
     startBackgroundServices();
 
   } catch (err) {
-    console.error("❌ Error cargando productos:", err);
+    console.error("âŒ Error cargando productos:", err);
     const container = document.getElementById("looks-container");
     if (container && !container.querySelector(".look-card")) {
       container.innerHTML = `
         <div class="empty-looks">
-          <p>❌ Error al cargar los productos.</p>
-          <p>Verifica tu conexión a internet e <a href="#" onclick="location.reload()">intenta nuevamente</a>.</p>
+          <p>âŒ Error al cargar los productos.</p>
+          <p>Verifica tu conexiÃ³n a internet e <a href="#" onclick="location.reload()">intenta nuevamente</a>.</p>
         </div>
       `;
     }
@@ -1563,13 +1582,13 @@ async function loadFreshProductsInBackground() {
       await generateLooksProgressive();
     }
   } catch (err) {
-    console.log("Background update falló (timeout esperado):", err.message);
+    console.log("Background update fallÃ³ (timeout esperado):", err.message);
   } finally {
     isGeneratingLooks = false;
   }
 }
 
-// ========== INICIALIZACIÓN ==========
+// ========== INICIALIZACIÃ“N ==========
 document.addEventListener("DOMContentLoaded", () => {
   initLazyLoading();
   loadProducts();
