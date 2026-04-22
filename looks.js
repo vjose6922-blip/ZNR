@@ -334,7 +334,7 @@ async function initWeatherAndBackground() {
       console.warn('❌ Se agotaron los reintentos de clima. Usando valores estimados.');
       weatherRetryCount = 0;
       weatherRetryTimer = null;
-      const classified = classifyWeather(null); // retorna valores por defecto
+      const classified = classifyWeather(null);
       updateWeatherWidgetUI(classified);
       updateLooksNavBackground(selectBackgroundImage(classified));
       const c = classified.condition;
@@ -343,11 +343,19 @@ async function initWeatherAndBackground() {
         temperature: classified.temperature,
         city: 'Nuevo Laredo'
       };
+      // Re-ordenar looks con valores estimados
+      if (allLooks.length > 0) {
+        allLooks = sortLooksByWeather(allLooks);
+        looks = [...allLooks];
+        renderLooks();
+        console.log('🔁 Looks re-ordenados con clima estimado.');
+      }
     }
     return;
   }
   
   // API respondió correctamente — resetear contadores y aplicar datos reales
+  const isRetrySuccess = weatherRetryCount > 0;
   weatherRetryCount = 0;
   if (weatherRetryTimer) { clearTimeout(weatherRetryTimer); weatherRetryTimer = null; }
   
@@ -361,6 +369,14 @@ async function initWeatherAndBackground() {
     temperature: classified.temperature,
     city: 'Nuevo Laredo'
   };
+  
+  // Si el clima llegó después de un reintento y ya hay looks renderizados, re-ordenarlos
+  if (isRetrySuccess && allLooks.length > 0) {
+    allLooks = sortLooksByWeather(allLooks);
+    looks = [...allLooks];
+    renderLooks();
+    console.log('🔁 Looks re-ordenados con clima real tras reintento exitoso.');
+  }
   
   console.log('Clima aplicado:', classified.timeOfDay, classified.condition, classified.temperature);
 }
