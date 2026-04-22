@@ -238,15 +238,10 @@ body {
 
 
 
-
-
-
-
 .looks-nav {
-  margin-top: 0;
   position: relative;
-  height: 140px;                    /* Altura fija (ajústala según necesites) */
-  background-size: 100% auto;       /* Imagen ocupa todo el ancho, altura automática */
+  height: auto;                    /* ← Altura automática según la imagen */
+  background-size: contain;        /* ← Muestra la imagen COMPLETA */
   background-position: center;
   background-repeat: no-repeat;
   transition: background-image 0.5s ease-in-out;
@@ -255,30 +250,30 @@ body {
   padding: 0;
   margin: 0;
   border-bottom: none;
-  overflow: hidden;
-  border-bottom: 3px solid red;     /* ← Borde ROJO abajo */
-  border-top: 3px solid blue;
 }
 
-/* Capa de overlay para mejorar legibilidad del texto */
-
-/* Contenedor del contenido (encima del overlay) */
+/* El contenido debe estar posicionado absolutamente o con padding */
 .looks-nav-content {
-  margin-top: 0;
-  position: relative;
+  position: absolute;              /* ← Importante: saca el contenido del flujo */
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 2;
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 0;
+  padding: 12px 20px;
   flex-wrap: wrap;
   gap: 12px;
+  background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
 }
 
-/* ============================================
-   ENLACE DEL CATÁLOGO
-   ============================================ */
+
+
+
+
+
 .looks-nav-link {
   text-decoration: none;
   font-size: 15px;
