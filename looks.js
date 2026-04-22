@@ -325,7 +325,6 @@ function classifyWeather(weatherData) {
   };
     }
 
-async function initWeatherAndBackground() {
 
   
   
