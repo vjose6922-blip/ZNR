@@ -241,12 +241,9 @@ body {
 
 
 
-/* ============================================
-   LOOKS NAV - BARRA DE NAVEGACIÓN CON CLIMA
-   ============================================ */
 
-/* Base del navbar */
 .looks-nav {
+  margin-top: 0;
   position: relative;
   height: 180px;                    /* Altura fija (ajústala según necesites) */
   background-size: 100% auto;       /* Imagen ocupa todo el ancho, altura automática */
