@@ -245,7 +245,7 @@ body {
 .looks-nav {
   margin-top: 0;
   position: relative;
-  height: 180px;                    /* Altura fija (ajústala según necesites) */
+  height: 140px;                    /* Altura fija (ajústala según necesites) */
   background-size: 100% auto;       /* Imagen ocupa todo el ancho, altura automática */
   background-position: center;
   background-repeat: no-repeat;
@@ -264,6 +264,7 @@ body {
 
 /* Contenedor del contenido (encima del overlay) */
 .looks-nav-content {
+  margin-top: 0;
   position: relative;
   z-index: 2;
   display: flex;
@@ -416,6 +417,7 @@ body {
     height: 140px;
   }
   .looks-nav-content {
+    margin-top: 0;
     padding: 12px 16px;
   }
   .looks-nav-link {
@@ -437,6 +439,7 @@ body {
     height: 120px;
   }
   .looks-nav-content {
+    margin-top: 0;
     flex-direction: column;
     align-items: flex-start;
     padding: 10px 12px;
