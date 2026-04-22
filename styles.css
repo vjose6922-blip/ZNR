@@ -381,7 +381,7 @@ body {
 /* Tablet y escritorio mediano */
 @media (min-width: 769px) and (max-width: 1024px) {
   .looks-nav {
-    height: 160px;
+  
   }
   .looks-nav-content {
     padding: 10px 20px;
@@ -391,7 +391,7 @@ body {
 /* Escritorio grande */
 @media (min-width: 1025px) {
   .looks-nav {
-    height: 200px;
+    
   }
   .looks-nav-content {
     padding: 16px 24px;
@@ -409,7 +409,7 @@ body {
 /* Móvil grande (481px - 768px) */
 @media (max-width: 768px) {
   .looks-nav {
-    height: 140px;
+    
   }
   .looks-nav-content {
     margin-top: 0;
@@ -431,7 +431,7 @@ body {
 /* Móvil pequeño (menos de 480px) */
 @media (max-width: 480px) {
   .looks-nav {
-    height: 120px;
+    
   }
   .looks-nav-content {
     margin-top: 0;
