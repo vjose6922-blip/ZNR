@@ -326,68 +326,10 @@ function classifyWeather(weatherData) {
     }
 
 async function initWeatherAndBackground() {
-  console.log('🌤️ Inicializando clima y fondo...');
+
   
-  // Esperar a que el widget exista en el DOM (máximo 2 segundos)
-  let widget = document.getElementById('weather-widget');
-  let attempts = 0;
-  const maxAttempts = 20;
   
-  while (!widget && attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    widget = document.getElementById('weather-widget');
-    attempts++;
-  }
-  
-  if (widget) {
-    // Actualizar solo el texto, no el HTML completo
-    const textSpan = widget.querySelector('.weather-text');
-    if (textSpan) {
-      textSpan.textContent = 'Cargando clima...';
-    }
-    widget.classList.add('loading');
-  } else {
-    console.error('❌ No se encontró #weather-widget después de 2 segundos');
-  }
-  
-  // Verificar cache primero
-  const cached = sessionStorage.getItem('zr_weather_cache');
-  if (cached) {
-    try {
-      const { weatherType, temperature, city, timestamp, fullData } = JSON.parse(cached);
-      if (Date.now() - timestamp < 120000 && fullData) {
-        console.log('🌤️ Clima desde cache');
-        updateWeatherWidgetUI(fullData);
-        const imageUrl = selectBackgroundImage(fullData);
-        updateLooksNavBackground(imageUrl);
-        currentWeather = {
-          weatherType: (() => {
-            const c = weatherType;
-            if (c === 'calor') return 'calor';
-            if (c === 'frio') return 'frio';
-            if (c.includes('lluvia') || c.includes('tormenta')) return 'lluvioso';
-            return 'templado';
-          })(),
-          temperature,
-          city
-        };
-        return;
-      }
-    } catch(e) {
-      console.warn('Error leyendo cache:', e);
-    }
-  }
-  
-  // Obtener clima actual
-  const weatherData = await fetchWeatherData();
-  const classified = classifyWeather(weatherData);
-  
-  // Guardar en cache
-  sessionStorage.setItem('zr_weather_cache', JSON.stringify({
-    weatherType: classified.condition,
-    temperature: classified.temperature,
-    city: 'Nuevo Laredo',
-    timestamp: Date.now(),
+
 async function initWeatherAndBackground() {
   console.log('🌤️ Inicializando clima y fondo...');
   
