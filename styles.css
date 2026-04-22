@@ -238,26 +238,25 @@ body {
 
 
 
+/* ===== LOOKS NAV - VERSIÓN SIN OVERLAY ===== */
 .looks-nav {
   position: relative;
-  width: 100%;
-  min-height: 200px;           /* Altura mínima en móvil */
-  background-size: cover;
+  height: auto;                    /* Altura automática según la imagen */
+  background-size: contain;        /* Muestra la imagen COMPLETA */
   background-position: center;
   background-repeat: no-repeat;
   transition: background-image 0.5s ease-in-out;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
   padding: 0;
   margin: 0;
   border-bottom: none;
 }
-/* El contenido debe estar posicionado absolutamente o con padding */
+
+/* Contenedor del contenido - AHORA EN EL FLUJO NORMAL */
 .looks-nav-content {
-  position: absolute;              /* ← Importante: saca el contenido del flujo */
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: relative;              /* ← Cambiado de absolute a relative */
   z-index: 2;
   display: flex;
   justify-content: space-between;
@@ -266,9 +265,8 @@ body {
   padding: 12px 20px;
   flex-wrap: wrap;
   gap: 12px;
-  background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+  /* Sin background (elimina el overlay) */
 }
-
 
 
 
