@@ -213,19 +213,20 @@ function applyFallbackBackground(looksNav) {
   looksNav.classList.add('fallback-bg');
 }
 
+
+
 function updateWeatherWidgetUI(classified) {
-  // Buscar el widget por ID (más confiable)
-  let widget = document.getElementById('weather-widget');
+  console.log('🔄 Actualizando widget con:', classified);
   
+  const widget = document.getElementById('weather-widget');
   if (!widget) {
-    console.error('❌ No se encontró el elemento #weather-widget en el DOM');
+    console.error('❌ No se encontró el widget');
     return;
   }
   
   const temp = Math.round(classified.temperature);
   
-  // Determinar el icono según la condición
-  let icon = '☀️';
+  let icon = '🌡️';
   if (classified.condition.includes('lluvia')) icon = '☔';
   else if (classified.condition === 'tormenta') icon = '⛈️';
   else if (classified.condition === 'nieve') icon = '❄️';
@@ -234,22 +235,8 @@ function updateWeatherWidgetUI(classified) {
   else if (classified.condition === 'nublado_parcial') icon = '⛅';
   else if (classified.condition === 'viento_fuerte') icon = '💨';
   
-  // Actualizar el contenido manteniendo la estructura
-  const iconSpan = widget.querySelector('.weather-icon');
-  const textSpan = widget.querySelector('.weather-text');
-  
-  if (iconSpan) {
-    iconSpan.textContent = icon;
-  } else {
-    // Si no existe la estructura esperada, actualizar todo el innerHTML
-    widget.innerHTML = `<span class="weather-icon">${icon}</span><span class="weather-text">${temp}°C</span>`;
-  }
-  
-  if (textSpan) {
-    textSpan.textContent = `${temp}°C`;
-  }
-  
-  // Remover la clase loading
+  // Actualizar directamente el contenido
+  widget.innerHTML = `<span class="weather-icon">${icon}</span><span class="weather-text">${temp}°C</span>`;
   widget.classList.remove('loading');
   
   console.log(`✅ Widget actualizado: ${icon} ${temp}°C`);
