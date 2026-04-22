@@ -240,8 +240,9 @@ body {
 
 .looks-nav {
   position: relative;
-  height: auto;                    /* ← Altura automática según la imagen */
-  background-size: contain;        /* ← Muestra la imagen COMPLETA */
+  width: 100%;
+  min-height: 200px;           /* Altura mínima en móvil */
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   transition: background-image 0.5s ease-in-out;
@@ -251,7 +252,6 @@ body {
   margin: 0;
   border-bottom: none;
 }
-
 /* El contenido debe estar posicionado absolutamente o con padding */
 .looks-nav-content {
   position: absolute;              /* ← Importante: saca el contenido del flujo */
