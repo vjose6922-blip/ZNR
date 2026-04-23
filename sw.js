@@ -2,8 +2,8 @@
 // sw.js - Service Worker para Z&R PWA
 // ============================================
 
-const CACHE_NAME = 'zr-cache-v2';
-const DYNAMIC_CACHE = 'zr-dynamic-v2';
+const CACHE_NAME = 'zr-cache-v3';
+const DYNAMIC_CACHE = 'zr-dynamic-v3';
 const OFFLINE_URL = '/ZNR/offline.html';
 
 // Recursos estáticos que siempre deben estar en caché
@@ -25,7 +25,7 @@ const STATIC_ASSETS = [
 
 // Extensiones de imágenes para caché dinámico
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
-const API_DOMAINS = ['script.google.com', 'googleusercontent.com'];
+const API_DOMAINS = ['script.google.com', 'googleusercontent.com', 'wttr.in', 'openweathermap.org'];
 
 // Instalación del Service Worker
 self.addEventListener('install', event => {
@@ -94,7 +94,12 @@ function getCacheStrategy(request) {
     return 'CACHE_FIRST';
   }
   
-  // API y recursos externos
+  // Clima - siempre pedir red, nunca servir caché viejo
+  if (url.hostname.includes('wttr.in') || url.hostname.includes('openweathermap.org')) {
+    return 'NETWORK_ONLY';
+  }
+  
+  // API y recursos externos (Google Apps Script)
   if (API_DOMAINS.some(domain => url.hostname.includes(domain))) {
     return 'NETWORK_FIRST';
   }
@@ -121,6 +126,10 @@ self.addEventListener('fetch', event => {
   switch (strategy) {
     case 'CACHE_FIRST':
       event.respondWith(cacheFirstStrategy(event.request));
+      break;
+      
+    case 'NETWORK_ONLY':
+      event.respondWith(networkOnlyStrategy(event.request));
       break;
       
     case 'NETWORK_FIRST':
@@ -156,6 +165,21 @@ async function cacheFirstStrategy(request) {
       return caches.match(OFFLINE_URL);
     }
     return new Response('Error de conexión', { status: 404, statusText: 'Offline' });
+  }
+}
+
+// Estrategia: Network Only (para clima - siempre datos frescos)
+async function networkOnlyStrategy(request) {
+  try {
+    const networkResponse = await fetch(request);
+    return networkResponse;
+  } catch (error) {
+    // Sin red y sin caché: devolver respuesta vacía para que la app maneje el fallback
+    return new Response(JSON.stringify(null), {
+      status: 503,
+      statusText: 'Offline',
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 
