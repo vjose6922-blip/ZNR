@@ -384,7 +384,7 @@ async function syncRequestPurchase(data) {
 
 async function syncCreateProduct(productData) {
     try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(ADMIN_API_URL || API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
@@ -402,7 +402,7 @@ async function syncCreateProduct(productData) {
 
 async function syncUpdateProduct(productId, productData) {
     try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(ADMIN_API_URL || API_URL, {  // Usar ADMIN_API_URL
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
@@ -414,15 +414,15 @@ async function syncUpdateProduct(productId, productData) {
         const result = await response.json();
         return result.ok === true;
     } catch (err) {
-        console.error(err);
+        console.error("Error syncUpdateProduct:", err);
         return false;
     }
 }
 
 async function syncDeleteProduct(productId) {
     try {
-        const response = await fetch(API_URL, {
-            method: "POST",
+const response = await fetch(ADMIN_API_URL || API_URL, {
+    method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
                 action: "delete",
@@ -620,54 +620,84 @@ function setupOfflineInterceptors() {
         if (originalContinueCheckout) return await originalContinueCheckout();
     };
     
-    // ===== ADMIN - CRUD PRODUCTOS =====
-    const originalHandleSubmit = window.handleProductFormSubmit;
-    if (originalHandleSubmit) {
-        window.handleProductFormSubmit = async function(e) {
-            e.preventDefault();
-            
-            const id = document.getElementById("product-id").value;
-            const productData = {
-                Nombre: document.getElementById("product-name")?.value.trim() || "",
-                Precio: Number(document.getElementById("product-price")?.value || 0),
-                Stock: Number(document.getElementById("product-stock")?.value || 0),
-                Descripcion: document.getElementById("product-description")?.value.trim() || "",
-                Talla: document.getElementById("product-sizes")?.value.trim() || "",
-                Categoria: document.getElementById("product-category")?.value.trim() || "",
-                Badge: document.getElementById("product-badge")?.value || "",
-                Imagen1: document.getElementById("product-image1")?.value.trim() || "",
-                Imagen2: document.getElementById("product-image2")?.value.trim() || "",
-                Imagen3: document.getElementById("product-image3")?.value.trim() || "",
-            };
-            
-            if (!navigator.onLine) {
-                if (id) {
-                    await addOfflineAction(ACTION_TYPES.UPDATE_PRODUCT, productData, id);
-                } else {
-                    await addOfflineAction(ACTION_TYPES.CREATE_PRODUCT, productData);
-                }
-                if (typeof resetProductForm === 'function') resetProductForm();
-                showOfflineMessage("📡 Producto guardado localmente. Se sincronizará cuando haya internet.", "success");
-                return;
-            }
-            
-            await originalHandleSubmit(e);
+   const originalProductSubmit = window.handleProductFormSubmit;
+
+if (originalProductSubmit) {
+    window.handleProductFormSubmit = async function(e) {
+        e.preventDefault();
+        
+        // Obtener datos del formulario
+        const id = document.getElementById("product-id")?.value || "";
+        const productData = {
+            Nombre: document.getElementById("product-name")?.value.trim() || "",
+            Precio: Number(document.getElementById("product-price")?.value || 0),
+            Stock: Number(document.getElementById("product-stock")?.value || 0),
+            Descripcion: document.getElementById("product-description")?.value.trim() || "",
+            Talla: document.getElementById("product-sizes")?.value.trim() || "",
+            Categoria: document.getElementById("product-category")?.value.trim() || "",
+            Badge: document.getElementById("product-badge")?.value || "",
+            Imagen1: document.getElementById("product-image1")?.value.trim() || "",
+            Imagen2: document.getElementById("product-image2")?.value.trim() || "",
+            Imagen3: document.getElementById("product-image3")?.value.trim() || "",
         };
-    }
-    
-    const originalDeleteProduct = window.deleteProduct;
-    if (originalDeleteProduct) {
-        window.deleteProduct = async function(id) {
-            if (!navigator.onLine) {
-                await addOfflineAction(ACTION_TYPES.DELETE_PRODUCT, null, id);
-                const row = document.querySelector(`.admin-product-row button[data-id="${id}"]`)?.closest('.admin-product-row');
-                if (row) row.remove();
-                showOfflineMessage("📡 Producto marcado para eliminar.", 'warning');
-                return;
+        
+        // Validar nombre
+        if (!productData.Nombre) {
+            if (typeof showCustomAlert === 'function') {
+                await showCustomAlert({
+                    title: "⚠️ Campo requerido",
+                    message: "El nombre del producto es obligatorio.",
+                    icon: "📝",
+                    confirmText: "Aceptar"
+                });
             }
-            await originalDeleteProduct(id);
-        };
-    }
+            return;
+        }
+        
+        // MODO OFFLINE: Guardar en cola y salir
+        if (!navigator.onLine) {
+            if (id) {
+                await addOfflineAction(ACTION_TYPES.UPDATE_PRODUCT, productData, id);
+            } else {
+                await addOfflineAction(ACTION_TYPES.CREATE_PRODUCT, productData);
+            }
+            if (typeof resetProductForm === 'function') resetProductForm();
+            if (typeof clearImageUploads === 'function') clearImageUploads();
+            showOfflineMessage("📡 Producto guardado localmente. Se sincronizará cuando haya internet.", "success");
+            return;
+        }
+        
+        // MODO ONLINE: Llamar a la función ORIGINAL con los datos
+        // Crear un evento simulado con preventDefault ya llamado
+        const fakeEvent = { preventDefault: () => {} };
+        
+        // Restaurar temporalmente la función original para evitar loops
+        window.handleProductFormSubmit = originalProductSubmit;
+        
+        try {
+            await originalProductSubmit(fakeEvent);
+        } finally {
+            // Volver a interceptar después de ejecutar
+            window.handleProductFormSubmit = arguments.callee;
+        }
+    };
+}
+
+// Eliminar la función deleteProduct interceptada incorrectamente y reemplazar
+const originalDeleteProduct = window.deleteProduct;
+if (originalDeleteProduct) {
+    window.deleteProduct = async function(id) {
+        if (!navigator.onLine) {
+            await addOfflineAction(ACTION_TYPES.DELETE_PRODUCT, null, id);
+            // Eliminar visualmente de la lista
+            const row = document.querySelector(`.admin-product-row button[data-id="${id}"]`)?.closest('.admin-product-row');
+            if (row) row.remove();
+            showOfflineMessage("📡 Producto marcado para eliminar.", 'warning');
+            return;
+        }
+        await originalDeleteProduct(id);
+    };
+}
     
     // ===== ADMIN - SUBIDA DE IMÁGENES =====
     const uploadFields = ['image-upload-1', 'image-upload-2', 'image-upload-3'];
