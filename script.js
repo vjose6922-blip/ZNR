@@ -472,7 +472,7 @@ function createProductCard(product) {
     img.alt = safeNombre;
     img.src = url;
     img.loading = "lazy";
-    img.addEventListener("click", () => openImageModal(url));
+    img.addEventListener("click", () => openImageModal(url, ID));
 
     slide.appendChild(img);
     track.appendChild(slide);
@@ -640,23 +640,7 @@ function attachSliderEvents(slider, totalSlides) {
   setInterval(() => updateSlider((sliderState.get(productId) || 0) + 1), 6000);
 }
 
-function openImageModal(url) {
-  const modal = document.getElementById("image-modal");
-  const img = document.getElementById("image-modal-img");
-  const overlay = document.getElementById("overlay");
-  if (modal && img) {
-    img.src = url;
-    modal.classList.add("open");
-    if (overlay) overlay.classList.add("visible");
-  }
-}
 
-function closeImageModal() {
-  const modal = document.getElementById("image-modal");
-  const overlay = document.getElementById("overlay");
-  if (modal) modal.classList.remove("open");
-  if (overlay) overlay.classList.remove("visible");
-}
 
 function handleInitialHash() {
   if (initialHashHandled) return;
