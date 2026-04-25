@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Z&R | Inicio - Moda con Estilo</title>
+  <title>Z&R | Inicio</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Descubre las últimas tendencias en moda. Catálogo de ropa para hombre y mujer, outfits personalizados por clima y mucho más." />
+  <meta name="description" content="Catálogo de ropa para hombre y mujer, outfits personalizados." />
   <link rel="preconnect" href="https://script.google.com" crossorigin>
   <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
   <link rel="preload" href="styles.css" as="style">
@@ -16,7 +16,6 @@
   <meta name="apple-mobile-web-app-title" content="Z&R">
   <link rel="apple-touch-icon" href="/ZNR/logo.svg">
   <style>
-    /* Estilos exclusivos para la página de inicio */
     .hero-section {
       background: linear-gradient(135deg, #1a0f2e 0%, #3b1f5f 50%, #ff4f81 100%);
       border-radius: 0 0 40px 40px;
@@ -126,7 +125,6 @@
       color: var(--color-text-main);
     }
 
-    /* Productos destacados */
     .featured-products {
       max-width: 1400px;
       margin: 0 auto;
@@ -139,7 +137,6 @@
       gap: 24px;
     }
 
-    /* Sección Outfit */
     .outfit-preview {
       background: linear-gradient(135deg, #f8f9fa, #f0f0f5);
       border-radius: 30px;
@@ -216,7 +213,6 @@
       box-shadow: 0 5px 15px rgba(255,79,129,0.3);
     }
 
-    /* Beneficios */
     .benefits-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -246,7 +242,6 @@
       color: var(--color-text-muted);
     }
 
-    /* Productos recientes */
     .recent-products {
       max-width: 1400px;
       margin: 0 auto;
@@ -299,7 +294,6 @@
       color: #ff4f81;
     }
 
-    /* WhatsApp flotante */
     .floating-wa {
       position: fixed;
       right: 16px;
@@ -324,13 +318,7 @@
       box-shadow: 0 6px 20px rgba(37,211,102,0.5);
     }
 
-    /* Sección de clima en home */
-    .weather-home {
-      display: flex;
-      justify-content: flex-end;
-      padding: 10px 20px;
-      background: var(--header-footer-bg);
-    }
+    
 
     @keyframes fadeInUp {
       from {
@@ -357,15 +345,8 @@
     <div class="loader-text">Cargando...</div>
   </div>
 
-  <!-- Barra superior con clima -->
-  <div class="weather-home">
-    <div class="weather-widget" id="weather-widget-home">
-      <span class="weather-icon">🌡️</span>
-      <span class="weather-temp">Cargando...</span>
-    </div>
-  </div>
+ 
 
-  <!-- Header -->
   <header class="app-header">
     <div class="header-left">
       <div class="logo-touch-area">
@@ -385,23 +366,20 @@
     </div>
   </header>
 
-  <!-- Hero Section -->
   <section class="hero-section">
     <h1 class="hero-title">Descubre tu Estilo</h1>
-    <p class="hero-subtitle">Las últimas tendencias en moda para hombre y mujer. Outfits personalizados según el clima.</p>
+    <p class="hero-subtitle">Ropa 100% original Outfits.</p>
     <div class="hero-buttons">
       <a href="catalogo.html" class="hero-btn hero-btn-primary">🛍️ Ver Catálogo</a>
       <a href="outfit.html" class="hero-btn hero-btn-secondary">✨ Crear Outfit</a>
     </div>
   </section>
 
-  <!-- Categorías Rápidas -->
   <section>
     <h2 class="section-title">✨ Explora por Categoría</h2>
     <div class="categories-grid" id="categories-grid"></div>
   </section>
 
-  <!-- Productos Destacados -->
   <section>
     <h2 class="section-title">🌟 Productos Destacados</h2>
     <div class="featured-products">
@@ -409,7 +387,6 @@
     </div>
   </section>
 
-  <!-- Sección Outfit Inteligente -->
   <section class="outfit-preview">
     <h2 class="section-title" style="margin-bottom: 16px;">🤖 Outfit Inteligente</h2>
     <p style="max-width: 600px; margin: 0 auto 20px; color: var(--color-text-muted);">
@@ -421,7 +398,16 @@
     <div class="outfit-grid" id="home-looks-container"></div>
   </section>
 
-  <!-- Beneficios -->
+
+<section>
+    <h2 class="section-title">🕐 Vistos Recientemente</h2>
+    <div class="recent-products">
+      <div class="recent-scroll" id="recent-products"></div>
+    </div>
+  </section>
+
+
+  
   <section>
     <div class="benefits-grid">
       <div class="benefit-card">
@@ -447,18 +433,8 @@
     </div>
   </section>
 
-  <!-- Productos Vistos Recientemente -->
-  <section>
-    <h2 class="section-title">🕐 Vistos Recientemente</h2>
-    <div class="recent-products">
-      <div class="recent-scroll" id="recent-products"></div>
-    </div>
-  </section>
-
-  <!-- WhatsApp Flotante -->
   <a href="https://wa.me/528671781272" class="floating-wa" target="_blank" rel="noopener">💬</a>
 
-  <!-- Footer -->
   <footer class="app-footer">
     <div class="footer-content">
       <div class="footer-logo">
@@ -473,7 +449,6 @@
     </div>
   </footer>
 
-  <!-- Sidebar Carrito y Wishlist (reutilizados) -->
   <aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
     <div class="cart-header">
       <h2>Tu carrito</h2>
