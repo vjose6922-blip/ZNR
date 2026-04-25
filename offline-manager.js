@@ -1,808 +1,290 @@
-if (typeof ADMIN_API_URL === 'undefined' && typeof API_URL !== 'undefined') {
-    window.ADMIN_API_URL = API_URL;
-}
-const ADMIN_API_URL = window.ADMIN_API_URL || API_URL;
-const OFFLINE_DB_NAME = 'ZR_OfflineDB';
-const OFFLINE_DB_VERSION = 1;
-const OFFLINE_STORE_NAME = 'offline_actions';
-const OFFLINE_IMAGES_STORE = 'offline_images';
-
-let offlineDB = null;
-let isProcessingOffline = false;
-
-const ACTION_TYPES = {
-    ADD_TO_CART: 'add_to_cart',
-    REMOVE_FROM_CART: 'remove_from_cart',
-    UPDATE_CART_QTY: 'update_cart_qty',
-    REQUEST_PURCHASE: 'request_purchase',
-    CREATE_PRODUCT: 'create_product',
-    UPDATE_PRODUCT: 'update_product',
-    DELETE_PRODUCT: 'delete_product',
-    UPLOAD_IMAGE: 'upload_image'
+// ========== OFFLINE MANAGER - VERSIÓN SIMPLIFICADA ==========
+const ADMIN_ACTIONS = {
+    CREATE: 'admin_create',
+    UPDATE: 'admin_update',
+    DELETE: 'admin_delete'
 };
 
+let pendingActions = [];
 
-
-function initOfflineDB() {
-    return new Promise((resolve, reject) => {
-        if (offlineDB && offlineDB.name === OFFLINE_DB_NAME) {
-            resolve(offlineDB);
-            return;
+// ========== 1. CARGAR/GUARDAR ACCIONES EN localStorage ==========
+function loadPendingActions() {
+    try {
+        const saved = localStorage.getItem('zr_admin_pending');
+        if (saved) {
+            pendingActions = JSON.parse(saved);
+            console.log(`📦 Cargadas ${pendingActions.length} acciones pendientes`);
         }
-        
-        const request = indexedDB.open(OFFLINE_DB_NAME, OFFLINE_DB_VERSION);
-        
-        request.onerror = (event) => {
-            console.error("❌ Error abriendo IndexedDB:", event.target.error);
-            reject(event.target.error);
-        };
-        
-        request.onsuccess = (event) => {
-            offlineDB = event.target.result;
-            console.log("✅ OfflineDB inicializada");
-            updateOfflineBadge();
-            resolve(offlineDB);
-        };
-        
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            
-            // Store para acciones pendientes
-            if (!db.objectStoreNames.contains(OFFLINE_STORE_NAME)) {
-                const store = db.createObjectStore(OFFLINE_STORE_NAME, { 
-                    keyPath: 'id', 
-                    autoIncrement: true 
-                });
-                store.createIndex('type', 'type', { unique: false });
-                store.createIndex('timestamp', 'timestamp', { unique: false });
-                store.createIndex('status', 'status', { unique: false });
-            }
-            
-            // Store para imágenes (datos grandes)
-            if (!db.objectStoreNames.contains(OFFLINE_IMAGES_STORE)) {
-                const imageStore = db.createObjectStore(OFFLINE_IMAGES_STORE, { 
-                    keyPath: 'id', 
-                    autoIncrement: true 
-                });
-                imageStore.createIndex('actionId', 'actionId', { unique: false });
-            }
-            
-            console.log("📦 ObjectStores creados");
-        };
-    });
+    } catch(e) { pendingActions = []; }
+    updatePendingBadge();
 }
 
-// ========== 3. AÑADIR ACCIÓN A LA COLA ==========
-async function addOfflineAction(type, data, productId = null) {
-    await initOfflineDB();
-    
-    const action = {
-        id: Date.now() + '_' + Math.random().toString(36).substr(2, 8),
+function savePendingActions() {
+    try {
+        localStorage.setItem('zr_admin_pending', JSON.stringify(pendingActions));
+        updatePendingBadge();
+    } catch(e) {}
+}
+
+function addPendingAction(type, data, productId = null) {
+    pendingActions.push({
+        id: Date.now() + '_' + Math.random().toString(36).substr(2, 6),
         type: type,
         data: data,
         productId: productId,
         timestamp: Date.now(),
-        retries: 0,
-        status: 'pending'
-    };
-    
-    return new Promise((resolve, reject) => {
-        const transaction = offlineDB.transaction([OFFLINE_STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(OFFLINE_STORE_NAME);
-        const request = store.add(action);
-        
-        request.onsuccess = () => {
-            console.log(`📝 Acción "${type}" añadida a cola`);
-            showOfflineMessage(getActionMessage(type));
-            updateOfflineBadge();
-            resolve(action);
-        };
-        
-        request.onerror = (err) => reject(err);
+        retries: 0
     });
+    savePendingActions();
+    showMessage(`📡 Producto guardado localmente. Se sincronizará cuando haya internet.`, 'info');
+    console.log(`📝 Acción "${type}" guardada. Total pendientes: ${pendingActions.length}`);
 }
 
-function getActionMessage(type) {
-    const messages = {
-        'add_to_cart': '📡 Producto agregado. Se sincronizará cuando haya internet.',
-        'remove_from_cart': '📡 Eliminación guardada.',
-        'update_cart_qty': '📡 Cantidad guardada.',
-        'request_purchase': '📡 Solicitud guardada. Se enviará cuando haya internet.',
-        'create_product': '📡 Producto guardado localmente. Se subirá cuando haya internet.',
-        'update_product': '📡 Cambios guardados localmente.',
-        'delete_product': '📡 Producto marcado para eliminar.',
-        'upload_image': '📡 Imagen guardada. Se subirá cuando haya internet.'
-    };
-    return messages[type] || '📡 Acción guardada offline';
-}
+// ========== 2. SINCRONIZAR CON LA API ==========
+const ADMIN_API = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
-// ========== 4. OBTENER ACCIONES PENDIENTES ==========
-async function getPendingActions() {
-    await initOfflineDB();
-    
-    return new Promise((resolve, reject) => {
-        const transaction = offlineDB.transaction([OFFLINE_STORE_NAME], 'readonly');
-        const store = transaction.objectStore(OFFLINE_STORE_NAME);
-        const index = store.index('status');
-        const request = index.getAll('pending');
-        
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = (err) => reject(err);
-    });
-}
-
-async function removeAction(actionId) {
-    return new Promise((resolve, reject) => {
-        const transaction = offlineDB.transaction([OFFLINE_STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(OFFLINE_STORE_NAME);
-        const request = store.delete(actionId);
-        
-        request.onsuccess = () => resolve();
-        request.onerror = (err) => reject(err);
-    });
-}
-
-async function incrementRetry(actionId) {
-    return new Promise(async (resolve, reject) => {
-        const transaction = offlineDB.transaction([OFFLINE_STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(OFFLINE_STORE_NAME);
-        
-        const getRequest = store.get(actionId);
-        getRequest.onsuccess = () => {
-            const action = getRequest.result;
-            if (action) {
-                action.retries++;
-                const putRequest = store.put(action);
-                putRequest.onsuccess = () => resolve();
-                putRequest.onerror = (err) => reject(err);
-            } else {
-                resolve();
-            }
-        };
-        getRequest.onerror = (err) => reject(err);
-    });
-}
-
-// ========== 5. GUARDAR IMAGEN EN COLA ==========
-async function queueImageUpload(file, productId, imageField) {
-    await initOfflineDB();
-    
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        
-        reader.onload = async (e) => {
-            const imageData = e.target.result;
-            
-            // Primero crear la acción principal
-            const action = {
-                id: Date.now() + '_' + Math.random().toString(36).substr(2, 8),
-                type: ACTION_TYPES.UPLOAD_IMAGE,
-                data: {
-                    fileName: file.name,
-                    fileType: file.type,
-                    fileSize: file.size,
-                    productId: productId,
-                    imageField: imageField
-                },
-                timestamp: Date.now(),
-                retries: 0,
-                status: 'pending'
-            };
-            
-            const transaction = offlineDB.transaction([OFFLINE_STORE_NAME, OFFLINE_IMAGES_STORE], 'readwrite');
-            const actionStore = transaction.objectStore(OFFLINE_STORE_NAME);
-            const imageStore = transaction.objectStore(OFFLINE_IMAGES_STORE);
-            
-            // Guardar acción
-            const actionRequest = actionStore.add(action);
-            
-            actionRequest.onsuccess = () => {
-                // Guardar imagen asociada
-                imageStore.add({
-                    actionId: action.id,
-                    imageData: imageData,
-                    fileName: file.name
-                });
-                
-                console.log(`📸 Imagen "${file.name}" guardada en cola`);
-                showOfflineMessage(`📡 Imagen guardada. Se subirá cuando haya internet.`, 'warning');
-                updateOfflineBadge();
-                resolve({ queued: true, actionId: action.id });
-            };
-            
-            actionRequest.onerror = (err) => reject(err);
-        };
-        
-        reader.onerror = (err) => reject(err);
-        reader.readAsDataURL(file);
-    });
-}
-
-// ========== 6. PROCESAR TODA LA COLA ==========
-async function processOfflineQueue() {
-    if (isProcessingOffline) {
-        console.log("⏳ Ya se está procesando la cola");
-        return;
-    }
-    
+async function syncPendingActions() {
     if (!navigator.onLine) {
-        console.log("📡 Sin conexión, esperando...");
+        console.log("📡 Sin conexión, no se puede sincronizar");
         return;
     }
     
-    const pendingActions = await getPendingActions();
-    if (pendingActions.length === 0) {
-        return;
-    }
+    if (pendingActions.length === 0) return;
     
-    isProcessingOffline = true;
-    console.log(`🔄 Procesando ${pendingActions.length} acciones pendientes...`);
-    showOfflineSyncIndicator(true, pendingActions.length);
+    console.log(`🔄 Sincronizando ${pendingActions.length} acciones pendientes...`);
     
     for (let i = 0; i < pendingActions.length; i++) {
         const action = pendingActions[i];
-        updateOfflineSyncProgress(i + 1, pendingActions.length);
         
         try {
             let success = false;
             
-            switch (action.type) {
-                case ACTION_TYPES.ADD_TO_CART:
-                    success = await syncAddToCart(action.data);
-                    break;
-                case ACTION_TYPES.REMOVE_FROM_CART:
-                    success = await syncRemoveFromCart(action.data);
-                    break;
-                case ACTION_TYPES.UPDATE_CART_QTY:
-                    success = await syncUpdateCartQty(action.data);
-                    break;
-                case ACTION_TYPES.REQUEST_PURCHASE:
-                    success = await syncRequestPurchase(action.data);
-                    break;
-                case ACTION_TYPES.CREATE_PRODUCT:
-                    success = await syncCreateProduct(action.data);
-                    break;
-                case ACTION_TYPES.UPDATE_PRODUCT:
-                    success = await syncUpdateProduct(action.productId, action.data);
-                    break;
-                case ACTION_TYPES.DELETE_PRODUCT:
-                    success = await syncDeleteProduct(action.productId);
-                    break;
-                case ACTION_TYPES.UPLOAD_IMAGE:
-                    success = await syncUploadImage(action.id, action.data);
-                    break;
+            if (action.type === ADMIN_ACTIONS.CREATE) {
+                const response = await fetch(ADMIN_API, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({ action: "create", ...action.data }).toString()
+                });
+                const result = await response.json();
+                success = result.ok === true;
+                if (success) console.log(`✅ Producto creado: ${action.data.Nombre}`);
+            }
+            else if (action.type === ADMIN_ACTIONS.UPDATE) {
+                const response = await fetch(ADMIN_API, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({ action: "update", id: action.productId, ...action.data }).toString()
+                });
+                const result = await response.json();
+                success = result.ok === true;
+                if (success) console.log(`✅ Producto actualizado: ID ${action.productId}`);
+            }
+            else if (action.type === ADMIN_ACTIONS.DELETE) {
+                const response = await fetch(ADMIN_API, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({ action: "delete", id: action.productId }).toString()
+                });
+                const result = await response.json();
+                success = result.ok === true;
+                if (success) console.log(`✅ Producto eliminado: ID ${action.productId}`);
             }
             
             if (success) {
-                await removeAction(action.id);
-                console.log(`✅ Acción ${action.type} completada`);
+                pendingActions.splice(i, 1);
+                i--;
+                savePendingActions();
             } else {
-                await incrementRetry(action.id);
-                console.log(`⚠️ Reintento ${action.retries + 1}/5 para ${action.type}`);
-                
-                if (action.retries + 1 >= 5) {
-                    console.warn(`❌ Acción ${action.type} eliminada tras 5 reintentos`);
-                    await removeAction(action.id);
-                    showOfflineMessage(`⚠️ No se pudo completar una operación`, 'error');
-                }
-            }
-            
-        } catch (err) {
-            console.error(`❌ Error procesando ${action.type}:`, err);
-            await incrementRetry(action.id);
-        }
-        
-        // Pequeña pausa entre operaciones
-        await new Promise(r => setTimeout(r, 300));
-    }
-    
-    isProcessingOffline = false;
-    showOfflineSyncIndicator(false);
-    updateOfflineBadge();
-    
-    const remaining = await getPendingActions();
-    if (remaining.length === 0) {
-        console.log("✅ Cola offline vacía");
-        showOfflineMessage("✅ Todos los cambios sincronizados", "success");
-        
-        // Recargar datos si es necesario
-        if (typeof loadAdminProducts === 'function') {
-            loadAdminProducts();
-        }
-        if (typeof loadCartFromStorage === 'function') {
-            loadCartFromStorage();
-            if (typeof renderCart === 'function') renderCart();
-        }
-    }
-}
-
-// ========== 7. FUNCIONES DE SINCRONIZACIÓN ==========
-
-async function syncAddToCart(data) {
-    return new Promise((resolve) => {
-        try {
-            if (typeof window.addToCart === 'function') {
-                window.addToCart(data.product);
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        } catch (err) {
-            console.error(err);
-            resolve(false);
-        }
-    });
-}
-
-async function syncRemoveFromCart(data) {
-    return new Promise((resolve) => {
-        try {
-            if (typeof window.removeFromCart === 'function') {
-                window.removeFromCart(data.productId);
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        } catch (err) {
-            resolve(false);
-        }
-    });
-}
-
-async function syncUpdateCartQty(data) {
-    return new Promise((resolve) => {
-        try {
-            if (typeof window.changeCartQty === 'function') {
-                const cart = JSON.parse(localStorage.getItem('cart') || '{}');
-                const currentQty = cart[data.productId]?.quantity || 0;
-                const delta = data.quantity - currentQty;
-                if (delta !== 0) {
-                    window.changeCartQty(data.productId, delta);
-                }
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        } catch (err) {
-            resolve(false);
-        }
-    });
-}
-
-async function syncRequestPurchase(data) {
-    try {
-        if (typeof window.continueCheckout === 'function') {
-            await window.continueCheckout();
-            return true;
-        }
-        return false;
-    } catch (err) {
-        console.error(err);
-        return false;
-    }
-}
-
-async function syncCreateProduct(productData) {
-    try {
-        const response = await fetch(ADMIN_API_URL || API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-                action: "create",
-                ...productData
-            }).toString()
-        });
-        const result = await response.json();
-        return result.ok === true;
-    } catch (err) {
-        console.error(err);
-        return false;
-    }
-}
-
-async function syncUpdateProduct(productId, productData) {
-    try {
-        const response = await fetch(ADMIN_API_URL || API_URL, {  // Usar ADMIN_API_URL
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-                action: "update",
-                id: productId,
-                ...productData
-            }).toString()
-        });
-        const result = await response.json();
-        return result.ok === true;
-    } catch (err) {
-        console.error("Error syncUpdateProduct:", err);
-        return false;
-    }
-}
-
-async function syncDeleteProduct(productId) {
-    try {
-const response = await fetch(ADMIN_API_URL || API_URL, {
-    method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-                action: "delete",
-                id: productId
-            }).toString()
-        });
-        const result = await response.json();
-        return result.ok === true;
-    } catch (err) {
-        console.error(err);
-        return false;
-    }
-}
-
-async function syncUploadImage(actionId, data) {
-    try {
-        // Obtener la imagen de la store
-        const imageData = await getQueuedImage(actionId);
-        if (!imageData) return false;
-        
-        const base64 = imageData.split(',')[1];
-        
-        const response = await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                action: "uploadImage",
-                fileName: data.fileName,
-                mimeType: data.fileType,
-                data: base64
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.ok) {
-            const imageUrl = `https://lh3.googleusercontent.com/d/${result.id}=w400-h400-c-rw`;
-            
-            // Actualizar el campo correspondiente si existe
-            const imageInput = document.getElementById(`product-${data.imageField.toLowerCase()}`);
-            if (imageInput && imageInput.value.includes('[Pendiente de subir]')) {
-                imageInput.value = imageUrl;
-                imageInput.style.color = '';
-            }
-            
-            // Eliminar imagen de la store
-            await removeQueuedImage(actionId);
-            return true;
-        }
-        return false;
-    } catch (err) {
-        console.error(err);
-        return false;
-    }
-}
-
-async function getQueuedImage(actionId) {
-    return new Promise((resolve, reject) => {
-        const transaction = offlineDB.transaction([OFFLINE_IMAGES_STORE], 'readonly');
-        const store = transaction.objectStore(OFFLINE_IMAGES_STORE);
-        const index = store.index('actionId');
-        const request = index.get(actionId);
-        
-        request.onsuccess = () => {
-            if (request.result) {
-                resolve(request.result.imageData);
-            } else {
-                resolve(null);
-            }
-        };
-        request.onerror = (err) => reject(err);
-    });
-}
-
-async function removeQueuedImage(actionId) {
-    return new Promise((resolve, reject) => {
-        const transaction = offlineDB.transaction([OFFLINE_IMAGES_STORE], 'readwrite');
-        const store = transaction.objectStore(OFFLINE_IMAGES_STORE);
-        const index = store.index('actionId');
-        const request = index.get(actionId);
-        
-        request.onsuccess = () => {
-            if (request.result) {
-                store.delete(request.result.id);
-            }
-            resolve();
-        };
-        request.onerror = (err) => reject(err);
-    });
-}
-
-// ========== 8. UI - INDICADORES ==========
-
-let offlineIndicator = null;
-
-function showOfflineSyncIndicator(show, total = 0) {
-    if (show && !offlineIndicator) {
-        offlineIndicator = document.createElement('div');
-        offlineIndicator.id = 'offline-sync-indicator';
-        offlineIndicator.innerHTML = `
-            <div class="offline-sync-content">
-                <div class="offline-sync-spinner"></div>
-                <div class="offline-sync-info">
-                    <span>Sincronizando cambios...</span>
-                    <small id="offline-sync-count">${total} operaciones pendientes</small>
-                </div>
-            </div>
-        `;
-        offlineIndicator.style.cssText = `
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, #3b1f5f, #5a3b8a);
-            color: white;
-            border-radius: 12px;
-            padding: 12px 20px;
-            z-index: 10003;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            min-width: 250px;
-            font-size: 13px;
-        `;
-        document.body.appendChild(offlineIndicator);
-    } else if (!show && offlineIndicator) {
-        offlineIndicator.style.animation = 'fadeOutDown 0.3s ease';
-        setTimeout(() => {
-            if (offlineIndicator) offlineIndicator.remove();
-            offlineIndicator = null;
-        }, 300);
-    }
-}
-
-function updateOfflineSyncProgress(current, total) {
-    const countEl = document.getElementById('offline-sync-count');
-    if (countEl) {
-        countEl.textContent = `${current}/${total} operaciones`;
-    }
-}
-
-function updateOfflineBadge() {
-    // Función opcional para mostrar badge en UI
-}
-
-function showOfflineMessage(message, type = 'info') {
-    if (typeof showTemporaryMessage === 'function') {
-        showTemporaryMessage(message, type);
-    } else {
-        console.log(`[Offline] ${message}`);
-    }
-}
-
-// ========== 9. INTERCEPTAR FUNCIONES GLOBALES ==========
-
-function setupOfflineInterceptors() {
-    // ===== CARRITO =====
-    const originalAddToCart = window.addToCart;
-    window.addToCart = function(product) {
-        if (!navigator.onLine) {
-            addOfflineAction(ACTION_TYPES.ADD_TO_CART, { product });
-            if (originalAddToCart) originalAddToCart(product);
-            return;
-        }
-        if (originalAddToCart) originalAddToCart(product);
-    };
-    
-    const originalRemoveFromCart = window.removeFromCart;
-    window.removeFromCart = function(productId) {
-        if (!navigator.onLine) {
-            addOfflineAction(ACTION_TYPES.REMOVE_FROM_CART, { productId });
-            if (originalRemoveFromCart) originalRemoveFromCart(productId);
-            return;
-        }
-        if (originalRemoveFromCart) originalRemoveFromCart(productId);
-    };
-    
-    const originalChangeCartQty = window.changeCartQty;
-    window.changeCartQty = function(productId, delta) {
-        if (!navigator.onLine) {
-            const cart = JSON.parse(localStorage.getItem('cart') || '{}');
-            const newQuantity = (cart[productId]?.quantity || 0) + delta;
-            addOfflineAction(ACTION_TYPES.UPDATE_CART_QTY, { productId, quantity: newQuantity });
-            if (originalChangeCartQty) originalChangeCartQty(productId, delta);
-            return;
-        }
-        if (originalChangeCartQty) originalChangeCartQty(productId, delta);
-    };
-    
-    const originalContinueCheckout = window.continueCheckout;
-    window.continueCheckout = async function() {
-        if (!navigator.onLine) {
-            await addOfflineAction(ACTION_TYPES.REQUEST_PURCHASE, {});
-            showOfflineMessage("📡 Solicitud guardada. Se enviará cuando haya internet.", 'warning');
-            return;
-        }
-        if (originalContinueCheckout) return await originalContinueCheckout();
-    };
-    
-   const originalProductSubmit = window.handleProductFormSubmit;
-
-if (originalProductSubmit) {
-    window.handleProductFormSubmit = async function(e) {
-        e.preventDefault();
-        
-        // Obtener datos del formulario
-        const id = document.getElementById("product-id")?.value || "";
-        const productData = {
-            Nombre: document.getElementById("product-name")?.value.trim() || "",
-            Precio: Number(document.getElementById("product-price")?.value || 0),
-            Stock: Number(document.getElementById("product-stock")?.value || 0),
-            Descripcion: document.getElementById("product-description")?.value.trim() || "",
-            Talla: document.getElementById("product-sizes")?.value.trim() || "",
-            Categoria: document.getElementById("product-category")?.value.trim() || "",
-            Badge: document.getElementById("product-badge")?.value || "",
-            Imagen1: document.getElementById("product-image1")?.value.trim() || "",
-            Imagen2: document.getElementById("product-image2")?.value.trim() || "",
-            Imagen3: document.getElementById("product-image3")?.value.trim() || "",
-        };
-        
-        // Validar nombre
-        if (!productData.Nombre) {
-            if (typeof showCustomAlert === 'function') {
-                await showCustomAlert({
-                    title: "⚠️ Campo requerido",
-                    message: "El nombre del producto es obligatorio.",
-                    icon: "📝",
-                    confirmText: "Aceptar"
-                });
-            }
-            return;
-        }
-        
-        // MODO OFFLINE: Guardar en cola y salir
-        if (!navigator.onLine) {
-            if (id) {
-                await addOfflineAction(ACTION_TYPES.UPDATE_PRODUCT, productData, id);
-            } else {
-                await addOfflineAction(ACTION_TYPES.CREATE_PRODUCT, productData);
-            }
-            if (typeof resetProductForm === 'function') resetProductForm();
-            if (typeof clearImageUploads === 'function') clearImageUploads();
-            showOfflineMessage("📡 Producto guardado localmente. Se sincronizará cuando haya internet.", "success");
-            return;
-        }
-        
-        // MODO ONLINE: Llamar a la función ORIGINAL con los datos
-        // Crear un evento simulado con preventDefault ya llamado
-        const fakeEvent = { preventDefault: () => {} };
-        
-        // Restaurar temporalmente la función original para evitar loops
-        window.handleProductFormSubmit = originalProductSubmit;
-        
-        try {
-            await originalProductSubmit(fakeEvent);
-        } finally {
-            // Volver a interceptar después de ejecutar
-            window.handleProductFormSubmit = arguments.callee;
-        }
-    };
-}
-
-// Eliminar la función deleteProduct interceptada incorrectamente y reemplazar
-const originalDeleteProduct = window.deleteProduct;
-if (originalDeleteProduct) {
-    window.deleteProduct = async function(id) {
-        if (!navigator.onLine) {
-            await addOfflineAction(ACTION_TYPES.DELETE_PRODUCT, null, id);
-            // Eliminar visualmente de la lista
-            const row = document.querySelector(`.admin-product-row button[data-id="${id}"]`)?.closest('.admin-product-row');
-            if (row) row.remove();
-            showOfflineMessage("📡 Producto marcado para eliminar.", 'warning');
-            return;
-        }
-        await originalDeleteProduct(id);
-    };
-}
-    
-    // ===== ADMIN - SUBIDA DE IMÁGENES =====
-    const uploadFields = ['image-upload-1', 'image-upload-2', 'image-upload-3'];
-    const imageFields = ['product-image1', 'product-image2', 'product-image3'];
-    
-    uploadFields.forEach((uploadId, index) => {
-        const fileInput = document.getElementById(uploadId);
-        if (fileInput && !fileInput._offlineIntercepted) {
-            fileInput._offlineIntercepted = true;
-            fileInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const productId = document.getElementById('product-id')?.value || 'new';
-                const fieldNumber = index + 1;
-                
-                if (!navigator.onLine) {
-                    const result = await queueImageUpload(file, productId, `Imagen${fieldNumber}`);
-                    if (result.queued) {
-                        const imageInput = document.getElementById(imageFields[index]);
-                        if (imageInput) {
-                            imageInput.value = '[Pendiente de subir] ' + file.name;
-                            imageInput.style.color = '#f97316';
-                        }
-                        const preview = document.getElementById(`preview-${uploadId}`);
-                        if (preview) {
-                            preview.src = URL.createObjectURL(file);
-                            preview.style.display = 'block';
-                            preview.style.opacity = '0.6';
-                        }
-                    }
+                action.retries++;
+                if (action.retries >= 3) {
+                    console.warn(`❌ Acción fallida tras ${action.retries} intentos, eliminando`);
+                    pendingActions.splice(i, 1);
+                    i--;
+                    savePendingActions();
                 } else {
-                    // Si hay internet, usar la función original de subida
-                    const originalUpload = window.setupImageUpload;
-                    if (originalUpload) {
-                        // Disparar el cambio normalmente
-                        const event = new Event('change');
-                        fileInput.dispatchEvent(event);
-                    }
+                    console.log(`⚠️ Reintento ${action.retries}/3 para ${action.type}`);
                 }
-            });
+            }
+        } catch (err) {
+            console.error(`Error sincronizando:`, err);
+            action.retries++;
+            if (action.retries >= 3) {
+                pendingActions.splice(i, 1);
+                i--;
+                savePendingActions();
+            }
         }
-    });
+    }
+    
+    if (pendingActions.length === 0) {
+        showMessage(`✅ Todos los productos sincronizados`, 'success');
+        if (typeof loadAdminProducts === 'function') loadAdminProducts();
+    }
+    
+    updatePendingBadge();
 }
 
-// ========== 10. MONITOREO DE CONEXIÓN ==========
+// ========== 3. UI - BADGE DE PENDIENTES ==========
+let pendingBadge = null;
+
+function updatePendingBadge() {
+    const count = pendingActions.length;
+    
+    if (!pendingBadge && count > 0) {
+        pendingBadge = document.createElement('div');
+        pendingBadge.id = 'pending-badge';
+        pendingBadge.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #f97316;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-family: monospace;
+        `;
+        pendingBadge.onclick = () => {
+            if (confirm(`¿Sincronizar ${count} producto(s) pendiente(s) ahora?`)) {
+                syncPendingActions();
+            }
+        };
+        document.body.appendChild(pendingBadge);
+    }
+    
+    if (pendingBadge) {
+        if (count > 0) {
+            pendingBadge.style.display = 'flex';
+            pendingBadge.innerHTML = `📡 ${count} pendiente${count !== 1 ? 's' : ''} · Click para sincronizar`;
+        } else {
+            pendingBadge.style.display = 'none';
+        }
+    }
+}
+
+function showMessage(msg, type = 'info') {
+    if (typeof showTemporaryMessage === 'function') {
+        showTemporaryMessage(msg, type);
+    } else if (typeof showCustomAlert === 'function') {
+        showCustomAlert({ title: type === 'success' ? '✅' : '📡', message: msg, icon: type === 'success' ? '✅' : '📡', confirmText: 'OK' });
+    } else {
+        alert(msg);
+    }
+}
+
+// ========== 4. INTERCEPTAR FUNCIONES ==========
+function setupInterception() {
+    console.log("🔧 Configurando interceptación offline...");
+    
+    // Esperar a que admin.js cargue completamente
+    const interval = setInterval(() => {
+        const originalSubmit = window.handleProductFormSubmit;
+        const originalDelete = window.deleteProduct;
+        
+        if (typeof originalSubmit === 'function') {
+            clearInterval(interval);
+            console.log("✅ Funciones detectadas, aplicando interceptación");
+            
+            // Guardar originales
+            window._originalSubmit = originalSubmit;
+            window._originalDelete = originalDelete;
+            
+            // Sobrescribir handleProductFormSubmit
+            window.handleProductFormSubmit = async function(e) {
+                e.preventDefault();
+                
+                const id = document.getElementById("product-id")?.value || "";
+                const productData = {
+                    Nombre: document.getElementById("product-name")?.value.trim() || "",
+                    Precio: Number(document.getElementById("product-price")?.value || 0),
+                    Stock: Number(document.getElementById("product-stock")?.value || 0),
+                    Descripcion: document.getElementById("product-description")?.value.trim() || "",
+                    Talla: document.getElementById("product-sizes")?.value.trim() || "",
+                    Categoria: document.getElementById("product-category")?.value.trim() || "",
+                    Badge: document.getElementById("product-badge")?.value || "",
+                    Imagen1: document.getElementById("product-image1")?.value.trim() || "",
+                    Imagen2: document.getElementById("product-image2")?.value.trim() || "",
+                    Imagen3: document.getElementById("product-image3")?.value.trim() || "",
+                };
+                
+                if (!productData.Nombre) {
+                    if (typeof showCustomAlert === 'function') {
+                        await showCustomAlert({
+                            title: "⚠️ Campo requerido",
+                            message: "El nombre del producto es obligatorio.",
+                            icon: "📝",
+                            confirmText: "Aceptar"
+                        });
+                    }
+                    return;
+                }
+                
+                // 🔴 MODO OFFLINE - Guardar localmente
+                if (!navigator.onLine) {
+                    console.log("🔴 OFFLINE: Guardando producto localmente");
+                    
+                    if (id) {
+                        addPendingAction(ADMIN_ACTIONS.UPDATE, productData, id);
+                    } else {
+                        addPendingAction(ADMIN_ACTIONS.CREATE, productData);
+                    }
+                    
+                    if (typeof resetProductForm === 'function') resetProductForm();
+                    if (typeof clearImageUploads === 'function') clearImageUploads();
+                    return;
+                }
+                
+                // 🟢 MODO ONLINE - Ejecutar función original
+                console.log("🟢 ONLINE: Enviando a API");
+                await window._originalSubmit(e);
+            };
+            
+            // Sobrescribir deleteProduct
+            window.deleteProduct = async function(id) {
+                if (!navigator.onLine) {
+                    console.log("🔴 OFFLINE: Marcando producto para eliminar:", id);
+                    addPendingAction(ADMIN_ACTIONS.DELETE, null, id);
+                    
+                    const row = document.querySelector(`.admin-product-row button[data-id="${id}"]`)?.closest('.admin-product-row');
+                    if (row) row.remove();
+                    return;
+                }
+                await window._originalDelete(id);
+            };
+        }
+    }, 100);
+    
+    setTimeout(() => clearInterval(interval), 5000);
+}
+
+// ========== 5. MONITOREO DE CONEXIÓN ==========
 window.addEventListener('online', () => {
-    console.log("🟢 Conexión recuperada - Procesando cola offline...");
-    showOfflineMessage("🟢 Conexión restablecida, sincronizando cambios...", "success");
-    setTimeout(() => processOfflineQueue(), 1000);
+    console.log("🟢 Conexión recuperada - Sincronizando...");
+    showMessage("🟢 Conexión recuperada. Sincronizando cambios...", 'success');
+    setTimeout(() => syncPendingActions(), 1000);
 });
 
 window.addEventListener('offline', () => {
-    console.log("🔴 Conexión perdida - Las acciones se guardarán");
-    showOfflineMessage("📡 Sin conexión - Los cambios se guardarán automáticamente", "warning");
+    console.log("🔴 Conexión perdida");
+    showMessage("📡 Sin conexión - Los cambios se guardarán localmente", 'warning');
 });
 
-// ========== 11. INICIALIZACIÓN ==========
-async function initOfflineManager() {
-    await initOfflineDB();
-    setupOfflineInterceptors();
-    
-    // Procesar cola si hay internet y hay acciones pendientes
-    const pending = await getPendingActions();
-    if (navigator.onLine && pending.length > 0) {
-        setTimeout(() => processOfflineQueue(), 2000);
-    }
-    
-    // Verificar periódicamente
-    setInterval(async () => {
-        const pendingActions = await getPendingActions();
-        if (pendingActions.length > 0 && navigator.onLine && !isProcessingOffline) {
-            processOfflineQueue();
-        }
-    }, 30000);
-    
-    console.log("✅ Offline Manager inicializado");
+// ========== 6. INICIALIZAR ==========
+loadPendingActions();
+setupInterception();
+
+// Sincronizar al inicio si hay internet
+if (navigator.onLine && pendingActions.length > 0) {
+    setTimeout(() => syncPendingActions(), 3000);
 }
 
-// Iniciar cuando el DOM esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initOfflineManager);
-} else {
-    initOfflineManager();
-}
-
-// ========== 12. EXPORTAR FUNCIONES PARA DEBUG ==========
-window.debugOfflineQueue = async () => {
-    const actions = await getPendingActions();
-    console.table(actions.map(a => ({
-        type: a.type,
-        productId: a.productId,
-        retries: a.retries,
-        timestamp: new Date(a.timestamp).toLocaleString()
-    })));
-    return actions;
-};
-
-window.clearOfflineQueue = async () => {
-    await initOfflineDB();
-    const transaction = offlineDB.transaction([OFFLINE_STORE_NAME, OFFLINE_IMAGES_STORE], 'readwrite');
-    transaction.objectStore(OFFLINE_STORE_NAME).clear();
-    transaction.objectStore(OFFLINE_IMAGES_STORE).clear();
-    console.log("🗑️ Cola offline limpiada");
-    updateOfflineBadge();
-};
-
-window.processOfflineQueue = processOfflineQueue;
+// Exportar para debug
+window.debugPending = () => console.table(pendingActions);
+window.syncNow = () => syncPendingActions();
