@@ -612,8 +612,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   
-  const productForm = document.getElementById("product-form");
-  if (productForm) productForm.addEventListener("submit", handleProductFormSubmit);
+  
   
   const resetBtn = document.getElementById("reset-form-btn");
   if (resetBtn) resetBtn.addEventListener("click", resetProductForm);
