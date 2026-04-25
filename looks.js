@@ -908,7 +908,7 @@ function createLookCardWithLazy(look) {
 
     imagesHtml += `
       <div class="look-slot-image" data-slot="${escapeHtml(slotKey)}"
-           onclick="openImageModal('${escapeJsString(optimizedModalImg)}')">
+           onclick="openImageModal('${optimizedModalImg}', '${product.id}')">
         <img class="look-slot-img lazy"
              data-src="${escapeHtml(optimizedImg)}"
              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
