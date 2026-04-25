@@ -1,8 +1,4 @@
-// ============================================
-// home.js - Lógica para la página de inicio de Z&R
-// ============================================
 
-// Configuración de categorías
 const CATEGORIES = [
   { name: '👔 Hombre', icon: '👔', filter: 'HOMBRE', url: 'catalogo.html?gender=HOMBRE' },
   { name: '👗 Mujer', icon: '👗', filter: 'MUJER', url: 'catalogo.html?gender=MUJER' },
@@ -12,7 +8,6 @@ const CATEGORIES = [
   { name: '✨ Novedades', icon: '✨', filter: 'Nuevo', url: 'catalogo.html?badge=Nuevo' }
 ];
 
-// Mapeo de géneros por categoría
 const GENDER_BY_CATEGORY = {
   'Playeras': 'HOMBRE',
   'Pantalon para Caballero': 'HOMBRE',
@@ -31,25 +26,20 @@ const GENDER_BY_CATEGORY = {
   'Accesorios': 'UNISEX'
 };
 
-// Almacenamiento de productos vistos recientemente
 const RECENT_KEY = 'zr_recent_products';
 let allProducts = [];
 let homeLooks = [];
 
-// ========== INICIALIZACIÓN ==========
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏠 Inicializando página de inicio...');
   
-  // Cargar productos
   await loadProducts();
   
-  // Renderizar todos los componentes
   renderCategories();
   renderFeaturedProducts();
   renderRecentProducts();
   await generateHomeLooksFromWishlist();
   
-  // Inicializar componentes de UI
   initCartAndWishlist();
   initThemeAndWeather();
   
@@ -169,19 +159,32 @@ function saveRecentProduct(productId) {
   } catch(e) {}
 }
 
+// Reemplaza la función renderRecentProducts en home.js con esta versión mejorada:
 function renderRecentProducts() {
   const container = document.getElementById('recent-products');
   if (!container) return;
   
-  const recentProducts = getRecentProducts();
+  // Esperar a que allProducts esté cargado
+  if (!allProducts || allProducts.length === 0) {
+    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">Cargando productos...</p>';
+    return;
+  }
+  
+  const recentProducts = getRecentProducts(allProducts);
   
   if (recentProducts.length === 0) {
-    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted); grid-column: span 4;">📭 No has visto productos recientemente</p>';
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--color-text-muted); grid-column: span 4; padding: 40px;">
+        <span style="font-size: 48px;">🕐</span>
+        <p>No has visto productos recientemente</p>
+        <p style="font-size: 12px;">Los productos que veas aparecerán aquí</p>
+      </div>
+    `;
     return;
   }
   
   container.innerHTML = recentProducts.map(product => `
-    <a href="catalogo.html#producto-${product.ID}" class="recent-product-card">
+    <a href="catalogo.html#producto-${product.ID}" class="recent-product-card" onclick="saveRecentProductClick('${product.ID}')">
       <img class="recent-product-img" src="${optimizeDriveUrl(product.Imagen1 || product.Imagen2 || '', 200)}" alt="${escapeHtml(product.Nombre)}" loading="lazy">
       <div class="recent-product-info">
         <div class="recent-product-name">${escapeHtml(product.Nombre)}</div>
@@ -191,7 +194,16 @@ function renderRecentProducts() {
   `).join('');
 }
 
-// ========== GENERAR LOOKS DESDE WISHLIST ==========
+function saveRecentProductClick(productId) {
+  addToRecentProducts(productId);
+}
+
+window.addEventListener('recentProductsUpdated', () => {
+  if (document.getElementById('recent-products')) {
+    renderRecentProducts();
+  }
+});
+
 async function generateHomeLooksFromWishlist() {
   const container = document.getElementById('home-looks-container');
   if (!container) return;
@@ -204,18 +216,15 @@ async function generateHomeLooksFromWishlist() {
     return;
   }
   
-  // Priorizar productos de la wishlist
   let productsToUse = [];
   
   if (wishlist.length > 0) {
-    // Tomar hasta 4 productos de la wishlist
     const wishlistProducts = wishlist
       .map(w => productsWithStock.find(p => String(p.ID) === String(w.id)))
       .filter(p => p);
     productsToUse = wishlistProducts.slice(0, 4);
   }
   
-  // Si no hay suficientes, completar con productos aleatorios con stock
   if (productsToUse.length < 4) {
     const otherProducts = productsWithStock.filter(p => !productsToUse.some(u => String(u.ID) === String(p.ID)));
     const needed = 4 - productsToUse.length;
@@ -223,7 +232,6 @@ async function generateHomeLooksFromWishlist() {
     productsToUse = [...productsToUse, ...randomOthers];
   }
   
-  // Para cada producto base, generar un look complementario
   const looks = [];
   
   for (const baseProduct of productsToUse) {
@@ -240,7 +248,6 @@ async function generateHomeLooksFromWishlist() {
   
   container.innerHTML = looks.map(look => createHomeLookCard(look)).join('');
   
-  // Agregar event listeners a los botones
   document.querySelectorAll('.buy-complete-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -252,21 +259,16 @@ async function generateHomeLooksFromWishlist() {
 }
 
 async function generateLookFromProduct(baseProduct, allProductsWithStock) {
-  // Determinar género y categoría del producto base
   const baseGender = GENDER_BY_CATEGORY[baseProduct.Categoria] || 'UNISEX';
   const baseCategory = baseProduct.Categoria;
   
-  // Definir qué tipo de complementos buscar según la prenda base
   let complementaryTypes = [];
   
   if (baseCategory.includes('Playera') || baseCategory.includes('Blusa') || baseCategory.includes('Sueter')) {
-    // Prenda superior
     complementaryTypes = ['piernas', 'pies'];
   } else if (baseCategory.includes('Pantalon') || baseCategory.includes('Short') || baseCategory.includes('Falda')) {
-    // Prenda inferior
     complementaryTypes = ['torso', 'pies'];
   } else if (baseCategory.includes('Calzado')) {
-    // Calzado
     complementaryTypes = ['torso', 'piernas'];
   } else {
     complementaryTypes = ['torso', 'piernas', 'pies'];
@@ -274,7 +276,6 @@ async function generateLookFromProduct(baseProduct, allProductsWithStock) {
   
   const selected = { torso: null, piernas: null, pies: null };
   
-  // Asignar el producto base a su slot correspondiente
   if (baseCategory.includes('Playera') || baseCategory.includes('Blusa') || baseCategory.includes('Sueter') || baseCategory.includes('Chamarra')) {
     selected.torso = baseProduct;
   } else if (baseCategory.includes('Pantalon') || baseCategory.includes('Short') || baseCategory.includes('Falda')) {
@@ -283,7 +284,6 @@ async function generateLookFromProduct(baseProduct, allProductsWithStock) {
     selected.pies = baseProduct;
   }
   
-  // Para cada tipo complementario, buscar un producto apropiado
   for (const type of complementaryTypes) {
     if (selected[type]) continue;
     
@@ -310,7 +310,6 @@ async function generateLookFromProduct(baseProduct, allProductsWithStock) {
     }
   }
   
-  // Calcular precio total
   let totalPrice = 0;
   const finalProducts = {};
   const slotNames = { torso: '👕 Superior', piernas: '👖 Inferior', pies: '👟 Calzado' };
@@ -387,9 +386,7 @@ function addCompleteLookToCart(look) {
   showTemporaryMessage(`✅ ${addedCount} productos agregados al carrito`, 'success');
 }
 
-// ========== CLIMA ==========
 async function initThemeAndWeather() {
-  // Tema
   const savedTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
   const themeBtn = document.getElementById('theme-toggle');
@@ -404,7 +401,6 @@ async function initThemeAndWeather() {
     });
   }
   
-  // Clima
   try {
     const response = await fetch('https://wttr.in/Nuevo+Laredo?format=j1&lang=es');
     const data = await response.json();
@@ -427,7 +423,6 @@ async function initThemeAndWeather() {
   }
 }
 
-// ========== CARRITO Y WISHLIST ==========
 function initCartAndWishlist() {
   loadCartFromStorage();
   if (typeof renderCart === 'function') renderCart();
@@ -448,7 +443,6 @@ function initCartAndWishlist() {
     });
   }
   
-  // Configurar drawers
   const closeCart = document.getElementById('close-cart-btn');
   if (closeCart) closeCart.addEventListener('click', () => {
     if (typeof closeCartDrawer === 'function') closeCartDrawer();
@@ -498,7 +492,6 @@ function setupEventListeners() {
   });
 }
 
-// ========== UTILIDADES ==========
 function updateCartBadge() {
   const cart = JSON.parse(localStorage.getItem('cart') || '{}');
   const count = Object.values(cart).reduce((sum, item) => sum + (item.quantity || 0), 0);
@@ -539,6 +532,5 @@ function updateWishlistBadge() {
   }
 }
 
-// Exponer funciones necesarias
 window.addCompleteLookToCart = addCompleteLookToCart;
 window.saveRecentProduct = saveRecentProduct;
