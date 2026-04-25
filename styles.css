@@ -3137,3 +3137,41 @@ body {
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
   border: 1px solid var(--color-border-subtle);
 }
+
+
+
+/* Animaciones para Offline Manager */
+@keyframes fadeOutDown {
+    from { opacity: 1; transform: translateX(-50%) translateY(0); }
+    to { opacity: 0; transform: translateX(-50%) translateY(20px); }
+}
+
+.offline-sync-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.offline-sync-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.offline-sync-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.offline-sync-info small {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
