@@ -1,5 +1,17 @@
-const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
+window.originalHandleProductFormSubmit = null;
+window.originalDeleteProduct = null;
+setTimeout(() => {
+    if (typeof handleProductFormSubmit === 'function') {
+        window.originalHandleProductFormSubmit = handleProductFormSubmit;
+        console.log("✅ Función original handleProductFormSubmit guardada");
+    }
+    if (typeof deleteProduct === 'function') {
+        window.originalDeleteProduct = deleteProduct;
+        console.log("✅ Función original deleteProduct guardada");
+    }
+}, 100);
+const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 let adminSession = null;
 let adminProducts = [];
 let adminCurrentPage = 1;
