@@ -1275,6 +1275,7 @@ if (document.readyState === 'loading') {
 }
 // Al final de common.js, agregar:
 window.buildProductIndex = buildProductIndex;
+window._commonBuildProductIndex = buildProductIndex; // referencia protegida para home.js
 window.getProductsByCategoryIndexed = getProductsByCategoryIndexed;
 window.getIndexedProducts = getIndexedProducts;
 window.clearProductIndex = clearProductIndex;
