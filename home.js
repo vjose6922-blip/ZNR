@@ -29,7 +29,6 @@ const RECENT_KEY = 'zr_recent_products';
 let allProducts = [];
 let homeLooks = [];
 
-// ========== FUNCIÓN PARA AGREGAR PRODUCTOS RECIENTES ==========
 function addToRecentProducts(productId) {
   if (!productId) return;
   try {
@@ -41,50 +40,81 @@ function addToRecentProducts(productId) {
   } catch(e) {}
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🏠 Inicializando página de inicio...');
-  
-  await loadProducts();
-  
-  renderCategories();
-  renderFeaturedProducts();
-  renderRecentProducts();
-  
-  if (typeof LOOKS_CONFIG !== 'undefined') {
-    await generateHomeLooksFromWishlist();
-  } else {
-    console.log('⏳ Esperando LOOKS_CONFIG...');
-    setTimeout(() => generateHomeLooksFromWishlist(), 500);
+function setCachedProducts(products) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: products, timestamp: Date.now() }));
+  } catch(e) { console.warn("No se pudo guardar en caché:", e); }
+}
+
+function getCachedProducts() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const { data, timestamp } = JSON.parse(cached);
+    if (Date.now() - timestamp > CACHE_EXPIRY) {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return data;
+  } catch { return null; }
+}
+
+function buildProductIndex(products) {
+  if (!products || products.length === 0) return;
+  window.allProductsIndexed = products;
+  if (typeof window.buildProductIndex === 'function') {
+    window.buildProductIndex(products);
   }
-  
-  initCartAndWishlist();
-  initTheme();
-  setupEventListeners();
-});
+}
 
 async function loadProducts() {
+  console.log('🏠 Cargando productos para home...');
+  
+  // 1. Intentar cargar desde caché primero (instantáneo)
+  const cached = getCachedProducts();
+  if (cached && cached.length > 0) {
+    console.log('📦 Productos desde caché local');
+    allProducts = cached;
+    buildProductIndex(allProducts);
+    renderCategories();
+    renderFeaturedProducts();
+    renderRecentProducts();
+    generateHomeLooksFromWishlist();
+    return;
+  }
+  
+  // 2. Si no hay caché o expiró, cargar desde red
   if (!navigator.onLine) {
-    const cached = getCachedProducts();
-    if (cached && cached.length > 0) {
-      allProducts = cached;
-      console.log('📦 Productos desde caché');
-      return;
+    console.log('📡 Offline - No hay caché disponible');
+    const container = document.getElementById('featured-products');
+    if (container) {
+      container.innerHTML = '<p style="text-align:center; padding:40px;">📡 Sin conexión. Conéctate a internet para ver productos.</p>';
     }
-  }  
+    return;
+  }
+  
   try {
-    const res = await fetch(API_URL);
+    console.log('🌐 Cargando productos desde red...');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(API_URL, { signal: controller.signal });
+    clearTimeout(timeoutId);
     const data = await res.json();
     allProducts = data.products || data || [];
     setCachedProducts(allProducts);
-    if (typeof buildProductIndex === 'function') {
-      buildProductIndex(allProducts);
-    }
+    buildProductIndex(allProducts);
+    
+    renderCategories();
+    renderFeaturedProducts();
+    renderRecentProducts();
+    generateHomeLooksFromWishlist();
+    
     console.log(`✅ Cargados ${allProducts.length} productos`);
   } catch (err) {
     console.error('Error cargando productos:', err);
-    const cached = getCachedProducts();
-    if (cached && cached.length > 0) {
-      allProducts = cached;
+    const container = document.getElementById('featured-products');
+    if (container) {
+      container.innerHTML = '<p style="text-align:center; padding:40px;">❌ Error al cargar productos. Intenta nuevamente.</p>';
     }
   }
 }
@@ -92,7 +122,6 @@ async function loadProducts() {
 function renderCategories() {
   const container = document.getElementById('categories-grid');
   if (!container) return;
-  
   container.innerHTML = CATEGORIES.map(cat => `
     <a href="${cat.url}" class="category-card">
       <span class="category-icon">${cat.icon}</span>
@@ -103,11 +132,18 @@ function renderCategories() {
 
 function renderFeaturedProducts() {
   const container = document.getElementById('featured-products');
-  if (!container || !allProducts.length) return;
+  if (!container) return;
+  
+  if (!allProducts.length) {
+    container.innerHTML = '<p style="text-align:center; padding:40px;">Cargando productos...</p>';
+    return;
+  }
+  
   let featured = allProducts.filter(p => p.Stock > 0 && p.Stock !== "0");
   const withBadge = featured.filter(p => p.Badge);
   const withoutBadge = featured.filter(p => !p.Badge);
   featured = [...withBadge, ...withoutBadge].slice(0, 8);
+  
   container.innerHTML = featured.map(product => createMiniProductCard(product)).join('');
 }
 
@@ -140,21 +176,29 @@ function createMiniProductCard(product) {
   `;
 }
 
-function getRecentProductsList() {
+function getRecentProductIds() {
   try {
-    const recent = localStorage.getItem(RECENT_KEY);
-    if (!recent) return [];
-    const ids = JSON.parse(recent);
-    return ids.slice(0, 8).map(id => allProducts.find(p => String(p.ID) === String(id))).filter(p => p);
-  } catch {
-    return [];
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+  } catch(e) { return []; }
+}
+
+function getRecentProductsList() {
+  const recentIds = getRecentProductIds();
+  const recentProducts = [];
+  for (const id of recentIds) {
+    const product = allProducts.find(p => String(p.ID) === String(id));
+    if (product && product.Stock > 0 && product.Stock !== "0") {
+      recentProducts.push(product);
+    }
   }
+  return recentProducts.slice(0, 8);
 }
 
 function renderRecentProducts() {
   const container = document.getElementById('recent-products');
   if (!container) return;
-  if (!allProducts || allProducts.length === 0) {
+  
+  if (!allProducts.length) {
     container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">Cargando productos...</p>';
     return;
   }
@@ -183,13 +227,6 @@ function renderRecentProducts() {
   `).join('');
 }
 
-window.addEventListener('recentProductsUpdated', () => {
-  if (document.getElementById('recent-products')) {
-    renderRecentProducts();
-  }
-});
-
-// ========== GENERACIÓN DE LOOKS USANDO LOOKS.JS ==========
 async function generateHomeLooksFromWishlist() {
   const container = document.getElementById('home-looks-container');
   if (!container) return;
@@ -197,6 +234,11 @@ async function generateHomeLooksFromWishlist() {
   if (typeof LOOKS_CONFIG === 'undefined') {
     console.log('⏳ Esperando LOOKS_CONFIG...');
     setTimeout(() => generateHomeLooksFromWishlist(), 500);
+    return;
+  }
+  
+  if (!allProducts.length) {
+    container.innerHTML = '<p style="text-align: center; padding: 40px;">Cargando productos...</p>';
     return;
   }
   
@@ -218,13 +260,12 @@ async function generateHomeLooksFromWishlist() {
   
   if (productsToUse.length < 4) {
     const otherProducts = productsWithStock.filter(p => !productsToUse.some(u => String(u.ID) === String(p.ID)));
-    const needed = 4 - productsToUse.length;
     const shuffled = [...otherProducts];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-    productsToUse = [...productsToUse, ...shuffled.slice(0, needed)];
+    productsToUse = [...productsToUse, ...shuffled.slice(0, 4 - productsToUse.length)];
   }
   
   const looks = [];
@@ -315,6 +356,57 @@ function generateLookFromProductWithConfig(baseProduct, allProductsWithStock) {
   };
 }
 
+function selectProductsForLook(lookConfig, productsWithImages, currentSelection = {}) {
+  const selected = {};
+  const usedProductIds = [];
+  
+  for (const slot of lookConfig.slots) {
+    const slotKey = slot.type;
+    const currentProductId = currentSelection[slotKey]?.id;
+    
+    if (currentProductId && !currentSelection._reloading) {
+      const existingProduct = productsWithImages.find(p => p.ID == currentProductId);
+      if (existingProduct && existingProduct.Stock > 0) {
+        selected[slotKey] = {
+          id: existingProduct.ID,
+          name: existingProduct.Nombre,
+          price: Number(existingProduct.Precio || 0),
+          image: existingProduct.Imagen1 || existingProduct.Imagen2 || "",
+          stock: existingProduct.Stock,
+          category: existingProduct.Categoria,
+          size: existingProduct.Talla || ""
+        };
+        usedProductIds.push(String(existingProduct.ID));
+        continue;
+      }
+    }
+    
+    const availableProducts = productsWithImages.filter(p => {
+      if (!p.Stock || p.Stock <= 0 || p.Stock === "0") return false;
+      return slot.categories.length === 0 || slot.categories.includes(p.Categoria);
+    });
+    
+    const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
+    
+    if (freshProducts.length > 0) {
+      const randomIndex = Math.floor(Math.random() * freshProducts.length);
+      const product = freshProducts[randomIndex];
+      selected[slotKey] = {
+        id: product.ID,
+        name: product.Nombre,
+        price: Number(product.Precio || 0),
+        image: product.Imagen1 || product.Imagen2 || "",
+        stock: product.Stock,
+        category: product.Categoria,
+        size: product.Talla ? "Talla: " + product.Talla : "Talla:"
+      };
+      usedProductIds.push(String(product.ID));
+    }
+  }
+  
+  return selected;
+}
+
 function createHomeLookCard(look) {
   const slotOrder = ['torso', 'piernas', 'pies'];
   const slotIcons = { torso: '👕', piernas: '👖', pies: '👟' };
@@ -388,21 +480,13 @@ function initTheme() {
   const themeBtn = document.getElementById('theme-toggle');
   if (themeBtn) {
     themeBtn.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
-    themeBtn.addEventListener('click', () => {
-      const current = document.documentElement.getAttribute('data-theme');
-      const newTheme = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
-      themeBtn.textContent = newTheme === 'dark' ? '🌙' : '☀️';
-    });
   }
 }
 
 function initCartAndWishlist() {
   if (typeof loadCartFromStorage === 'function') loadCartFromStorage();
   if (typeof renderCart === 'function') renderCart();
-  updateCartBadge();
-  updateWishlistBadge();
+  if (typeof updateSavedPhoneDisplay === 'function') updateSavedPhoneDisplay();
   
   const cartBtn = document.getElementById('cart-icon-home');
   if (cartBtn) cartBtn.addEventListener('click', () => typeof openCartDrawer === 'function' && openCartDrawer());
@@ -431,8 +515,6 @@ function initCartAndWishlist() {
   
   const changePhone = document.getElementById('change-phone-btn');
   if (changePhone && typeof changePhoneNumber === 'function') changePhone.addEventListener('click', changePhoneNumber);
-  
-  if (typeof updateSavedPhoneDisplay === 'function') updateSavedPhoneDisplay();
 }
 
 function setupEventListeners() {
@@ -444,6 +526,18 @@ function setupEventListeners() {
   window.addEventListener('wishlistUpdated', () => {
     updateWishlistBadge();
     generateHomeLooksFromWishlist();
+  });
+  
+  window.addEventListener('recentProductsUpdated', () => {
+    renderRecentProducts();
+  });
+  
+  window.addEventListener('theme-toggle', () => {
+    const themeBtn = document.getElementById('theme-toggle');
+    if (themeBtn) {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      themeBtn.textContent = isDark ? '🌙' : '☀️';
+    }
   });
 }
 
@@ -480,6 +574,28 @@ function updateWishlistBadge() {
     badge.textContent = count;
   }
 }
+
+// ========== INICIALIZACIÓN ==========
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🏠 Inicializando página de inicio...');
+  
+  initTheme();
+  
+  const themeBtn = document.getElementById('theme-toggle');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const newTheme = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      themeBtn.textContent = newTheme === 'dark' ? '🌙' : '☀️';
+    });
+  }
+  
+  await loadProducts();
+  initCartAndWishlist();
+  setupEventListeners();
+});
 
 // Exponer funciones globales
 window.addCompleteLookToCart = addCompleteLookToCart;
