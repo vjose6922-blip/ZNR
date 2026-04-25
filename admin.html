@@ -641,6 +641,22 @@
     </div>
     <div class="header-right">
       <a href="index.html" class="icon-button" style="text-decoration: none; display: inline-flex; align-items: center;">🏠</a>
+         <button class="icon-button" id="offline-status-btn" style="position: relative;" title="Estado offline">
+        📡
+        <span id="offline-pending-badge" style="
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff4f81;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        ">0</span></button>
       <button class="icon-button" id="admin-refresh-btn" style="background: rgba(255,255,255,0.1);" title="Actualizar lista de productos">🔄️</button>
       <button class="icon-button" id="admin-logout-btn" style="background: rgba(255,255,255,0.1);" title="Cerrar sesión">🚪</button>
     </div>
