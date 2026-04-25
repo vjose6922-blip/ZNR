@@ -1,4 +1,4 @@
-// ========== home.js - VERSIÓN CORREGIDA ==========
+window.allProducts = window.allProducts || [];
 
 const CATEGORIES = [
   { name: '👔 Hombre', icon: '👔', filter: 'HOMBRE', url: 'catalogo.html?gender=HOMBRE' },
@@ -26,17 +26,6 @@ const GENDER_BY_CATEGORY = {
 };
 
 const RECENT_KEY = 'zr_recent_products';
-window.allProducts = window.allProducts || [];
-
-
-// Evitar redeclaración
-if (typeof window.allProducts !== 'undefined') {
-  var allProducts = window.allProducts;
-} else {
-  var allProducts = [];
-  window.allProducts = allProducts;
-}
-
 var homeLooks = [];
 
 function addToRecentProducts(productId) {
@@ -80,12 +69,11 @@ function buildProductIndex(products) {
 async function loadProducts() {
   console.log('🏠 Cargando productos para home...');
   
-  // 1. Intentar cargar desde caché primero (instantáneo)
   const cached = getCachedProducts();
   if (cached && cached.length > 0) {
     console.log('📦 Productos desde caché local');
-    allProducts = cached;
-    buildProductIndex(allProducts);
+    window.allProducts = cached;  // ← CAMBIADO
+    buildProductIndex(window.allProducts);  // ← CAMBIADO
     renderCategories();
     renderFeaturedProducts();
     renderRecentProducts();
@@ -93,7 +81,6 @@ async function loadProducts() {
     return;
   }
   
-  // 2. Si no hay caché o expiró, cargar desde red
   if (!navigator.onLine) {
     console.log('📡 Offline - No hay caché disponible');
     const container = document.getElementById('featured-products');
@@ -110,16 +97,16 @@ async function loadProducts() {
     const res = await fetch(API_URL, { signal: controller.signal });
     clearTimeout(timeoutId);
     const data = await res.json();
-    allProducts = data.products || data || [];
-    setCachedProducts(allProducts);
-    buildProductIndex(allProducts);
+    window.allProducts = data.products || data || [];  // ← CAMBIADO
+    setCachedProducts(window.allProducts);  // ← CAMBIADO
+    buildProductIndex(window.allProducts);  // ← CAMBIADO
     
     renderCategories();
     renderFeaturedProducts();
     renderRecentProducts();
     generateHomeLooksFromWishlist();
     
-    console.log(`✅ Cargados ${allProducts.length} productos`);
+    console.log(`✅ Cargados ${window.allProducts.length} productos`);
   } catch (err) {
     console.error('Error cargando productos:', err);
     const container = document.getElementById('featured-products');
@@ -128,6 +115,7 @@ async function loadProducts() {
     }
   }
 }
+
 
 function renderCategories() {
   const container = document.getElementById('categories-grid');
