@@ -878,11 +878,6 @@
 <script>
 
 
-if (window.__DBG_V7__ && window.__DBG_V7__.instance) {
-    window.__DBG_V7__.toggle();
-    return;
-}
-window.__DBG_V7__ = { toggle: () => {}, instance: true };
 
 (function () {
   if (window.__DBG_V7__) { window.__DBG_V7__.toggle(); return; }
@@ -2501,6 +2496,8 @@ window.__DBG_V7__ = { toggle: () => {}, instance: true };
   addLog('info', '📱 Nueva función: Haz clic en el botón "📱" para ver la página en vista móvil como Chrome DevTools');
 
 })();
+
+  
 </script>
 
 
