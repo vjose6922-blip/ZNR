@@ -1688,3 +1688,12 @@ window.updateWishlistBadge = updateWishlistBadge;
     observer.observe(document.body, { childList: true, subtree: true });
   }
 })();
+
+
+
+
+window.API_URL = API_URL;
+window.WHATSAPP_NUMBER = WHATSAPP_NUMBER;
+window.CACHE_KEY = CACHE_KEY;
+window.CACHE_EXPIRY = CACHE_EXPIRY;
+
