@@ -1873,7 +1873,8 @@
     const mob=isMob();
     const cols=mob?'28px 1fr 46px 54px':'28px 46px 1fr 46px 60px 54px';
     const visible=netRequests.filter(r=>(netFilter==='all'||r.rtype===netFilter)&&(!search||r.url.toLowerCase().includes(search)));
-    document.getElementById('dvtNetSum').textContent=visible.length+' req / '+netRequests.reduce((s,r)=>s+(r.size||0),0).toFixed(1)+'KB';
+    const totalSize = netRequests.reduce((s, r) => s + (parseFloat(r.size) || 0), 0);
+document.getElementById('dvtNetSum').textContent = visible.length + ' req / ' + totalSize.toFixed(1) + 'KB';
 
     visible.forEach((req,i)=>{
       const row=document.createElement('div');
