@@ -26,8 +26,18 @@ const GENDER_BY_CATEGORY = {
 };
 
 const RECENT_KEY = 'zr_recent_products';
-let allProducts = [];
-let homeLooks = [];
+window.allProducts = window.allProducts || [];
+
+
+// Evitar redeclaración
+if (typeof window.allProducts !== 'undefined') {
+  var allProducts = window.allProducts;
+} else {
+  var allProducts = [];
+  window.allProducts = allProducts;
+}
+
+var homeLooks = [];
 
 function addToRecentProducts(productId) {
   if (!productId) return;
