@@ -1,4 +1,4 @@
-// ========== OFFLINE MANAGER - VERSIÓN SIMPLIFICADA ==========
+// ========== OFFLINE MANAGER - VERSIÓN CORREGIDA ==========
 const ADMIN_ACTIONS = {
     CREATE: 'admin_create',
     UPDATE: 'admin_update',
@@ -7,7 +7,7 @@ const ADMIN_ACTIONS = {
 
 let pendingActions = [];
 
-// ========== 1. CARGAR/GUARDAR ACCIONES EN localStorage ==========
+// ========== 1. CARGAR/GUARDAR ACCIONES ==========
 function loadPendingActions() {
     try {
         const saved = localStorage.getItem('zr_admin_pending');
@@ -40,7 +40,7 @@ function addPendingAction(type, data, productId = null) {
     console.log(`📝 Acción "${type}" guardada. Total pendientes: ${pendingActions.length}`);
 }
 
-// ========== 2. SINCRONIZAR CON LA API ==========
+// ========== 2. API ==========
 const ADMIN_API = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
 
 async function syncPendingActions() {
@@ -52,6 +52,7 @@ async function syncPendingActions() {
     if (pendingActions.length === 0) return;
     
     console.log(`🔄 Sincronizando ${pendingActions.length} acciones pendientes...`);
+    showMessage(`🔄 Sincronizando ${pendingActions.length} producto(s)...`, 'info');
     
     for (let i = 0; i < pendingActions.length; i++) {
         const action = pendingActions[i];
@@ -118,13 +119,15 @@ async function syncPendingActions() {
     
     if (pendingActions.length === 0) {
         showMessage(`✅ Todos los productos sincronizados`, 'success');
-        if (typeof loadAdminProducts === 'function') loadAdminProducts();
+        if (typeof loadAdminProducts === 'function') {
+            loadAdminProducts();
+        }
     }
     
     updatePendingBadge();
 }
 
-// ========== 3. UI - BADGE DE PENDIENTES ==========
+// ========== 3. UI - BADGE ==========
 let pendingBadge = null;
 
 function updatePendingBadge() {
@@ -172,18 +175,16 @@ function updatePendingBadge() {
 function showMessage(msg, type = 'info') {
     if (typeof showTemporaryMessage === 'function') {
         showTemporaryMessage(msg, type);
-    } else if (typeof showCustomAlert === 'function') {
-        showCustomAlert({ title: type === 'success' ? '✅' : '📡', message: msg, icon: type === 'success' ? '✅' : '📡', confirmText: 'OK' });
     } else {
-        alert(msg);
+        console.log(`[Offline] ${msg}`);
     }
 }
 
-// ========== 4. INTERCEPTAR FUNCIONES ==========
+// ========== 4. INTERCEPTACIÓN CORREGIDA ==========
 function setupInterception() {
     console.log("🔧 Configurando interceptación offline...");
     
-    // Esperar a que admin.js cargue completamente
+    // Esperar a que la función original exista
     const interval = setInterval(() => {
         const originalSubmit = window.handleProductFormSubmit;
         const originalDelete = window.deleteProduct;
@@ -196,9 +197,12 @@ function setupInterception() {
             window._originalSubmit = originalSubmit;
             window._originalDelete = originalDelete;
             
-            // Sobrescribir handleProductFormSubmit
+            // Crear nueva función
             window.handleProductFormSubmit = async function(e) {
                 e.preventDefault();
+                e.stopPropagation();
+                
+                console.log("📝 Interceptación ejecutada - Online:", navigator.onLine);
                 
                 const id = document.getElementById("product-id")?.value || "";
                 const productData = {
@@ -226,7 +230,7 @@ function setupInterception() {
                     return;
                 }
                 
-                // 🔴 MODO OFFLINE - Guardar localmente
+                // 🔴 MODO OFFLINE
                 if (!navigator.onLine) {
                     console.log("🔴 OFFLINE: Guardando producto localmente");
                     
@@ -238,15 +242,37 @@ function setupInterception() {
                     
                     if (typeof resetProductForm === 'function') resetProductForm();
                     if (typeof clearImageUploads === 'function') clearImageUploads();
+                    
+                    // Mostrar mensaje de éxito
+                    if (typeof showCustomAlert === 'function') {
+                        await showCustomAlert({
+                            title: id ? "📡 Producto guardado" : "📡 Producto creado",
+                            message: `El producto se ha guardado localmente.\nSe sincronizará automáticamente cuando haya internet.`,
+                            icon: "📡",
+                            confirmText: "Aceptar"
+                        });
+                    }
                     return;
                 }
                 
-                // 🟢 MODO ONLINE - Ejecutar función original
-                console.log("🟢 ONLINE: Enviando a API");
+                // 🟢 MODO ONLINE
+                console.log("🟢 ONLINE: Ejecutando función original");
                 await window._originalSubmit(e);
             };
             
-            // Sobrescribir deleteProduct
+            // ===== REEMPLAZAR EL EVENT LISTENER DEL FORMULARIO =====
+            const productForm = document.getElementById("product-form");
+            if (productForm) {
+                // Clonar para eliminar todos los event listeners existentes
+                const newForm = productForm.cloneNode(true);
+                productForm.parentNode.replaceChild(newForm, productForm);
+                
+                // Agregar el nuevo event listener
+                newForm.addEventListener("submit", window.handleProductFormSubmit);
+                console.log("✅ Event listener del formulario reemplazado");
+            }
+            
+            // ===== INTERCEPTAR DELETE =====
             window.deleteProduct = async function(id) {
                 if (!navigator.onLine) {
                     console.log("🔴 OFFLINE: Marcando producto para eliminar:", id);
@@ -254,6 +280,15 @@ function setupInterception() {
                     
                     const row = document.querySelector(`.admin-product-row button[data-id="${id}"]`)?.closest('.admin-product-row');
                     if (row) row.remove();
+                    
+                    if (typeof showCustomAlert === 'function') {
+                        await showCustomAlert({
+                            title: "📡 Producto marcado",
+                            message: "El producto se eliminará cuando haya internet.",
+                            icon: "📡",
+                            confirmText: "Aceptar"
+                        });
+                    }
                     return;
                 }
                 await window._originalDelete(id);
@@ -264,7 +299,7 @@ function setupInterception() {
     setTimeout(() => clearInterval(interval), 5000);
 }
 
-// ========== 5. MONITOREO DE CONEXIÓN ==========
+// ========== 5. MONITOREO ==========
 window.addEventListener('online', () => {
     console.log("🟢 Conexión recuperada - Sincronizando...");
     showMessage("🟢 Conexión recuperada. Sincronizando cambios...", 'success');
@@ -280,7 +315,6 @@ window.addEventListener('offline', () => {
 loadPendingActions();
 setupInterception();
 
-// Sincronizar al inicio si hay internet
 if (navigator.onLine && pendingActions.length > 0) {
     setTimeout(() => syncPendingActions(), 3000);
 }
@@ -288,3 +322,11 @@ if (navigator.onLine && pendingActions.length > 0) {
 // Exportar para debug
 window.debugPending = () => console.table(pendingActions);
 window.syncNow = () => syncPendingActions();
+window.clearPending = () => {
+    if (confirm('¿Eliminar TODAS las acciones pendientes?')) {
+        pendingActions = [];
+        savePendingActions();
+        updatePendingBadge();
+        console.log("🗑️ Cola limpiada");
+    }
+};
