@@ -1,4 +1,4 @@
-// ========== home.js - VERSIÓN COMPLETA REUTILIZANDO LOOKS.JS ==========
+// ========== home.js - VERSIÓN CORREGIDA ==========
 
 const CATEGORIES = [
   { name: '👔 Hombre', icon: '👔', filter: 'HOMBRE', url: 'catalogo.html?gender=HOMBRE' },
@@ -29,6 +29,18 @@ const RECENT_KEY = 'zr_recent_products';
 let allProducts = [];
 let homeLooks = [];
 
+// ========== FUNCIÓN PARA AGREGAR PRODUCTOS RECIENTES ==========
+function addToRecentProducts(productId) {
+  if (!productId) return;
+  try {
+    let recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+    recent = [String(productId), ...recent.filter(id => String(id) !== String(productId))];
+    recent = recent.slice(0, 12);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+    window.dispatchEvent(new CustomEvent('recentProductsUpdated'));
+  } catch(e) {}
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏠 Inicializando página de inicio...');
   
@@ -38,38 +50,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderFeaturedProducts();
   renderRecentProducts();
   
-  // Esperar a que LOOKS_CONFIG esté disponible
-  await waitForLooksConfig();
-  await generateHomeLooksFromWishlist();
+  if (typeof LOOKS_CONFIG !== 'undefined') {
+    await generateHomeLooksFromWishlist();
+  } else {
+    console.log('⏳ Esperando LOOKS_CONFIG...');
+    setTimeout(() => generateHomeLooksFromWishlist(), 500);
+  }
   
   initCartAndWishlist();
   initTheme();
   setupEventListeners();
 });
-
-// Función para esperar que looks.js cargue
-function waitForLooksConfig() {
-  return new Promise((resolve) => {
-    if (typeof LOOKS_CONFIG !== 'undefined') {
-      console.log('✅ LOOKS_CONFIG disponible');
-      resolve();
-    } else {
-      console.log('⏳ Esperando a que looks.js cargue...');
-      const checkInterval = setInterval(() => {
-        if (typeof LOOKS_CONFIG !== 'undefined') {
-          clearInterval(checkInterval);
-          console.log('✅ LOOKS_CONFIG disponible después de esperar');
-          resolve();
-        }
-      }, 100);
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        console.warn('⚠️ LOOKS_CONFIG no disponible, usando fallback');
-        resolve();
-      }, 5000);
-    }
-  });
-}
 
 async function loadProducts() {
   if (!navigator.onLine) {
@@ -149,7 +140,7 @@ function createMiniProductCard(product) {
   `;
 }
 
-function getRecentProducts() {
+function getRecentProductsList() {
   try {
     const recent = localStorage.getItem(RECENT_KEY);
     if (!recent) return [];
@@ -160,18 +151,6 @@ function getRecentProducts() {
   }
 }
 
-function saveRecentProduct(productId) {
-  try {
-    let recent = [];
-    const stored = localStorage.getItem(RECENT_KEY);
-    if (stored) recent = JSON.parse(stored);
-    
-    recent = [String(productId), ...recent.filter(id => String(id) !== String(productId))];
-    recent = recent.slice(0, 12);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
-  } catch(e) {}
-}
-
 function renderRecentProducts() {
   const container = document.getElementById('recent-products');
   if (!container) return;
@@ -180,7 +159,7 @@ function renderRecentProducts() {
     return;
   }
   
-  const recentProducts = getRecentProducts();
+  const recentProducts = getRecentProductsList();
   
   if (recentProducts.length === 0) {
     container.innerHTML = `
@@ -194,7 +173,7 @@ function renderRecentProducts() {
   }
   
   container.innerHTML = recentProducts.map(product => `
-    <a href="catalogo.html#producto-${product.ID}" class="recent-product-card" onclick="saveRecentProductClick('${product.ID}')">
+    <a href="catalogo.html#producto-${product.ID}" class="recent-product-card">
       <img class="recent-product-img" src="${optimizeDriveUrl(product.Imagen1 || product.Imagen2 || '', 200)}" alt="${escapeHtml(product.Nombre)}" loading="lazy">
       <div class="recent-product-info">
         <div class="recent-product-name">${escapeHtml(product.Nombre)}</div>
@@ -204,37 +183,24 @@ function renderRecentProducts() {
   `).join('');
 }
 
-function saveRecentProductClick(productId) {
-  if (typeof addToRecentProducts === 'function') {
-    addToRecentProducts(productId);
-  }
-}
-
 window.addEventListener('recentProductsUpdated', () => {
   if (document.getElementById('recent-products')) {
     renderRecentProducts();
   }
 });
 
-// ========== REUTILIZAR LÓGICA DE LOOKS.JS ==========
-
+// ========== GENERACIÓN DE LOOKS USANDO LOOKS.JS ==========
 async function generateHomeLooksFromWishlist() {
   const container = document.getElementById('home-looks-container');
   if (!container) return;
   
-  // Verificar que LOOKS_CONFIG existe
   if (typeof LOOKS_CONFIG === 'undefined') {
-    console.log('⏳ LOOKS_CONFIG no disponible, reintentando...');
+    console.log('⏳ Esperando LOOKS_CONFIG...');
     setTimeout(() => generateHomeLooksFromWishlist(), 500);
     return;
   }
   
-  // Mostrar skeleton loading
-  container.innerHTML = `
-    <div style="display: flex; justify-content: center; padding: 40px;">
-      <div class="loader-spinner"></div>
-    </div>
-  `;
+  container.innerHTML = `<div style="display: flex; justify-content: center; padding: 40px;"><div class="loader-spinner"></div></div>`;
   
   const wishlist = getWishlist();
   const productsWithStock = allProducts.filter(p => p.Stock > 0 && p.Stock !== "0");
@@ -244,17 +210,12 @@ async function generateHomeLooksFromWishlist() {
     return;
   }
   
-  // Priorizar productos de la wishlist
   let productsToUse = [];
-  
   if (wishlist.length > 0) {
-    const wishlistProducts = wishlist
-      .map(w => productsWithStock.find(p => String(p.ID) === String(w.id)))
-      .filter(p => p);
+    const wishlistProducts = wishlist.map(w => productsWithStock.find(p => String(p.ID) === String(w.id))).filter(p => p);
     productsToUse = wishlistProducts.slice(0, 4);
   }
   
-  // Completar con productos aleatorios si es necesario
   if (productsToUse.length < 4) {
     const otherProducts = productsWithStock.filter(p => !productsToUse.some(u => String(u.ID) === String(p.ID)));
     const needed = 4 - productsToUse.length;
@@ -266,34 +227,24 @@ async function generateHomeLooksFromWishlist() {
     productsToUse = [...productsToUse, ...shuffled.slice(0, needed)];
   }
   
-  // Generar looks con reintentos
   const looks = [];
   homeLooks = [];
   
   for (const baseProduct of productsToUse) {
-    let look = null;
-    let attempts = 0;
-    const maxAttempts = 3;
-    
-    while (!look && attempts < maxAttempts) {
-      look = generateLookFromProductWithConfig(baseProduct, productsWithStock);
-      attempts++;
-    }
-    
-    if (look && look.productCount >= 2) {
+    const look = generateLookFromProductWithConfig(baseProduct, productsWithStock);
+    if (look && Object.keys(look.products).length >= 2) {
       looks.push(look);
       homeLooks.push(look);
     }
   }
   
   if (looks.length === 0) {
-    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">No pudimos generar looks personalizados. Agrega más productos a favoritos.</p>';
+    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">No pudimos generar looks personalizados</p>';
     return;
   }
   
   container.innerHTML = looks.map(look => createHomeLookCard(look)).join('');
   
-  // Agregar event listeners a los botones
   document.querySelectorAll('.buy-complete-btn').forEach(btn => {
     btn.removeEventListener('click', handleBuyComplete);
     btn.addEventListener('click', handleBuyComplete);
@@ -307,49 +258,28 @@ function handleBuyComplete(e) {
   if (look) addCompleteLookToCart(look);
 }
 
-// Función que usa la lógica de looks.js para generar looks coherentes
 function generateLookFromProductWithConfig(baseProduct, allProductsWithStock) {
-  // Determinar género del producto base
   const baseGender = GENDER_BY_CATEGORY[baseProduct.Categoria] || 'UNISEX';
   const baseCategory = baseProduct.Categoria;
   
-  // Encontrar configuraciones de look compatibles con el género y la categoría
   let compatibleLookConfigs = LOOKS_CONFIG.filter(config => {
-    // Coincidir por género
     if (baseGender !== 'UNISEX' && config.category !== baseGender) return false;
-    
-    // Verificar si el producto base puede encajar en alguno de los slots
-    let fitsInSlot = false;
-    for (const slot of config.slots) {
-      if (slot.categories.some(cat => cat === baseCategory)) {
-        fitsInSlot = true;
-        break;
-      }
-    }
-    return fitsInSlot;
+    return config.slots.some(slot => slot.categories.some(cat => cat === baseCategory));
   });
   
-  // Si no hay configuraciones compatibles, usar una por defecto según género
   if (compatibleLookConfigs.length === 0) {
     compatibleLookConfigs = LOOKS_CONFIG.filter(config => 
-      config.category === baseGender || 
-      (baseGender === 'HOMBRE' && config.category === 'Hombre') ||
-      (baseGender === 'MUJER' && config.category === 'Mujer')
+      config.category === baseGender || config.category === 'Mujer' || config.category === 'Hombre'
     );
   }
   
   if (compatibleLookConfigs.length === 0) return null;
   
-  // Seleccionar una configuración aleatoria
   const randomConfig = compatibleLookConfigs[Math.floor(Math.random() * compatibleLookConfigs.length)];
-  
-  // Preparar selección actual con el producto base
   const currentSelection = {};
-  let baseSlotFound = null;
   
   for (const slot of randomConfig.slots) {
     if (slot.categories.some(cat => cat === baseCategory)) {
-      baseSlotFound = slot.type;
       currentSelection[slot.type] = {
         id: baseProduct.ID,
         name: baseProduct.Nombre,
@@ -363,33 +293,25 @@ function generateLookFromProductWithConfig(baseProduct, allProductsWithStock) {
     }
   }
   
-  // Usar la función existente de looks.js para seleccionar productos restantes
-  // Nota: selectProductsForLook espera un objeto con "products" como segundo parámetro
   const selectedProducts = selectProductsForLook(randomConfig, allProductsWithStock, currentSelection);
-  
-  // Verificar que el producto base se mantuvo y hay al menos 2 productos
   const hasBaseProduct = Object.values(selectedProducts).some(p => p && String(p.id) === String(baseProduct.ID));
   const productCount = Object.values(selectedProducts).filter(p => p).length;
   
   if (!hasBaseProduct || productCount < 2) return null;
   
-  // Calcular precio total
   let totalPrice = 0;
   for (const product of Object.values(selectedProducts)) {
     if (product) totalPrice += product.price;
   }
   
-  const lookId = `home_look_${baseProduct.ID}_${Date.now()}`;
-  
   return {
-    id: lookId,
+    id: `home_look_${baseProduct.ID}_${Date.now()}`,
     name: randomConfig.name,
     description: randomConfig.description,
     category: randomConfig.category,
     products: selectedProducts,
     totalPrice: totalPrice,
-    productCount: productCount,
-    baseProductId: baseProduct.ID
+    productCount: productCount
   };
 }
 
@@ -397,36 +319,28 @@ function createHomeLookCard(look) {
   const slotOrder = ['torso', 'piernas', 'pies'];
   const slotIcons = { torso: '👕', piernas: '👖', pies: '👟' };
   
-  // Generar imágenes
   const imagesHtml = slotOrder.map(slot => {
     const product = look.products[slot];
     if (!product) return '';
     return `
       <div style="position: relative; flex: 1;">
-        <img class="outfit-img-mini" src="${optimizeDriveUrl(product.image, 150)}" 
-             alt="${escapeHtml(product.name)}" loading="lazy"
-             style="width: 100%; aspect-ratio: 1; object-fit: contain; background: white; border-radius: 12px;">
+        <img src="${optimizeDriveUrl(product.image, 150)}" alt="${escapeHtml(product.name)}" style="width: 100%; aspect-ratio: 1; object-fit: contain; background: white; border-radius: 12px;">
         <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); border-radius: 20px; padding: 2px 6px; font-size: 10px;">${slotIcons[slot]}</span>
       </div>
     `;
   }).join('');
   
-  // Generar lista de productos
   const productsListHtml = slotOrder.map(slot => {
     const product = look.products[slot];
     if (!product) return '';
     return `
       <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 6px; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
-        <span style="display: flex; align-items: center; gap: 6px;">
-          <span>${slotIcons[slot]}</span>
-          <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
-        </span>
+        <span>${slotIcons[slot]} ${escapeHtml(product.name.length > 30 ? product.name.substring(0, 27) + '...' : product.name)}</span>
         <span style="color: #ff4f81; font-weight: 600;">${formatCurrency(product.price)}</span>
       </div>
     `;
   }).join('');
   
-  // Badge de categoría
   const categoryBadge = look.category === 'Mujer' ? '👗 Mujer' : look.category === 'Hombre' ? '👔 Hombre' : '✨ Unisex';
   
   return `
@@ -439,12 +353,10 @@ function createHomeLookCard(look) {
           <span style="background: #e8e8ff; padding: 2px 8px; border-radius: 20px; font-size: 10px; color: #3b1f5f;">${categoryBadge}</span>
           <span style="font-size: 11px; color: #888;">${look.productCount} prendas</span>
         </div>
-        <h4 style="margin: 0 0 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">✨ ${escapeHtml(look.name)}</h4>
-        <p style="font-size: 11px; color: #666; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(look.description || 'Look completo para cualquier ocasión')}</p>
-        <div style="max-height: 100px; overflow-y: auto; margin-bottom: 8px;">
-          ${productsListHtml}
-        </div>
-        <div class="outfit-price-mini" style="font-size: 16px; font-weight: 700; color: #ff4f81; margin: 8px 0;">Total: ${formatCurrency(look.totalPrice)}</div>
+        <h4 style="margin: 0 0 8px; font-size: 14px;">✨ ${escapeHtml(look.name)}</h4>
+        <p style="font-size: 11px; color: #666; margin-bottom: 8px;">${escapeHtml(look.description || 'Look completo para cualquier ocasión')}</p>
+        <div style="max-height: 100px; overflow-y: auto; margin-bottom: 8px;">${productsListHtml}</div>
+        <div style="font-size: 16px; font-weight: 700; color: #ff4f81; margin: 8px 0;">Total: ${formatCurrency(look.totalPrice)}</div>
         <button class="buy-complete-btn" data-look-id="${look.id}" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ff4f81, #ff7a4f); border: none; border-radius: 30px; color: white; font-weight: 600; cursor: pointer;">🛒 Comprar todo</button>
       </div>
     </div>
@@ -470,7 +382,7 @@ function addCompleteLookToCart(look) {
   }
 }
 
-async function initTheme() {
+function initTheme() {
   const savedTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
   const themeBtn = document.getElementById('theme-toggle');
@@ -493,52 +405,32 @@ function initCartAndWishlist() {
   updateWishlistBadge();
   
   const cartBtn = document.getElementById('cart-icon-home');
-  if (cartBtn) {
-    cartBtn.addEventListener('click', () => {
-      if (typeof openCartDrawer === 'function') openCartDrawer();
-    });
-  }
+  if (cartBtn) cartBtn.addEventListener('click', () => typeof openCartDrawer === 'function' && openCartDrawer());
   
   const wishlistBtn = document.getElementById('wishlist-icon-home');
-  if (wishlistBtn) {
-    wishlistBtn.addEventListener('click', () => {
-      if (typeof openWishlistDrawer === 'function') openWishlistDrawer();
-    });
-  }
+  if (wishlistBtn) wishlistBtn.addEventListener('click', () => typeof openWishlistDrawer === 'function' && openWishlistDrawer());
   
   const closeCart = document.getElementById('close-cart-btn');
-  if (closeCart) closeCart.addEventListener('click', () => {
-    if (typeof closeCartDrawer === 'function') closeCartDrawer();
-  });
+  if (closeCart) closeCart.addEventListener('click', () => typeof closeCartDrawer === 'function' && closeCartDrawer());
   
   const closeWishlist = document.getElementById('close-wishlist-btn');
-  if (closeWishlist) closeWishlist.addEventListener('click', () => {
-    if (typeof closeWishlistDrawer === 'function') closeWishlistDrawer();
-  });
+  if (closeWishlist) closeWishlist.addEventListener('click', () => typeof closeWishlistDrawer === 'function' && closeWishlistDrawer());
   
   const overlay = document.getElementById('overlay');
-  if (overlay) {
-    overlay.addEventListener('click', () => {
-      if (typeof closeCartDrawer === 'function') closeCartDrawer();
-      if (typeof closeWishlistDrawer === 'function') closeWishlistDrawer();
-      if (typeof closeImageModal === 'function') closeImageModal();
-    });
-  }
+  if (overlay) overlay.addEventListener('click', () => {
+    if (typeof closeCartDrawer === 'function') closeCartDrawer();
+    if (typeof closeWishlistDrawer === 'function') closeWishlistDrawer();
+    if (typeof closeImageModal === 'function') closeImageModal();
+  });
   
   const requestBtn = document.getElementById('request-purchase-btn');
-  if (requestBtn && typeof openWhatsAppCheckout === 'function') {
-    requestBtn.addEventListener('click', openWhatsAppCheckout);
-  }
+  if (requestBtn && typeof openWhatsAppCheckout === 'function') requestBtn.addEventListener('click', openWhatsAppCheckout);
   
   const addAllBtn = document.getElementById('add-all-wishlist-to-cart');
-  if (addAllBtn && typeof addAllWishlistToCart === 'function') {
-    addAllBtn.addEventListener('click', addAllWishlistToCart);
-  }
+  if (addAllBtn && typeof addAllWishlistToCart === 'function') addAllBtn.addEventListener('click', addAllWishlistToCart);
   
   const changePhone = document.getElementById('change-phone-btn');
-  if (changePhone && typeof changePhoneNumber === 'function') {
-    changePhone.addEventListener('click', changePhoneNumber);
-  }
+  if (changePhone && typeof changePhoneNumber === 'function') changePhone.addEventListener('click', changePhoneNumber);
   
   if (typeof updateSavedPhoneDisplay === 'function') updateSavedPhoneDisplay();
 }
@@ -558,20 +450,17 @@ function setupEventListeners() {
 function updateCartBadge() {
   const cart = JSON.parse(localStorage.getItem('cart') || '{}');
   const count = Object.values(cart).reduce((sum, item) => sum + (item.quantity || 0), 0);
-  const badge = document.querySelector('.cart-badge');
-  if (badge) badge.textContent = count;
-  
   const cartBtn = document.getElementById('cart-icon-home');
   if (cartBtn && count > 0) {
-    if (!cartBtn.querySelector('.cart-badge')) {
-      const newBadge = document.createElement('span');
-      newBadge.className = 'cart-badge';
-      newBadge.style.cssText = 'position: absolute; top: -5px; right: -5px; background: #ff4f81; color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;';
+    let badge = cartBtn.querySelector('.cart-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'cart-badge';
+      badge.style.cssText = 'position: absolute; top: -5px; right: -5px; background: #ff4f81; color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;';
       cartBtn.style.position = 'relative';
-      cartBtn.appendChild(newBadge);
+      cartBtn.appendChild(badge);
     }
-    const badgeSpan = cartBtn.querySelector('.cart-badge');
-    if (badgeSpan) badgeSpan.textContent = count;
+    badge.textContent = count;
   }
 }
 
@@ -580,22 +469,18 @@ function updateWishlistBadge() {
   const count = wishlist.length;
   const wishlistBtn = document.getElementById('wishlist-icon-home');
   if (wishlistBtn && count > 0) {
-    if (!wishlistBtn.querySelector('.wishlist-badge')) {
-      const newBadge = document.createElement('span');
-      newBadge.className = 'wishlist-badge';
-      newBadge.style.cssText = 'position: absolute; top: -5px; right: -5px; background: #ff4f81; color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;';
+    let badge = wishlistBtn.querySelector('.wishlist-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'wishlist-badge';
+      badge.style.cssText = 'position: absolute; top: -5px; right: -5px; background: #ff4f81; color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;';
       wishlistBtn.style.position = 'relative';
-      wishlistBtn.appendChild(newBadge);
+      wishlistBtn.appendChild(badge);
     }
-    const badgeSpan = wishlistBtn.querySelector('.wishlist-badge');
-    if (badgeSpan) badgeSpan.textContent = count;
-  } else if (wishlistBtn) {
-    const existing = wishlistBtn.querySelector('.wishlist-badge');
-    if (existing) existing.remove();
+    badge.textContent = count;
   }
 }
 
 // Exponer funciones globales
 window.addCompleteLookToCart = addCompleteLookToCart;
-window.saveRecentProduct = saveRecentProduct;
-window.generateHomeLooksFromWishlist = generateHomeLooksFromWishlist;
+window.addToRecentProducts = addToRecentProducts;
