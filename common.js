@@ -696,14 +696,21 @@ window.removeFromCart = function(id) {
     window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart }));
   }
 };
-function openImageModal(url) {
+function openImageModal(url, productId = null) {
   const modal = document.getElementById("image-modal");
   const img = document.getElementById("image-modal-img");
   const overlay = document.getElementById("overlay");
+  
   if (modal && img) {
     img.src = url;
     modal.classList.add("open");
     if (overlay) overlay.classList.add("visible");
+    
+    // Trackear producto visto si se proporciona el ID
+    if (productId && typeof addToRecentProducts === 'function') {
+      addToRecentProducts(productId);
+      console.log(`📌 Producto ${productId} registrado como visto (desde modal)`);
+    }
   }
 }
 
@@ -713,6 +720,8 @@ function closeImageModal() {
   if (modal) modal.classList.remove("open");
   if (overlay) overlay.classList.remove("visible");
 }
+window.openImageModal = openImageModal;
+window.closeImageModal = closeImageModal;
 
 function shareProduct(id) {
   const url = `${window.location.origin}${window.location.pathname}#producto-${id}`;
