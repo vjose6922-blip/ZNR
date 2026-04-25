@@ -1,4 +1,3 @@
-// script.js - VERSIÓN CORREGIDA
 
 const PAGE_SIZE = 10;
 let allProducts = [];
@@ -12,7 +11,6 @@ let secretTapCount = 0;
 let secretTapTimeout = null;
 let isBackgroundLoading = false;
 
-// ========== BACKGROUND LOAD QUEUE ==========
 class BackgroundLoadQueue {
   constructor() {
     this.isLoading = false;
@@ -94,12 +92,96 @@ class BackgroundLoadQueue {
 
 const backgroundQueue = new BackgroundLoadQueue();
 
-// ========== FUNCIÓN PRINCIPAL ==========
 async function loadProductsInBackground() {
   await backgroundQueue.request();
 }
 
-// El resto de tu código (getGenderFromCategory, fetchProducts, etc.) continúa igual...
+
+
+
+// ========== LEER PARÁMETROS DE URL AL INICIO ==========
+function applyFiltersFromURL() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const genderParam = urlParams.get('gender');
+  const categoryParam = urlParams.get('category');
+  const badgeParam = urlParams.get('badge');
+  
+  let filtersApplied = false;
+  
+  // Aplicar filtro de género
+  if (genderParam) {
+    const genderSelect = document.getElementById("gender-filter");
+    if (genderSelect && (genderParam === 'HOMBRE' || genderParam === 'MUJER')) {
+      genderSelect.value = genderParam;
+      filtersApplied = true;
+    }
+  }
+  
+  // Aplicar filtro de categoría
+  if (categoryParam) {
+    // Esperar a que el select de categorías esté poblado
+    setTimeout(() => {
+      const categorySelect = document.getElementById("category-filter");
+      if (categorySelect) {
+        // Buscar la categoría que coincida (parcial o exacta)
+        for (let i = 0; i < categorySelect.options.length; i++) {
+          if (categorySelect.options[i].value.toLowerCase().includes(categoryParam.toLowerCase()) ||
+              categorySelect.options[i].value === categoryParam) {
+            categorySelect.value = categorySelect.options[i].value;
+            break;
+          }
+        }
+      }
+      if (filtersApplied || categoryParam) {
+        applyFilters();
+      }
+    }, 100);
+  } else if (filtersApplied) {
+    applyFilters();
+  }
+  
+  // Aplicar filtro de badge (Ofertas, Nuevo, Popular)
+  if (badgeParam && typeof applyFilters === 'function') {
+    // Guardar el badge en una variable global para filtrar
+    window._pendingBadgeFilter = badgeParam;
+    setTimeout(() => {
+      if (typeof applyFilters === 'function') applyFilters();
+    }, 100);
+  }
+}
+
+// Modificar la función applyFilters existente para soportar badge
+const originalApplyFilters = applyFilters;
+window.applyFilters = function() {
+  if (window._pendingBadgeFilter) {
+    const badgeValue = window._pendingBadgeFilter;
+    // Filtrar productos que tengan ese badge
+    if (typeof filteredProducts !== 'undefined') {
+      // Esto asumiendo que tienes acceso a allProducts
+      const badgeFiltered = allProducts.filter(p => p.Badge === badgeValue);
+      if (badgeFiltered.length > 0) {
+        filteredProducts = badgeFiltered;
+        currentPage = 1;
+        renderProductsPage(true);
+        window._pendingBadgeFilter = null;
+        return;
+      }
+    }
+    window._pendingBadgeFilter = null;
+  }
+  if (originalApplyFilters) originalApplyFilters();
+};
+
+// Al cargar la página, ejecutar
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(applyFiltersFromURL, 200);
+});
+
+
+
+
+
+
 
 
 
