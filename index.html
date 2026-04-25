@@ -10,7 +10,6 @@
   <link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
   <link rel="preload" href="styles.css" as="style">
   <link rel="stylesheet" href="styles.css" />
-  <!-- PWA Meta Tags -->
 <link rel="manifest" href="/ZNR/manifest.json">
 <meta name="theme-color" content="#3b1f5f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -81,13 +80,11 @@
     <span class="cart-icon">🛒</span>
     <span class="cart-badge" id="cart-count">0</span>
   </button>
-<!-- Botón flotante de Wishlist -->
 <button class="floating-wishlist" id="floating-wishlist-btn" aria-label="Ver lista de deseos">
   <span class="wishlist-icon">❤️</span>
   <span class="wishlist-badge" id="wishlist-count">0</span>
 </button>
 
-<!-- Wishlist Drawer -->
 <aside class="cart-drawer" id="wishlist-drawer" aria-hidden="true">
   <div class="cart-header">
     <h2>❤️ Lista de deseos</h2>
@@ -133,11 +130,10 @@
   </div>
 
       <script src="common.js" defer></script>
-  <script src="script.js" defer></script>
-  <script src="cache-manager.js" defer></script>
+<script src="cache-manager.js" defer></script>
 <script src="offline-manager.js" defer></script>
+<script src="script.js" defer></script>
   <script>
-    // Este script NO tiene defer - debe ejecutarse rápido para registrar el SW
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/ZNR/sw.js')
