@@ -10,7 +10,8 @@ const OFFLINE_URL = '/ZNR/offline.html';
 const STATIC_ASSETS = [
   '/ZNR/',
   '/ZNR/index.html',
-  '/ZNR/looks.html',
+  '/ZNR/catalogo.html',
+  '/ZNR/outfit.html',
   '/ZNR/admin.html',
   '/ZNR/notificaciones.html',
   '/ZNR/offline.html',
@@ -18,11 +19,11 @@ const STATIC_ASSETS = [
   '/ZNR/common.js',
   '/ZNR/script.js',
   '/ZNR/looks.js',
+  '/ZNR/home.js',
   '/ZNR/admin.js',
   '/ZNR/cache-manager.js',
   '/ZNR/manifest.json'
 ];
-
 // Extensiones de imágenes para caché dinámico
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
 const API_DOMAINS = ['script.google.com', 'googleusercontent.com', 'wttr.in', 'openweathermap.org'];
