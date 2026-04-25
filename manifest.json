@@ -19,13 +19,18 @@
   ],
   "shortcuts": [
     {
-      "name": "Catálogo",
+      "name": "Inicio",
       "url": "/ZNR/index.html",
       "icons": [{ "src": "/ZNR/logo.svg", "sizes": "any" }]
     },
     {
+      "name": "Catálogo",
+      "url": "/ZNR/catalogo.html",
+      "icons": [{ "src": "/ZNR/logo.svg", "sizes": "any" }]
+    },
+    {
       "name": "Outfits",
-      "url": "/ZNR/looks.html",
+      "url": "/ZNR/outfit.html",
       "icons": [{ "src": "/ZNR/logo.svg", "sizes": "any" }]
     }
   ]
