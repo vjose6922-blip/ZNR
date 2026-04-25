@@ -1,7 +1,7 @@
-// ========== OFFLINE MANAGER - UNIFICADO ==========
-// Maneja TODO el sistema offline: carrito, productos, imágenes, compras
-
-// ========== 1. CONFIGURACIÓN GLOBAL ==========
+if (typeof ADMIN_API_URL === 'undefined' && typeof API_URL !== 'undefined') {
+    window.ADMIN_API_URL = API_URL;
+}
+const ADMIN_API_URL = window.ADMIN_API_URL || API_URL;
 const OFFLINE_DB_NAME = 'ZR_OfflineDB';
 const OFFLINE_DB_VERSION = 1;
 const OFFLINE_STORE_NAME = 'offline_actions';
@@ -10,7 +10,6 @@ const OFFLINE_IMAGES_STORE = 'offline_images';
 let offlineDB = null;
 let isProcessingOffline = false;
 
-// Tipos de acciones
 const ACTION_TYPES = {
     ADD_TO_CART: 'add_to_cart',
     REMOVE_FROM_CART: 'remove_from_cart',
@@ -22,7 +21,8 @@ const ACTION_TYPES = {
     UPLOAD_IMAGE: 'upload_image'
 };
 
-// ========== 2. INICIALIZAR INDEXEDDB ==========
+
+
 function initOfflineDB() {
     return new Promise((resolve, reject) => {
         if (offlineDB && offlineDB.name === OFFLINE_DB_NAME) {
