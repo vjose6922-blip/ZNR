@@ -1,11 +1,10 @@
+// ========== home.js - VERSIÓN COMPLETA REUTILIZANDO LOOKS.JS ==========
 
 const CATEGORIES = [
   { name: '👔 Hombre', icon: '👔', filter: 'HOMBRE', url: 'catalogo.html?gender=HOMBRE' },
   { name: '👗 Mujer', icon: '👗', filter: 'MUJER', url: 'catalogo.html?gender=MUJER' },
   { name: '👟 Tenis', icon: '👟', filter: 'Calzado', url: 'catalogo.html?category=Calzado' },
-  { name: '💍 Accesorios', icon: '💍', filter: 'Accesorios', url: 'catalogo.html?category=Accesorios' },
-  { name: '🔥 Ofertas', icon: '🔥', filter: 'Oferta', url: 'catalogo.html?badge=Oferta' },
-  { name: '✨ Novedades', icon: '✨', filter: 'Nuevo', url: 'catalogo.html?badge=Nuevo' }
+  { name: '💍 Accesorios', icon: '💍', filter: 'Accesorios', url: 'catalogo.html?category=Accesorios' }
 ];
 
 const GENDER_BY_CATEGORY = {
@@ -38,16 +37,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderCategories();
   renderFeaturedProducts();
   renderRecentProducts();
+  
+  // Esperar a que LOOKS_CONFIG esté disponible
+  await waitForLooksConfig();
   await generateHomeLooksFromWishlist();
   
   initCartAndWishlist();
-  initThemeAndWeather();
-  
-  // Configurar eventos
+  initTheme();
   setupEventListeners();
 });
 
-// ========== CARGA DE PRODUCTOS ==========
+// Función para esperar que looks.js cargue
+function waitForLooksConfig() {
+  return new Promise((resolve) => {
+    if (typeof LOOKS_CONFIG !== 'undefined') {
+      console.log('✅ LOOKS_CONFIG disponible');
+      resolve();
+    } else {
+      console.log('⏳ Esperando a que looks.js cargue...');
+      const checkInterval = setInterval(() => {
+        if (typeof LOOKS_CONFIG !== 'undefined') {
+          clearInterval(checkInterval);
+          console.log('✅ LOOKS_CONFIG disponible después de esperar');
+          resolve();
+        }
+      }, 100);
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        console.warn('⚠️ LOOKS_CONFIG no disponible, usando fallback');
+        resolve();
+      }, 5000);
+    }
+  });
+}
+
 async function loadProducts() {
   if (!navigator.onLine) {
     const cached = getCachedProducts();
@@ -56,8 +79,7 @@ async function loadProducts() {
       console.log('📦 Productos desde caché');
       return;
     }
-  }
-  
+  }  
   try {
     const res = await fetch(API_URL);
     const data = await res.json();
@@ -76,7 +98,6 @@ async function loadProducts() {
   }
 }
 
-// ========== RENDERIZAR CATEGORÍAS ==========
 function renderCategories() {
   const container = document.getElementById('categories-grid');
   if (!container) return;
@@ -89,20 +110,13 @@ function renderCategories() {
   `).join('');
 }
 
-// ========== PRODUCTOS DESTACADOS ==========
 function renderFeaturedProducts() {
   const container = document.getElementById('featured-products');
   if (!container || !allProducts.length) return;
-  
-  // Seleccionar productos destacados (con badge o los primeros con stock)
   let featured = allProducts.filter(p => p.Stock > 0 && p.Stock !== "0");
-  
-  // Priorizar productos con badge
   const withBadge = featured.filter(p => p.Badge);
   const withoutBadge = featured.filter(p => !p.Badge);
-  
   featured = [...withBadge, ...withoutBadge].slice(0, 8);
-  
   container.innerHTML = featured.map(product => createMiniProductCard(product)).join('');
 }
 
@@ -135,7 +149,6 @@ function createMiniProductCard(product) {
   `;
 }
 
-// ========== PRODUCTOS RECIENTES ==========
 function getRecentProducts() {
   try {
     const recent = localStorage.getItem(RECENT_KEY);
@@ -159,18 +172,15 @@ function saveRecentProduct(productId) {
   } catch(e) {}
 }
 
-// Reemplaza la función renderRecentProducts en home.js con esta versión mejorada:
 function renderRecentProducts() {
   const container = document.getElementById('recent-products');
   if (!container) return;
-  
-  // Esperar a que allProducts esté cargado
   if (!allProducts || allProducts.length === 0) {
     container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">Cargando productos...</p>';
     return;
   }
   
-  const recentProducts = getRecentProducts(allProducts);
+  const recentProducts = getRecentProducts();
   
   if (recentProducts.length === 0) {
     container.innerHTML = `
@@ -195,7 +205,9 @@ function renderRecentProducts() {
 }
 
 function saveRecentProductClick(productId) {
-  addToRecentProducts(productId);
+  if (typeof addToRecentProducts === 'function') {
+    addToRecentProducts(productId);
+  }
 }
 
 window.addEventListener('recentProductsUpdated', () => {
@@ -204,9 +216,25 @@ window.addEventListener('recentProductsUpdated', () => {
   }
 });
 
+// ========== REUTILIZAR LÓGICA DE LOOKS.JS ==========
+
 async function generateHomeLooksFromWishlist() {
   const container = document.getElementById('home-looks-container');
   if (!container) return;
+  
+  // Verificar que LOOKS_CONFIG existe
+  if (typeof LOOKS_CONFIG === 'undefined') {
+    console.log('⏳ LOOKS_CONFIG no disponible, reintentando...');
+    setTimeout(() => generateHomeLooksFromWishlist(), 500);
+    return;
+  }
+  
+  // Mostrar skeleton loading
+  container.innerHTML = `
+    <div style="display: flex; justify-content: center; padding: 40px;">
+      <div class="loader-spinner"></div>
+    </div>
+  `;
   
   const wishlist = getWishlist();
   const productsWithStock = allProducts.filter(p => p.Stock > 0 && p.Stock !== "0");
@@ -216,6 +244,7 @@ async function generateHomeLooksFromWishlist() {
     return;
   }
   
+  // Priorizar productos de la wishlist
   let productsToUse = [];
   
   if (wishlist.length > 0) {
@@ -225,145 +254,198 @@ async function generateHomeLooksFromWishlist() {
     productsToUse = wishlistProducts.slice(0, 4);
   }
   
+  // Completar con productos aleatorios si es necesario
   if (productsToUse.length < 4) {
     const otherProducts = productsWithStock.filter(p => !productsToUse.some(u => String(u.ID) === String(p.ID)));
     const needed = 4 - productsToUse.length;
-    const randomOthers = otherProducts.sort(() => 0.5 - Math.random()).slice(0, needed);
-    productsToUse = [...productsToUse, ...randomOthers];
+    const shuffled = [...otherProducts];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    productsToUse = [...productsToUse, ...shuffled.slice(0, needed)];
   }
   
+  // Generar looks con reintentos
   const looks = [];
+  homeLooks = [];
   
   for (const baseProduct of productsToUse) {
-    const look = await generateLookFromProduct(baseProduct, productsWithStock);
-    if (look && Object.keys(look.products).length >= 2) {
+    let look = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (!look && attempts < maxAttempts) {
+      look = generateLookFromProductWithConfig(baseProduct, productsWithStock);
+      attempts++;
+    }
+    
+    if (look && look.productCount >= 2) {
       looks.push(look);
+      homeLooks.push(look);
     }
   }
   
   if (looks.length === 0) {
-    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">No pudimos generar looks personalizados</p>';
+    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">No pudimos generar looks personalizados. Agrega más productos a favoritos.</p>';
     return;
   }
   
   container.innerHTML = looks.map(look => createHomeLookCard(look)).join('');
   
+  // Agregar event listeners a los botones
   document.querySelectorAll('.buy-complete-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const lookId = btn.dataset.lookId;
-      const look = homeLooks.find(l => l.id === lookId);
-      if (look) addCompleteLookToCart(look);
-    });
+    btn.removeEventListener('click', handleBuyComplete);
+    btn.addEventListener('click', handleBuyComplete);
   });
 }
 
-async function generateLookFromProduct(baseProduct, allProductsWithStock) {
+function handleBuyComplete(e) {
+  e.stopPropagation();
+  const lookId = e.currentTarget.dataset.lookId;
+  const look = homeLooks.find(l => l.id === lookId);
+  if (look) addCompleteLookToCart(look);
+}
+
+// Función que usa la lógica de looks.js para generar looks coherentes
+function generateLookFromProductWithConfig(baseProduct, allProductsWithStock) {
+  // Determinar género del producto base
   const baseGender = GENDER_BY_CATEGORY[baseProduct.Categoria] || 'UNISEX';
   const baseCategory = baseProduct.Categoria;
   
-  let complementaryTypes = [];
-  
-  if (baseCategory.includes('Playera') || baseCategory.includes('Blusa') || baseCategory.includes('Sueter')) {
-    complementaryTypes = ['piernas', 'pies'];
-  } else if (baseCategory.includes('Pantalon') || baseCategory.includes('Short') || baseCategory.includes('Falda')) {
-    complementaryTypes = ['torso', 'pies'];
-  } else if (baseCategory.includes('Calzado')) {
-    complementaryTypes = ['torso', 'piernas'];
-  } else {
-    complementaryTypes = ['torso', 'piernas', 'pies'];
-  }
-  
-  const selected = { torso: null, piernas: null, pies: null };
-  
-  if (baseCategory.includes('Playera') || baseCategory.includes('Blusa') || baseCategory.includes('Sueter') || baseCategory.includes('Chamarra')) {
-    selected.torso = baseProduct;
-  } else if (baseCategory.includes('Pantalon') || baseCategory.includes('Short') || baseCategory.includes('Falda')) {
-    selected.piernas = baseProduct;
-  } else if (baseCategory.includes('Calzado')) {
-    selected.pies = baseProduct;
-  }
-  
-  for (const type of complementaryTypes) {
-    if (selected[type]) continue;
+  // Encontrar configuraciones de look compatibles con el género y la categoría
+  let compatibleLookConfigs = LOOKS_CONFIG.filter(config => {
+    // Coincidir por género
+    if (baseGender !== 'UNISEX' && config.category !== baseGender) return false;
     
-    let candidates = allProductsWithStock.filter(p => {
-      if (String(p.ID) === String(baseProduct.ID)) return false;
-      
-      const pGender = GENDER_BY_CATEGORY[p.Categoria] || 'UNISEX';
-      if (baseGender !== 'UNISEX' && pGender !== 'UNISEX' && pGender !== baseGender) return false;
-      
-      if (type === 'torso') {
-        return p.Categoria.includes('Playera') || p.Categoria.includes('Blusa') || 
-               p.Categoria.includes('Sueter') || p.Categoria.includes('Chamarra');
-      } else if (type === 'piernas') {
-        return p.Categoria.includes('Pantalon') || p.Categoria.includes('Short') || p.Categoria.includes('Falda');
-      } else if (type === 'pies') {
-        return p.Categoria.includes('Calzado');
+    // Verificar si el producto base puede encajar en alguno de los slots
+    let fitsInSlot = false;
+    for (const slot of config.slots) {
+      if (slot.categories.some(cat => cat === baseCategory)) {
+        fitsInSlot = true;
+        break;
       }
-      return false;
-    });
-    
-    if (candidates.length > 0) {
-      const randomIndex = Math.floor(Math.random() * candidates.length);
-      selected[type] = candidates[randomIndex];
     }
+    return fitsInSlot;
+  });
+  
+  // Si no hay configuraciones compatibles, usar una por defecto según género
+  if (compatibleLookConfigs.length === 0) {
+    compatibleLookConfigs = LOOKS_CONFIG.filter(config => 
+      config.category === baseGender || 
+      (baseGender === 'HOMBRE' && config.category === 'Hombre') ||
+      (baseGender === 'MUJER' && config.category === 'Mujer')
+    );
   }
   
-  let totalPrice = 0;
-  const finalProducts = {};
-  const slotNames = { torso: '👕 Superior', piernas: '👖 Inferior', pies: '👟 Calzado' };
+  if (compatibleLookConfigs.length === 0) return null;
   
-  for (const [slot, product] of Object.entries(selected)) {
-    if (product) {
-      finalProducts[slot] = {
-        id: product.ID,
-        name: product.Nombre,
-        price: Number(product.Precio || 0),
-        image: product.Imagen1 || product.Imagen2 || '',
-        size: product.Talla || ''
+  // Seleccionar una configuración aleatoria
+  const randomConfig = compatibleLookConfigs[Math.floor(Math.random() * compatibleLookConfigs.length)];
+  
+  // Preparar selección actual con el producto base
+  const currentSelection = {};
+  let baseSlotFound = null;
+  
+  for (const slot of randomConfig.slots) {
+    if (slot.categories.some(cat => cat === baseCategory)) {
+      baseSlotFound = slot.type;
+      currentSelection[slot.type] = {
+        id: baseProduct.ID,
+        name: baseProduct.Nombre,
+        price: Number(baseProduct.Precio || 0),
+        image: baseProduct.Imagen1 || baseProduct.Imagen2 || '',
+        stock: baseProduct.Stock,
+        category: baseProduct.Categoria,
+        size: baseProduct.Talla || ''
       };
-      totalPrice += finalProducts[slot].price;
+      break;
     }
   }
   
-  const lookId = `look_${baseProduct.ID}_${Date.now()}`;
-  const look = {
+  // Usar la función existente de looks.js para seleccionar productos restantes
+  // Nota: selectProductsForLook espera un objeto con "products" como segundo parámetro
+  const selectedProducts = selectProductsForLook(randomConfig, allProductsWithStock, currentSelection);
+  
+  // Verificar que el producto base se mantuvo y hay al menos 2 productos
+  const hasBaseProduct = Object.values(selectedProducts).some(p => p && String(p.id) === String(baseProduct.ID));
+  const productCount = Object.values(selectedProducts).filter(p => p).length;
+  
+  if (!hasBaseProduct || productCount < 2) return null;
+  
+  // Calcular precio total
+  let totalPrice = 0;
+  for (const product of Object.values(selectedProducts)) {
+    if (product) totalPrice += product.price;
+  }
+  
+  const lookId = `home_look_${baseProduct.ID}_${Date.now()}`;
+  
+  return {
     id: lookId,
-    name: `Look con ${baseProduct.Nombre}`,
-    products: finalProducts,
+    name: randomConfig.name,
+    description: randomConfig.description,
+    category: randomConfig.category,
+    products: selectedProducts,
     totalPrice: totalPrice,
+    productCount: productCount,
     baseProductId: baseProduct.ID
   };
-  
-  homeLooks.push(look);
-  return look;
 }
 
 function createHomeLookCard(look) {
-  const productsArray = Object.entries(look.products);
+  const slotOrder = ['torso', 'piernas', 'pies'];
+  const slotIcons = { torso: '👕', piernas: '👖', pies: '👟' };
   
-  const imagesHtml = productsArray.map(([slot, product]) => `
-    <img class="outfit-img-mini" src="${optimizeDriveUrl(product.image, 150)}" alt="${escapeHtml(product.name)}" loading="lazy">
-  `).join('');
+  // Generar imágenes
+  const imagesHtml = slotOrder.map(slot => {
+    const product = look.products[slot];
+    if (!product) return '';
+    return `
+      <div style="position: relative; flex: 1;">
+        <img class="outfit-img-mini" src="${optimizeDriveUrl(product.image, 150)}" 
+             alt="${escapeHtml(product.name)}" loading="lazy"
+             style="width: 100%; aspect-ratio: 1; object-fit: contain; background: white; border-radius: 12px;">
+        <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); border-radius: 20px; padding: 2px 6px; font-size: 10px;">${slotIcons[slot]}</span>
+      </div>
+    `;
+  }).join('');
   
-  const productsListHtml = productsArray.map(([slot, product]) => `
-    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 5px;">
-      <span>${slot === 'torso' ? '👕' : slot === 'piernas' ? '👖' : '👟'} ${escapeHtml(product.name)}</span>
-      <span style="color: #ff4f81;">${formatCurrency(product.price)}</span>
-    </div>
-  `).join('');
+  // Generar lista de productos
+  const productsListHtml = slotOrder.map(slot => {
+    const product = look.products[slot];
+    if (!product) return '';
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 6px; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <span>${slotIcons[slot]}</span>
+          <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
+        </span>
+        <span style="color: #ff4f81; font-weight: 600;">${formatCurrency(product.price)}</span>
+      </div>
+    `;
+  }).join('');
+  
+  // Badge de categoría
+  const categoryBadge = look.category === 'Mujer' ? '👗 Mujer' : look.category === 'Hombre' ? '👔 Hombre' : '✨ Unisex';
   
   return `
     <div class="outfit-card-mini">
-      <div class="outfit-images-mini">
-        ${imagesHtml}
+      <div class="outfit-images-mini" style="display: flex; gap: 8px; padding: 12px; background: #f5f5f8;">
+        ${imagesHtml || '<div style="flex:1; text-align: center; padding: 20px;">Sin imágenes</div>'}
       </div>
-      <div class="outfit-info-mini">
-        <h4 style="margin: 0 0 8px; font-size: 14px;">✨ ${escapeHtml(look.name)}</h4>
-        ${productsListHtml}
-        <div class="outfit-price-mini">Total: ${formatCurrency(look.totalPrice)}</div>
-        <button class="buy-complete-btn" data-look-id="${look.id}">🛒 Comprar todo</button>
+      <div class="outfit-info-mini" style="padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="background: #e8e8ff; padding: 2px 8px; border-radius: 20px; font-size: 10px; color: #3b1f5f;">${categoryBadge}</span>
+          <span style="font-size: 11px; color: #888;">${look.productCount} prendas</span>
+        </div>
+        <h4 style="margin: 0 0 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">✨ ${escapeHtml(look.name)}</h4>
+        <p style="font-size: 11px; color: #666; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(look.description || 'Look completo para cualquier ocasión')}</p>
+        <div style="max-height: 100px; overflow-y: auto; margin-bottom: 8px;">
+          ${productsListHtml}
+        </div>
+        <div class="outfit-price-mini" style="font-size: 16px; font-weight: 700; color: #ff4f81; margin: 8px 0;">Total: ${formatCurrency(look.totalPrice)}</div>
+        <button class="buy-complete-btn" data-look-id="${look.id}" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ff4f81, #ff7a4f); border: none; border-radius: 30px; color: white; font-weight: 600; cursor: pointer;">🛒 Comprar todo</button>
       </div>
     </div>
   `;
@@ -383,10 +465,12 @@ function addCompleteLookToCart(look) {
       addedCount++;
     }
   }
-  showTemporaryMessage(`✅ ${addedCount} productos agregados al carrito`, 'success');
+  if (typeof showTemporaryMessage === 'function') {
+    showTemporaryMessage(`✅ ${addedCount} productos agregados al carrito`, 'success');
+  }
 }
 
-async function initThemeAndWeather() {
+async function initTheme() {
   const savedTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
   const themeBtn = document.getElementById('theme-toggle');
@@ -400,31 +484,10 @@ async function initThemeAndWeather() {
       themeBtn.textContent = newTheme === 'dark' ? '🌙' : '☀️';
     });
   }
-  
-  try {
-    const response = await fetch('https://wttr.in/Nuevo+Laredo?format=j1&lang=es');
-    const data = await response.json();
-    if (data && data.current_condition) {
-      const temp = data.current_condition[0].temp_C;
-      const desc = data.current_condition[0].weatherDesc[0].value;
-      let icon = '🌡️';
-      if (desc.includes('lluvia')) icon = '☔';
-      else if (desc.includes('nublado')) icon = '☁️';
-      else if (desc.includes('soleado')) icon = '☀️';
-      else if (desc.includes('tormenta')) icon = '⛈️';
-      
-      const widget = document.getElementById('weather-widget-home');
-      if (widget) {
-        widget.innerHTML = `<span class="weather-icon">${icon}</span><span class="weather-temp">${temp}°C</span>`;
-      }
-    }
-  } catch (err) {
-    console.log('Error obteniendo clima:', err);
-  }
 }
 
 function initCartAndWishlist() {
-  loadCartFromStorage();
+  if (typeof loadCartFromStorage === 'function') loadCartFromStorage();
   if (typeof renderCart === 'function') renderCart();
   updateCartBadge();
   updateWishlistBadge();
@@ -532,5 +595,7 @@ function updateWishlistBadge() {
   }
 }
 
+// Exponer funciones globales
 window.addCompleteLookToCart = addCompleteLookToCart;
 window.saveRecentProduct = saveRecentProduct;
+window.generateHomeLooksFromWishlist = generateHomeLooksFromWishlist;
