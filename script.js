@@ -439,16 +439,22 @@ function hasFreeShipping(price) {
 function createProductCard(product) {
   const { ID, Nombre, Precio, Stock, Descripcion, Talla, Categoria, Imagen1, Imagen2, Imagen3, Badge } = product;
 
+  // Sanitización segura
   const safeNombre = escapeHtml(Nombre || "Producto");
   const safeDescripcion = escapeHtml(Descripcion || "");
   const safeTalla = escapeHtml(Talla || "Única");
   const safeCategoria = escapeHtml(Categoria || "");
   const safeBadge = Badge ? escapeHtml(Badge) : "";
 
+  const stockNum = Number(Stock || 0);
+  const isOutOfStock = stockNum <= 0;
+
+  // === CARD ===
   const card = document.createElement("article");
   card.className = "product-card";
   card.id = `producto-${ID}`;
 
+  // === SLIDER ===
   const slider = document.createElement("div");
   slider.className = "product-slider";
   slider.dataset.productId = ID;
@@ -480,6 +486,7 @@ function createProductCard(product) {
 
   slider.appendChild(track);
 
+  // === DOTS ===
   const dotsContainer = document.createElement("div");
   dotsContainer.className = "slider-dots";
 
@@ -492,6 +499,7 @@ function createProductCard(product) {
 
   slider.appendChild(dotsContainer);
 
+  // === BADGE ===
   if (safeBadge) {
     const badgeEl = document.createElement("div");
     badgeEl.className = "product-badge";
@@ -501,6 +509,7 @@ function createProductCard(product) {
 
   attachSliderEvents(slider, images.length);
 
+  // === INFO ===
   const info = document.createElement("div");
   info.className = "product-info";
 
@@ -539,25 +548,25 @@ function createProductCard(product) {
     metaRow.appendChild(genderBadge);
   }
 
-  const stockNum = Number(Stock || 0);
   const stockEl = document.createElement("span");
   stockEl.className = "stock-badge";
 
-  if (stockNum <= 0) {
+  if (isOutOfStock) {
     stockEl.classList.add("out-of-stock");
-    stockEl.innerHTML = "❌ Sin stock";
+    stockEl.textContent = "❌ Sin stock";
   } else {
-    stockEl.innerHTML = `📦 Stock: ${stockNum}`;
+    stockEl.textContent = `📦 Stock: ${stockNum}`;
   }
 
   metaRow.appendChild(stockEl);
+
   if (hasFreeShipping(Precio)) {
-  const shippingEl = document.createElement('span');
-  shippingEl.className = 'shipping-badge';
-  shippingEl.innerHTML = '🚚';
-  shippingEl.title = 'Envío a domicilio o punto intermedio';
-  metaRow.appendChild(shippingEl);
-}
+    const shippingEl = document.createElement("span");
+    shippingEl.className = "shipping-badge";
+    shippingEl.textContent = "🚚";
+    shippingEl.title = "Envío a domicilio o punto intermedio";
+    metaRow.appendChild(shippingEl);
+  }
 
   const descEl = document.createElement("p");
   descEl.className = "product-description";
@@ -572,37 +581,44 @@ function createProductCard(product) {
   info.appendChild(descEl);
   info.appendChild(sizesEl);
 
+  // === ACTIONS ===
   const actions = document.createElement("div");
   actions.className = "product-actions";
 
   const addBtn = document.createElement("button");
   addBtn.className = "primary-button";
-
-  const isOutOfStock = stockNum <= 0;
-
   addBtn.textContent = isOutOfStock ? "Sin stock" : "Añadir al carrito";
   addBtn.disabled = isOutOfStock;
 
   if (!isOutOfStock) {
-    const addToCartHandler = `addToCart({
-      ID:'${escapeJsString(String(ID))}',
-      Nombre:'${escapeJsString(Nombre || "Producto")}',
-      Precio:${Number(Precio || 0)},
-      Imagen1:'${escapeJsString(Imagen1 || "")}',
-      Talla:'${escapeJsString(Talla || "")}'
-    })`;
+    addBtn.dataset.productId = ID;
+    addBtn.dataset.productName = Nombre || "Producto";
+    addBtn.dataset.productPrice = Precio || 0;
+    addBtn.dataset.productImage = Imagen1 || "";
+    addBtn.dataset.productTalla = Talla || "";
 
-    addBtn.setAttribute("onclick", addToCartHandler);
+    addBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      addToCart({
+        ID: addBtn.dataset.productId,
+        Nombre: addBtn.dataset.productName,
+        Precio: Number(addBtn.dataset.productPrice),
+        Imagen1: addBtn.dataset.productImage,
+        Talla: addBtn.dataset.productTalla
+      });
+    });
   }
 
   actions.appendChild(addBtn);
 
+  // === ENSAMBLAR CARD ===
   card.appendChild(slider);
   card.appendChild(info);
   card.appendChild(actions);
 
   return card;
 }
+
 
 
 function attachSliderEvents(slider, totalSlides) {
