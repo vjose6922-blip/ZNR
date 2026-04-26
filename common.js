@@ -251,8 +251,33 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/'/g, '&#39;')
+    .replace(/`/g, '&#96;')      // backticks
+    .replace(/\//g, '&#x2F;');    // forward slash
 }
+
+function escapeAttr(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/`/g, '&#96;')
+    .replace(/\n/g, '&#10;')
+    .replace(/\r/g, '&#13;');
+}
+function safeHtml(strings, ...values) {
+  return strings.reduce((result, string, i) => {
+    const value = values[i];
+    const escaped = typeof value === 'string' ? escapeHtml(value) : 
+                    value === null || value === undefined ? '' : 
+                    String(value);
+    return result + string + escaped;
+  }, '');
+}
+
 function escapeJsString(str) {
   return String(str)
     .replace(/\\/g, "\\\\")   
@@ -1697,4 +1722,6 @@ window.API_URL = API_URL;
 window.WHATSAPP_NUMBER = WHATSAPP_NUMBER;
 window.CACHE_KEY = CACHE_KEY;
 window.CACHE_EXPIRY = CACHE_EXPIRY;
-
+window.escapeHtml = escapeHtml;
+window.escapeAttr = escapeAttr;
+window.safeHtml = safeHtml;
