@@ -288,12 +288,30 @@ async function generateHomeLooksFromWishlist() {
     return;
   }
   
-  container.innerHTML = looks.map(look => createHomeLookCard(look)).join('');
-  
-  document.querySelectorAll('.buy-complete-btn').forEach(btn => {
-    btn.removeEventListener('click', handleBuyComplete);
-    btn.addEventListener('click', handleBuyComplete);
+  container.innerHTML = '';
+  container.className = 'looks-grid';
+  looks.forEach(look => {
+    const card = createHomeLookCard(look);
+    container.appendChild(card);
   });
+
+  // Lazy load images
+  const lazyImgs = container.querySelectorAll('.lazy');
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          const src = img.getAttribute('data-src');
+          if (src) { img.src = src; img.removeAttribute('data-src'); img.classList.add('loaded'); }
+          observer.unobserve(img);
+        }
+      });
+    }, { rootMargin: '100px' });
+    lazyImgs.forEach(img => observer.observe(img));
+  } else {
+    lazyImgs.forEach(img => { const s = img.getAttribute('data-src'); if (s) img.src = s; });
+  }
 }
 
 function shuffle(arr) {
@@ -417,61 +435,161 @@ function toSlotProduct(p) {
   };
 }
 
-function handleBuyComplete(e) {
-  e.stopPropagation();
-  const lookId = e.currentTarget.dataset.lookId;
+function addHomeLookToCart(lookId) {
   const look = homeLooks.find(l => l.id === lookId);
-  if (look) addCompleteLookToCart(look);
+  if (!look) return;
+  const products = Object.values(look.products).filter(Boolean);
+  products.forEach(product => {
+    if (Number(product.stock || 0) > 0) {
+      addToCart({
+        ID: product.id,
+        Nombre: product.name,
+        Precio: product.price,
+        Imagen1: product.image,
+        Talla: product.size || ''
+      });
+    }
+  });
+  if (typeof animateCartAdd === 'function') animateCartAdd();
+  if (typeof showTemporaryMessage === 'function') {
+    showTemporaryMessage(`✅ ${products.length} productos agregados al carrito`, 'success');
+  }
+}
+
+function reloadHomeLookSlot(lookId, slotType, event) {
+  if (event) event.stopPropagation();
+  const lookIdx = homeLooks.findIndex(l => l.id === lookId);
+  if (lookIdx === -1) return;
+
+  const look = homeLooks[lookIdx];
+  const config = LOOKS_CONFIG.find(c => c.name === look.name || c.id === look.id);
+  if (!config) return;
+
+  const slot = config.slots.find(s => s.type === slotType);
+  if (!slot) return;
+
+  const productsWithStock = window.allProducts.filter(p =>
+    (p.Imagen1 || p.Imagen2) && Number(p.Stock || 0) > 0
+  );
+
+  const usedIds = Object.entries(look.products)
+    .filter(([k, p]) => k !== slotType && p)
+    .map(([, p]) => String(p.id));
+  const currentId = look.products[slotType] ? String(look.products[slotType].id) : null;
+  if (currentId) usedIds.push(currentId);
+
+  const available = getProductsForSlot(productsWithStock, slot)
+    .filter(p => !usedIds.includes(String(p.ID)));
+
+  if (available.length === 0) {
+    if (typeof showTemporaryMessage === 'function') showTemporaryMessage('No hay más opciones para este slot', 'info');
+    return;
+  }
+
+  const pick = available[Math.floor(Math.random() * available.length)];
+  look.products[slotType] = toSlotProduct(pick);
+  look.totalPrice = Object.values(look.products).reduce((s, p) => s + (p ? p.price : 0), 0);
+  homeLooks[lookIdx] = look;
+
+  // Re-render just this card
+  const card = document.querySelector(`.look-card[data-look-id="${lookId}"]`);
+  if (card) {
+    const newCard = createHomeLookCard(look);
+    card.replaceWith(newCard);
+    // Lazy-load the new card's images
+    newCard.querySelectorAll('.lazy').forEach(img => {
+      const src = img.getAttribute('data-src');
+      if (src) { img.src = src; img.removeAttribute('data-src'); }
+    });
+  }
 }
 
 // Look generation handled by buildLookFromAnchor above
 
 function createHomeLookCard(look) {
   const slotOrder = ['torso', 'piernas', 'pies'];
-  const slotIcons = { torso: '👕', piernas: '👖', pies: '👟' };
-  
-  const imagesHtml = slotOrder.map(slot => {
-    const product = look.products[slot];
-    if (!product) return '';
-    return `
-      <div style="position: relative; width: 100%;">
-        <img src="${optimizeDriveUrl(product.image, 200)}" alt="${escapeHtml(product.name)}" style="width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; border-radius: 10px;">
-        <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); border-radius: 20px; padding: 2px 6px; font-size: 10px;">${slotIcons[slot]}</span>
+  const slotNames = { torso: '👕 Superior', piernas: '👖 Inferior', pies: '👟 Calzado' };
+
+  let imagesHtml = '';
+  let productsHtml = '';
+  let totalPrice = 0;
+  let productCount = 0;
+
+  for (const slotKey of slotOrder) {
+    const product = look.products[slotKey];
+    if (!product) continue;
+    productCount++;
+    totalPrice += product.price;
+
+    const optimizedImg = optimizeDriveUrl(product.image, 200);
+    const optimizedModalImg = optimizeDriveUrl(product.image, 800);
+
+    imagesHtml += `
+      <div class="look-slot-image" data-slot="${escapeHtml(slotKey)}"
+           onclick="openImageModal('${optimizedModalImg}', '${product.id}')">
+        <img class="look-slot-img lazy"
+             data-src="${escapeHtml(optimizedImg)}"
+             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
+             alt="${escapeHtml(product.name)}"
+             loading="lazy">
       </div>
     `;
-  }).join('');
-  
-  const productsListHtml = slotOrder.map(slot => {
-    const product = look.products[slot];
-    if (!product) return '';
-    return `
-      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 6px; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
-        <span>${slotIcons[slot]} ${escapeHtml(product.name.length > 30 ? product.name.substring(0, 27) + '...' : product.name)}</span>
-        <span style="color: #ff4f81; font-weight: 600;">${formatCurrency(product.price)}</span>
-      </div>
-    `;
-  }).join('');
-  
-  const categoryBadge = look.category === 'Mujer' ? '👗 Mujer' : look.category === 'Hombre' ? '👔 Hombre' : '✨ Unisex';
-  
-  return `
-    <div class="outfit-card-mini" style="display: flex; flex-direction: row; background: var(--color-surface); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-soft);">
-      <div class="outfit-images-mini" style="display: flex; flex-direction: column; gap: 4px; padding: 8px; background: #f5f5f8; width: 130px; flex-shrink: 0;">
-        ${imagesHtml || '<div style="padding: 20px; text-align:center;">Sin imágenes</div>'}
-      </div>
-      <div class="outfit-info-mini" style="padding: 12px; flex: 1; min-width: 0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="background: #e8e8ff; padding: 2px 8px; border-radius: 20px; font-size: 10px; color: #3b1f5f;">${categoryBadge}</span>
-          <span style="font-size: 11px; color: #888;">${look.productCount} prendas</span>
+
+    productsHtml += `
+      <div class="look-product-item" data-slot="${escapeHtml(slotKey)}">
+        <div class="look-product-info">
+          <div class="look-product-name">${escapeHtml(product.name)}</div>
+          <div class="look-product-price">${formatCurrency(product.price)}</div>
+          <div class="look-product-size">${escapeHtml(product.size || 'Talla no especificada')}</div>
         </div>
-        <h4 style="margin: 0 0 8px; font-size: 14px;">✨ ${escapeHtml(look.name)}</h4>
-        <p style="font-size: 11px; color: #666; margin-bottom: 8px;">${escapeHtml(look.description || 'Look completo para cualquier ocasión')}</p>
-        <div style="max-height: 100px; overflow-y: auto; margin-bottom: 8px;">${productsListHtml}</div>
-        <div style="font-size: 16px; font-weight: 700; color: #ff4f81; margin: 8px 0;">Total: ${formatCurrency(look.totalPrice)}</div>
-        <button class="buy-complete-btn" data-look-id="${look.id}" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ff4f81, #ff7a4f); border: none; border-radius: 30px; color: white; font-weight: 600; cursor: pointer;">🛒 Comprar todo</button>
+        <div class="look-product-actions">
+          <button class="look-product-add"
+            onclick="addToCart({
+              ID:'${escapeJsString(String(product.id))}',
+              Nombre:'${escapeJsString(product.name)}',
+              Precio:${product.price},
+              Imagen1:'${escapeJsString(product.image)}',
+              Talla:'${escapeJsString(product.size || '')}'
+            })">🛒</button>
+          <button class="look-product-reload"
+            onclick="reloadHomeLookSlot('${escapeJsString(look.id)}', '${escapeJsString(slotKey)}', event)"
+            title="Cambiar esta prenda">⟳</button>
+        </div>
       </div>
+    `;
+  }
+
+  const categoryLabel = look.category === 'Mujer' ? 'Mujer' : look.category === 'Hombre' ? 'Hombre' : 'Unisex';
+
+  const card = document.createElement('div');
+  card.className = 'look-card';
+  card.dataset.lookId = look.id;
+
+  card.innerHTML = `
+    <div class="look-images-container">
+      ${imagesHtml || '<div class="look-slot-image empty">Sin imágenes</div>'}
+    </div>
+    <div class="look-info">
+      <div class="look-header">
+        <span class="look-category">${escapeHtml(categoryLabel)}</span>
+        <span class="look-item-count">${productCount} prenda${productCount !== 1 ? 's' : ''}</span>
+      </div>
+      <h2 class="look-title">${escapeHtml(look.name)}</h2>
+      <p class="look-description">${escapeHtml(look.description || '')}</p>
+      <div class="look-products">
+        <div class="look-products-title"><span>✨ Este outfit incluye:</span></div>
+        <div class="look-products-list">${productsHtml}</div>
+        <div class="look-total">
+          <span class="look-total-label">💰 Precio total:</span>
+          <span class="look-total-price">${formatCurrency(totalPrice)}</span>
+        </div>
+      </div>
+      <button class="buy-look-btn"
+        onclick="addHomeLookToCart('${escapeJsString(look.id)}')">🛒 Comprar todo</button>
     </div>
   `;
+
+  return card;
 }
 
 function addCompleteLookToCart(look) {
@@ -604,3 +722,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Exponer funciones globales
 window.addCompleteLookToCart = addCompleteLookToCart;
 window.addToRecentProducts = addToRecentProducts;
+window.addHomeLookToCart = addHomeLookToCart;
+window.reloadHomeLookSlot = reloadHomeLookSlot;
