@@ -336,8 +336,14 @@
       .hero-title { font-size: 1.8rem; }
       .categories-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
       .products-scroll { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-      .outfit-grid { grid-template-columns: 1fr; }
-      .outfit-card-mini { flex-direction: column !important; }
+      .outfit-grid { 
+    grid-template-columns: 1fr; /* En móvil: 1 outfit por fila */
+    gap: 16px;
+  }
+      .outfit-images-mini {
+    flex-direction: column; /* Sigue siendo columna en móvil */
+    gap: 6px;
+  }
       .outfit-card-mini .outfit-images-mini { width: 100% !important; flex-direction: row !important; }
       .outfit-card-mini .outfit-images-mini > div { width: auto !important; flex: 1; }
     }
