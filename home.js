@@ -3,8 +3,7 @@ window.allProducts = window.allProducts || [];
 const CATEGORIES = [
   { name: '👔 Hombre', icon: '👔', filter: 'HOMBRE', url: 'catalogo.html?gender=HOMBRE' },
   { name: '👗 Mujer', icon: '👗', filter: 'MUJER', url: 'catalogo.html?gender=MUJER' },
-  { name: '👟 Tenis', icon: '👟', filter: 'Calzado', url: 'catalogo.html?category=Calzado' },
-  { name: '💍 Accesorios', icon: '💍', filter: 'Accesorios', url: 'catalogo.html?category=Accesorios' }
+  { name: '👟 Tenis', icon: '👟', filter: 'Calzado', url: 'catalogo.html?category=Calzado' }
 ];
 
 const GENDER_BY_CATEGORY = {
@@ -61,7 +60,6 @@ function getCachedProducts() {
 function buildProductIndex(products) {
   if (!products || products.length === 0) return;
   window.allProductsIndexed = products;
-  // Delegamos al índice de common.js guardado antes de que home.js lo sobrescriba
   if (typeof window._commonBuildProductIndex === 'function') {
     window._commonBuildProductIndex(products);
   }
@@ -73,8 +71,8 @@ async function loadProducts() {
   const cached = getCachedProducts();
   if (cached && cached.length > 0) {
     console.log('📦 Productos desde caché local');
-    window.allProducts = cached;  // ← CAMBIADO
-    buildProductIndex(window.allProducts);  // ← CAMBIADO
+    window.allProducts = cached;  
+    buildProductIndex(window.allProducts); 
     renderCategories();
     renderFeaturedProducts();
     renderRecentProducts();
@@ -98,9 +96,9 @@ async function loadProducts() {
     const res = await fetch(API_URL, { signal: controller.signal });
     clearTimeout(timeoutId);
     const data = await res.json();
-    window.allProducts = data.products || data || [];  // ← CAMBIADO
-    setCachedProducts(window.allProducts);  // ← CAMBIADO
-    buildProductIndex(window.allProducts);  // ← CAMBIADO
+    window.allProducts = data.products || data || [];  
+    setCachedProducts(window.allProducts); 
+    buildProductIndex(window.allProducts); 
     
     renderCategories();
     renderFeaturedProducts();
@@ -252,19 +250,15 @@ async function generateHomeLooksFromWishlist() {
     return;
   }
   
-  // Pick anchor products: 1 from wishlist + fill with random
   const wishlist = getWishlist();
   const wishlistProducts = wishlist
     .map(w => productsWithStock.find(p => String(p.ID) === String(w.id)))
     .filter(Boolean);
   
-  // We generate up to 3 looks, each anchored to a different base product
   const anchors = [];
   if (wishlistProducts.length > 0) {
-    // Use up to 2 wishlist items as anchors
     anchors.push(...wishlistProducts.slice(0, 2));
   }
-  // Fill remaining anchors with random products not already in anchors
   const usedIds = new Set(anchors.map(p => String(p.ID)));
   const randomPool = productsWithStock.filter(p => !usedIds.has(String(p.ID)));
   shuffle(randomPool);
@@ -295,7 +289,6 @@ async function generateHomeLooksFromWishlist() {
     container.appendChild(card);
   });
 
-  // Lazy load images
   const lazyImgs = container.querySelectorAll('.lazy');
   if ('IntersectionObserver' in window) {
     const observer = new IntersectionObserver((entries) => {
@@ -326,16 +319,12 @@ function buildLookFromAnchor(anchorProduct, allProductsWithStock) {
   const anchorCategory = anchorProduct.Categoria;
   const anchorGender = GENDER_BY_CATEGORY[anchorCategory] || 'UNISEX';
   
-  // Find which slot this anchor belongs to in which config
-  // Try configs that match gender and contain a slot for this category
   let candidateConfigs = LOOKS_CONFIG.filter(config => {
     const configGender = config.category === 'Mujer' ? 'MUJER' : config.category === 'Hombre' ? 'HOMBRE' : 'UNISEX';
     const genderMatch = anchorGender === 'UNISEX' || configGender === anchorGender || configGender === 'UNISEX';
     if (!genderMatch) return false;
-    // Check if anchor product fits any slot in this config
     return config.slots.some(slot => {
       if (!slot.categories.includes(anchorCategory)) return false;
-      // Also verify anchor passes keyword/exclude filters
       const productName = (anchorProduct.Nombre || '').toLowerCase();
       if (slot.keywords && slot.keywords.length > 0 && slot.keywords[0] !== '') {
         const matches = slot.keywords.some(k => productName.includes(k.toLowerCase()));
@@ -349,7 +338,6 @@ function buildLookFromAnchor(anchorProduct, allProductsWithStock) {
     });
   });
   
-  // Fallback: configs that just match gender
   if (candidateConfigs.length === 0) {
     candidateConfigs = LOOKS_CONFIG.filter(config => {
       const configGender = config.category === 'Mujer' ? 'MUJER' : config.category === 'Hombre' ? 'HOMBRE' : 'UNISEX';
@@ -359,17 +347,14 @@ function buildLookFromAnchor(anchorProduct, allProductsWithStock) {
   
   if (candidateConfigs.length === 0) return null;
   
-  // Pick a random matching config
   const config = candidateConfigs[Math.floor(Math.random() * candidateConfigs.length)];
   
-  // Build currentSelection with the anchor pre-placed in its slot
   const anchorSlot = config.slots.find(slot => slot.categories.includes(anchorCategory));
   const preselection = {};
   if (anchorSlot) {
     preselection[anchorSlot.type] = { id: anchorProduct.ID };
   }
   
-  // Use looks.js selectProductsForLook with real getProductsForSlot filtering
   const selected = selectProductsForLookHome(config, allProductsWithStock, preselection, anchorProduct);
   
   const productCount = Object.values(selected).filter(Boolean).length;
@@ -391,7 +376,6 @@ function buildLookFromAnchor(anchorProduct, allProductsWithStock) {
   };
 }
 
-// Mirror of looks.js selectProductsForLook but using the real getProductsForSlot
 function selectProductsForLookHome(lookConfig, productsWithImages, preselection = {}, anchorProduct) {
   const selected = {};
   const usedIds = [];
@@ -409,7 +393,6 @@ function selectProductsForLookHome(lookConfig, productsWithImages, preselection 
       }
     }
     
-    // Use the same getProductsForSlot from looks.js (available globally)
     const available = getProductsForSlot(productsWithImages, slot)
       .filter(p => !usedIds.includes(String(p.ID)));
     
@@ -491,20 +474,16 @@ function reloadHomeLookSlot(lookId, slotType, event) {
   look.totalPrice = Object.values(look.products).reduce((s, p) => s + (p ? p.price : 0), 0);
   homeLooks[lookIdx] = look;
 
-  // Re-render just this card
   const card = document.querySelector(`.look-card[data-look-id="${lookId}"]`);
   if (card) {
     const newCard = createHomeLookCard(look);
     card.replaceWith(newCard);
-    // Lazy-load the new card's images
     newCard.querySelectorAll('.lazy').forEach(img => {
       const src = img.getAttribute('data-src');
       if (src) { img.src = src; img.removeAttribute('data-src'); }
     });
   }
 }
-
-// Look generation handled by buildLookFromAnchor above
 
 function createHomeLookCard(look) {
   const slotOrder = ['torso', 'piernas', 'pies'];
@@ -611,7 +590,6 @@ function addCompleteLookToCart(look) {
   }
 }
 
-// Theme is managed by common.js
 
 function initCartAndWishlist() {
   if (typeof loadCartFromStorage === 'function') loadCartFromStorage();
@@ -705,21 +683,14 @@ function updateWishlistBadge() {
   }
 }
 
-// ========== INICIALIZACIÓN ==========
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🏠 Inicializando página de inicio...');
-  
-  // Theme is handled by common.js – do not re-register here to avoid double-toggle.
-  
   await loadProducts();
   initCartAndWishlist();
   setupEventListeners();
-  // Update badges immediately on load
   updateWishlistBadge();
   updateCartBadge();
 });
 
-// Exponer funciones globales
 window.addCompleteLookToCart = addCompleteLookToCart;
 window.addToRecentProducts = addToRecentProducts;
 window.addHomeLookToCart = addHomeLookToCart;
