@@ -149,51 +149,53 @@
     }
 
     .outfit-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      max-width: 900px;
-      margin: 30px auto 0;
-    }
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Outfits en fila */
+  gap: 24px;
+  max-width: 1400px;
+  margin: 30px auto 0;
+  padding: 0 20px;
+}
 
-    .outfit-card-mini {
-      background: var(--color-surface);
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: var(--shadow-soft);
-      transition: transform 0.3s ease;
-    }
+.outfit-card-mini {
+  background: var(--color-surface);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.3s ease;
+}
 
-    .outfit-card-mini:hover {
-      transform: translateY(-5px);
-    }
+.outfit-card-mini:hover {
+  transform: translateY(-5px);
+}
 
-    .outfit-images-mini {
-      display: flex;
-      gap: 4px;
-      padding: 16px;
-      background: #f5f5f8;
-    }
+.outfit-images-mini {
+  display: flex;
+  flex-direction: column;  /* ← LAS 3 IMÁGENES EN COLUMNA (vertical) */
+  gap: 8px;
+  padding: 16px;
+  background: #f5f5f8;
+}
 
-    .outfit-img-mini {
-      flex: 1;
-      aspect-ratio: 1;
-      object-fit: contain;
-      background: white;
-      border-radius: 12px;
-      padding: 8px;
-    }
+.outfit-img-mini {
+  width: 100%;  /* ← CADA IMAGEN OCUPA TODO EL ANCHO */
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: white;
+  border-radius: 12px;
+  padding: 8px;
+}
 
-    .outfit-info-mini {
-      padding: 16px;
-    }
+.outfit-info-mini {
+  padding: 16px;
+}
 
-    .outfit-price-mini {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #ff4f81;
-      margin: 8px 0;
-    }
+.outfit-price-mini {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #ff4f81;
+  margin: 8px 0;
+}
 
     .buy-complete-btn {
       width: 100%;
