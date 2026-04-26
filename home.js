@@ -1,9 +1,8 @@
 window.allProducts = window.allProducts || [];
 
 const CATEGORIES = [
-  { name: '👔 Hombre', icon: '👔', filter: 'HOMBRE', url: 'catalogo.html?gender=HOMBRE' },
-  { name: '👗 Mujer', icon: '👗', filter: 'MUJER', url: 'catalogo.html?gender=MUJER' },
-  { name: '👟 Tenis', icon: '👟', filter: 'Calzado', url: 'catalogo.html?category=Calzado' }
+  { name: 'Caballero', icon: '👔', filter: 'HOMBRE', url: 'catalogo.html?gender=HOMBRE' },
+  { name: 'Dama', icon: '👗', filter: 'MUJER', url: 'catalogo.html?gender=MUJER' }
 ];
 
 const GENDER_BY_CATEGORY = {
