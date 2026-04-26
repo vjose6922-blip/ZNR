@@ -9,7 +9,6 @@ let initialHashHandled = false;
 const SECRET_TAPS_REQUIRED = 5;
 let secretTapCount = 0;
 let secretTapTimeout = null;
-let isBackgroundLoading = false;
 
 class BackgroundLoadQueue {
   constructor() {
@@ -855,55 +854,6 @@ function startSilentPolling(requestId, clientPhone) {
 
 
 
-
-
-async function pagarConMercadoPago() {
-  const items = Object.values(localCart).map(item => ({
-    id: item.id,
-    title: item.name,
-    quantity: item.quantity,
-    unit_price: item.price
-  }));
-  if (items.length === 0) {
-    alert("No hay productos en el carrito");
-    return;
-  }
-  showLoader("Preparando pago...");
-  try {
-    const params = new URLSearchParams({ action: "createPreference", items: JSON.stringify(items) });
-    const response = await fetch(`${API_URL}?${params.toString()}`, { method: "GET" });
-    const data = await response.json();
-    if (data.ok && data.initPoint) {
-      window.location.href = data.initPoint;
-    } else {
-      throw new Error(data.error || "Error desconocido");
-    }
-  } catch (error) {
-    console.error("Error:", error);
-    alert("❌ Error: " + error.message);
-    hideLoader();
-  }
-}
-
-function verificarEstadoPago() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const paymentStatus = urlParams.get("payment");
-  if (paymentStatus === "success") {
-    localCart = {};
-    saveCartToStorage();
-    updateCartBadge();
-    if (typeof renderCart === 'function') renderCart();
-    alert("🎉 ¡Pago completado con éxito!\n\nGracias por tu compra.");
-    window.history.replaceState({}, document.title, window.location.pathname);
-  } else if (paymentStatus === "failure") {
-    alert("❌ El pago no pudo completarse.\n\nPor favor, intenta nuevamente.");
-    window.history.replaceState({}, document.title, window.location.pathname);
-  } else if (paymentStatus === "pending") {
-    alert("⏳ Tu pago está siendo procesado.\n\nTe notificaremos cuando se confirme.");
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   fetchProducts();
 
@@ -951,10 +901,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const requestBtn = document.getElementById("request-purchase-btn");
   if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 
-  const mpBtn = document.getElementById("mp-checkout-btn");
-  if (mpBtn) mpBtn.addEventListener("click", pagarConMercadoPago);
-
-  verificarEstadoPago();
 
   const layoutBtn = document.getElementById("layout-toggle-btn");
   const productsContainer = document.getElementById("products-container");
