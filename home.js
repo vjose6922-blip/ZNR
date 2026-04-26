@@ -154,7 +154,7 @@ function createMiniProductCard(product) {
     <div class="product-card" style="cursor: pointer;" onclick="window.location.href='catalogo.html#producto-${product.ID}'">
       <div class="product-slider" style="position: relative;">
         ${badgeHtml}
-        <img src="${imgUrl}" alt="${escapeHtml(product.Nombre)}" style="width: 100%; aspect-ratio: 1; object-fit: contain; padding: 16px;">
+        <img src="${imgUrl}" alt="${escapeHtml(product.Nombre)}" style="width: 100%; aspect-ratio: 1; object-fit: cover; display: block;">
       </div>
       <div class="product-info" style="padding: 12px;">
         <div class="product-title-row">
@@ -230,8 +230,8 @@ async function generateHomeLooksFromWishlist() {
   const container = document.getElementById('home-looks-container');
   if (!container) return;
   
-  if (typeof LOOKS_CONFIG === 'undefined') {
-    console.log('⏳ Esperando LOOKS_CONFIG...');
+  if (typeof LOOKS_CONFIG === 'undefined' || typeof getProductsForSlot === 'undefined') {
+    console.log('⏳ Esperando LOOKS_CONFIG / getProductsForSlot...');
     setTimeout(() => generateHomeLooksFromWishlist(), 500);
     return;
   }
@@ -243,35 +243,40 @@ async function generateHomeLooksFromWishlist() {
   
   container.innerHTML = `<div style="display: flex; justify-content: center; padding: 40px;"><div class="loader-spinner"></div></div>`;
   
-  const wishlist = getWishlist();
-  const productsWithStock = window.allProducts.filter(p => p.Stock > 0 && p.Stock !== "0");
+  const productsWithStock = window.allProducts.filter(p =>
+    (p.Imagen1 || p.Imagen2) && Number(p.Stock || 0) > 0
+  );
   
   if (productsWithStock.length === 0) {
-    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">Agrega productos a favoritos para ver looks personalizados</p>';
+    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">No hay productos disponibles</p>';
     return;
   }
   
-  let productsToUse = [];
-  if (wishlist.length > 0) {
-    const wishlistProducts = wishlist.map(w => productsWithStock.find(p => String(p.ID) === String(w.id))).filter(p => p);
-    productsToUse = wishlistProducts.slice(0, 4);
-  }
+  // Pick anchor products: 1 from wishlist + fill with random
+  const wishlist = getWishlist();
+  const wishlistProducts = wishlist
+    .map(w => productsWithStock.find(p => String(p.ID) === String(w.id)))
+    .filter(Boolean);
   
-  if (productsToUse.length < 4) {
-    const otherProducts = productsWithStock.filter(p => !productsToUse.some(u => String(u.ID) === String(p.ID)));
-    const shuffled = [...otherProducts];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    productsToUse = [...productsToUse, ...shuffled.slice(0, 4 - productsToUse.length)];
+  // We generate up to 3 looks, each anchored to a different base product
+  const anchors = [];
+  if (wishlistProducts.length > 0) {
+    // Use up to 2 wishlist items as anchors
+    anchors.push(...wishlistProducts.slice(0, 2));
+  }
+  // Fill remaining anchors with random products not already in anchors
+  const usedIds = new Set(anchors.map(p => String(p.ID)));
+  const randomPool = productsWithStock.filter(p => !usedIds.has(String(p.ID)));
+  shuffle(randomPool);
+  while (anchors.length < 3 && randomPool.length > 0) {
+    anchors.push(randomPool.shift());
   }
   
   const looks = [];
   homeLooks = [];
   
-  for (const baseProduct of productsToUse) {
-    const look = generateLookFromProductWithConfig(baseProduct, productsWithStock);
+  for (const anchor of anchors) {
+    const look = buildLookFromAnchor(anchor, productsWithStock);
     if (look && Object.keys(look.products).length >= 2) {
       looks.push(look);
       homeLooks.push(look);
@@ -291,6 +296,127 @@ async function generateHomeLooksFromWishlist() {
   });
 }
 
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function buildLookFromAnchor(anchorProduct, allProductsWithStock) {
+  const anchorCategory = anchorProduct.Categoria;
+  const anchorGender = GENDER_BY_CATEGORY[anchorCategory] || 'UNISEX';
+  
+  // Find which slot this anchor belongs to in which config
+  // Try configs that match gender and contain a slot for this category
+  let candidateConfigs = LOOKS_CONFIG.filter(config => {
+    const configGender = config.category === 'Mujer' ? 'MUJER' : config.category === 'Hombre' ? 'HOMBRE' : 'UNISEX';
+    const genderMatch = anchorGender === 'UNISEX' || configGender === anchorGender || configGender === 'UNISEX';
+    if (!genderMatch) return false;
+    // Check if anchor product fits any slot in this config
+    return config.slots.some(slot => {
+      if (!slot.categories.includes(anchorCategory)) return false;
+      // Also verify anchor passes keyword/exclude filters
+      const productName = (anchorProduct.Nombre || '').toLowerCase();
+      if (slot.keywords && slot.keywords.length > 0 && slot.keywords[0] !== '') {
+        const matches = slot.keywords.some(k => productName.includes(k.toLowerCase()));
+        if (!matches) return false;
+      }
+      if (slot.excludeKeywords && slot.excludeKeywords.length > 0) {
+        const excluded = slot.excludeKeywords.some(k => productName.includes(k.toLowerCase()));
+        if (excluded) return false;
+      }
+      return true;
+    });
+  });
+  
+  // Fallback: configs that just match gender
+  if (candidateConfigs.length === 0) {
+    candidateConfigs = LOOKS_CONFIG.filter(config => {
+      const configGender = config.category === 'Mujer' ? 'MUJER' : config.category === 'Hombre' ? 'HOMBRE' : 'UNISEX';
+      return anchorGender === 'UNISEX' || configGender === anchorGender;
+    });
+  }
+  
+  if (candidateConfigs.length === 0) return null;
+  
+  // Pick a random matching config
+  const config = candidateConfigs[Math.floor(Math.random() * candidateConfigs.length)];
+  
+  // Build currentSelection with the anchor pre-placed in its slot
+  const anchorSlot = config.slots.find(slot => slot.categories.includes(anchorCategory));
+  const preselection = {};
+  if (anchorSlot) {
+    preselection[anchorSlot.type] = { id: anchorProduct.ID };
+  }
+  
+  // Use looks.js selectProductsForLook with real getProductsForSlot filtering
+  const selected = selectProductsForLookHome(config, allProductsWithStock, preselection, anchorProduct);
+  
+  const productCount = Object.values(selected).filter(Boolean).length;
+  if (productCount < 2) return null;
+  
+  const hasAnchor = Object.values(selected).some(p => p && String(p.id) === String(anchorProduct.ID));
+  if (!hasAnchor) return null;
+  
+  const totalPrice = Object.values(selected).reduce((sum, p) => sum + (p ? p.price : 0), 0);
+  
+  return {
+    id: `home_look_${anchorProduct.ID}_${Date.now()}`,
+    name: config.name,
+    description: config.description,
+    category: config.category,
+    products: selected,
+    totalPrice,
+    productCount
+  };
+}
+
+// Mirror of looks.js selectProductsForLook but using the real getProductsForSlot
+function selectProductsForLookHome(lookConfig, productsWithImages, preselection = {}, anchorProduct) {
+  const selected = {};
+  const usedIds = [];
+  
+  for (const slot of lookConfig.slots) {
+    const slotKey = slot.type;
+    const preId = preselection[slotKey]?.id;
+    
+    if (preId) {
+      const product = productsWithImages.find(p => String(p.ID) === String(preId));
+      if (product && Number(product.Stock || 0) > 0) {
+        selected[slotKey] = toSlotProduct(product);
+        usedIds.push(String(product.ID));
+        continue;
+      }
+    }
+    
+    // Use the same getProductsForSlot from looks.js (available globally)
+    const available = getProductsForSlot(productsWithImages, slot)
+      .filter(p => !usedIds.includes(String(p.ID)));
+    
+    if (available.length > 0) {
+      const pick = available[Math.floor(Math.random() * available.length)];
+      selected[slotKey] = toSlotProduct(pick);
+      usedIds.push(String(pick.ID));
+    }
+  }
+  
+  return selected;
+}
+
+function toSlotProduct(p) {
+  return {
+    id: p.ID,
+    name: p.Nombre,
+    price: Number(p.Precio || 0),
+    image: p.Imagen1 || p.Imagen2 || '',
+    stock: p.Stock,
+    category: p.Categoria,
+    size: p.Talla ? 'Talla: ' + p.Talla : 'Talla:'
+  };
+}
+
 function handleBuyComplete(e) {
   e.stopPropagation();
   const lookId = e.currentTarget.dataset.lookId;
@@ -298,113 +424,7 @@ function handleBuyComplete(e) {
   if (look) addCompleteLookToCart(look);
 }
 
-function generateLookFromProductWithConfig(baseProduct, allProductsWithStock) {
-  const baseGender = GENDER_BY_CATEGORY[baseProduct.Categoria] || 'UNISEX';
-  const baseCategory = baseProduct.Categoria;
-  
-  let compatibleLookConfigs = LOOKS_CONFIG.filter(config => {
-    if (baseGender !== 'UNISEX' && config.category !== baseGender) return false;
-    return config.slots.some(slot => slot.categories.some(cat => cat === baseCategory));
-  });
-  
-  if (compatibleLookConfigs.length === 0) {
-    compatibleLookConfigs = LOOKS_CONFIG.filter(config => 
-      config.category === baseGender || config.category === 'Mujer' || config.category === 'Hombre'
-    );
-  }
-  
-  if (compatibleLookConfigs.length === 0) return null;
-  
-  const randomConfig = compatibleLookConfigs[Math.floor(Math.random() * compatibleLookConfigs.length)];
-  const currentSelection = {};
-  
-  for (const slot of randomConfig.slots) {
-    if (slot.categories.some(cat => cat === baseCategory)) {
-      currentSelection[slot.type] = {
-        id: baseProduct.ID,
-        name: baseProduct.Nombre,
-        price: Number(baseProduct.Precio || 0),
-        image: baseProduct.Imagen1 || baseProduct.Imagen2 || '',
-        stock: baseProduct.Stock,
-        category: baseProduct.Categoria,
-        size: baseProduct.Talla || ''
-      };
-      break;
-    }
-  }
-  
-  const selectedProducts = selectProductsForLook(randomConfig, allProductsWithStock, currentSelection);
-  const hasBaseProduct = Object.values(selectedProducts).some(p => p && String(p.id) === String(baseProduct.ID));
-  const productCount = Object.values(selectedProducts).filter(p => p).length;
-  
-  if (!hasBaseProduct || productCount < 2) return null;
-  
-  let totalPrice = 0;
-  for (const product of Object.values(selectedProducts)) {
-    if (product) totalPrice += product.price;
-  }
-  
-  return {
-    id: `home_look_${baseProduct.ID}_${Date.now()}`,
-    name: randomConfig.name,
-    description: randomConfig.description,
-    category: randomConfig.category,
-    products: selectedProducts,
-    totalPrice: totalPrice,
-    productCount: productCount
-  };
-}
-
-function selectProductsForLook(lookConfig, productsWithImages, currentSelection = {}) {
-  const selected = {};
-  const usedProductIds = [];
-  
-  for (const slot of lookConfig.slots) {
-    const slotKey = slot.type;
-    const currentProductId = currentSelection[slotKey]?.id;
-    
-    if (currentProductId && !currentSelection._reloading) {
-      const existingProduct = productsWithImages.find(p => p.ID == currentProductId);
-      if (existingProduct && existingProduct.Stock > 0) {
-        selected[slotKey] = {
-          id: existingProduct.ID,
-          name: existingProduct.Nombre,
-          price: Number(existingProduct.Precio || 0),
-          image: existingProduct.Imagen1 || existingProduct.Imagen2 || "",
-          stock: existingProduct.Stock,
-          category: existingProduct.Categoria,
-          size: existingProduct.Talla || ""
-        };
-        usedProductIds.push(String(existingProduct.ID));
-        continue;
-      }
-    }
-    
-    const availableProducts = productsWithImages.filter(p => {
-      if (!p.Stock || p.Stock <= 0 || p.Stock === "0") return false;
-      return slot.categories.length === 0 || slot.categories.includes(p.Categoria);
-    });
-    
-    const freshProducts = availableProducts.filter(p => !usedProductIds.includes(String(p.ID)));
-    
-    if (freshProducts.length > 0) {
-      const randomIndex = Math.floor(Math.random() * freshProducts.length);
-      const product = freshProducts[randomIndex];
-      selected[slotKey] = {
-        id: product.ID,
-        name: product.Nombre,
-        price: Number(product.Precio || 0),
-        image: product.Imagen1 || product.Imagen2 || "",
-        stock: product.Stock,
-        category: product.Categoria,
-        size: product.Talla ? "Talla: " + product.Talla : "Talla:"
-      };
-      usedProductIds.push(String(product.ID));
-    }
-  }
-  
-  return selected;
-}
+// Look generation handled by buildLookFromAnchor above
 
 function createHomeLookCard(look) {
   const slotOrder = ['torso', 'piernas', 'pies'];
@@ -414,8 +434,8 @@ function createHomeLookCard(look) {
     const product = look.products[slot];
     if (!product) return '';
     return `
-      <div style="position: relative; flex: 1;">
-        <img src="${optimizeDriveUrl(product.image, 150)}" alt="${escapeHtml(product.name)}" style="width: 100%; aspect-ratio: 1; object-fit: contain; background: white; border-radius: 12px;">
+      <div style="position: relative; width: 100%;">
+        <img src="${optimizeDriveUrl(product.image, 200)}" alt="${escapeHtml(product.name)}" style="width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; border-radius: 10px;">
         <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.6); border-radius: 20px; padding: 2px 6px; font-size: 10px;">${slotIcons[slot]}</span>
       </div>
     `;
@@ -435,11 +455,11 @@ function createHomeLookCard(look) {
   const categoryBadge = look.category === 'Mujer' ? '👗 Mujer' : look.category === 'Hombre' ? '👔 Hombre' : '✨ Unisex';
   
   return `
-    <div class="outfit-card-mini">
-      <div class="outfit-images-mini" style="display: flex; gap: 8px; padding: 12px; background: #f5f5f8;">
-        ${imagesHtml || '<div style="flex:1; text-align: center; padding: 20px;">Sin imágenes</div>'}
+    <div class="outfit-card-mini" style="display: flex; flex-direction: row; background: var(--color-surface); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-soft);">
+      <div class="outfit-images-mini" style="display: flex; flex-direction: column; gap: 4px; padding: 8px; background: #f5f5f8; width: 130px; flex-shrink: 0;">
+        ${imagesHtml || '<div style="padding: 20px; text-align:center;">Sin imágenes</div>'}
       </div>
-      <div class="outfit-info-mini" style="padding: 12px;">
+      <div class="outfit-info-mini" style="padding: 12px; flex: 1; min-width: 0;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
           <span style="background: #e8e8ff; padding: 2px 8px; border-radius: 20px; font-size: 10px; color: #3b1f5f;">${categoryBadge}</span>
           <span style="font-size: 11px; color: #888;">${look.productCount} prendas</span>
@@ -473,14 +493,7 @@ function addCompleteLookToCart(look) {
   }
 }
 
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', savedTheme);
-  const themeBtn = document.getElementById('theme-toggle');
-  if (themeBtn) {
-    themeBtn.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
-  }
-}
+// Theme is managed by common.js
 
 function initCartAndWishlist() {
   if (typeof loadCartFromStorage === 'function') loadCartFromStorage();
@@ -578,22 +591,14 @@ function updateWishlistBadge() {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏠 Inicializando página de inicio...');
   
-  initTheme();
-  
-  const themeBtn = document.getElementById('theme-toggle');
-  if (themeBtn) {
-    themeBtn.addEventListener('click', () => {
-      const current = document.documentElement.getAttribute('data-theme');
-      const newTheme = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
-      themeBtn.textContent = newTheme === 'dark' ? '🌙' : '☀️';
-    });
-  }
+  // Theme is handled by common.js – do not re-register here to avoid double-toggle.
   
   await loadProducts();
   initCartAndWishlist();
   setupEventListeners();
+  // Update badges immediately on load
+  updateWishlistBadge();
+  updateCartBadge();
 });
 
 // Exponer funciones globales
