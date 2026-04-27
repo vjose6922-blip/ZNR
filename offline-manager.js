@@ -1,3 +1,4 @@
+
 // ========== OFFLINE MANAGER - VERSIÓN CORREGIDA ==========
 const ADMIN_ACTIONS = {
     CREATE: 'admin_create',
