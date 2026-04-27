@@ -1711,8 +1711,17 @@ window.updateWishlistBadge = updateWishlistBadge;
 })();
 
 
+// ========== LIMPIAR PRODUCTOS RECIENTES ==========
+function clearRecentProducts() {
+    localStorage.removeItem(RECENT_PRODUCTS_KEY);
+    window.dispatchEvent(new CustomEvent('recentProductsUpdated'));
+    
+    if (typeof showTemporaryMessage === 'function') {
+        showTemporaryMessage('🗑️ Historial de productos recientes eliminado', 'info');
+    }
+}
 
-
+window.clearRecentProducts = clearRecentProducts;
 window.API_URL = API_URL;
 window.WHATSAPP_NUMBER = WHATSAPP_NUMBER;
 window.CACHE_KEY = CACHE_KEY;
