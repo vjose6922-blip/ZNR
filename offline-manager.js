@@ -1,50 +1,11 @@
-
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data.type === 'OFFLINE_ACTION_QUEUED') {
-            updatePendingBadge();
-            showMessage(`📡 Acción guardada. ${event.data.queueLength} pendiente(s).`, 'info');
-        } else if (event.data.type === 'OFFLINE_QUEUE_UPDATED') {
-            updatePendingBadge();
-        }
-    });
-}
-
-
-
+// ========== OFFLINE MANAGER - VERSIÓN CORREGIDA ==========
 const ADMIN_ACTIONS = {
     CREATE: 'admin_create',
     UPDATE: 'admin_update',
     DELETE: 'admin_delete'
 };
-let syncPollingInterval = null;
+
 let pendingActions = [];
-
-function startSyncPolling(intervalMs = 120000) { // 2 minutos por defecto
-    if (syncPollingInterval) clearInterval(syncPollingInterval);
-    
-    syncPollingInterval = setInterval(() => {
-        // Solo sincronizar si hay acciones pendientes Y estamos online
-        if (pendingActions.length > 0 && navigator.onLine) {
-            console.log(`🔄 Polling: Sincronizando ${pendingActions.length} acciones pendientes...`);
-            syncPendingActions();
-        } else if (pendingActions.length > 0 && !navigator.onLine) {
-            console.log(`📡 Polling: ${pendingActions.length} acciones pendientes, esperando conexión...`);
-        }
-    }, intervalMs);
-}
-
-function stopSyncPolling() {
-    if (syncPollingInterval) {
-        clearInterval(syncPollingInterval);
-        syncPollingInterval = null;
-    }
-}
-
-
-
-
-
 
 // ========== 1. CARGAR/GUARDAR ACCIONES ==========
 function loadPendingActions() {
@@ -354,11 +315,48 @@ window.addEventListener('offline', () => {
 // ========== 6. INICIALIZAR ==========
 loadPendingActions();
 setupInterception();
-startSyncPolling(); // ← NUEVO: Iniciar polling automático
 
 if (navigator.onLine && pendingActions.length > 0) {
     setTimeout(() => syncPendingActions(), 3000);
 }
+
+// ========== 7. POLLING PERIÓDICO (cada 2 minutos) ==========
+// Cubre el caso en que la conexión se recupera sin disparar el evento 'online'
+// (ej. cambio de red en algunos navegadores móviles)
+let _periodicSyncInterval = null;
+
+function startPeriodicSync() {
+    if (_periodicSyncInterval) return; // ya iniciado
+    _periodicSyncInterval = setInterval(() => {
+        if (navigator.onLine && pendingActions.length > 0) {
+            console.log("⏱️ Polling periódico: sincronizando acciones pendientes...");
+            syncPendingActions();
+        }
+    }, 2 * 60 * 1000); // cada 2 minutos
+    console.log("⏱️ Polling periódico de sync iniciado");
+}
+
+function stopPeriodicSync() {
+    if (_periodicSyncInterval) {
+        clearInterval(_periodicSyncInterval);
+        _periodicSyncInterval = null;
+    }
+}
+
+// Pausar cuando la pestaña pierde visibilidad para no consumir recursos
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopPeriodicSync();
+    } else {
+        // Al volver a la pestaña: sincronizar de inmediato si hay pendientes
+        if (navigator.onLine && pendingActions.length > 0) {
+            syncPendingActions();
+        }
+        startPeriodicSync();
+    }
+});
+
+startPeriodicSync();
 
 // Exportar para debug
 window.debugPending = () => console.table(pendingActions);
