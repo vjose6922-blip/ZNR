@@ -1,3 +1,4 @@
+
 const WHATSAPP_NUMBER = "528671781272";
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; 
@@ -227,32 +228,14 @@ function formatCurrency(value) {
 
 
 
-const FREE_SHIPPING_THRESHOLD = 300;
-
-/**
- * Determina si aplica envío gratuito.
- * Se evalúa sobre el TOTAL del carrito, no el precio unitario de un producto.
- * Para tarjetas individuales de producto se puede pasar el precio unitario
- * solo como referencia visual (el cálculo real siempre usa el total del carrito).
- */
-function hasFreeShipping(priceOrTotal) {
-  const numericValue = Number(priceOrTotal) || 0;
-  return numericValue >= FREE_SHIPPING_THRESHOLD;
-}
-
-/**
- * Revisa si el total actual del carrito califica para envío gratuito.
- * Esta es la función que debe usarse en renderCart() y en el checkout.
- */
-function cartQualifiesForFreeShipping() {
-  const items = Object.values(localCart);
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  return total >= FREE_SHIPPING_THRESHOLD;
+function hasFreeShipping(price) {
+  const numericPrice = Number(price) || 0;
+  return numericPrice >= 300;
 }
 
 function getShippingBadge(price) {
   if (hasFreeShipping(price)) {
-    return `<span class="shipping-badge" title="Envío disponible en productos $${FREE_SHIPPING_THRESHOLD}+">🚚</span>`;
+    return `<span class="shipping-badge" title="Envío a domicilio o punto intermedio">🚚</span>`;
   }
   return '';
 }
@@ -263,32 +246,15 @@ function getShippingBadge(price) {
 
 
 function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
-  const s = String(str);
-  // Usar el DOM como sanitizador primario — más seguro que regex manual
-  if (typeof document !== 'undefined') {
-    const el = document.createElement('span');
-    el.textContent = s;
-    let escaped = el.innerHTML;
-    // Complementar con caracteres adicionales relevantes para atributos
-    escaped = escaped
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
-      .replace(/`/g, '&#96;')
-      // Eliminar caracteres Unicode de control (U+0000–U+001F, U+007F, U+2028, U+2029)
-      // que pueden romper parsers HTML aunque estén "escapados"
-      .replace(/[\u0000-\u001F\u007F\u2028\u2029]/g, '');
-    return escaped;
-  }
-  // Fallback sin DOM (SSR o SW)
-  return s
+  if (!str) return '';
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
-    .replace(/`/g, '&#96;')
-    .replace(/[\u0000-\u001F\u007F\u2028\u2029]/g, '');
+    .replace(/`/g, '&#96;')      // backticks
+    .replace(/\//g, '&#x2F;');    // forward slash
 }
 
 function escapeAttr(str) {
@@ -527,6 +493,19 @@ function animateCartAdd() {
   if (btn) { btn.style.transform = "translateY(-4px) scale(1.05)"; setTimeout(() => btn.style.transform = "", 180); }
 }
 
+window.changeCartQty = function(id, delta) {
+  if (!localCart[id]) return;
+  localCart[id].quantity += delta;
+  if (localCart[id].quantity <= 0) delete localCart[id];
+  saveCartToStorage();
+  updateCartBadge();
+  window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart }));
+};
+
+window.removeFromCart = function(id) {
+  if (localCart[id]) { delete localCart[id]; saveCartToStorage(); updateCartBadge(); window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart })); }
+};
+
 function openCartDrawer() {
   console.log("🔍 [CARRITO] Abriendo carrito...");
   
@@ -544,13 +523,7 @@ function openCartDrawer() {
   }
   
   drawer.classList.add("open");
-  drawer.setAttribute("aria-hidden", "false");
-  drawer.removeAttribute("inert");
   overlay.classList.add("visible");
-
-  // Mover foco al botón de cierre para accesibilidad
-  const closeBtn = drawer.querySelector("button");
-  if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
   
   if (typeof renderCart === 'function') {
     renderCart();
@@ -564,11 +537,7 @@ function openCartDrawer() {
 function closeCartDrawer() {
   const drawer = document.getElementById("cart-drawer");
   const overlay = document.getElementById("overlay");
-  if (drawer) {
-    drawer.classList.remove("open");
-    drawer.setAttribute("aria-hidden", "true");
-    drawer.setAttribute("inert", "");
-  }
+  if (drawer) drawer.classList.remove("open");
   if (overlay) overlay.classList.remove("visible");
 }
 
@@ -652,8 +621,7 @@ function renderCart() {
   if (totalEl) totalEl.textContent = formatCurrency(subtotal);
   
   // ========== 🚚 AGREGAR INFORMACIÓN DE ENVÍO EN EL CARRITO ==========
-  // Envío gratuito se evalúa sobre el TOTAL del carrito, no el precio unitario
-  const hasShippingItem = cartQualifiesForFreeShipping();
+  const hasShippingItem = items.some(item => hasFreeShipping(item.price));
   const footer = document.querySelector('#cart-drawer .cart-footer');
   const existingShipping = footer ? footer.querySelector('.cart-shipping-info') : null;
   
@@ -792,54 +760,22 @@ function shareProduct(id) {
 
 function createImageObserver() {
   if ("IntersectionObserver" in window) {
-    imageObserver = new IntersectionObserver((entries, observer) => {
+    imageObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const img = entry.target;
           const dataSrc = img.getAttribute("data-src");
           if (dataSrc) {
             const newImg = new Image();
-            newImg.onload = () => {
-              img.src = dataSrc;
-              img.removeAttribute("data-src");
-              img.classList.add("loaded");
-            };
-            newImg.onerror = () => {
-              img.removeAttribute("data-src");
-            };
+            newImg.onload = () => { img.src = dataSrc; img.removeAttribute("data-src"); };
             newImg.src = dataSrc;
           }
-          observer.unobserve(img); // desconectar esta imagen al cargar
+          imageObserver.unobserve(img);
         }
       });
     }, { rootMargin: "50px 0px", threshold: 0.01 });
   }
   return imageObserver;
-}
-
-/**
- * Observa todas las imágenes lazy del contenedor dado.
- * Llama a disconnectImageObserver() cuando ya no haya más imágenes pendientes.
- */
-function observeLazyImages(container) {
-  const obs = createImageObserver();
-  if (!obs) {
-    // Fallback sin IntersectionObserver: cargar todas de inmediato
-    (container || document).querySelectorAll("img[data-src]").forEach(img => {
-      img.src = img.getAttribute("data-src");
-      img.removeAttribute("data-src");
-    });
-    return;
-  }
-  const targets = (container || document).querySelectorAll("img[data-src]");
-  targets.forEach(img => obs.observe(img));
-}
-
-function disconnectImageObserver() {
-  if (imageObserver) {
-    imageObserver.disconnect();
-    imageObserver = null;
-  }
 }
 
 
@@ -861,18 +797,7 @@ async function openWhatsAppCheckout() {
 async function continueCheckout() {
   const items = Object.values(localCart);
   if (items.length === 0) return;
-
-  // ── Feedback claro cuando no hay internet ──────────────────────────
-  if (!navigator.onLine) {
-    await showCustomAlert({
-      title: "📡 Sin conexión",
-      message: "No puedes enviar una solicitud de compra sin internet.\n\nTu carrito se mantiene guardado. Intenta nuevamente cuando tengas conexión.",
-      icon: "📡",
-      confirmText: "Entendido"
-    });
-    return;
-  }
-
+  
   let clientPhone = localStorage.getItem("client_phone");
   if (!clientPhone) {
     clientPhone = await prompt(
@@ -921,7 +846,7 @@ async function continueCheckout() {
 
   adminMessage += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
   adminMessage += `💰 *TOTAL: $${total.toLocaleString()} MXN*\n`;
-  adminMessage += `🚚 *Envío:* ${cartQualifiesForFreeShipping() ? `Disponible — total $${total.toLocaleString()} MXN (consultar)` : 'No disponible'}\n`;
+  adminMessage += `🚚 *Envío:* ${items.some(i => hasFreeShipping(i.price)) ? 'Disponible (consultar)' : 'No disponible'}\n`;
   adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
   
   const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
@@ -1130,28 +1055,42 @@ function removeOfflineIndicator() {
 }
 
 function startConnectionMonitor() {
-  // Usar eventos nativos del navegador — más eficiente que polling cada 3s
-  window.addEventListener('online', () => {
-    console.log('🟢 Conexión recuperada');
-    isOnline = true;
-    showOnlineBanner();
-    window.dispatchEvent(new CustomEvent('connection:online'));
-
-    const path = window.location.pathname;
-    if (path.includes('index.html') || path === '/' || path === '') {
-      if (typeof fetchProducts === 'function') fetchProducts(true);
-    } else if (path.includes('catalogo.html')) {
-      if (typeof fetchProducts === 'function') fetchProducts(true);
-    } else if (path.includes('outfit.html') || path.includes('looks.html')) {
-      if (typeof loadProducts === 'function') loadProducts();
+  setInterval(() => {
+    const wasOnline = isOnline;
+    isOnline = navigator.onLine;
+    
+    if (wasOnline !== isOnline) {
+      if (!isOnline) {
+        console.log('🔴 Conexión perdida - Activando modo offline');
+        showOfflineBanner();
+        window.dispatchEvent(new CustomEvent('connection:offline'));
+      } else {
+        console.log('🟢 Conexión recuperada');
+        showOnlineBanner();
+        window.dispatchEvent(new CustomEvent('connection:online'));
+        
+        if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+          if (typeof fetchProducts === 'function') {
+            fetchProducts(true);
+          }
+        } else if (window.location.pathname.includes('looks.html')) {
+          if (typeof loadProducts === 'function') {
+            loadProducts();
+          }
+        }
+      }
     }
+  }, 3000);
+  
+  window.addEventListener('online', () => {
+    console.log('🟢 Navegador detectó conexión online');
+    isOnline = true;
   });
-
+  
   window.addEventListener('offline', () => {
-    console.log('🔴 Conexión perdida - Activando modo offline');
+    console.log('🔴 Navegador detectó conexión offline');
     isOnline = false;
     showOfflineBanner();
-    window.dispatchEvent(new CustomEvent('connection:offline'));
   });
 }
 
@@ -1192,31 +1131,16 @@ window.removeFromCart = removeFromCart;
 window.formatCurrency = formatCurrency;
 window.escapeHtml = escapeHtml;
 window.optimizeDriveUrl = optimizeDriveUrl;
-window.hasFreeShipping = hasFreeShipping;
-window.cartQualifiesForFreeShipping = cartQualifiesForFreeShipping;
-window.observeLazyImages = observeLazyImages;
-window.disconnectImageObserver = disconnectImageObserver;
-window.openWhatsAppCheckout = openWhatsAppCheckout;
-window.continueCheckout = continueCheckout;
-window.getCachedProducts = getCachedProducts;
-window.setCachedProducts = setCachedProducts;
-window.addToRecentProducts = addToRecentProducts;
-window.getRecentProductIds = getRecentProductIds;
-window.getRecentProductsList = getRecentProductsList;
 
 
 async function checkIfOfflineMode() {
-  // Verificar modo offline sin depender de una versión específica de caché
-  if (!navigator.onLine) {
-    showOfflineBanner();
-    return true;
-  }
-
   if (!('serviceWorker' in navigator)) return false;
-
+  
   try {
-    // Usar caches.match() genérico — funciona con cualquier versión del SW
-    const cachedResponse = await caches.match(window.location.href);
+    const registration = await navigator.serviceWorker.ready;
+    const cache = await caches.open('zr-cache-v1');
+    const cachedResponse = await cache.match(window.location.href);
+    
     if (cachedResponse && !navigator.onLine) {
       showOfflineBanner();
       return true;
@@ -1224,7 +1148,11 @@ async function checkIfOfflineMode() {
   } catch (err) {
     console.log('Error verificando modo offline:', err);
   }
-
+  
+  if (!navigator.onLine) {
+    showOfflineBanner();
+    return true;
+  }
   return false;
 }
 
@@ -1377,7 +1305,6 @@ window._commonBuildProductIndex = buildProductIndex; // referencia protegida par
 window.getProductsByCategoryIndexed = getProductsByCategoryIndexed;
 window.getIndexedProducts = getIndexedProducts;
 window.clearProductIndex = clearProductIndex;
-// Funciones de productos recientes y caché — exportadas en el bloque principal de arriba
 // Expose indexed products for wishlist button injection
 Object.defineProperty(window, 'allProductsIndexed', { get: () => allProductsIndexed, configurable: true });
 
@@ -1519,6 +1446,11 @@ function getRecentProducts(allProductsArray) {
   return recentProducts;
 }
 
+function clearRecentProducts() {
+  localStorage.removeItem(RECENT_PRODUCTS_KEY);
+  window.dispatchEvent(new CustomEvent('recentProductsUpdated'));
+  showTemporaryMessage('🗑️ Historial de productos recientes eliminado', 'info');
+}
 
 
 
@@ -1624,13 +1556,7 @@ function openWishlistDrawer() {
   console.log("❤️ Abriendo wishlist drawer");
   const drawer = document.getElementById("wishlist-drawer");
   const overlay = document.getElementById("overlay");
-  if (drawer) {
-    drawer.classList.add("open");
-    drawer.setAttribute("aria-hidden", "false");
-    drawer.removeAttribute("inert");
-    const closeBtn = drawer.querySelector("button");
-    if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
-  }
+  if (drawer) drawer.classList.add("open");
   if (overlay) overlay.classList.add("visible");
   renderWishlist();
 }
@@ -1638,11 +1564,7 @@ function openWishlistDrawer() {
 function closeWishlistDrawer() {
   const drawer = document.getElementById("wishlist-drawer");
   const overlay = document.getElementById("overlay");
-  if (drawer) {
-    drawer.classList.remove("open");
-    drawer.setAttribute("aria-hidden", "true");
-    drawer.setAttribute("inert", "");
-  }
+  if (drawer) drawer.classList.remove("open");
   if (overlay) overlay.classList.remove("visible");
 }
 
@@ -1724,7 +1646,6 @@ function handleRemoveFromWishlist(e) {
     showTemporaryMessage(`💔 ${removedItem.name} eliminado de favoritos`, 'info');
   }
 }
-
 function updateWishlistBadge() {
   const count = getWishlist().length;
   const badge = document.getElementById("wishlist-count");
@@ -1783,21 +1704,14 @@ window.updateWishlistBadge = updateWishlistBadge;
     });
   });
   
-  function startObserving() {
-    injectAll();
-    // Observar sólo el contenedor de productos — reduce el overhead del observer
-    // considerablemente vs observar todo document.body
-    const target = document.getElementById('products-container')
-                || document.getElementById('looks-container')
-                || document.getElementById('featured-products')
-                || document.body;
-    observer.observe(target, { childList: true, subtree: true });
-  }
-
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startObserving);
+    document.addEventListener('DOMContentLoaded', () => {
+      injectAll();
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
   } else {
-    startObserving();
+    injectAll();
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 })();
 
