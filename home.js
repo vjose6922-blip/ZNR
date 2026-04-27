@@ -29,11 +29,11 @@ const GENDER_BY_CATEGORY = {
 async function loadProducts() {
   console.log('🏠 Cargando productos para home...');
   
-  const cached = getCachedProducts();
+  const cached = (window.getCachedProducts || getCachedProducts)();
   if (cached && cached.length > 0) {
     console.log('📦 Productos desde caché local');
     window.allProducts = cached;  
-    buildProductIndex(window.allProducts); 
+    if (window.buildProductIndex) window.buildProductIndex(window.allProducts);
     renderCategories();
     renderFeaturedProducts();
     renderRecentProducts();
@@ -58,8 +58,8 @@ async function loadProducts() {
     clearTimeout(timeoutId);
     const data = await res.json();
     window.allProducts = data.products || data || [];  
-    setCachedProducts(window.allProducts); 
-    buildProductIndex(window.allProducts); 
+    if (window.setCachedProducts) window.setCachedProducts(window.allProducts);
+    if (window.buildProductIndex) window.buildProductIndex(window.allProducts);
     
     renderCategories();
     renderFeaturedProducts();
@@ -136,7 +136,7 @@ function createMiniProductCard(product) {
 
 
 function getRecentProductsList() {
-  const recentIds = getRecentProductIds();
+  const recentIds = (window.getRecentProductIds || getRecentProductIds)();
   const recentProducts = [];
   for (const id of recentIds) {
     const product = window.allProducts.find(p => String(p.ID) === String(id));
@@ -678,6 +678,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.addCompleteLookToCart = addCompleteLookToCart;
-window.addToRecentProducts = addToRecentProducts;
+// addToRecentProducts is exported by common.js
 window.addHomeLookToCart = addHomeLookToCart;
 window.reloadHomeLookSlot = reloadHomeLookSlot;
