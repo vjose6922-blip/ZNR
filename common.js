@@ -492,19 +492,6 @@ function animateCartAdd() {
   if (btn) { btn.style.transform = "translateY(-4px) scale(1.05)"; setTimeout(() => btn.style.transform = "", 180); }
 }
 
-window.changeCartQty = function(id, delta) {
-  if (!localCart[id]) return;
-  localCart[id].quantity += delta;
-  if (localCart[id].quantity <= 0) delete localCart[id];
-  saveCartToStorage();
-  updateCartBadge();
-  window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart }));
-};
-
-window.removeFromCart = function(id) {
-  if (localCart[id]) { delete localCart[id]; saveCartToStorage(); updateCartBadge(); window.dispatchEvent(new CustomEvent('cartUpdated', { detail: localCart })); }
-};
-
 function openCartDrawer() {
   console.log("🔍 [CARRITO] Abriendo carrito...");
   
@@ -522,7 +509,13 @@ function openCartDrawer() {
   }
   
   drawer.classList.add("open");
+  drawer.setAttribute("aria-hidden", "false");
+  drawer.removeAttribute("inert");
   overlay.classList.add("visible");
+
+  // Mover foco al botón de cierre para accesibilidad
+  const closeBtn = drawer.querySelector("button");
+  if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
   
   if (typeof renderCart === 'function') {
     renderCart();
@@ -536,7 +529,11 @@ function openCartDrawer() {
 function closeCartDrawer() {
   const drawer = document.getElementById("cart-drawer");
   const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.remove("open");
+  if (drawer) {
+    drawer.classList.remove("open");
+    drawer.setAttribute("aria-hidden", "true");
+    drawer.setAttribute("inert", "");
+  }
   if (overlay) overlay.classList.remove("visible");
 }
 
@@ -1054,42 +1051,28 @@ function removeOfflineIndicator() {
 }
 
 function startConnectionMonitor() {
-  setInterval(() => {
-    const wasOnline = isOnline;
-    isOnline = navigator.onLine;
-    
-    if (wasOnline !== isOnline) {
-      if (!isOnline) {
-        console.log('🔴 Conexión perdida - Activando modo offline');
-        showOfflineBanner();
-        window.dispatchEvent(new CustomEvent('connection:offline'));
-      } else {
-        console.log('🟢 Conexión recuperada');
-        showOnlineBanner();
-        window.dispatchEvent(new CustomEvent('connection:online'));
-        
-        if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
-          if (typeof fetchProducts === 'function') {
-            fetchProducts(true);
-          }
-        } else if (window.location.pathname.includes('looks.html')) {
-          if (typeof loadProducts === 'function') {
-            loadProducts();
-          }
-        }
-      }
-    }
-  }, 3000);
-  
+  // Usar eventos nativos del navegador — más eficiente que polling cada 3s
   window.addEventListener('online', () => {
-    console.log('🟢 Navegador detectó conexión online');
+    console.log('🟢 Conexión recuperada');
     isOnline = true;
+    showOnlineBanner();
+    window.dispatchEvent(new CustomEvent('connection:online'));
+
+    const path = window.location.pathname;
+    if (path.includes('index.html') || path === '/' || path === '') {
+      if (typeof fetchProducts === 'function') fetchProducts(true);
+    } else if (path.includes('catalogo.html')) {
+      if (typeof fetchProducts === 'function') fetchProducts(true);
+    } else if (path.includes('outfit.html') || path.includes('looks.html')) {
+      if (typeof loadProducts === 'function') loadProducts();
+    }
   });
-  
+
   window.addEventListener('offline', () => {
-    console.log('🔴 Navegador detectó conexión offline');
+    console.log('🔴 Conexión perdida - Activando modo offline');
     isOnline = false;
     showOfflineBanner();
+    window.dispatchEvent(new CustomEvent('connection:offline'));
   });
 }
 
@@ -1133,13 +1116,17 @@ window.optimizeDriveUrl = optimizeDriveUrl;
 
 
 async function checkIfOfflineMode() {
+  // Verificar modo offline sin depender de una versión específica de caché
+  if (!navigator.onLine) {
+    showOfflineBanner();
+    return true;
+  }
+
   if (!('serviceWorker' in navigator)) return false;
-  
+
   try {
-    const registration = await navigator.serviceWorker.ready;
-    const cache = await caches.open('zr-cache-v1');
-    const cachedResponse = await cache.match(window.location.href);
-    
+    // Usar caches.match() genérico — funciona con cualquier versión del SW
+    const cachedResponse = await caches.match(window.location.href);
     if (cachedResponse && !navigator.onLine) {
       showOfflineBanner();
       return true;
@@ -1147,11 +1134,7 @@ async function checkIfOfflineMode() {
   } catch (err) {
     console.log('Error verificando modo offline:', err);
   }
-  
-  if (!navigator.onLine) {
-    showOfflineBanner();
-    return true;
-  }
+
   return false;
 }
 
@@ -1445,11 +1428,6 @@ function getRecentProducts(allProductsArray) {
   return recentProducts;
 }
 
-function clearRecentProducts() {
-  localStorage.removeItem(RECENT_PRODUCTS_KEY);
-  window.dispatchEvent(new CustomEvent('recentProductsUpdated'));
-  showTemporaryMessage('🗑️ Historial de productos recientes eliminado', 'info');
-}
 
 
 
@@ -1555,7 +1533,13 @@ function openWishlistDrawer() {
   console.log("❤️ Abriendo wishlist drawer");
   const drawer = document.getElementById("wishlist-drawer");
   const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.add("open");
+  if (drawer) {
+    drawer.classList.add("open");
+    drawer.setAttribute("aria-hidden", "false");
+    drawer.removeAttribute("inert");
+    const closeBtn = drawer.querySelector("button");
+    if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
+  }
   if (overlay) overlay.classList.add("visible");
   renderWishlist();
 }
@@ -1563,7 +1547,11 @@ function openWishlistDrawer() {
 function closeWishlistDrawer() {
   const drawer = document.getElementById("wishlist-drawer");
   const overlay = document.getElementById("overlay");
-  if (drawer) drawer.classList.remove("open");
+  if (drawer) {
+    drawer.classList.remove("open");
+    drawer.setAttribute("aria-hidden", "true");
+    drawer.setAttribute("inert", "");
+  }
   if (overlay) overlay.classList.remove("visible");
 }
 
@@ -1704,14 +1692,21 @@ window.updateWishlistBadge = updateWishlistBadge;
     });
   });
   
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      injectAll();
-      observer.observe(document.body, { childList: true, subtree: true });
-    });
-  } else {
+  function startObserving() {
     injectAll();
-    observer.observe(document.body, { childList: true, subtree: true });
+    // Observar sólo el contenedor de productos — reduce el overhead del observer
+    // considerablemente vs observar todo document.body
+    const target = document.getElementById('products-container')
+                || document.getElementById('looks-container')
+                || document.getElementById('featured-products')
+                || document.body;
+    observer.observe(target, { childList: true, subtree: true });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startObserving);
+  } else {
+    startObserving();
   }
 })();
 
