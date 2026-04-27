@@ -320,3 +320,200 @@ async function updateProductsInBackground() {
     console.log('[SW] Background sync falló:', error);
   }
 }
+
+
+
+
+// ========== COLA DE PETICIONES OFFLINE ==========
+const OFFLINE_QUEUE_KEY = 'offline_request_queue';
+
+// Abrir/crear base de datos IndexedDB
+function openRequestQueueDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('ZROfflineQueue', 1);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('requests')) {
+                const store = db.createObjectStore('requests', { 
+                    keyPath: 'id', 
+                    autoIncrement: true 
+                });
+                store.createIndex('timestamp', 'timestamp');
+                store.createIndex('url', 'url');
+            }
+        };
+    });
+}
+
+// Guardar petición para reintentar después
+async function queueRequestForRetry(request, body) {
+    try {
+        const db = await openRequestQueueDB();
+        const transaction = db.transaction(['requests'], 'readwrite');
+        const store = transaction.objectStore('requests');
+        
+        const queueItem = {
+            url: request.url,
+            method: request.method,
+            headers: Object.fromEntries(request.headers.entries()),
+            body: body,
+            timestamp: Date.now(),
+            retries: 0
+        };
+        
+        store.add(queueItem);
+        console.log(`📦 Petición encolada para reintento: ${request.url}`);
+        
+        // Notificar a la página que hay una acción pendiente
+        const clients = await clients.matchAll();
+        clients.forEach(client => {
+            client.postMessage({
+                type: 'OFFLINE_ACTION_QUEUED',
+                queueLength: await getQueueLength()
+            });
+        });
+        
+    } catch (err) {
+        console.error('Error encolando petición:', err);
+    }
+}
+
+async function getQueueLength() {
+    try {
+        const db = await openRequestQueueDB();
+        const transaction = db.transaction(['requests'], 'readonly');
+        const store = transaction.objectStore('requests');
+        const count = await store.count();
+        return count;
+    } catch {
+        return 0;
+    }
+}
+
+// Reintentar peticiones pendientes cuando hay conexión
+async function retryQueuedRequests() {
+    if (!navigator.onLine) return;
+    
+    console.log('🔄 Reintentando peticiones pendientes...');
+    
+    try {
+        const db = await openRequestQueueDB();
+        const transaction = db.transaction(['requests'], 'readonly');
+        const store = transaction.objectStore('requests');
+        const allRequests = await store.getAll();
+        
+        for (const req of allRequests) {
+            try {
+                const response = await fetch(req.url, {
+                    method: req.method,
+                    headers: req.headers,
+                    body: req.body
+                });
+                
+                if (response.ok) {
+                    // Eliminar de la cola si fue exitoso
+                    const deleteTx = db.transaction(['requests'], 'readwrite');
+                    deleteTx.objectStore('requests').delete(req.id);
+                    console.log(`✅ Petición completada: ${req.url}`);
+                } else {
+                    req.retries++;
+                    if (req.retries >= 5) {
+                        // Eliminar después de 5 intentos fallidos
+                        const deleteTx = db.transaction(['requests'], 'readwrite');
+                        deleteTx.objectStore('requests').delete(req.id);
+                        console.warn(`❌ Petición descartada tras ${req.retries} intentos: ${req.url}`);
+                    } else {
+                        // Actualizar contador de reintentos
+                        const updateTx = db.transaction(['requests'], 'readwrite');
+                        updateTx.objectStore('requests').put(req);
+                    }
+                }
+            } catch (err) {
+                console.warn(`Reintento fallido para ${req.url}:`, err);
+            }
+        }
+        
+        // Notificar a la página el nuevo tamaño de la cola
+        const remaining = await getQueueLength();
+        const clients = await clients.matchAll();
+        clients.forEach(client => {
+            client.postMessage({
+                type: 'OFFLINE_QUEUE_UPDATED',
+                queueLength: remaining
+            });
+        });
+        
+    } catch (err) {
+        console.error('Error procesando cola:', err);
+    }
+}
+
+// INTERCEPTAR FETCH PARA ADMIN (solo peticiones POST a la API de admin)
+self.addEventListener('fetch', (event) => {
+    const url = event.request.url;
+    
+    // Solo interceptar peticiones POST a la API de admin
+    if (event.request.method === 'POST' && 
+        url.includes('script.google.com/macros/s/') &&
+        url.includes('exec')) {
+        
+        event.respondWith(
+            (async () => {
+                try {
+                    // Intentar la petición normalmente
+                    const response = await fetch(event.request.clone());
+                    return response;
+                } catch (error) {
+                    // Si falla (offline), guardar para después
+                    console.log('📡 Offline - Guardando petición para reintento');
+                    
+                    // Clonar la petición para leer el body
+                    const clonedRequest = event.request.clone();
+                    let body = null;
+                    
+                    try {
+                        body = await clonedRequest.text();
+                    } catch (e) {
+                        // Si no se puede leer el body, continuar
+                    }
+                    
+                    await queueRequestForRetry(event.request, body);
+                    
+                    // Responder con un mensaje de éxito simulado
+                    return new Response(JSON.stringify({ 
+                        ok: true, 
+                        offline: true, 
+                        message: 'Acción guardada para cuando haya conexión' 
+                    }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+            })()
+        );
+    }
+});
+
+// Escuchar eventos de conexión
+self.addEventListener('online', () => {
+    console.log('🟢 SW: Conexión recuperada, reintentando peticiones...');
+    setTimeout(() => retryQueuedRequests(), 1000);
+});
+
+// Escuchar mensajes desde la página
+self.addEventListener('message', (event) => {
+    if (event.data.type === 'RETRY_QUEUED_REQUESTS') {
+        retryQueuedRequests();
+    } else if (event.data.type === 'GET_QUEUE_LENGTH') {
+        event.source.postMessage({
+            type: 'OFFLINE_QUEUE_LENGTH',
+            queueLength: getQueueLength()
+        });
+    }
+});
+
+
