@@ -3078,7 +3078,7 @@ body {
   color: #ef4444;
 }
 
-/* Filtros */
+/* Filtr */
 .notifications-filters {
   display: flex;
   gap: 10px;
@@ -3132,68 +3132,4 @@ body {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
-}
-
-
-
-
-
-/* Grid de 2 columnas para productos recientes */
-.recent-scroll {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-}
-
-@media (min-width: 768px) {
-    .recent-scroll {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-    }
-}
-
-@media (min-width: 1200px) {
-    .recent-scroll {
-        grid-template-columns: repeat(6, 1fr);
-    }
-}
-
-.recent-product-card {
-    background: var(--color-surface);
-    border-radius: 16px;
-    overflow: hidden;
-    text-decoration: none;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.recent-product-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-soft);
-}
-
-.recent-product-img {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    background: #f5f5f8;
-}
-
-.recent-product-info {
-    padding: 12px;
-}
-
-.recent-product-name {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-text-main);
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.recent-product-price {
-    font-size: 13px;
-    font-weight: 700;
-    color: #ff4f81;
 }
