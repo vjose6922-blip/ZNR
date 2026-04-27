@@ -1,5 +1,4 @@
-
-// ========== OFFLINE MANAGER - VERSIÓN CORREGIDA =========
+// ========== OFFLINE MANAGER - VERSIÓN CORREGIDA ==========
 const ADMIN_ACTIONS = {
     CREATE: 'admin_create',
     UPDATE: 'admin_update',
