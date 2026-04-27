@@ -1,5 +1,19 @@
 const PAGE_SIZE = 10;
-let allProducts = [];
+// allProducts sincronizado con window.allProducts para que common.js,
+// home.js y otros módulos lean siempre la misma fuente de verdad.
+// Se usa un getter/setter para mantener ambas referencias en sync.
+let _allProducts = window.allProducts || [];
+Object.defineProperty(window, 'allProducts', {
+  get() { return _allProducts; },
+  set(v) { _allProducts = v; },
+  configurable: true
+});
+// La variable local apunta al mismo array via getter
+Object.defineProperty(globalThis, 'allProducts', {
+  get() { return window.allProducts; },
+  set(v) { window.allProducts = v; },
+  configurable: true
+});
 let filteredProducts = [];
 let currentPage = 1;
 let isLoading = false;
@@ -385,19 +399,34 @@ function populateCategoryFilter(genderFilter = null) {
 function renderProductsPage(reset = false) {
   const container = document.getElementById("products-container");
   if (!container) return;
+
+  // Limpiar timers de sliders de la página anterior antes de destruir las tarjetas
+  if (sliderTimers.size > 0) {
+    sliderTimers.forEach(id => clearInterval(id));
+    sliderTimers.clear();
+  }
+  // Desconectar el observer anterior para que no queden referencias a imgs borradas
+  if (typeof disconnectImageObserver === 'function') disconnectImageObserver();
+
   const start = (currentPage - 1) * PAGE_SIZE;
-  const end = start + PAGE_SIZE;
+  const end   = start + PAGE_SIZE;
   const pageItems = filteredProducts.slice(start, end);
   container.innerHTML = "";
+
   if (pageItems.length === 0) {
     container.innerHTML = '<p class="helper-text">No hay productos para mostrar</p>';
     renderPagination();
     return;
   }
+
   pageItems.forEach((product) => {
     const card = createProductCard(product);
     container.appendChild(card);
   });
+
+  // Activar lazy loading en las imágenes recién insertadas
+  if (typeof observeLazyImages === 'function') observeLazyImages(container);
+
   renderPagination();
 }
 
