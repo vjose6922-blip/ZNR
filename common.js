@@ -227,18 +227,41 @@ function formatCurrency(value) {
 
 
 
-function hasFreeShipping(price) {
-  const numericPrice = Number(price) || 0;
-  return numericPrice >= 300;
+
+function getCartSubtotal(cartItems = null) {
+    const items = cartItems || Object.values(localCart);
+    return items.reduce((sum, item) => sum + (Number(item.price || 0) * (item.quantity || 1)), 0);
 }
 
-function getShippingBadge(price) {
-  if (hasFreeShipping(price)) {
-    return `<span class="shipping-badge" title="Envío a domicilio o punto intermedio">🚚</span>`;
-  }
-  return '';
+// Verificar si el carrito califica para envío gratis (basado en subtotal >= 300)
+function hasFreeShippingForCart(cartItems = null) {
+    const subtotal = getCartSubtotal(cartItems);
+    return subtotal >= 300;
 }
 
+// Badge de envío para un producto individual (mostrar en tarjeta)
+function getProductShippingBadge(productPrice) {
+    if (Number(productPrice || 0) >= 300) {
+        return `<span class="shipping-badge" title="Este producto califica para envío gratis si se compra solo">🚚</span>`;
+    }
+    return '';
+}
+
+// Obtener información de envío para el carrito
+function getCartShippingInfo(cartItems = null) {
+    const subtotal = getCartSubtotal(cartItems);
+    if (subtotal >= 300) {
+        return `<div class="cart-shipping-info free-shipping">
+                    <div class="shipping-badge-cart">🚚 Envío gratis disponible</div>
+                    <p class="shipping-note">📦 Entregas a domicilio o punto intermedio. Los tiempos varían según la distancia.</p>
+                </div>`;
+    }
+    const missing = 300 - subtotal;
+    return `<div class="cart-shipping-info">
+                <div class="shipping-badge-cart">📦 Faltan $${missing.toLocaleString()} para envío gratis</div>
+                <p class="shipping-note">Agrega más productos y obtén envío gratis</p>
+            </div>`;
+}
 
 
 
@@ -540,140 +563,123 @@ function closeCartDrawer() {
 
 
 function renderCart() {
-  console.log("🔄 [RENDER] renderCart() iniciada");
-  
-  const container = document.getElementById("cart-items-container");
-  if (!container) {
-    console.error("❌ [RENDER] No existe #cart-items-container");
-    return;
-  }
-  
-  container.innerHTML = "";
-  const items = Object.values(localCart);
-  
-  if (items.length === 0) {
-    container.innerHTML = `
-      <div class="cart-empty-state">
-        <div class="cart-empty-icon">🛍️</div>
-        <p class="helper-text">Tu carrito está vacío.</p>
-        <p class="cart-empty-hint">Agrega productos para comenzar</p>
-      </div>`;
-  } else {
-    items.forEach((item) => {
-      const row = document.createElement("div");
-      row.className = "cart-item";
-      
-      const imgUrl = item.Imagen1 ? optimizeDriveUrl(item.Imagen1, 120) : '';
-      const imgHtml = imgUrl
-        ? `<div class="cart-item-img-wrap">
-             <img class="cart-item-img" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'">
-           </div>`
-        : `<div class="cart-item-img-wrap cart-item-img-placeholder">
-             <span>👕</span>
-           </div>`;
-
-      const tallaBadge = item.Talla
-        ? `<span class="cart-item-talla">Talla: ${escapeHtml(item.Talla)}</span>`
-        : '';
-
-      row.innerHTML = `
-        ${imgHtml}
-        <div class="cart-item-info">
-          <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
-          ${tallaBadge}
-          <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
-          <div class="cart-item-actions">
-            <button class="qty-btn" data-action="decrement" data-id="${item.id}">−</button>
-            <span class="qty-value">${item.quantity}</span>
-            <button class="qty-btn" data-action="increment" data-id="${item.id}">+</button>
-            <button class="cart-item-remove" data-action="remove" data-id="${item.id}">🗑</button>
-          </div>
-        </div>
-      `;
-      container.appendChild(row);
-    });
+    console.log("🔄 [RENDER] renderCart() iniciada");
     
-    document.querySelectorAll('.qty-btn[data-action="decrement"]').forEach(btn => {
-      btn.removeEventListener('click', handleDecrement);
-      btn.addEventListener('click', handleDecrement);
-    });
-    
-    document.querySelectorAll('.qty-btn[data-action="increment"]').forEach(btn => {
-      btn.removeEventListener('click', handleIncrement);
-      btn.addEventListener('click', handleIncrement);
-    });
-    
-    document.querySelectorAll('.cart-item-remove[data-action="remove"]').forEach(btn => {
-      btn.removeEventListener('click', handleRemove);
-      btn.addEventListener('click', handleRemove);
-    });
-  }
-  
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const subtotalEl = document.getElementById("cart-subtotal");
-  const totalEl = document.getElementById("cart-total");
-  
-  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-  if (totalEl) totalEl.textContent = formatCurrency(subtotal);
-  
-  // ========== 🚚 AGREGAR INFORMACIÓN DE ENVÍO EN EL CARRITO ==========
-  const hasShippingItem = items.some(item => hasFreeShipping(item.price));
-  const footer = document.querySelector('#cart-drawer .cart-footer');
-  const existingShipping = footer ? footer.querySelector('.cart-shipping-info') : null;
-  
-  if (hasShippingItem && footer && !existingShipping) {
-    const requestBtn = footer.querySelector('#request-purchase-btn');
-    if (requestBtn) {
-      const shippingHtml = `
-        <div class="cart-shipping-info">
-          <div class="shipping-badge-cart">🚚 Envío disponible</div>
-          <p class="shipping-note">📦 Las entregas pueden variar dependiendo la distancia. Se puede realizar a domicilio o punto intermedio.</p>
-        </div>
-      `;
-      requestBtn.insertAdjacentHTML('beforebegin', shippingHtml);
+    const container = document.getElementById("cart-items-container");
+    if (!container) {
+        console.error("❌ [RENDER] No existe #cart-items-container");
+        return;
     }
-  } else if (!hasShippingItem && existingShipping) {
-    existingShipping.remove();
-  } else if (hasShippingItem && existingShipping) {
-    // Ya existe, no hacer nada
-  }
-  // ========== FIN AGREGADO ==========
-  
-  // Configurar botón de cambio de número
-  setTimeout(() => {
-    const changePhoneBtn = document.getElementById('change-phone-btn');
-    if (changePhoneBtn) {
-      console.log("📞 Configurando botón change-phone-btn");
-      const newBtn = changePhoneBtn.cloneNode(true);
-      changePhoneBtn.parentNode.replaceChild(newBtn, changePhoneBtn);
-      
-      newBtn.addEventListener('click', async function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log("🖱️ Click en botón Cambiar número");
-        if (typeof window.changePhoneNumber === 'function') {
-          await window.changePhoneNumber();
-        } else if (typeof changePhoneNumber === 'function') {
-          await changePhoneNumber();
-        } else {
-          console.error("❌ changePhoneNumber no está definida");
-          if (typeof showCustomAlert === 'function') {
-            showCustomAlert({
-              title: "Error",
-              message: "Función no disponible. Recarga la página.",
-              icon: "❌",
-              confirmText: "Aceptar"
-            });
-          }
-        }
-      });
+    
+    container.innerHTML = "";
+    const items = Object.values(localCart);
+    
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="cart-empty-state">
+                <div class="cart-empty-icon">🛍️</div>
+                <p class="helper-text">Tu carrito está vacío.</p>
+                <p class="cart-empty-hint">Agrega productos para comenzar</p>
+            </div>`;
     } else {
-      console.warn("📞 No se encontró el botón change-phone-btn en el DOM");
+        items.forEach((item) => {
+            const row = document.createElement("div");
+            row.className = "cart-item";
+            
+            const imgUrl = item.Imagen1 ? optimizeDriveUrl(item.Imagen1, 120) : '';
+            const imgHtml = imgUrl
+                ? `<div class="cart-item-img-wrap">
+                     <img class="cart-item-img" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'">
+                   </div>`
+                : `<div class="cart-item-img-wrap cart-item-img-placeholder">
+                     <span>👕</span>
+                   </div>`;
+
+            const tallaBadge = item.Talla
+                ? `<span class="cart-item-talla">Talla: ${escapeHtml(item.Talla)}</span>`
+                : '';
+
+            row.innerHTML = `
+                ${imgHtml}
+                <div class="cart-item-info">
+                    <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
+                    ${tallaBadge}
+                    <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
+                    <div class="cart-item-actions">
+                        <button class="qty-btn" data-action="decrement" data-id="${item.id}">−</button>
+                        <span class="qty-value">${item.quantity}</span>
+                        <button class="qty-btn" data-action="increment" data-id="${item.id}">+</button>
+                        <button class="cart-item-remove" data-action="remove" data-id="${item.id}">🗑</button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+        
+        document.querySelectorAll('.qty-btn[data-action="decrement"]').forEach(btn => {
+            btn.removeEventListener('click', handleDecrement);
+            btn.addEventListener('click', handleDecrement);
+        });
+        
+        document.querySelectorAll('.qty-btn[data-action="increment"]').forEach(btn => {
+            btn.removeEventListener('click', handleIncrement);
+            btn.addEventListener('click', handleIncrement);
+        });
+        
+        document.querySelectorAll('.cart-item-remove[data-action="remove"]').forEach(btn => {
+            btn.removeEventListener('click', handleRemove);
+            btn.addEventListener('click', handleRemove);
+        });
     }
-  }, 100);
-  
-  updateSavedPhoneDisplay();
+    
+    // Calcular subtotal con la NUEVA función
+    const subtotal = getCartSubtotal();
+    const subtotalEl = document.getElementById("cart-subtotal");
+    const totalEl = document.getElementById("cart-total");
+    
+    if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
+    if (totalEl) totalEl.textContent = formatCurrency(subtotal);
+    
+    // ========== NUEVA LÓGICA DE ENVÍO EN EL CARRITO ==========
+    const footer = document.querySelector('#cart-drawer .cart-footer');
+    const existingShipping = footer ? footer.querySelector('.cart-shipping-info') : null;
+    
+    if (footer) {
+        // Eliminar el shipping info existente si hay
+        if (existingShipping) existingShipping.remove();
+        
+        // Insertar nuevo shipping info basado en subtotal
+        const shippingHtml = getCartShippingInfo();
+        const requestBtn = footer.querySelector('#request-purchase-btn');
+        if (requestBtn) {
+            requestBtn.insertAdjacentHTML('beforebegin', shippingHtml);
+        }
+    }
+    
+    // Configurar botón de cambio de número
+    setTimeout(() => {
+        const changePhoneBtn = document.getElementById('change-phone-btn');
+        if (changePhoneBtn) {
+            const newBtn = changePhoneBtn.cloneNode(true);
+            changePhoneBtn.parentNode.replaceChild(newBtn, changePhoneBtn);
+            
+            newBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof window.changePhoneNumber === 'function') {
+                    await window.changePhoneNumber();
+                } else if (typeof changePhoneNumber === 'function') {
+                    await changePhoneNumber();
+                }
+            });
+        }
+    }, 100);
+    
+    updateSavedPhoneDisplay();
 }
+
+
+
 function handleDecrement(e) {
   e.stopPropagation();
   const id = e.currentTarget.getAttribute('data-id');
@@ -791,96 +797,121 @@ async function openWhatsAppCheckout() {
 }
 
 async function continueCheckout() {
-  const items = Object.values(localCart);
-  if (items.length === 0) return;
-  
-  let clientPhone = localStorage.getItem("client_phone");
-  if (!clientPhone) {
-    clientPhone = await prompt(
-      "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n⚠️ Solo números, sin espacios ni código país.\n🔒 Tus datos están protegidos (aceptaste el aviso de privacidad)",
-      ""
-    );
+    const items = Object.values(localCart);
+    if (items.length === 0) {
+        if (typeof showTemporaryMessage === 'function') {
+            showTemporaryMessage("No hay productos en el carrito", "error");
+        }
+        return;
+    }
+    
+    let clientPhone = localStorage.getItem("client_phone");
     if (!clientPhone) {
-      showTemporaryMessage("❌ Necesitamos tu número para procesar la compra", "error");
-      return;
+        const newPhone = await new Promise((resolve) => {
+            showCustomPrompt({
+                title: "📱 Número de WhatsApp",
+                message: "Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n⚠️ Solo números, sin espacios ni código país.\n🔒 Tus datos están protegidos",
+                icon: "📱",
+                defaultValue: "",
+                confirmText: "Continuar",
+                cancelText: "Cancelar",
+                onConfirm: (value) => resolve(value),
+                onCancel: () => resolve(null)
+            });
+        });
+        
+        if (!newPhone) {
+            if (typeof showTemporaryMessage === 'function') {
+                showTemporaryMessage("❌ Necesitamos tu número para procesar la compra", "error");
+            }
+            return;
+        }
+        
+        clientPhone = newPhone.replace(/[^0-9]/g, '');
+        if (clientPhone.length !== 10) {
+            if (typeof showTemporaryMessage === 'function') {
+                showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
+            }
+            return;
+        }
+        localStorage.setItem("client_phone", clientPhone);
     }
-    clientPhone = clientPhone.replace(/[^0-9]/g, '');
-    if (clientPhone.length !== 10) {
-      showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
-      return;
-    }
-    localStorage.setItem("client_phone", clientPhone);
-  }
-  
-  showLoader("Enviando solicitud...");
-  const requestId = generateRequestId();
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n";
-  adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += `👤 *Cliente:* +52 ${clientPhone}\n`;
-  adminMessage += `🆔 *ID Solicitud:* ${requestId}\n`;
-  adminMessage += `📅 *Fecha:* ${new Date().toLocaleString()}\n`;
-  adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += "*📦 DETALLE DE PRODUCTOS:*\n\n";
+    
+    if (typeof showLoader === 'function') showLoader("Enviando solicitud...");
+    
+    const requestId = generateRequestId();
+    const subtotal = getCartSubtotal();
+    const hasFreeShippingTotal = subtotal >= 300;
+    
+    let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n";
+    adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+    adminMessage += `👤 *Cliente:* +52 ${clientPhone}\n`;
+    adminMessage += `🆔 *ID Solicitud:* ${requestId}\n`;
+    adminMessage += `📅 *Fecha:* ${new Date().toLocaleString()}\n`;
+    adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+    adminMessage += "*📦 DETALLE DE PRODUCTOS:*\n\n";
 
-  items.forEach((item, index) => {
-    adminMessage += `┌──────────────────────────────┐\n`;
-    adminMessage += `│ *${item.name}*\n`;
-    adminMessage += `├──────────────────────────────┤\n`;
-    adminMessage += `│ 🆔 ID: ${item.id}\n`;
-    adminMessage += `│ 📏 Talla: ${item.Talla || "No especificada"}\n`;
-    adminMessage += `│ 🔢 Cantidad: ${item.quantity}\n`;
-    adminMessage += `│ 💰 Precio: $${item.price.toLocaleString()} c/u\n`;
-    adminMessage += `│ 💵 Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
-    if (hasFreeShipping(item.price)) {
-      adminMessage += `│ 🚚 Envío disponible\n`;
-    }
-    adminMessage += `└──────────────────────────────┘\n`;
-    if (index < items.length - 1) adminMessage += `\n`;
-  });
+    items.forEach((item, index) => {
+        adminMessage += `┌──────────────────────────────┐\n`;
+        adminMessage += `│ *${item.name}*\n`;
+        adminMessage += `├──────────────────────────────┤\n`;
+        adminMessage += `│ 🆔 ID: ${item.id}\n`;
+        adminMessage += `│ 📏 Talla: ${item.Talla || "No especificada"}\n`;
+        adminMessage += `│ 🔢 Cantidad: ${item.quantity}\n`;
+        adminMessage += `│ 💰 Precio: $${item.price.toLocaleString()} c/u\n`;
+        adminMessage += `│ 💵 Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
+        adminMessage += `└──────────────────────────────┘\n`;
+        if (index < items.length - 1) adminMessage += `\n`;
+    });
 
-  adminMessage += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += `💰 *TOTAL: $${total.toLocaleString()} MXN*\n`;
-  adminMessage += `🚚 *Envío:* ${items.some(i => hasFreeShipping(i.price)) ? 'Disponible (consultar)' : 'No disponible'}\n`;
-  adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-  
-  const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
-  window.open(whatsappAdminUrl, '_blank');
-  
-  try {
-    await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "saveClientPhone", requestId: requestId, phone: clientPhone })
-    });
+    adminMessage += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+    adminMessage += `💰 *TOTAL: $${subtotal.toLocaleString()} MXN*\n`;
+    adminMessage += `🚚 *Envío:* ${hasFreeShippingTotal ? 'GRATIS (incluido)' : 'No incluido (consultar)'}\n`;
+    adminMessage += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
     
-   // En common.js, función continueCheckout()
-const notificationItems = items.map(item => ({
-  productId: item.id,
-  nombre: item.name,
-  cantidad: item.quantity,
-  imagen: item.Imagen1 || "",
-  talla: item.Talla || "",
-  precio: item.price || 0          // ← AÑADIR ESTO
-}));
+    const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
+    window.open(whatsappAdminUrl, '_blank');
     
-    await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "createNotification", items: notificationItems, requestId: requestId })
-    });
-    
-    localCart = {};
-    saveCartToStorage();
-    updateCartBadge();
-    renderCart();
-    showTemporaryMessage(`✅ ¡Solicitud enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`, "success");
-    closeCartDrawer();
-  } catch(err) {
-    console.error("Error:", err);
-    showTemporaryMessage("❌ Error al enviar la solicitud", "error");
-  } finally {
-    hideLoader();
-  }
+    try {
+        await fetch(API_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "saveClientPhone", requestId: requestId, phone: clientPhone })
+        });
+        
+        const notificationItems = items.map(item => ({
+            productId: item.id,
+            nombre: item.name,
+            cantidad: item.quantity,
+            imagen: item.Imagen1 || "",
+            talla: item.Talla || "",
+            precio: item.price || 0
+        }));
+        
+        await fetch(API_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "createNotification", items: notificationItems, requestId: requestId })
+        });
+        
+        localCart = {};
+        saveCartToStorage();
+        updateCartBadge();
+        
+        if (typeof renderCart === 'function') renderCart();
+        
+        if (typeof showTemporaryMessage === 'function') {
+            showTemporaryMessage(`✅ ¡Solicitud enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`, "success");
+        }
+        
+        if (typeof closeCartDrawer === 'function') closeCartDrawer();
+        
+    } catch(err) {
+        console.error("Error:", err);
+        if (typeof showTemporaryMessage === 'function') {
+            showTemporaryMessage("❌ Error al enviar la solicitud", "error");
+        }
+    } finally {
+        if (typeof hideLoader === 'function') hideLoader();
+    }
 }
 
 async function fetchProductsAPI(shouldIndex = false) {
