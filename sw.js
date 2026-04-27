@@ -2,8 +2,8 @@
 // sw.js - Service Worker para Z&R PWA
 // ============================================
 
-const CACHE_NAME = 'zr-cache-v3';
-const DYNAMIC_CACHE = 'zr-dynamic-v3';
+const CACHE_NAME = 'zr-cache-v4';
+const DYNAMIC_CACHE = 'zr-dynamic-v4';
 const OFFLINE_URL = '/ZNR/offline.html';
 
 // Recursos estáticos que siempre deben estar en caché
@@ -22,7 +22,10 @@ const STATIC_ASSETS = [
   '/ZNR/home.js',
   '/ZNR/admin.js',
   '/ZNR/cache-manager.js',
-  '/ZNR/manifest.json'
+  '/ZNR/offline-manager.js',
+  '/ZNR/notifications-optimized.js',
+  '/ZNR/manifest.json',
+  '/ZNR/logo.svg'
 ];
 // Extensiones de imágenes para caché dinámico
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
