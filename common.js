@@ -866,9 +866,7 @@ async function continueCheckout() {
   if (!navigator.onLine) {
     await showCustomAlert({
       title: "📡 Sin conexión",
-      message: "No puedes enviar una solicitud de compra sin internet.
-
-Tu carrito se mantiene guardado. Intenta nuevamente cuando tengas conexión.",
+      message: "No puedes enviar una solicitud de compra sin internet.\n\nTu carrito se mantiene guardado. Intenta nuevamente cuando tengas conexión.",
       icon: "📡",
       confirmText: "Entendido"
     });
@@ -1198,6 +1196,13 @@ window.hasFreeShipping = hasFreeShipping;
 window.cartQualifiesForFreeShipping = cartQualifiesForFreeShipping;
 window.observeLazyImages = observeLazyImages;
 window.disconnectImageObserver = disconnectImageObserver;
+window.openWhatsAppCheckout = openWhatsAppCheckout;
+window.continueCheckout = continueCheckout;
+window.getCachedProducts = getCachedProducts;
+window.setCachedProducts = setCachedProducts;
+window.addToRecentProducts = addToRecentProducts;
+window.getRecentProductIds = getRecentProductIds;
+window.getRecentProductsList = getRecentProductsList;
 
 
 async function checkIfOfflineMode() {
@@ -1372,12 +1377,7 @@ window._commonBuildProductIndex = buildProductIndex; // referencia protegida par
 window.getProductsByCategoryIndexed = getProductsByCategoryIndexed;
 window.getIndexedProducts = getIndexedProducts;
 window.clearProductIndex = clearProductIndex;
-// Funciones de productos recientes y caché — usadas por home.js y script.js
-window.addToRecentProducts = addToRecentProducts;
-window.getRecentProductIds = getRecentProductIds;
-window.getRecentProductsList = getRecentProductsList;
-window.getCachedProducts = getCachedProducts;
-window.setCachedProducts = setCachedProducts;
+// Funciones de productos recientes y caché — exportadas en el bloque principal de arriba
 // Expose indexed products for wishlist button injection
 Object.defineProperty(window, 'allProductsIndexed', { get: () => allProductsIndexed, configurable: true });
 
