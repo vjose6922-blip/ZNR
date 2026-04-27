@@ -1,10 +1,10 @@
-
 const PAGE_SIZE = 10;
 let allProducts = [];
 let filteredProducts = [];
 let currentPage = 1;
 let isLoading = false;
 let sliderState = new Map();
+let sliderTimers = new Map(); // tracks auto-advance intervals to prevent memory leaks
 let initialHashHandled = false;
 const SECRET_TAPS_REQUIRED = 5;
 let secretTapCount = 0;
@@ -426,14 +426,6 @@ function renderPagination() {
 
 
 
-function hasFreeShipping(price) {
-  const numericPrice = Number(price) || 0;
-  return numericPrice >= 300;
-}
-
-
-
-
 
 function createProductCard(product) {
   const { ID, Nombre, Precio, Stock, Descripcion, Talla, Categoria, Imagen1, Imagen2, Imagen3, Badge } = product;
@@ -466,7 +458,7 @@ function createProductCard(product) {
     .filter(Boolean);
 
   if (images.length === 0) {
-    images.push("https://via.placeholder.com/600x800/3b1f5f/ffffff?text=Sin+imagen");
+    images.push("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800' viewBox='0 0 600 800'%3E%3Crect width='600' height='800' fill='%233b1f5f'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui,sans-serif' font-size='32' fill='%23ffffff'%3ESin imagen%3C/text%3E%3C/svg%3E");
   }
 
   images.forEach((url) => {
@@ -477,6 +469,8 @@ function createProductCard(product) {
     img.alt = safeNombre;
     img.src = url;
     img.loading = "lazy";
+    img.width  = 600;  // evita Layout Shift (CLS) — el CSS aspect-ratio hace el resto
+    img.height = 800;
     img.addEventListener("click", () => openImageModal(url, ID));
 
     slide.appendChild(img);
@@ -652,7 +646,10 @@ function attachSliderEvents(slider, totalSlides) {
   slider.addEventListener("mouseup", handleEnd);
   slider.addEventListener("mouseleave", () => { if (isDragging) handleEnd(); });
   dots.forEach((dot) => dot.addEventListener("click", () => updateSlider(Number(dot.dataset.index))));
-  setInterval(() => updateSlider((sliderState.get(productId) || 0) + 1), 6000);
+  // Cancel any existing timer for this product before creating a new one
+  if (sliderTimers.has(productId)) clearInterval(sliderTimers.get(productId));
+  const timerId = setInterval(() => updateSlider((sliderState.get(productId) || 0) + 1), 6000);
+  sliderTimers.set(productId, timerId);
 }
 
 
@@ -677,107 +674,14 @@ function handleSecretTap() {
   }
 }
 
-async function openWhatsAppCheckout() {
-  const items = Object.values(localCart);
-  if (items.length === 0) {
-    showTemporaryMessage("No hay productos en el carrito", "error");
-    return;
-  }
-  const hasAcceptedPrivacy = localStorage.getItem("privacy_accepted") === "true";
-  if (!hasAcceptedPrivacy) {
-    showPrivacyModal(() => continueCheckout());
-    return;
-  }
-  continueCheckout();
-}
-
-async function continueCheckout() {
-  const items = Object.values(localCart);
-  if (items.length === 0) return;
-  
-  let clientPhone = localStorage.getItem("client_phone");
-  if (!clientPhone) {
-    clientPhone = await prompt(
-      "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n⚠️ Solo números, sin espacios ni código país.\n🔒 Tus datos están protegidos",
-      ""
-    );
-    if (!clientPhone) {
-      showTemporaryMessage("❌ Necesitamos tu número para procesar la compra", "error");
-      return;
-    }
-    clientPhone = clientPhone.replace(/[^0-9]/g, '');
-    if (clientPhone.length !== 10) {
-      showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
-      return;
-    }
-    localStorage.setItem("client_phone", clientPhone);
-  }
-  
-  showLoader("Enviando solicitud...");
-  const requestId = generateRequestId();
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-  // Mensaje mejorado para el administrador
-  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n";
-  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += `👤 *Cliente:* +52 ${clientPhone}\n`;
-  adminMessage += `🆔 *ID:* ${requestId}\n`;
-  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += "*📦 PRODUCTOS:*\n\n";
-  
-  items.forEach((item, index) => {
-    adminMessage += `• *${item.name}*\n`;
-    adminMessage += `  Cantidad: ${item.quantity} | $${item.price.toLocaleString()} c/u\n`;
-    adminMessage += `  Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
-    if (index < items.length - 1) adminMessage += "────────────────────\n";
-  });
-  
-  adminMessage += "\n━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += `💵 *TOTAL:* $${total.toLocaleString()} MXN\n`;
-  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
-  adminMessage += "Una vez confirmado tu pedido te enviaremos un mensaje por este chat.\n";
-  
-  const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
-  window.open(whatsappAdminUrl, '_blank');
-  
-  try {
-    await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "saveClientPhone", requestId: requestId, phone: clientPhone })
-    });
-    
-    // En common.js, función continueCheckout()
-const notificationItems = items.map(item => ({
-  productId: item.id,
-  nombre: item.name,
-  cantidad: item.quantity,
-  imagen: item.Imagen1 || "",
-  talla: item.Talla || "",
-  precio: item.price || 0          // ← AÑADIR ESTO
-}));
-    
-    await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "createNotification", items: notificationItems, requestId: requestId })
-    });
-    
-    localCart = {};
-    saveCartToStorage();
-    updateCartBadge();
-    if (typeof renderCart === 'function') renderCart();
-    
-    showTemporaryMessage(`✅ ¡Solicitud enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`, "success");
-    closeCartDrawer();
-    startSilentPolling(requestId, clientPhone);
-  } catch(err) {
-    console.error("Error:", err);
-    showTemporaryMessage("❌ Error al enviar la solicitud", "error");
-  } finally {
-    hideLoader();
-  }
-}
+let _silentPollingInterval = null; // referencia global para evitar intervalos acumulados
 
 function startSilentPolling(requestId, clientPhone) {
+  // Cancelar polling previo si el usuario realizó múltiples compras en la misma sesión
+  if (_silentPollingInterval) {
+    clearInterval(_silentPollingInterval);
+    _silentPollingInterval = null;
+  }
   let interval = setInterval(async () => {
     try {
       const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${requestId}`);
@@ -843,13 +747,20 @@ function startSilentPolling(requestId, clientPhone) {
       console.error("Error en polling:", err);
     }
   }, 5000);
-  
+  _silentPollingInterval = interval;
+
   // Timeout después de 10 minutos
-  setTimeout(() => { 
-    clearInterval(interval); 
+  const timeoutId = setTimeout(() => {
+    clearInterval(interval);
+    _silentPollingInterval = null;
     localStorage.removeItem('pending_purchase_' + requestId);
   }, 600000);
+
+  // Limpiar timeout si el intervalo ya fue cancelado antes
+  interval._timeoutId = timeoutId;
 }
+
+
 
 
 
