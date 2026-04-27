@@ -4,8 +4,34 @@ const ADMIN_ACTIONS = {
     UPDATE: 'admin_update',
     DELETE: 'admin_delete'
 };
-
+let syncPollingInterval = null;
 let pendingActions = [];
+
+function startSyncPolling(intervalMs = 120000) { // 2 minutos por defecto
+    if (syncPollingInterval) clearInterval(syncPollingInterval);
+    
+    syncPollingInterval = setInterval(() => {
+        // Solo sincronizar si hay acciones pendientes Y estamos online
+        if (pendingActions.length > 0 && navigator.onLine) {
+            console.log(`🔄 Polling: Sincronizando ${pendingActions.length} acciones pendientes...`);
+            syncPendingActions();
+        } else if (pendingActions.length > 0 && !navigator.onLine) {
+            console.log(`📡 Polling: ${pendingActions.length} acciones pendientes, esperando conexión...`);
+        }
+    }, intervalMs);
+}
+
+function stopSyncPolling() {
+    if (syncPollingInterval) {
+        clearInterval(syncPollingInterval);
+        syncPollingInterval = null;
+    }
+}
+
+
+
+
+
 
 // ========== 1. CARGAR/GUARDAR ACCIONES ==========
 function loadPendingActions() {
@@ -315,6 +341,7 @@ window.addEventListener('offline', () => {
 // ========== 6. INICIALIZAR ==========
 loadPendingActions();
 setupInterception();
+startSyncPolling(); // ← NUEVO: Iniciar polling automático
 
 if (navigator.onLine && pendingActions.length > 0) {
     setTimeout(() => syncPendingActions(), 3000);
