@@ -1,4 +1,3 @@
-
 window.originalHandleProductFormSubmit = null;
 window.originalDeleteProduct = null;
 setTimeout(() => {
@@ -440,7 +439,21 @@ function setupImageUpload(fileInputId, textInputId, previewId, progressId) {
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files[0];
     if (!file) return;
-    
+
+    // ── Advertencia explícita cuando no hay internet ─────────────────────────
+    // La URL de Drive se genera en el servidor; sin conexión la imagen
+    // no se puede subir y la acción pendiente quedaría sin imagen para siempre.
+    if (!navigator.onLine) {
+      await showCustomAlert({
+        title: "📡 Sin conexión",
+        message: "No es posible subir imágenes sin internet.\n\nPuedes guardar el producto sin imagen ahora y editarlo para añadirla cuando recuperes la conexión.",
+        icon: "🖼️",
+        confirmText: "Entendido"
+      });
+      fileInput.value = "";
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       preview.src = e.target.result;
@@ -677,4 +690,3 @@ function doAdminLogout() {
   const loginForm = document.getElementById("admin-login-form");
   if (loginForm) loginForm.reset();  
 }
-
