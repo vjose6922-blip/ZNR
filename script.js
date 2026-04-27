@@ -839,7 +839,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (secretLogo) secretLogo.addEventListener("click", handleSecretTap);
 
   const requestBtn = document.getElementById("request-purchase-btn");
-  if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
+  if (requestBtn) requestBtn.addEventListener("click", () => window.openWhatsAppCheckout?.());
 
 
   const layoutBtn = document.getElementById("layout-toggle-btn");
