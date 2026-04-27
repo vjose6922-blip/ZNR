@@ -2,7 +2,7 @@
 // looks.js - VERSION UNIFICADA CON CLIMA AVANZADO
 // ============================================
 
-const WEATHER_API_URL = API_URL;
+// API_URL is provided by common.js (window.API_URL); no local alias needed
 const LOOKS_CACHE_KEY = 'zr_looks_generated_v2';
 const MAX_WEATHER_RETRIES = 5;
 const RETRY_DELAYS = [1000, 3000, 5000, 10000, 30000];
