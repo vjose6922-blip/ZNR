@@ -1,9 +1,8 @@
-
 window.allProducts = window.allProducts || [];
 
 const CATEGORIES = [
   { name: 'Caballero', icon: '👔', filter: 'HOMBRE', url: 'catalogo.html?gender=HOMBRE' },
-  { name: 'Dama', icon: '👗', filter: 'MUJE', url: 'catalogo.html?gender=MUJER' }
+  { name: 'Dama', icon: '👗', filter: 'MUJER', url: 'catalogo.html?gender=MUJER' }
 ];
 
 
