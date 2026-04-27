@@ -154,8 +154,9 @@ function updatePendingBadge() {
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             font-family: monospace;
         `;
-        pendingBadge.onclick = () => {
-            if (confirm(`¿Sincronizar ${count} producto(s) pendiente(s) ahora?`)) {
+        pendingBadge.onclick = async () => {
+            const ok = await window.confirm(`¿Sincronizar ${count} producto(s) pendiente(s) ahora?`);
+            if (ok) {
                 syncPendingActions();
             }
         };
@@ -322,8 +323,9 @@ if (navigator.onLine && pendingActions.length > 0) {
 // Exportar para debug
 window.debugPending = () => console.table(pendingActions);
 window.syncNow = () => syncPendingActions();
-window.clearPending = () => {
-    if (confirm('¿Eliminar TODAS las acciones pendientes?')) {
+window.clearPending = async () => {
+    const ok = await window.confirm('¿Eliminar TODAS las acciones pendientes?');
+    if (ok) {
         pendingActions = [];
         savePendingActions();
         updatePendingBadge();
