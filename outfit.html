@@ -115,15 +115,6 @@
 <script src="cache-manager.js" defer></script>
 <script src="offline-manager.js" defer></script>
 <script src="looks.js" defer></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/ZNR/sw.js')
-          .then(registration => console.log('✅ SW registrado:', registration.scope))
-          .catch(error => console.log('❌ Error SW:', error));
-      });
-    }
-  </script>
 
   <script defer>
 let cartInitialized = false;
@@ -244,7 +235,7 @@ window.addEventListener('storage', (e) => {
         <span class="logo-mark">Z&R</span>
       </div>
       <div class="footer-social">
-        <a href="https://www.facebook.com/tu_pagina" target="_blank" class="social-link" aria-label="Facebook">Facebook</a>
+        <a href="https://www.facebook.com/tu_pagina" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Facebook">Facebook</a>
       </div>
       <div class="footer-copyright">
         <p>© 2026 Z&R - Todos los derechos reservados</p>
