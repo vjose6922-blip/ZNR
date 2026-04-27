@@ -310,6 +310,8 @@
     </div>
   </header>
 
+  <main id="main-content">
+
   <section class="hero-section">
     <h1 class="hero-title">Descubre tu Estilo</h1>
     <p class="hero-subtitle">Ropa 100% original Outfits.</p>
@@ -377,6 +379,8 @@
     </div>
   </section>
 
+  </main>
+
   <a href="https://wa.me/528671781272" class="floating-wa" target="_blank" rel="noopener">💬</a>
 
   <footer class="app-footer">
@@ -385,7 +389,7 @@
         <span class="logo-mark">Z&R</span>
       </div>
       <div class="footer-social">
-        <a href="https://www.facebook.com/tu_pagina" target="_blank" class="social-link">Facebook</a>
+        <a href="https://www.facebook.com/tu_pagina" target="_blank" rel="noopener noreferrer" class="social-link">Facebook</a>
       </div>
       <div class="footer-copyright">
         <p>© 2026 Z&R - Todos los derechos reservados</p>
@@ -432,16 +436,6 @@
 <script src="offline-manager.js" defer></script>
 <script src="looks.js" defer></script>
 <script src="home.js" defer></script>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/ZNR/sw.js')
-          .then(registration => console.log('✅ SW registrado:', registration.scope))
-          .catch(error => console.log('❌ Error SW:', error));
-      });
-    }
-  </script>
 
 
 
