@@ -1,3 +1,4 @@
+
 window.allProducts = window.allProducts || [];
 
 const CATEGORIES = [
