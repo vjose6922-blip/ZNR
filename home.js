@@ -396,50 +396,141 @@ function addHomeLookToCart(lookId) {
 }
 
 function reloadHomeLookSlot(lookId, slotType, event) {
-  if (event) event.stopPropagation();
-  const lookIdx = homeLooks.findIndex(l => l.id === lookId);
-  if (lookIdx === -1) return;
+    if (event) event.stopPropagation();
+    
+    console.log(`🔄 Recargando slot ${slotType} del look ${lookId}`);
+    
+    const lookIdx = homeLooks.findIndex(l => l.id === lookId);
+    if (lookIdx === -1) return;
 
-  const look = homeLooks[lookIdx];
-  const config = LOOKS_CONFIG.find(c => c.name === look.name || c.id === look.id);
-  if (!config) return;
+    const look = homeLooks[lookIdx];
+    const config = LOOKS_CONFIG.find(c => c.name === look.name || c.id === look.id);
+    if (!config) return;
 
-  const slot = config.slots.find(s => s.type === slotType);
-  if (!slot) return;
+    const slot = config.slots.find(s => s.type === slotType);
+    if (!slot) return;
 
-  const productsWithStock = window.allProducts.filter(p =>
-    (p.Imagen1 || p.Imagen2) && Number(p.Stock || 0) > 0
-  );
+    const productsWithStock = window.allProducts.filter(p =>
+        (p.Imagen1 || p.Imagen2) && Number(p.Stock || 0) > 0
+    );
 
-  const usedIds = Object.entries(look.products)
-    .filter(([k, p]) => k !== slotType && p)
-    .map(([, p]) => String(p.id));
-  const currentId = look.products[slotType] ? String(look.products[slotType].id) : null;
-  if (currentId) usedIds.push(currentId);
+    // Excluir IDs ya usados en el look (incluyendo el actual)
+    const usedIds = Object.entries(look.products)
+        .filter(([k, p]) => k !== slotType && p)
+        .map(([, p]) => String(p.id));
+    
+    const currentId = look.products[slotType] ? String(look.products[slotType].id) : null;
+    if (currentId) usedIds.push(currentId);
 
-  const available = getProductsForSlot(productsWithStock, slot)
-    .filter(p => !usedIds.includes(String(p.ID)));
+    let available = getProductsForSlot(productsWithStock, slot)
+        .filter(p => !usedIds.includes(String(p.ID)));
 
-  if (available.length === 0) {
-    if (typeof showTemporaryMessage === 'function') showTemporaryMessage('No hay más opciones para este slot', 'info');
-    return;
-  }
+    if (available.length === 0) {
+        // Si no hay productos exclusivos, permitir cualquier producto excepto el actual
+        available = getProductsForSlot(productsWithStock, slot)
+            .filter(p => !currentId || String(p.ID) !== currentId);
+    }
 
-  const pick = available[Math.floor(Math.random() * available.length)];
-  look.products[slotType] = toSlotProduct(pick);
-  look.totalPrice = Object.values(look.products).reduce((s, p) => s + (p ? p.price : 0), 0);
-  homeLooks[lookIdx] = look;
+    if (available.length === 0) {
+        if (typeof showTemporaryMessage === 'function') {
+            showTemporaryMessage('No hay más opciones para este slot', 'info');
+        }
+        return;
+    }
 
-  const card = document.querySelector(`.look-card[data-look-id="${lookId}"]`);
-  if (card) {
-    const newCard = createHomeLookCard(look);
-    card.replaceWith(newCard);
-    newCard.querySelectorAll('.lazy').forEach(img => {
-      const src = img.getAttribute('data-src');
-      if (src) { img.src = src; img.removeAttribute('data-src'); }
-    });
-  }
+    const pick = available[Math.floor(Math.random() * available.length)];
+    
+    // Crear nuevo producto para el slot
+    const newProduct = toSlotProduct(pick);
+    const oldPrice = look.products[slotType]?.price || 0;
+    const priceDifference = newProduct.price - oldPrice;
+    
+    // Actualizar el look en memoria
+    look.products[slotType] = newProduct;
+    look.totalPrice = Object.values(look.products).reduce((s, p) => s + (p ? p.price : 0), 0);
+    homeLooks[lookIdx] = look;
+
+    // ACTUALIZAR EL DOM SIN REEMPLAZAR TODO EL CARD
+    const card = document.querySelector(`.look-card[data-look-id="${lookId}"]`);
+    if (card) {
+        // Actualizar imagen del slot
+        const slotImageDiv = card.querySelector(`.look-slot-image[data-slot="${slotType}"]`);
+        if (slotImageDiv) {
+            const img = slotImageDiv.querySelector('.look-slot-img');
+            const newImgUrl = optimizeDriveUrl(newProduct.image, 200);
+            const newModalUrl = optimizeDriveUrl(newProduct.image, 800);
+            
+            if (img) {
+                // Pre-cargar la nueva imagen antes de mostrarla
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    img.src = newImgUrl;
+                    img.classList.add('loaded');
+                };
+                tempImg.src = newImgUrl;
+            }
+            
+            // Actualizar el onclick para el modal
+            slotImageDiv.setAttribute('onclick', `openImageModal('${newModalUrl}', '${newProduct.id}')`);
+        }
+        
+        // Actualizar la información del producto en la lista
+        const productItems = card.querySelectorAll('.look-product-item');
+        const slotOrder = ['torso', 'piernas', 'pies'];
+        const slotIndex = slotOrder.indexOf(slotType);
+        
+        let targetProductItem = null;
+        if (productItems[slotIndex]) {
+            targetProductItem = productItems[slotIndex];
+        } else {
+            for (const item of productItems) {
+                if (item.getAttribute('data-slot') === slotType) {
+                    targetProductItem = item;
+                    break;
+                }
+            }
+        }
+        
+        if (targetProductItem) {
+            // Actualizar nombre
+            const nameEl = targetProductItem.querySelector('.look-product-name');
+            if (nameEl) nameEl.textContent = escapeHtml(newProduct.name);
+            
+            // Actualizar precio con animación
+            const priceEl = targetProductItem.querySelector('.look-product-price');
+            if (priceEl) {
+                priceEl.textContent = formatCurrency(newProduct.price);
+                priceEl.classList.add('price-changed');
+                setTimeout(() => priceEl.classList.remove('price-changed'), 300);
+            }
+            
+            // Actualizar talla
+            const sizeEl = targetProductItem.querySelector('.look-product-size');
+            if (sizeEl) sizeEl.textContent = escapeHtml(newProduct.size || 'Talla no especificada');
+            
+            // Actualizar el botón de añadir al carrito
+            const addBtn = targetProductItem.querySelector('.look-product-add');
+            if (addBtn) {
+                const newOnClick = `addToCart({ID:'${newProduct.id}', Nombre:'${escapeHtml(newProduct.name)}', Precio:${newProduct.price}, Imagen1:'${newProduct.image}', Talla:'${escapeHtml(newProduct.size || '')}'})`;
+                addBtn.setAttribute('onclick', newOnClick);
+            }
+        }
+        
+        // Actualizar precio total del look
+        const totalPriceEl = card.querySelector('.look-total-price');
+        if (totalPriceEl) {
+            totalPriceEl.textContent = formatCurrency(look.totalPrice);
+            totalPriceEl.classList.add('price-changed');
+            setTimeout(() => totalPriceEl.classList.remove('price-changed'), 300);
+        }
+        
+        // Mostrar mensaje de éxito
+        if (typeof showTemporaryMessage === 'function') {
+            showTemporaryMessage(`✨ Prenda actualizada: ${newProduct.name}`, 'success');
+        }
+    }
 }
+
 
 function createHomeLookCard(look) {
   const slotOrder = ['torso', 'piernas', 'pies'];
