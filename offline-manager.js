@@ -1,4 +1,17 @@
-// ========== OFFLINE MANAGER - VERSIÓN CORREGIDA ==========
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data.type === 'OFFLINE_ACTION_QUEUED') {
+            updatePendingBadge();
+            showMessage(`📡 Acción guardada. ${event.data.queueLength} pendiente(s).`, 'info');
+        } else if (event.data.type === 'OFFLINE_QUEUE_UPDATED') {
+            updatePendingBadge();
+        }
+    });
+}
+
+
+
 const ADMIN_ACTIONS = {
     CREATE: 'admin_create',
     UPDATE: 'admin_update',
