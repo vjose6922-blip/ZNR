@@ -1,323 +1,372 @@
+// ========== OFFLINE MANAGER - VERSIÓN CORREGIDA ==========
+const ADMIN_ACTIONS = {
+    CREATE: 'admin_create',
+    UPDATE: 'admin_update',
+    DELETE: 'admin_delete'
+};
 
-// ============================================
-// sw.js - Service Worker para Z&R PWA
-// ============================================
+let pendingActions = [];
 
-const CACHE_NAME = 'zr-cache-v4';
-const DYNAMIC_CACHE = 'zr-dynamic-v4';
-const OFFLINE_URL = '/ZNR/offline.html';
-
-// Recursos estáticos que siempre deben estar en caché
-const STATIC_ASSETS = [
-  '/ZNR/',
-  '/ZNR/index.html',
-  '/ZNR/catalogo.html',
-  '/ZNR/outfit.html',
-  '/ZNR/admin.html',
-  '/ZNR/notificaciones.html',
-  '/ZNR/offline.html',
-  '/ZNR/styles.css',
-  '/ZNR/common.js',
-  '/ZNR/script.js',
-  '/ZNR/looks.js',
-  '/ZNR/home.js',
-  '/ZNR/admin.js',
-  '/ZNR/cache-manager.js',
-  '/ZNR/offline-manager.js',
-  '/ZNR/notifications-optimized.js',
-  '/ZNR/manifest.json',
-  '/ZNR/logo.svg'
-];
-// Extensiones de imágenes para caché dinámico
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
-const API_DOMAINS = ['script.google.com', 'googleusercontent.com', 'wttr.in', 'openweathermap.org'];
-
-// Instalación del Service Worker
-self.addEventListener('install', event => {
-  console.log('[SW] Instalando PWA...');
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      console.log('[SW] Cacheando assets estáticos');
-      
-      // Cachear recursos estáticos con manejo de errores
-      const cachePromises = STATIC_ASSETS.map(async (asset) => {
-        try {
-          const response = await fetch(asset);
-          if (response.ok) {
-            await cache.put(asset, response);
-          }
-        } catch (error) {
-          console.log(`[SW] No se pudo cachear: ${asset}`, error);
+// ========== 1. CARGAR/GUARDAR ACCIONES ==========
+function loadPendingActions() {
+    try {
+        const saved = localStorage.getItem('zr_admin_pending');
+        if (saved) {
+            pendingActions = JSON.parse(saved);
+            console.log(`📦 Cargadas ${pendingActions.length} acciones pendientes`);
         }
-      });
-      
-      await Promise.allSettled(cachePromises);
-      
-      // Cachear offline page específicamente
-      const offlineResponse = await fetch(OFFLINE_URL);
-      if (offlineResponse.ok) {
-        await cache.put(OFFLINE_URL, offlineResponse);
-      }
-      
-      await self.skipWaiting();
-    })()
-  );
-});
-
-// Activación - limpiar cachés viejos
-self.addEventListener('activate', event => {
-  console.log('[SW] Activando PWA...');
-  event.waitUntil(
-    (async () => {
-      const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME && cache !== DYNAMIC_CACHE) {
-            console.log('[SW] Eliminando caché viejo:', cache);
-            return caches.delete(cache);
-          }
-        })
-      );
-      await self.clients.claim();
-      
-      // Notificar a todos los clientes que el SW está listo
-      const clients = await self.clients.matchAll();
-      clients.forEach(client => {
-        client.postMessage({ type: 'SW_ACTIVATED' });
-      });
-    })()
-  );
-});
-
-// Determinar estrategia de caché según el tipo de request
-function getCacheStrategy(request) {
-  const url = new URL(request.url);
-  
-  // Imágenes
-  if (IMAGE_EXTENSIONS.some(ext => url.pathname.toLowerCase().endsWith(ext))) {
-    return 'CACHE_FIRST';
-  }
-  
-  // Clima - siempre pedir red, nunca servir caché viejo
-  if (url.hostname.includes('wttr.in') || url.hostname.includes('openweathermap.org')) {
-    return 'NETWORK_ONLY';
-  }
-  
-  // API y recursos externos (Google Apps Script)
-  if (API_DOMAINS.some(domain => url.hostname.includes(domain))) {
-    return 'NETWORK_FIRST';
-  }
-  
-  // HTML, CSS, JS - stale-while-revalidate
-  if (request.destination === 'document' || 
-      request.destination === 'style' || 
-      request.destination === 'script') {
-    return 'STALE_WHILE_REVALIDATE';
-  }
-  
-  return 'CACHE_FIRST';
+    } catch(e) { pendingActions = []; }
+    updatePendingBadge();
 }
 
-// Interceptar peticiones
-self.addEventListener('fetch', event => {
-  const strategy = getCacheStrategy(event.request);
-  
-  // Prevenir fetch de chrome-extension://
-  if (event.request.url.startsWith('chrome-extension://')) {
-    return;
-  }
-  
-  switch (strategy) {
-    case 'CACHE_FIRST':
-      event.respondWith(cacheFirstStrategy(event.request));
-      break;
-      
-    case 'NETWORK_ONLY':
-      event.respondWith(networkOnlyStrategy(event.request));
-      break;
-      
-    case 'NETWORK_FIRST':
-      event.respondWith(networkFirstStrategy(event.request));
-      break;
-      
-    case 'STALE_WHILE_REVALIDATE':
-      event.respondWith(staleWhileRevalidateStrategy(event.request));
-      break;
-      
-    default:
-      event.respondWith(networkFirstStrategy(event.request));
-  }
-});
-
-// Estrategia: Cache First (para imágenes y assets estáticos)
-async function cacheFirstStrategy(request) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-  
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse && networkResponse.status === 200) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    // Si es una navegación a HTML, mostrar offline page
-    if (request.mode === 'navigate') {
-      return caches.match(OFFLINE_URL);
-    }
-    return new Response('Error de conexión', { status: 404, statusText: 'Offline' });
-  }
+function savePendingActions() {
+    try {
+        localStorage.setItem('zr_admin_pending', JSON.stringify(pendingActions));
+        updatePendingBadge();
+    } catch(e) {}
 }
 
-// Estrategia: Network Only (para clima - siempre datos frescos)
-async function networkOnlyStrategy(request) {
-  try {
-    const networkResponse = await fetch(request);
-    return networkResponse;
-  } catch (error) {
-    // Sin red y sin caché: devolver respuesta vacía para que la app maneje el fallback
-    return new Response(JSON.stringify(null), {
-      status: 503,
-      statusText: 'Offline',
-      headers: { 'Content-Type': 'application/json' }
+function addPendingAction(type, data, productId = null) {
+    pendingActions.push({
+        id: Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        type: type,
+        data: data,
+        productId: productId,
+        timestamp: Date.now(),
+        retries: 0
     });
-  }
+    savePendingActions();
+    showMessage(`📡 Producto guardado localmente. Se sincronizará cuando haya internet.`, 'info');
+    console.log(`📝 Acción "${type}" guardada. Total pendientes: ${pendingActions.length}`);
 }
 
-// Estrategia: Network First (para API)
-async function networkFirstStrategy(request) {
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse && networkResponse.status === 200) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
+// ========== 2. API ==========
+const ADMIN_API = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
+
+async function syncPendingActions() {
+    if (!navigator.onLine) {
+        console.log("📡 Sin conexión, no se puede sincronizar");
+        return;
     }
     
-    // Para navegación, mostrar offline page
-    if (request.mode === 'navigate') {
-      return caches.match(OFFLINE_URL);
-    }
+    if (pendingActions.length === 0) return;
     
-    throw error;
-  }
-}
-
-// Estrategia: Stale While Revalidate (para HTML/CSS/JS)
-async function staleWhileRevalidateStrategy(request) {
-  const cachedResponse = await caches.match(request);
-  
-  const fetchPromise = fetch(request).then(networkResponse => {
-    if (networkResponse && networkResponse.status === 200) {
-      const cache = caches.open(CACHE_NAME);
-      cache.then(c => c.put(request, networkResponse.clone()));
-    }
-    return networkResponse;
-  }).catch(() => null);
-  
-  if (cachedResponse) {
-    // Actualizar en segundo plano
-    fetchPromise.catch(() => {});
-    return cachedResponse;
-  }
-  
-  const networkResponse = await fetchPromise;
-  if (networkResponse) {
-    return networkResponse;
-  }
-  
-  // Fallback a offline page para navegación
-  if (request.mode === 'navigate') {
-    return caches.match(OFFLINE_URL);
-  }
-  
-  return new Response('Contenido no disponible', { status: 404 });
-}
-
-// Push Notifications (opcional)
-self.addEventListener('push', event => {
-  const data = event.data ? event.data.json() : {};
-  
-  const options = {
-    body: data.body || '¡Novedades en Z&R!',
-    icon: '/ZNR/icons/icon-192.png',
-    badge: '/ZNR/icons/icon-96.png',
-    vibrate: [200, 100, 200],
-    data: {
-      url: data.url || '/ZNR/'
-    },
-    actions: [
-      { action: 'open', title: 'Ver ahora' },
-      { action: 'close', title: 'Cerrar' }
-    ]
-  };
-  
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'Z&R', options)
-  );
-});
-
-// Manejar clicks en notificaciones
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  
-  if (event.action === 'open' || !event.action) {
-    const urlToOpen = event.notification.data?.url || '/ZNR/';
-    event.waitUntil(
-      self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-        .then(windowClients => {
-          for (let client of windowClients) {
-            if (client.url === urlToOpen && 'focus' in client) {
-              return client.focus();
+    console.log(`🔄 Sincronizando ${pendingActions.length} acciones pendientes...`);
+    showMessage(`🔄 Sincronizando ${pendingActions.length} producto(s)...`, 'info');
+    
+    for (let i = 0; i < pendingActions.length; i++) {
+        const action = pendingActions[i];
+        
+        try {
+            let success = false;
+            
+            if (action.type === ADMIN_ACTIONS.CREATE) {
+                const response = await fetch(ADMIN_API, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({ action: "create", ...action.data }).toString()
+                });
+                const result = await response.json();
+                success = result.ok === true;
+                if (success) console.log(`✅ Producto creado: ${action.data.Nombre}`);
             }
-          }
-          if (self.clients.openWindow) {
-            return self.clients.openWindow(urlToOpen);
-          }
-        })
-    );
-  }
-});
-
-// Sincronización en segundo plano (Background Sync)
-self.addEventListener('sync', event => {
-  if (event.tag === 'sync-cart') {
-    event.waitUntil(syncCart());
-  }
-});
-
-async function syncCart() {
-  // Implementar sincronización de carrito pendiente
-  const clients = await self.clients.matchAll();
-  clients.forEach(client => {
-    client.postMessage({ type: 'SYNC_CART' });
-  });
-}
-
-// Period Sync (actualización periódica en background)
-self.addEventListener('periodicsync', event => {
-  if (event.tag === 'update-products') {
-    event.waitUntil(updateProductsInBackground());
-  }
-});
-
-async function updateProductsInBackground() {
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const response = await fetch('https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec');
-    if (response.ok) {
-      await cache.put('/ZNR/api/products', response.clone());
+            else if (action.type === ADMIN_ACTIONS.UPDATE) {
+                const response = await fetch(ADMIN_API, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({ action: "update", id: action.productId, ...action.data }).toString()
+                });
+                const result = await response.json();
+                success = result.ok === true;
+                if (success) console.log(`✅ Producto actualizado: ID ${action.productId}`);
+            }
+            else if (action.type === ADMIN_ACTIONS.DELETE) {
+                const response = await fetch(ADMIN_API, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({ action: "delete", id: action.productId }).toString()
+                });
+                const result = await response.json();
+                success = result.ok === true;
+                if (success) console.log(`✅ Producto eliminado: ID ${action.productId}`);
+            }
+            
+            if (success) {
+                pendingActions.splice(i, 1);
+                i--;
+                savePendingActions();
+            } else {
+                action.retries++;
+                if (action.retries >= 3) {
+                    console.warn(`❌ Acción fallida tras ${action.retries} intentos, eliminando`);
+                    pendingActions.splice(i, 1);
+                    i--;
+                    savePendingActions();
+                } else {
+                    console.log(`⚠️ Reintento ${action.retries}/3 para ${action.type}`);
+                }
+            }
+        } catch (err) {
+            console.error(`Error sincronizando:`, err);
+            action.retries++;
+            if (action.retries >= 3) {
+                pendingActions.splice(i, 1);
+                i--;
+                savePendingActions();
+            }
+        }
     }
-  } catch (error) {
-    console.log('[SW] Background sync falló:', error);
-  }
+    
+    if (pendingActions.length === 0) {
+        showMessage(`✅ Todos los productos sincronizados`, 'success');
+        if (typeof loadAdminProducts === 'function') {
+            loadAdminProducts();
+        }
+    }
+    
+    updatePendingBadge();
 }
+
+// ========== 3. UI - BADGE ==========
+let pendingBadge = null;
+
+function updatePendingBadge() {
+    const count = pendingActions.length;
+    
+    if (!pendingBadge && count > 0) {
+        pendingBadge = document.createElement('div');
+        pendingBadge.id = 'pending-badge';
+        pendingBadge.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #f97316;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-family: monospace;
+        `;
+        pendingBadge.onclick = async () => {
+            const ok = await window.confirm(`¿Sincronizar ${count} producto(s) pendiente(s) ahora?`);
+            if (ok) {
+                syncPendingActions();
+            }
+        };
+        document.body.appendChild(pendingBadge);
+    }
+    
+    if (pendingBadge) {
+        if (count > 0) {
+            pendingBadge.style.display = 'flex';
+            pendingBadge.innerHTML = `📡 ${count} pendiente${count !== 1 ? 's' : ''} · Click para sincronizar`;
+        } else {
+            pendingBadge.style.display = 'none';
+        }
+    }
+}
+
+function showMessage(msg, type = 'info') {
+    if (typeof showTemporaryMessage === 'function') {
+        showTemporaryMessage(msg, type);
+    } else {
+        console.log(`[Offline] ${msg}`);
+    }
+}
+
+// ========== 4. INTERCEPTACIÓN CORREGIDA ==========
+function setupInterception() {
+    console.log("🔧 Configurando interceptación offline...");
+    
+    // Esperar a que la función original exista
+    const interval = setInterval(() => {
+        const originalSubmit = window.handleProductFormSubmit;
+        const originalDelete = window.deleteProduct;
+        
+        if (typeof originalSubmit === 'function') {
+            clearInterval(interval);
+            console.log("✅ Funciones detectadas, aplicando interceptación");
+            
+            // Guardar originales
+            window._originalSubmit = originalSubmit;
+            window._originalDelete = originalDelete;
+            
+            // Crear nueva función
+            window.handleProductFormSubmit = async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log("📝 Interceptación ejecutada - Online:", navigator.onLine);
+                
+                const id = document.getElementById("product-id")?.value || "";
+                const productData = {
+                    Nombre: document.getElementById("product-name")?.value.trim() || "",
+                    Precio: Number(document.getElementById("product-price")?.value || 0),
+                    Stock: Number(document.getElementById("product-stock")?.value || 0),
+                    Descripcion: document.getElementById("product-description")?.value.trim() || "",
+                    Talla: document.getElementById("product-sizes")?.value.trim() || "",
+                    Categoria: document.getElementById("product-category")?.value.trim() || "",
+                    Badge: document.getElementById("product-badge")?.value || "",
+                    Imagen1: document.getElementById("product-image1")?.value.trim() || "",
+                    Imagen2: document.getElementById("product-image2")?.value.trim() || "",
+                    Imagen3: document.getElementById("product-image3")?.value.trim() || "",
+                };
+                
+                if (!productData.Nombre) {
+                    if (typeof showCustomAlert === 'function') {
+                        await showCustomAlert({
+                            title: "⚠️ Campo requerido",
+                            message: "El nombre del producto es obligatorio.",
+                            icon: "📝",
+                            confirmText: "Aceptar"
+                        });
+                    }
+                    return;
+                }
+                
+                // 🔴 MODO OFFLINE
+                if (!navigator.onLine) {
+                    console.log("🔴 OFFLINE: Guardando producto localmente");
+                    
+                    if (id) {
+                        addPendingAction(ADMIN_ACTIONS.UPDATE, productData, id);
+                    } else {
+                        addPendingAction(ADMIN_ACTIONS.CREATE, productData);
+                    }
+                    
+                    if (typeof resetProductForm === 'function') resetProductForm();
+                    if (typeof clearImageUploads === 'function') clearImageUploads();
+                    
+                    // Mostrar mensaje de éxito
+                    if (typeof showCustomAlert === 'function') {
+                        await showCustomAlert({
+                            title: id ? "📡 Producto guardado" : "📡 Producto creado",
+                            message: `El producto se ha guardado localmente.\nSe sincronizará automáticamente cuando haya internet.`,
+                            icon: "📡",
+                            confirmText: "Aceptar"
+                        });
+                    }
+                    return;
+                }
+                
+                // 🟢 MODO ONLINE
+                console.log("🟢 ONLINE: Ejecutando función original");
+                await window._originalSubmit(e);
+            };
+            
+            // ===== REEMPLAZAR EL EVENT LISTENER DEL FORMULARIO =====
+            const productForm = document.getElementById("product-form");
+            if (productForm) {
+                // Clonar para eliminar todos los event listeners existentes
+                const newForm = productForm.cloneNode(true);
+                productForm.parentNode.replaceChild(newForm, productForm);
+                
+                // Agregar el nuevo event listener
+                newForm.addEventListener("submit", window.handleProductFormSubmit);
+                console.log("✅ Event listener del formulario reemplazado");
+            }
+            
+            // ===== INTERCEPTAR DELETE =====
+            window.deleteProduct = async function(id) {
+                if (!navigator.onLine) {
+                    console.log("🔴 OFFLINE: Marcando producto para eliminar:", id);
+                    addPendingAction(ADMIN_ACTIONS.DELETE, null, id);
+                    
+                    const row = document.querySelector(`.admin-product-row button[data-id="${id}"]`)?.closest('.admin-product-row');
+                    if (row) row.remove();
+                    
+                    if (typeof showCustomAlert === 'function') {
+                        await showCustomAlert({
+                            title: "📡 Producto marcado",
+                            message: "El producto se eliminará cuando haya internet.",
+                            icon: "📡",
+                            confirmText: "Aceptar"
+                        });
+                    }
+                    return;
+                }
+                await window._originalDelete(id);
+            };
+        }
+    }, 100);
+    
+    setTimeout(() => clearInterval(interval), 5000);
+}
+
+// ========== 5. MONITOREO ==========
+window.addEventListener('online', () => {
+    console.log("🟢 Conexión recuperada - Sincronizando...");
+    showMessage("🟢 Conexión recuperada. Sincronizando cambios...", 'success');
+    setTimeout(() => syncPendingActions(), 1000);
+});
+
+window.addEventListener('offline', () => {
+    console.log("🔴 Conexión perdida");
+    showMessage("📡 Sin conexión - Los cambios se guardarán localmente", 'warning');
+});
+
+// ========== 6. INICIALIZAR ==========
+loadPendingActions();
+setupInterception();
+
+if (navigator.onLine && pendingActions.length > 0) {
+    setTimeout(() => syncPendingActions(), 3000);
+}
+
+// ========== 7. POLLING PERIÓDICO (cada 2 minutos) ==========
+// Cubre el caso en que la conexión se recupera sin disparar el evento 'online'
+// (ej. cambio de red en algunos navegadores móviles)
+let _periodicSyncInterval = null;
+
+function startPeriodicSync() {
+    if (_periodicSyncInterval) return; // ya iniciado
+    _periodicSyncInterval = setInterval(() => {
+        if (navigator.onLine && pendingActions.length > 0) {
+            console.log("⏱️ Polling periódico: sincronizando acciones pendientes...");
+            syncPendingActions();
+        }
+    }, 2 * 60 * 1000); // cada 2 minutos
+    console.log("⏱️ Polling periódico de sync iniciado");
+}
+
+function stopPeriodicSync() {
+    if (_periodicSyncInterval) {
+        clearInterval(_periodicSyncInterval);
+        _periodicSyncInterval = null;
+    }
+}
+
+// Pausar cuando la pestaña pierde visibilidad para no consumir recurs
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopPeriodicSync();
+    } else {
+        // Al volver a la pestaña: sincronizar de inmediato si hay pendientes
+        if (navigator.onLine && pendingActions.length > 0) {
+            syncPendingActions();
+        }
+        startPeriodicSync();
+    }
+});
+
+startPeriodicSync();
+
+// Exportar para debug
+window.debugPending = () => console.table(pendingActions);
+window.syncNow = () => syncPendingActions();
+window.clearPending = async () => {
+    const ok = await window.confirm('¿Eliminar TODAS las acciones pendientes?');
+    if (ok) {
+        pendingActions = [];
+        savePendingActions();
+        updatePendingBadge();
+        console.log("🗑️ Cola limpiada");
+    }
+};
