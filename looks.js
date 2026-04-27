@@ -1638,7 +1638,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener('cartUpdated', () => updateCartBadge());
   
   const requestBtn = document.getElementById("request-purchase-btn");
-  if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
+  if (requestBtn) requestBtn.addEventListener("click", () => window.openWhatsAppCheckout?.());
 });
 
 // Exponer funciones globales
