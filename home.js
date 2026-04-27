@@ -5,64 +5,26 @@ const CATEGORIES = [
   { name: 'Dama', icon: '👗', filter: 'MUJER', url: 'catalogo.html?gender=MUJER' }
 ];
 
-const GENDER_BY_CATEGORY = {
-  'Playeras': 'HOMBRE',
-  'Pantalon para Caballero': 'HOMBRE',
-  'Short para Caballero': 'HOMBRE',
-  'Calzado para Caballero': 'HOMBRE',
-  'Sueter para Caballero': 'HOMBRE',
-  'Chamarra para Caballero': 'HOMBRE',
-  'Blusas': 'MUJER',
-  'Pantalon para Dama': 'MUJER',
-  'Short para Dama': 'MUJER',
-  'Vestidos': 'MUJER',
-  'Calzado para Dama': 'MUJER',
-  'Sueter para Dama': 'MUJER',
-  'Chamarra para Dama': 'MUJER',
-  'Faldas': 'MUJER',
-  'Accesorios': 'UNISEX'
-};
 
 const RECENT_KEY = 'zr_recent_products';
 var homeLooks = [];
 
-function addToRecentProducts(productId) {
-  if (!productId) return;
-  try {
-    let recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-    recent = [String(productId), ...recent.filter(id => String(id) !== String(productId))];
-    recent = recent.slice(0, 12);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
-    window.dispatchEvent(new CustomEvent('recentProductsUpdated'));
-  } catch(e) {}
-}
+// Local gender map — used for look generation in home page
+const GENDER_BY_CATEGORY = {
+  'Playeras': 'HOMBRE', 'Pantalon para Caballero': 'HOMBRE',
+  'Short para Caballero': 'HOMBRE', 'Calzado para Caballero': 'HOMBRE',
+  'Sueter para Caballero': 'HOMBRE', 'Chamarra para Caballero': 'HOMBRE',
+  'Blusas': 'MUJER', 'Pantalon para Dama': 'MUJER',
+  'Short para Dama': 'MUJER', 'Vestidos': 'MUJER',
+  'Calzado para Dama': 'MUJER', 'Sueter para Dama': 'MUJER',
+  'Chamarra para Dama': 'MUJER', 'Faldas': 'MUJER',
+  'Accesorios': 'UNISEX'
+};
 
-function setCachedProducts(products) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: products, timestamp: Date.now() }));
-  } catch(e) { console.warn("No se pudo guardar en caché:", e); }
-}
 
-function getCachedProducts() {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    const { data, timestamp } = JSON.parse(cached);
-    if (Date.now() - timestamp > CACHE_EXPIRY) {
-      localStorage.removeItem(CACHE_KEY);
-      return null;
-    }
-    return data;
-  } catch { return null; }
-}
 
-function buildProductIndex(products) {
-  if (!products || products.length === 0) return;
-  window.allProductsIndexed = products;
-  if (typeof window._commonBuildProductIndex === 'function') {
-    window._commonBuildProductIndex(products);
-  }
-}
+
+// buildProductIndex is provided by common.js
 
 async function loadProducts() {
   console.log('🏠 Cargando productos para home...');
@@ -172,11 +134,6 @@ function createMiniProductCard(product) {
   `;
 }
 
-function getRecentProductIds() {
-  try {
-    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-  } catch(e) { return []; }
-}
 
 function getRecentProductsList() {
   const recentIds = getRecentProductIds();
