@@ -150,28 +150,54 @@ function getRecentProductsList() {
 function renderRecentProducts() {
   const container = document.getElementById('recent-products');
   if (!container) return;
+
+  // Gestionar botón "Borrar todo"
+  const clearBtn = document.getElementById('clear-recent-btn');
   
   if (!window.allProducts.length) {
-    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">Cargando productos...</p>';
+    container.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);grid-column:span 2;padding:40px;">Cargando productos...</p>';
+    if (clearBtn) clearBtn.style.display = 'none';
     return;
   }
-  
+
   const recentProducts = getRecentProductsList();
-  
+
   if (recentProducts.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; color: var(--color-text-muted); grid-column: span 4; padding: 40px;">
-        <span style="font-size: 48px;">🕐</span>
+      <div style="text-align:center;color:var(--color-text-muted);grid-column:span 2;padding:40px;">
+        <span style="font-size:48px;">🕐</span>
         <p>No has visto productos recientemente</p>
-        <p style="font-size: 12px;">Los productos que veas aparecerán aquí</p>
-      </div>
-    `;
+        <p style="font-size:12px;">Los productos que veas aparecerán aquí</p>
+      </div>`;
+    if (clearBtn) clearBtn.style.display = 'none';
     return;
   }
-  
+
+  // Mostrar botón borrar cuando hay historial
+  if (clearBtn) {
+    clearBtn.style.display = 'inline-flex';
+    // Registrar listener una sola vez
+    if (!clearBtn.dataset.bound) {
+      clearBtn.dataset.bound = '1';
+      clearBtn.addEventListener('click', async () => {
+        const ok = await window.confirm('¿Eliminar todo el historial de productos vistos?');
+        if (!ok) return;
+        localStorage.removeItem(RECENT_KEY);
+        window.dispatchEvent(new CustomEvent('recentProductsUpdated'));
+        if (typeof showTemporaryMessage === 'function') {
+          showTemporaryMessage('🗑️ Historial eliminado', 'info');
+        }
+      });
+    }
+  }
+
   container.innerHTML = recentProducts.map(product => `
     <a href="catalogo.html#producto-${product.ID}" class="recent-product-card">
-      <img class="recent-product-img" src="${optimizeDriveUrl(product.Imagen1 || product.Imagen2 || '', 200)}" alt="${escapeHtml(product.Nombre)}" loading="lazy">
+      <img class="recent-product-img"
+           src="${optimizeDriveUrl(product.Imagen1 || product.Imagen2 || '', 200)}"
+           alt="${escapeHtml(product.Nombre)}"
+           loading="lazy"
+           width="200" height="200">
       <div class="recent-product-info">
         <div class="recent-product-name">${escapeHtml(product.Nombre)}</div>
         <div class="recent-product-price">${formatCurrency(product.Precio)}</div>
@@ -245,21 +271,15 @@ async function generateHomeLooksFromWishlist() {
     container.appendChild(card);
   });
 
-  const lazyImgs = container.querySelectorAll('.lazy');
-  if ('IntersectionObserver' in window) {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const img = entry.target;
-          const src = img.getAttribute('data-src');
-          if (src) { img.src = src; img.removeAttribute('data-src'); img.classList.add('loaded'); }
-          observer.unobserve(img);
-        }
-      });
-    }, { rootMargin: '100px' });
-    lazyImgs.forEach(img => observer.observe(img));
+  // Usar el observer compartido de common.js — evita crear un segundo observer huérfano
+  if (typeof observeLazyImages === 'function') {
+    observeLazyImages(container);
   } else {
-    lazyImgs.forEach(img => { const s = img.getAttribute('data-src'); if (s) img.src = s; });
+    // Fallback inline si common.js aún no está listo
+    container.querySelectorAll('img[data-src]').forEach(img => {
+      const s = img.getAttribute('data-src');
+      if (s) { img.src = s; img.removeAttribute('data-src'); img.classList.add('loaded'); }
+    });
   }
 }
 
@@ -396,141 +416,60 @@ function addHomeLookToCart(lookId) {
 }
 
 function reloadHomeLookSlot(lookId, slotType, event) {
-    if (event) event.stopPropagation();
-    
-    console.log(`🔄 Recargando slot ${slotType} del look ${lookId}`);
-    
-    const lookIdx = homeLooks.findIndex(l => l.id === lookId);
-    if (lookIdx === -1) return;
+  if (event) event.stopPropagation();
+  const lookIdx = homeLooks.findIndex(l => l.id === lookId);
+  if (lookIdx === -1) return;
 
-    const look = homeLooks[lookIdx];
-    const config = LOOKS_CONFIG.find(c => c.name === look.name || c.id === look.id);
-    if (!config) return;
+  const look = homeLooks[lookIdx];
+  const config = LOOKS_CONFIG.find(c => c.name === look.name || c.id === look.id);
+  if (!config) return;
 
-    const slot = config.slots.find(s => s.type === slotType);
-    if (!slot) return;
+  const slot = config.slots.find(s => s.type === slotType);
+  if (!slot) return;
 
-    const productsWithStock = window.allProducts.filter(p =>
-        (p.Imagen1 || p.Imagen2) && Number(p.Stock || 0) > 0
-    );
+  const productsWithStock = window.allProducts.filter(p =>
+    (p.Imagen1 || p.Imagen2) && Number(p.Stock || 0) > 0
+  );
 
-    // Excluir IDs ya usados en el look (incluyendo el actual)
-    const usedIds = Object.entries(look.products)
-        .filter(([k, p]) => k !== slotType && p)
-        .map(([, p]) => String(p.id));
-    
-    const currentId = look.products[slotType] ? String(look.products[slotType].id) : null;
-    if (currentId) usedIds.push(currentId);
+  const usedIds = Object.entries(look.products)
+    .filter(([k, p]) => k !== slotType && p)
+    .map(([, p]) => String(p.id));
+  const currentId = look.products[slotType] ? String(look.products[slotType].id) : null;
+  if (currentId) usedIds.push(currentId);
 
-    let available = getProductsForSlot(productsWithStock, slot)
-        .filter(p => !usedIds.includes(String(p.ID)));
+  const available = getProductsForSlot(productsWithStock, slot)
+    .filter(p => !usedIds.includes(String(p.ID)));
 
-    if (available.length === 0) {
-        // Si no hay productos exclusivos, permitir cualquier producto excepto el actual
-        available = getProductsForSlot(productsWithStock, slot)
-            .filter(p => !currentId || String(p.ID) !== currentId);
-    }
+  if (available.length === 0) {
+    if (typeof showTemporaryMessage === 'function') showTemporaryMessage('No hay más opciones para este slot', 'info');
+    return;
+  }
 
-    if (available.length === 0) {
-        if (typeof showTemporaryMessage === 'function') {
-            showTemporaryMessage('No hay más opciones para este slot', 'info');
-        }
-        return;
-    }
+  const pick = available[Math.floor(Math.random() * available.length)];
+  look.products[slotType] = toSlotProduct(pick);
+  look.totalPrice = Object.values(look.products).reduce((s, p) => s + (p ? p.price : 0), 0);
+  homeLooks[lookIdx] = look;
 
-    const pick = available[Math.floor(Math.random() * available.length)];
-    
-    // Crear nuevo producto para el slot
-    const newProduct = toSlotProduct(pick);
-    const oldPrice = look.products[slotType]?.price || 0;
-    const priceDifference = newProduct.price - oldPrice;
-    
-    // Actualizar el look en memoria
-    look.products[slotType] = newProduct;
-    look.totalPrice = Object.values(look.products).reduce((s, p) => s + (p ? p.price : 0), 0);
-    homeLooks[lookIdx] = look;
-
-    // ACTUALIZAR EL DOM SIN REEMPLAZAR TODO EL CARD
-    const card = document.querySelector(`.look-card[data-look-id="${lookId}"]`);
-    if (card) {
-        // Actualizar imagen del slot
-        const slotImageDiv = card.querySelector(`.look-slot-image[data-slot="${slotType}"]`);
-        if (slotImageDiv) {
-            const img = slotImageDiv.querySelector('.look-slot-img');
-            const newImgUrl = optimizeDriveUrl(newProduct.image, 200);
-            const newModalUrl = optimizeDriveUrl(newProduct.image, 800);
-            
-            if (img) {
-                // Pre-cargar la nueva imagen antes de mostrarla
-                const tempImg = new Image();
-                tempImg.onload = () => {
-                    img.src = newImgUrl;
-                    img.classList.add('loaded');
-                };
-                tempImg.src = newImgUrl;
-            }
-            
-            // Actualizar el onclick para el modal
-            slotImageDiv.setAttribute('onclick', `openImageModal('${newModalUrl}', '${newProduct.id}')`);
-        }
-        
-        // Actualizar la información del producto en la lista
-        const productItems = card.querySelectorAll('.look-product-item');
-        const slotOrder = ['torso', 'piernas', 'pies'];
-        const slotIndex = slotOrder.indexOf(slotType);
-        
-        let targetProductItem = null;
-        if (productItems[slotIndex]) {
-            targetProductItem = productItems[slotIndex];
-        } else {
-            for (const item of productItems) {
-                if (item.getAttribute('data-slot') === slotType) {
-                    targetProductItem = item;
-                    break;
-                }
-            }
-        }
-        
-        if (targetProductItem) {
-            // Actualizar nombre
-            const nameEl = targetProductItem.querySelector('.look-product-name');
-            if (nameEl) nameEl.textContent = escapeHtml(newProduct.name);
-            
-            // Actualizar precio con animación
-            const priceEl = targetProductItem.querySelector('.look-product-price');
-            if (priceEl) {
-                priceEl.textContent = formatCurrency(newProduct.price);
-                priceEl.classList.add('price-changed');
-                setTimeout(() => priceEl.classList.remove('price-changed'), 300);
-            }
-            
-            // Actualizar talla
-            const sizeEl = targetProductItem.querySelector('.look-product-size');
-            if (sizeEl) sizeEl.textContent = escapeHtml(newProduct.size || 'Talla no especificada');
-            
-            // Actualizar el botón de añadir al carrito
-            const addBtn = targetProductItem.querySelector('.look-product-add');
-            if (addBtn) {
-                const newOnClick = `addToCart({ID:'${newProduct.id}', Nombre:'${escapeHtml(newProduct.name)}', Precio:${newProduct.price}, Imagen1:'${newProduct.image}', Talla:'${escapeHtml(newProduct.size || '')}'})`;
-                addBtn.setAttribute('onclick', newOnClick);
-            }
-        }
-        
-        // Actualizar precio total del look
-        const totalPriceEl = card.querySelector('.look-total-price');
-        if (totalPriceEl) {
-            totalPriceEl.textContent = formatCurrency(look.totalPrice);
-            totalPriceEl.classList.add('price-changed');
-            setTimeout(() => totalPriceEl.classList.remove('price-changed'), 300);
-        }
-        
-        // Mostrar mensaje de éxito
-        if (typeof showTemporaryMessage === 'function') {
-            showTemporaryMessage(`✨ Prenda actualizada: ${newProduct.name}`, 'success');
-        }
-    }
+  const card = document.querySelector(`.look-card[data-look-id="${lookId}"]`);
+  if (card) {
+    const newCard = createHomeLookCard(look);
+    card.replaceWith(newCard);
+    // Cargar TODAS las imágenes inmediatamente al reemplazar la tarjeta.
+    // No depender del IntersectionObserver (que puede no volver a dispararse
+    // sobre elementos recién insertados en el DOM), evitando el bug de
+    // imágenes blancas al recargar un slot.
+    newCard.querySelectorAll('img[data-src]').forEach(img => {
+      const src = img.getAttribute('data-src');
+      if (src) {
+        img.src = src;
+        img.removeAttribute('data-src');
+        img.classList.remove('lazy');
+        img.classList.add('loaded');
+      }
+    });
+    // Imágenes ya cargadas (sin data-src) no necesitan acción
+  }
 }
-
 
 function createHomeLookCard(look) {
   const slotOrder = ['torso', 'piernas', 'pies'];
