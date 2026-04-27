@@ -3,7 +3,7 @@ const PAGE_SIZE = 10;
 // home.js y otros módulos lean siempre la misma fuente de verdad.
 // Se usa un getter/setter para mantener ambas referencias en sync.
 let _allProducts = window.allProducts || [];
-Object.defineProperty(window, 'allProduct', {
+Object.defineProperty(window, 'allProducts', {
   get() { return _allProducts; },
   set(v) { _allProducts = v; },
   configurable: true
