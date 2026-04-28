@@ -1,4 +1,3 @@
-// ========== NOTIFICACIONES OPTIMIZADAS - FILTRO POR STATUS ==========
 const NOTIF_CACHE_KEY = 'zr_notifications_v2';
 const NOTIF_CACHE_TTL = 30000;
 
@@ -646,7 +645,7 @@ window.addEventListener('beforeunload', () => {
   if (lazyImageObserver) lazyImageObserver.disconnect();
 });
 
-// Exportar funciones
+// Exportar funcio
 window.removeOutOfStockNotifications = removeOutOfStockNotifications;
 window.confirmGroupPurchase = confirmGroupPurchase;
 window.cancelGroupPurchase = cancelGroupPurchase;
