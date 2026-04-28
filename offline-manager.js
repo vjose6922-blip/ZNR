@@ -1,372 +1,189 @@
-// ========== OFFLINE MANAGER - VERSIÓN CORREGIDA ==========
-const ADMIN_ACTIONS = {
-    CREATE: 'admin_create',
-    UPDATE: 'admin_update',
-    DELETE: 'admin_delete'
+// ===== CLAVES UNIFICADAS =====
+const CACHE_KEYS = {
+  PAGE_STATE: 'zr_page_cache',      // Estado de páginas (sessionStorage)
+  PRODUCTS: 'zr_products_data'      // Productos (sessionStorage + localStorage unificados)
 };
 
-let pendingActions = [];
+// ===== PRODUCTOS CACHE (unificado) =====
+function setProductsCache(products, persistent = false) {
+  try {
+    const cacheData = {
+      data: products,
+      timestamp: Date.now(),
+      version: '1.0'
+    };
+    
+    // Siempre guardar en sessionStorage (rápido, se limpia al cerrar)
+    sessionStorage.setItem(CACHE_KEYS.PRODUCTS, JSON.stringify(cacheData));
+    
+    // Solo guardar en localStorage si se solicita persistencia
+    if (persistent) {
+      localStorage.setItem(CACHE_KEYS.PRODUCTS, JSON.stringify(cacheData));
+    }
+  } catch(e) { console.warn('Error guardando caché de productos:', e); }
+}
 
-// ========== 1. CARGAR/GUARDAR ACCIONES ==========
-function loadPendingActions() {
-    try {
-        const saved = localStorage.getItem('zr_admin_pending');
-        if (saved) {
-            pendingActions = JSON.parse(saved);
-            console.log(`📦 Cargadas ${pendingActions.length} acciones pendientes`);
+function getProductsCache(maxAge = 300000, preferPersistent = false) {
+  try {
+    // Priorizar sessionStorage (más rápido)
+    let cached = sessionStorage.getItem(CACHE_KEYS.PRODUCTS);
+    let source = 'session';
+    
+    // Si no hay en sessionStorage o expiró, intentar localStorage
+    if (!cached && preferPersistent) {
+      cached = localStorage.getItem(CACHE_KEYS.PRODUCTS);
+      source = 'local';
+    }
+    
+    if (!cached) return null;
+    
+    const { data, timestamp, version } = JSON.parse(cached);
+    
+    // Verificar expiración
+    if (Date.now() - timestamp > maxAge) {
+      // Limpiar solo la fuente que expiró
+      if (source === 'session') {
+        sessionStorage.removeItem(CACHE_KEYS.PRODUCTS);
+      } else {
+        localStorage.removeItem(CACHE_KEYS.PRODUCTS);
+      }
+      return null;
+    }
+    
+    // Si la versión es antigua, rechazar
+    if (version !== '1.0') return null;
+    
+    console.log(`📦 Productos desde caché (${source})`);
+    return data;
+  } catch(e) { 
+    console.warn('Error leyendo caché de productos:', e);
+    return null; 
+  }
+}
+
+// Mantener compatibilidad con funciones existentes
+function setSessionProductsCache(products) {
+  setProductsCache(products, false);
+}
+
+function getSessionProductsCache(maxAge = 300000) {
+  return getProductsCache(maxAge, false);
+}
+
+// ===== PÁGINAS CACHE (sin cambios, ya está optimizado) =====
+const PAGE_CACHE_KEY = CACHE_KEYS.PAGE_STATE;
+
+function savePageState(pageName, state) {
+  try {
+    const allStates = JSON.parse(sessionStorage.getItem(PAGE_CACHE_KEY) || '{}');
+    allStates[pageName] = {
+      ...state,
+      timestamp: Date.now()
+    };
+    sessionStorage.setItem(PAGE_CACHE_KEY, JSON.stringify(allStates));
+  } catch(e) {}
+}
+
+function restorePageState(pageName) {
+  try {
+    const allStates = JSON.parse(sessionStorage.getItem(PAGE_CACHE_KEY) || '{}');
+    const state = allStates[pageName];
+    if (state && (Date.now() - state.timestamp) < 300000) {
+      return state;
+    }
+    return null;
+  } catch(e) { return null; }
+}
+
+// ===== PRELOADING (optimizado con límite de conexión) =====
+function preloadPage(pageUrl) {
+  if (!pageUrl) return;
+  
+  // No pre-cargar en conexiones lentas (2G/3G)
+  if (navigator.connection && (navigator.connection.saveData || 
+      navigator.connection.effectiveType === 'slow-2g' ||
+      navigator.connection.effectiveType === '2g')) {
+    console.log('📡 Conexión lenta, omitiendo prefetch');
+    return;
+  }
+  
+  const link = document.createElement('link');
+  link.rel = 'prefetch';
+  link.href = pageUrl;
+  link.as = 'document';
+  document.head.appendChild(link);
+  
+  const scriptMap = {
+    'index.html': 'script.js',
+    'looks.html': 'looks.js',
+    'admin.html': 'admin.js',
+    'notificaciones.html': null
+  };
+  
+  const scriptName = scriptMap[pageUrl.split('/').pop()];
+  if (scriptName) {
+    const scriptLink = document.createElement('link');
+    scriptLink.rel = 'prefetch';
+    scriptLink.href = scriptName;
+    scriptLink.as = 'script';
+    document.head.appendChild(scriptLink);
+  }
+}
+
+function initPreloading() {
+  // Usar IntersectionObserver para pre-cargar solo enlaces visibles
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const link = entry.target;
+          const href = link.getAttribute('href');
+          if (href && href.includes('.html')) {
+            preloadPage(href);
+          }
+          observer.unobserve(link);
         }
-    } catch(e) { pendingActions = []; }
-    updatePendingBadge();
-}
-
-function savePendingActions() {
-    try {
-        localStorage.setItem('zr_admin_pending', JSON.stringify(pendingActions));
-        updatePendingBadge();
-    } catch(e) {}
-}
-
-function addPendingAction(type, data, productId = null) {
-    pendingActions.push({
-        id: Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-        type: type,
-        data: data,
-        productId: productId,
-        timestamp: Date.now(),
-        retries: 0
+      });
+    }, { rootMargin: '100px' });
+    
+    document.querySelectorAll('a[href*=".html"]').forEach(link => {
+      observer.observe(link);
     });
-    savePendingActions();
-    showMessage(`📡 Producto guardado localmente. Se sincronizará cuando haya internet.`, 'info');
-    console.log(`📝 Acción "${type}" guardada. Total pendientes: ${pendingActions.length}`);
+  } else {
+    // Fallback para navegadores sin IntersectionObserver
+    document.querySelectorAll('a[href*=".html"]').forEach(link => {
+      link.addEventListener('mouseenter', () => {
+        preloadPage(link.getAttribute('href'));
+      });
+      
+      let touchTimeout;
+      link.addEventListener('touchstart', () => {
+        clearTimeout(touchTimeout);
+        touchTimeout = setTimeout(() => {
+          preloadPage(link.getAttribute('href'));
+        }, 100);
+      });
+    });
+  }
 }
 
-// ========== 2. API ==========
-const ADMIN_API = "https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec";
-
-async function syncPendingActions() {
-    if (!navigator.onLine) {
-        console.log("📡 Sin conexión, no se puede sincronizar");
-        return;
-    }
-    
-    if (pendingActions.length === 0) return;
-    
-    console.log(`🔄 Sincronizando ${pendingActions.length} acciones pendientes...`);
-    showMessage(`🔄 Sincronizando ${pendingActions.length} producto(s)...`, 'info');
-    
-    for (let i = 0; i < pendingActions.length; i++) {
-        const action = pendingActions[i];
-        
-        try {
-            let success = false;
-            
-            if (action.type === ADMIN_ACTIONS.CREATE) {
-                const response = await fetch(ADMIN_API, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    body: new URLSearchParams({ action: "create", ...action.data }).toString()
-                });
-                const result = await response.json();
-                success = result.ok === true;
-                if (success) console.log(`✅ Producto creado: ${action.data.Nombre}`);
-            }
-            else if (action.type === ADMIN_ACTIONS.UPDATE) {
-                const response = await fetch(ADMIN_API, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    body: new URLSearchParams({ action: "update", id: action.productId, ...action.data }).toString()
-                });
-                const result = await response.json();
-                success = result.ok === true;
-                if (success) console.log(`✅ Producto actualizado: ID ${action.productId}`);
-            }
-            else if (action.type === ADMIN_ACTIONS.DELETE) {
-                const response = await fetch(ADMIN_API, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    body: new URLSearchParams({ action: "delete", id: action.productId }).toString()
-                });
-                const result = await response.json();
-                success = result.ok === true;
-                if (success) console.log(`✅ Producto eliminado: ID ${action.productId}`);
-            }
-            
-            if (success) {
-                pendingActions.splice(i, 1);
-                i--;
-                savePendingActions();
-            } else {
-                action.retries++;
-                if (action.retries >= 3) {
-                    console.warn(`❌ Acción fallida tras ${action.retries} intentos, eliminando`);
-                    pendingActions.splice(i, 1);
-                    i--;
-                    savePendingActions();
-                } else {
-                    console.log(`⚠️ Reintento ${action.retries}/3 para ${action.type}`);
-                }
-            }
-        } catch (err) {
-            console.error(`Error sincronizando:`, err);
-            action.retries++;
-            if (action.retries >= 3) {
-                pendingActions.splice(i, 1);
-                i--;
-                savePendingActions();
-            }
-        }
-    }
-    
-    if (pendingActions.length === 0) {
-        showMessage(`✅ Todos los productos sincronizados`, 'success');
-        if (typeof loadAdminProducts === 'function') {
-            loadAdminProducts();
-        }
-    }
-    
-    updatePendingBadge();
+function isOfflineModeAvailable() {
+  const cached = getProductsCache(300000, true);
+  return !!cached;
 }
 
-// ========== 3. UI - BADGE ==========
-let pendingBadge = null;
-
-function updatePendingBadge() {
-    const count = pendingActions.length;
-    
-    if (!pendingBadge && count > 0) {
-        pendingBadge = document.createElement('div');
-        pendingBadge.id = 'pending-badge';
-        pendingBadge.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: #f97316;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 40px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            font-family: monospace;
-        `;
-        pendingBadge.onclick = async () => {
-            const ok = await window.confirm(`¿Sincronizar ${count} producto(s) pendiente(s) ahora?`);
-            if (ok) {
-                syncPendingActions();
-            }
-        };
-        document.body.appendChild(pendingBadge);
-    }
-    
-    if (pendingBadge) {
-        if (count > 0) {
-            pendingBadge.style.display = 'flex';
-            pendingBadge.innerHTML = `📡 ${count} pendiente${count !== 1 ? 's' : ''} · Click para sincronizar`;
-        } else {
-            pendingBadge.style.display = 'none';
-        }
-    }
-}
-
-function showMessage(msg, type = 'info') {
-    if (typeof showTemporaryMessage === 'function') {
-        showTemporaryMessage(msg, type);
-    } else {
-        console.log(`[Offline] ${msg}`);
-    }
-}
-
-// ========== 4. INTERCEPTACIÓN CORREGIDA ==========
-function setupInterception() {
-    console.log("🔧 Configurando interceptación offline...");
-    
-    // Esperar a que la función original exista
-    const interval = setInterval(() => {
-        const originalSubmit = window.handleProductFormSubmit;
-        const originalDelete = window.deleteProduct;
-        
-        if (typeof originalSubmit === 'function') {
-            clearInterval(interval);
-            console.log("✅ Funciones detectadas, aplicando interceptación");
-            
-            // Guardar originales
-            window._originalSubmit = originalSubmit;
-            window._originalDelete = originalDelete;
-            
-            // Crear nueva función
-            window.handleProductFormSubmit = async function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                console.log("📝 Interceptación ejecutada - Online:", navigator.onLine);
-                
-                const id = document.getElementById("product-id")?.value || "";
-                const productData = {
-                    Nombre: document.getElementById("product-name")?.value.trim() || "",
-                    Precio: Number(document.getElementById("product-price")?.value || 0),
-                    Stock: Number(document.getElementById("product-stock")?.value || 0),
-                    Descripcion: document.getElementById("product-description")?.value.trim() || "",
-                    Talla: document.getElementById("product-sizes")?.value.trim() || "",
-                    Categoria: document.getElementById("product-category")?.value.trim() || "",
-                    Badge: document.getElementById("product-badge")?.value || "",
-                    Imagen1: document.getElementById("product-image1")?.value.trim() || "",
-                    Imagen2: document.getElementById("product-image2")?.value.trim() || "",
-                    Imagen3: document.getElementById("product-image3")?.value.trim() || "",
-                };
-                
-                if (!productData.Nombre) {
-                    if (typeof showCustomAlert === 'function') {
-                        await showCustomAlert({
-                            title: "⚠️ Campo requerido",
-                            message: "El nombre del producto es obligatorio.",
-                            icon: "📝",
-                            confirmText: "Aceptar"
-                        });
-                    }
-                    return;
-                }
-                
-                // 🔴 MODO OFFLINE
-                if (!navigator.onLine) {
-                    console.log("🔴 OFFLINE: Guardando producto localmente");
-                    
-                    if (id) {
-                        addPendingAction(ADMIN_ACTIONS.UPDATE, productData, id);
-                    } else {
-                        addPendingAction(ADMIN_ACTIONS.CREATE, productData);
-                    }
-                    
-                    if (typeof resetProductForm === 'function') resetProductForm();
-                    if (typeof clearImageUploads === 'function') clearImageUploads();
-                    
-                    // Mostrar mensaje de éxito
-                    if (typeof showCustomAlert === 'function') {
-                        await showCustomAlert({
-                            title: id ? "📡 Producto guardado" : "📡 Producto creado",
-                            message: `El producto se ha guardado localmente.\nSe sincronizará automáticamente cuando haya internet.`,
-                            icon: "📡",
-                            confirmText: "Aceptar"
-                        });
-                    }
-                    return;
-                }
-                
-                // 🟢 MODO ONLINE
-                console.log("🟢 ONLINE: Ejecutando función original");
-                await window._originalSubmit(e);
-            };
-            
-            // ===== REEMPLAZAR EL EVENT LISTENER DEL FORMULARIO =====
-            const productForm = document.getElementById("product-form");
-            if (productForm) {
-                // Clonar para eliminar todos los event listeners existentes
-                const newForm = productForm.cloneNode(true);
-                productForm.parentNode.replaceChild(newForm, productForm);
-                
-                // Agregar el nuevo event listener
-                newForm.addEventListener("submit", window.handleProductFormSubmit);
-                console.log("✅ Event listener del formulario reemplazado");
-            }
-            
-            // ===== INTERCEPTAR DELETE =====
-            window.deleteProduct = async function(id) {
-                if (!navigator.onLine) {
-                    console.log("🔴 OFFLINE: Marcando producto para eliminar:", id);
-                    addPendingAction(ADMIN_ACTIONS.DELETE, null, id);
-                    
-                    const row = document.querySelector(`.admin-product-row button[data-id="${id}"]`)?.closest('.admin-product-row');
-                    if (row) row.remove();
-                    
-                    if (typeof showCustomAlert === 'function') {
-                        await showCustomAlert({
-                            title: "📡 Producto marcado",
-                            message: "El producto se eliminará cuando haya internet.",
-                            icon: "📡",
-                            confirmText: "Aceptar"
-                        });
-                    }
-                    return;
-                }
-                await window._originalDelete(id);
-            };
-        }
-    }, 100);
-    
-    setTimeout(() => clearInterval(interval), 5000);
-}
-
-// ========== 5. MONITOREO ==========
-window.addEventListener('online', () => {
-    console.log("🟢 Conexión recuperada - Sincronizando...");
-    showMessage("🟢 Conexión recuperada. Sincronizando cambios...", 'success');
-    setTimeout(() => syncPendingActions(), 1000);
-});
-
-window.addEventListener('offline', () => {
-    console.log("🔴 Conexión perdida");
-    showMessage("📡 Sin conexión - Los cambios se guardarán localmente", 'warning');
-});
-
-// ========== 6. INICIALIZAR ==========
-loadPendingActions();
-setupInterception();
-
-if (navigator.onLine && pendingActions.length > 0) {
-    setTimeout(() => syncPendingActions(), 3000);
-}
-
-// ========== 7. POLLING PERIÓDICO (cada 2 minutos) ==========
-// Cubre el caso en que la conexión se recupera sin disparar el evento 'online'
-// (ej. cambio de red en algunos navegadores móviles)
-let _periodicSyncInterval = null;
-
-function startPeriodicSync() {
-    if (_periodicSyncInterval) return; // ya iniciado
-    _periodicSyncInterval = setInterval(() => {
-        if (navigator.onLine && pendingActions.length > 0) {
-            console.log("⏱️ Polling periódico: sincronizando acciones pendientes...");
-            syncPendingActions();
-        }
-    }, 2 * 60 * 1000); // cada 2 minutos
-    console.log("⏱️ Polling periódico de sync iniciado");
-}
-
-function stopPeriodicSync() {
-    if (_periodicSyncInterval) {
-        clearInterval(_periodicSyncInterval);
-        _periodicSyncInterval = null;
-    }
-}
-
-// Pausar cuando la pestaña pierde visibilidad para no consumir recursos
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        stopPeriodicSync();
-    } else {
-        // Al volver a la pestaña: sincronizar de inmediato si hay pendientes
-        if (navigator.onLine && pendingActions.length > 0) {
-            syncPendingActions();
-        }
-        startPeriodicSync();
-    }
-});
-
-startPeriodicSync();
-
-// Exportar para debug
-window.debugPending = () => console.table(pendingActions);
-window.syncNow = () => syncPendingActions();
-window.clearPending = async () => {
-    const ok = await window.confirm('¿Eliminar TODAS las acciones pendientes?');
-    if (ok) {
-        pendingActions = [];
-        savePendingActions();
-        updatePendingBadge();
-        console.log("🗑️ Cola limpiada");
-    }
+// ===== EXPORTAR API COMPATIBLE =====
+window.CacheManager = {
+  // Nuevas funciones unificadas
+  setProductsCache,
+  getProductsCache,
+  
+  // Funciones legacy (para compatibilidad con código existe
+  setSessionProductsCache,
+  getSessionProductsCache,
+  savePageState,
+  restorePageState,
+  preloadPage,
+  initPreloading,
+  isOfflineModeAvailable
 };
