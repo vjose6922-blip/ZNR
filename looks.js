@@ -1,8 +1,4 @@
-// ============================================
-// looks.js - VERSION UNIFICADA CON CLIMA AVANZADO
-// ============================================
-
-// API_URL is provided by common.js (window.API_URL); no local alias needed
+const WEATHER_API_URL = API_URL;
 const LOOKS_CACHE_KEY = 'zr_looks_generated_v2';
 const MAX_WEATHER_RETRIES = 5;
 const RETRY_DELAYS = [1000, 3000, 5000, 10000, 30000];
@@ -1638,10 +1634,10 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener('cartUpdated', () => updateCartBadge());
   
   const requestBtn = document.getElementById("request-purchase-btn");
-  if (requestBtn) requestBtn.addEventListener("click", () => window.openWhatsAppCheckout?.());
+  if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 });
 
-// Exponer funciones globales
+// Exponer funciones globa
 window.reloadSlot = reloadSlot;
 window.addLookToCart = addLookToCart;
 window.toggleLookWishlist = toggleLookWishlist;
