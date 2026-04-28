@@ -10,7 +10,7 @@
   <link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
   <link rel="preload" href="styles.css" as="style">
   <link rel="stylesheet" href="styles.css">
-  <!-- PWA Meta  -->
+  <!-- PWA Meta Tags -->
 <link rel="manifest" href="/ZNR/manifest.json">
 <meta name="theme-color" content="#3b1f5f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -240,8 +240,16 @@
   <script src="common.js" defer></script>
   <script src="cache-manager.js" defer></script>
   <script src="notifications-optimized.js" defer></script>
-
-
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/ZNR/sw.js')
+          .then(registration => console.log('✅ SW registrado:', registration.scope))
+          .catch(error => console.log('❌ Error SW:', error));
+      });
+    }
+  </script>
 
 
   
