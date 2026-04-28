@@ -1,28 +1,14 @@
 const PAGE_SIZE = 10;
-// allProducts sincronizado con window.allProducts para que common.js,
-// home.js y otros módulos lean siempre la misma fuente de verdad.
-// Se usa un getter/setter para mantener ambas referencias en sync.
-let _allProducts = window.allProducts || [];
-Object.defineProperty(window, 'allProducts', {
-  get() { return _allProducts; },
-  set(v) { _allProducts = v; },
-  configurable: true
-});
-// La variable local apunta al mismo array via getter
-Object.defineProperty(globalThis, 'allProducts', {
-  get() { return window.allProducts; },
-  set(v) { window.allProducts = v; },
-  configurable: true
-});
+let allProducts = [];
 let filteredProducts = [];
 let currentPage = 1;
 let isLoading = false;
 let sliderState = new Map();
-let sliderTimers = new Map(); // tracks auto-advance intervals to prevent memory leaks
 let initialHashHandled = false;
 const SECRET_TAPS_REQUIRED = 5;
 let secretTapCount = 0;
 let secretTapTimeout = null;
+let isBackgroundLoading = false;
 
 class BackgroundLoadQueue {
   constructor() {
@@ -399,34 +385,19 @@ function populateCategoryFilter(genderFilter = null) {
 function renderProductsPage(reset = false) {
   const container = document.getElementById("products-container");
   if (!container) return;
-
-  // Limpiar timers de sliders de la página anterior antes de destruir las tarjetas
-  if (sliderTimers.size > 0) {
-    sliderTimers.forEach(id => clearInterval(id));
-    sliderTimers.clear();
-  }
-  // Desconectar el observer anterior para que no queden referencias a imgs borradas
-  if (typeof disconnectImageObserver === 'function') disconnectImageObserver();
-
   const start = (currentPage - 1) * PAGE_SIZE;
-  const end   = start + PAGE_SIZE;
+  const end = start + PAGE_SIZE;
   const pageItems = filteredProducts.slice(start, end);
   container.innerHTML = "";
-
   if (pageItems.length === 0) {
     container.innerHTML = '<p class="helper-text">No hay productos para mostrar</p>';
     renderPagination();
     return;
   }
-
   pageItems.forEach((product) => {
     const card = createProductCard(product);
     container.appendChild(card);
   });
-
-  // Activar lazy loading en las imágenes recién insertadas
-  if (typeof observeLazyImages === 'function') observeLazyImages(container);
-
   renderPagination();
 }
 
@@ -452,6 +423,14 @@ function renderPagination() {
     pagination.appendChild(nextBtn);
   }
 }
+
+
+
+function hasFreeShipping(price) {
+  const numericPrice = Number(price) || 0;
+  return numericPrice >= 300;
+}
+
 
 
 
@@ -487,7 +466,7 @@ function createProductCard(product) {
     .filter(Boolean);
 
   if (images.length === 0) {
-    images.push("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800' viewBox='0 0 600 800'%3E%3Crect width='600' height='800' fill='%233b1f5f'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui,sans-serif' font-size='32' fill='%23ffffff'%3ESin imagen%3C/text%3E%3C/svg%3E");
+    images.push("https://via.placeholder.com/600x800/3b1f5f/ffffff?text=Sin+imagen");
   }
 
   images.forEach((url) => {
@@ -498,8 +477,6 @@ function createProductCard(product) {
     img.alt = safeNombre;
     img.src = url;
     img.loading = "lazy";
-    img.width  = 600;  // evita Layout Shift (CLS) — el CSS aspect-ratio hace el resto
-    img.height = 800;
     img.addEventListener("click", () => openImageModal(url, ID));
 
     slide.appendChild(img);
@@ -675,10 +652,7 @@ function attachSliderEvents(slider, totalSlides) {
   slider.addEventListener("mouseup", handleEnd);
   slider.addEventListener("mouseleave", () => { if (isDragging) handleEnd(); });
   dots.forEach((dot) => dot.addEventListener("click", () => updateSlider(Number(dot.dataset.index))));
-  // Cancel any existing timer for this product before creating a new one
-  if (sliderTimers.has(productId)) clearInterval(sliderTimers.get(productId));
-  const timerId = setInterval(() => updateSlider((sliderState.get(productId) || 0) + 1), 6000);
-  sliderTimers.set(productId, timerId);
+  setInterval(() => updateSlider((sliderState.get(productId) || 0) + 1), 6000);
 }
 
 
@@ -703,14 +677,107 @@ function handleSecretTap() {
   }
 }
 
-let _silentPollingInterval = null; // referencia global para evitar intervalos acumulados
+async function openWhatsAppCheckout() {
+  const items = Object.values(localCart);
+  if (items.length === 0) {
+    showTemporaryMessage("No hay productos en el carrito", "error");
+    return;
+  }
+  const hasAcceptedPrivacy = localStorage.getItem("privacy_accepted") === "true";
+  if (!hasAcceptedPrivacy) {
+    showPrivacyModal(() => continueCheckout());
+    return;
+  }
+  continueCheckout();
+}
+
+async function continueCheckout() {
+  const items = Object.values(localCart);
+  if (items.length === 0) return;
+  
+  let clientPhone = localStorage.getItem("client_phone");
+  if (!clientPhone) {
+    clientPhone = await prompt(
+      "📱 Para procesar tu compra, ingresa tu número de WhatsApp (10 dígitos):\n\n⚠️ Solo números, sin espacios ni código país.\n🔒 Tus datos están protegidos",
+      ""
+    );
+    if (!clientPhone) {
+      showTemporaryMessage("❌ Necesitamos tu número para procesar la compra", "error");
+      return;
+    }
+    clientPhone = clientPhone.replace(/[^0-9]/g, '');
+    if (clientPhone.length !== 10) {
+      showTemporaryMessage("❌ Número inválido. Debe tener 10 dígitos.", "error");
+      return;
+    }
+    localStorage.setItem("client_phone", clientPhone);
+  }
+  
+  showLoader("Enviando solicitud...");
+  const requestId = generateRequestId();
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  // Mensaje mejorado para el administrador
+  let adminMessage = "*🛍️ NUEVA SOLICITUD DE COMPRA*\n";
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += `👤 *Cliente:* +52 ${clientPhone}\n`;
+  adminMessage += `🆔 *ID:* ${requestId}\n`;
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += "*📦 PRODUCTOS:*\n\n";
+  
+  items.forEach((item, index) => {
+    adminMessage += `• *${item.name}*\n`;
+    adminMessage += `  Cantidad: ${item.quantity} | $${item.price.toLocaleString()} c/u\n`;
+    adminMessage += `  Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
+    if (index < items.length - 1) adminMessage += "────────────────────\n";
+  });
+  
+  adminMessage += "\n━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += `💵 *TOTAL:* $${total.toLocaleString()} MXN\n`;
+  adminMessage += "━━━━━━━━━━━━━━━━━━━━\n";
+  adminMessage += "Una vez confirmado tu pedido te enviaremos un mensaje por este chat.\n";
+  
+  const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
+  window.open(whatsappAdminUrl, '_blank');
+  
+  try {
+    await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "saveClientPhone", requestId: requestId, phone: clientPhone })
+    });
+    
+    // En common.js, función continueCheckout()
+const notificationItems = items.map(item => ({
+  productId: item.id,
+  nombre: item.name,
+  cantidad: item.quantity,
+  imagen: item.Imagen1 || "",
+  talla: item.Talla || "",
+  precio: item.price || 0          // ← AÑADIR ESTO
+}));
+    
+    await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "createNotification", items: notificationItems, requestId: requestId })
+    });
+    
+    localCart = {};
+    saveCartToStorage();
+    updateCartBadge();
+    if (typeof renderCart === 'function') renderCart();
+    
+    showTemporaryMessage(`✅ ¡Solicitud enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`, "success");
+    closeCartDrawer();
+    startSilentPolling(requestId, clientPhone);
+  } catch(err) {
+    console.error("Error:", err);
+    showTemporaryMessage("❌ Error al enviar la solicitud", "error");
+  } finally {
+    hideLoader();
+  }
+}
 
 function startSilentPolling(requestId, clientPhone) {
-  // Cancelar polling previo si el usuario realizó múltiples compras en la misma sesión
-  if (_silentPollingInterval) {
-    clearInterval(_silentPollingInterval);
-    _silentPollingInterval = null;
-  }
   let interval = setInterval(async () => {
     try {
       const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${requestId}`);
@@ -776,23 +843,65 @@ function startSilentPolling(requestId, clientPhone) {
       console.error("Error en polling:", err);
     }
   }, 5000);
-  _silentPollingInterval = interval;
-
+  
   // Timeout después de 10 minutos
-  const timeoutId = setTimeout(() => {
-    clearInterval(interval);
-    _silentPollingInterval = null;
+  setTimeout(() => { 
+    clearInterval(interval); 
     localStorage.removeItem('pending_purchase_' + requestId);
   }, 600000);
-
-  // Limpiar timeout si el intervalo ya fue cancelado antes
-  interval._timeoutId = timeoutId;
 }
 
 
 
 
 
+
+async function pagarConMercadoPago() {
+  const items = Object.values(localCart).map(item => ({
+    id: item.id,
+    title: item.name,
+    quantity: item.quantity,
+    unit_price: item.price
+  }));
+  if (items.length === 0) {
+    alert("No hay productos en el carrito");
+    return;
+  }
+  showLoader("Preparando pago...");
+  try {
+    const params = new URLSearchParams({ action: "createPreference", items: JSON.stringify(items) });
+    const response = await fetch(`${API_URL}?${params.toString()}`, { method: "GET" });
+    const data = await response.json();
+    if (data.ok && data.initPoint) {
+      window.location.href = data.initPoint;
+    } else {
+      throw new Error(data.error || "Error desconocido");
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    alert("❌ Error: " + error.message);
+    hideLoader();
+  }
+}
+
+function verificarEstadoPago() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentStatus = urlParams.get("payment");
+  if (paymentStatus === "success") {
+    localCart = {};
+    saveCartToStorage();
+    updateCartBadge();
+    if (typeof renderCart === 'function') renderCart();
+    alert("🎉 ¡Pago completado con éxito!\n\nGracias por tu compra.");
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (paymentStatus === "failure") {
+    alert("❌ El pago no pudo completarse.\n\nPor favor, intenta nuevamente.");
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (paymentStatus === "pending") {
+    alert("⏳ Tu pago está siendo procesado.\n\nTe notificaremos cuando se confirme.");
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   fetchProducts();
@@ -839,8 +948,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (secretLogo) secretLogo.addEventListener("click", handleSecretTap);
 
   const requestBtn = document.getElementById("request-purchase-btn");
-  if (requestBtn) requestBtn.addEventListener("click", () => window.openWhatsAppCheckout?.());
+  if (requestBtn) requestBtn.addEventListener("click", openWhatsAppCheckout);
 
+  const mpBtn = document.getElementById("mp-checkout-btn");
+  if (mpBtn) mpBtn.addEventListener("click", pagarConMercadoPago);
+
+  verificarEstadoPago();
 
   const layoutBtn = document.getElementById("layout-toggle-btn");
   const productsContainer = document.getElementById("products-container");
