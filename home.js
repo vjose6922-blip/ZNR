@@ -5,35 +5,73 @@ const CATEGORIES = [
   { name: 'Dama', icon: '👗', filter: 'MUJER', url: 'catalogo.html?gender=MUJER' }
 ];
 
+const GENDER_BY_CATEGORY = {
+  'Playeras': 'HOMBRE',
+  'Pantalon para Caballero': 'HOMBRE',
+  'Short para Caballero': 'HOMBRE',
+  'Calzado para Caballero': 'HOMBRE',
+  'Sueter para Caballero': 'HOMBRE',
+  'Chamarra para Caballero': 'HOMBRE',
+  'Blusas': 'MUJER',
+  'Pantalon para Dama': 'MUJER',
+  'Short para Dama': 'MUJER',
+  'Vestidos': 'MUJER',
+  'Calzado para Dama': 'MUJER',
+  'Sueter para Dama': 'MUJER',
+  'Chamarra para Dama': 'MUJER',
+  'Faldas': 'MUJER',
+  'Accesorios': 'UNISEX'
+};
 
 const RECENT_KEY = 'zr_recent_products';
 var homeLooks = [];
 
-// Local gender map — used for look generation in home page
-const GENDER_BY_CATEGORY = {
-  'Playeras': 'HOMBRE', 'Pantalon para Caballero': 'HOMBRE',
-  'Short para Caballero': 'HOMBRE', 'Calzado para Caballero': 'HOMBRE',
-  'Sueter para Caballero': 'HOMBRE', 'Chamarra para Caballero': 'HOMBRE',
-  'Blusas': 'MUJER', 'Pantalon para Dama': 'MUJER',
-  'Short para Dama': 'MUJER', 'Vestidos': 'MUJER',
-  'Calzado para Dama': 'MUJER', 'Sueter para Dama': 'MUJER',
-  'Chamarra para Dama': 'MUJER', 'Faldas': 'MUJER',
-  'Accesorios': 'UNISEX'
-};
+function addToRecentProducts(productId) {
+  if (!productId) return;
+  try {
+    let recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+    recent = [String(productId), ...recent.filter(id => String(id) !== String(productId))];
+    recent = recent.slice(0, 12);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+    window.dispatchEvent(new CustomEvent('recentProductsUpdated'));
+  } catch(e) {}
+}
 
+function setCachedProducts(products) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: products, timestamp: Date.now() }));
+  } catch(e) { console.warn("No se pudo guardar en caché:", e); }
+}
 
+function getCachedProducts() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const { data, timestamp } = JSON.parse(cached);
+    if (Date.now() - timestamp > CACHE_EXPIRY) {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return data;
+  } catch { return null; }
+}
 
-
-// buildProductIndex is provided by common.js
+function buildProductIndex(products) {
+  if (!products || products.length === 0) return;
+  window.allProductsIndexed = products;
+  if (typeof window._commonBuildProductIndex === 'function') {
+    window._commonBuildProductIndex(products);
+  }
+}
 
 async function loadProducts() {
   console.log('🏠 Cargando productos para home...');
   
-  const cached = (window.getCachedProducts || getCachedProducts)();
+  const cached = getCachedProducts();
   if (cached && cached.length > 0) {
     console.log('📦 Productos desde caché local');
     window.allProducts = cached;  
-    if (window.buildProductIndex) window.buildProductIndex(window.allProducts);
+    buildProductIndex(window.allProducts); 
     renderCategories();
     renderFeaturedProducts();
     renderRecentProducts();
@@ -58,8 +96,8 @@ async function loadProducts() {
     clearTimeout(timeoutId);
     const data = await res.json();
     window.allProducts = data.products || data || [];  
-    if (window.setCachedProducts) window.setCachedProducts(window.allProducts);
-    if (window.buildProductIndex) window.buildProductIndex(window.allProducts);
+    setCachedProducts(window.allProducts); 
+    buildProductIndex(window.allProducts); 
     
     renderCategories();
     renderFeaturedProducts();
@@ -134,9 +172,14 @@ function createMiniProductCard(product) {
   `;
 }
 
+function getRecentProductIds() {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+  } catch(e) { return []; }
+}
 
 function getRecentProductsList() {
-  const recentIds = (window.getRecentProductIds || getRecentProductIds)();
+  const recentIds = getRecentProductIds();
   const recentProducts = [];
   for (const id of recentIds) {
     const product = window.allProducts.find(p => String(p.ID) === String(id));
@@ -150,54 +193,28 @@ function getRecentProductsList() {
 function renderRecentProducts() {
   const container = document.getElementById('recent-products');
   if (!container) return;
-
-  // Gestionar botón "Borrar todo"
-  const clearBtn = document.getElementById('clear-recent-btn');
   
   if (!window.allProducts.length) {
-    container.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);grid-column:span 2;padding:40px;">Cargando productos...</p>';
-    if (clearBtn) clearBtn.style.display = 'none';
+    container.innerHTML = '<p style="text-align: center; color: var(--color-text-muted);">Cargando productos...</p>';
     return;
   }
-
+  
   const recentProducts = getRecentProductsList();
-
+  
   if (recentProducts.length === 0) {
     container.innerHTML = `
-      <div style="text-align:center;color:var(--color-text-muted);grid-column:span 2;padding:40px;">
-        <span style="font-size:48px;">🕐</span>
+      <div style="text-align: center; color: var(--color-text-muted); grid-column: span 4; padding: 40px;">
+        <span style="font-size: 48px;">🕐</span>
         <p>No has visto productos recientemente</p>
-        <p style="font-size:12px;">Los productos que veas aparecerán aquí</p>
-      </div>`;
-    if (clearBtn) clearBtn.style.display = 'none';
+        <p style="font-size: 12px;">Los productos que veas aparecerán aquí</p>
+      </div>
+    `;
     return;
   }
-
-  // Mostrar botón borrar cuando hay historial
-  if (clearBtn) {
-    clearBtn.style.display = 'inline-flex';
-    // Registrar listener una sola vez
-    if (!clearBtn.dataset.bound) {
-      clearBtn.dataset.bound = '1';
-      clearBtn.addEventListener('click', async () => {
-        const ok = await window.confirm('¿Eliminar todo el historial de productos vistos?');
-        if (!ok) return;
-        localStorage.removeItem(RECENT_KEY);
-        window.dispatchEvent(new CustomEvent('recentProductsUpdated'));
-        if (typeof showTemporaryMessage === 'function') {
-          showTemporaryMessage('🗑️ Historial eliminado', 'info');
-        }
-      });
-    }
-  }
-
+  
   container.innerHTML = recentProducts.map(product => `
     <a href="catalogo.html#producto-${product.ID}" class="recent-product-card">
-      <img class="recent-product-img"
-           src="${optimizeDriveUrl(product.Imagen1 || product.Imagen2 || '', 200)}"
-           alt="${escapeHtml(product.Nombre)}"
-           loading="lazy"
-           width="200" height="200">
+      <img class="recent-product-img" src="${optimizeDriveUrl(product.Imagen1 || product.Imagen2 || '', 200)}" alt="${escapeHtml(product.Nombre)}" loading="lazy">
       <div class="recent-product-info">
         <div class="recent-product-name">${escapeHtml(product.Nombre)}</div>
         <div class="recent-product-price">${formatCurrency(product.Precio)}</div>
@@ -271,15 +288,21 @@ async function generateHomeLooksFromWishlist() {
     container.appendChild(card);
   });
 
-  // Usar el observer compartido de common.js — evita crear un segundo observer huérfano
-  if (typeof observeLazyImages === 'function') {
-    observeLazyImages(container);
+  const lazyImgs = container.querySelectorAll('.lazy');
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          const src = img.getAttribute('data-src');
+          if (src) { img.src = src; img.removeAttribute('data-src'); img.classList.add('loaded'); }
+          observer.unobserve(img);
+        }
+      });
+    }, { rootMargin: '100px' });
+    lazyImgs.forEach(img => observer.observe(img));
   } else {
-    // Fallback inline si common.js aún no está listo
-    container.querySelectorAll('img[data-src]').forEach(img => {
-      const s = img.getAttribute('data-src');
-      if (s) { img.src = s; img.removeAttribute('data-src'); img.classList.add('loaded'); }
-    });
+    lazyImgs.forEach(img => { const s = img.getAttribute('data-src'); if (s) img.src = s; });
   }
 }
 
@@ -454,20 +477,10 @@ function reloadHomeLookSlot(lookId, slotType, event) {
   if (card) {
     const newCard = createHomeLookCard(look);
     card.replaceWith(newCard);
-    // Cargar TODAS las imágenes inmediatamente al reemplazar la tarjeta.
-    // No depender del IntersectionObserver (que puede no volver a dispararse
-    // sobre elementos recién insertados en el DOM), evitando el bug de
-    // imágenes blancas al recargar un slot.
-    newCard.querySelectorAll('img[data-src]').forEach(img => {
+    newCard.querySelectorAll('.lazy').forEach(img => {
       const src = img.getAttribute('data-src');
-      if (src) {
-        img.src = src;
-        img.removeAttribute('data-src');
-        img.classList.remove('lazy');
-        img.classList.add('loaded');
-      }
+      if (src) { img.src = src; img.removeAttribute('data-src'); }
     });
-    // Imágenes ya cargadas (sin data-src) no necesitan acción
   }
 }
 
@@ -668,7 +681,6 @@ function updateWishlistBadge() {
     badge.textContent = count;
   }
 }
-
 document.addEventListener('DOMContentLoaded', async () => {
   await loadProducts();
   initCartAndWishlist();
@@ -678,6 +690,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.addCompleteLookToCart = addCompleteLookToCart;
-// addToRecentProducts is exported by common.js
+window.addToRecentProducts = addToRecentProducts;
 window.addHomeLookToCart = addHomeLookToCart;
 window.reloadHomeLookSlot = reloadHomeLookSlot;
