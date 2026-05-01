@@ -1,3 +1,6 @@
+(function () {
+'use strict';
+
 window.allProducts = window.allProducts || [];
 
 const CATEGORIES = [
@@ -837,3 +840,8 @@ window.addCompleteLookToCart = addCompleteLookToCart;
 window.addToRecentProducts = addToRecentProducts;
 window.addHomeLookToCart = addHomeLookToCart;
 window.reloadHomeLookSlot = reloadHomeLookSlot;
+
+// Las exposiciones de addCompleteLookToCart, addToRecentProducts, etc.
+// ya están al final del archivo original como window.X = X
+
+})();
