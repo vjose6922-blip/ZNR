@@ -1,3 +1,6 @@
+(function () {
+'use strict';
+
 window.originalHandleProductFormSubmit = null;
 
 window.originalDeleteProduct = null;
@@ -1319,3 +1322,15 @@ function doAdminLogout() {
   if (loginForm) loginForm.reset();  
 
 }
+
+// Exponer solo lo que necesitan otros scripts o el HTML
+window.handleAdminLogin   = handleAdminLogin;   // llamado desde el form de login
+window.doAdminLogout      = doAdminLogout;       // llamado desde botón logout
+window.openNotifications  = openNotifications;   // llamado desde onclick en admin.html
+window.handleProductFormSubmit = handleProductFormSubmit; // necesario para offline-manager
+window.deleteProduct      = deleteProduct;        // necesario para offline-manager
+window.resetProductForm   = resetProductForm;     // necesario para offline-manager
+window.clearImageUploads  = clearImageUploads;    // necesario para offline-manager
+window.loadAdminProducts  = loadAdminProducts;    // necesario para offline-manager sync
+
+})();
