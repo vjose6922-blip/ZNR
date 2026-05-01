@@ -910,7 +910,7 @@ function setupImageUpload(fileInputId, textInputId, previewId, progressId) {
 
         headers: { "Content-Type": "text/plain" },
 
-        body: JSON.stringify({ action: "uploadImage", fileName: file.name, mimeType: "image/jpeg", data: base64 })
+        body: JSON.stringify({ action: "uploadImage", fileName: file.name, mimeType: "image/jpeg", data: base64, token: sessionStorage.getItem("admin_token") || "" })
 
       });
 
