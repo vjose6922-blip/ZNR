@@ -1,4 +1,3 @@
-
 const WHATSAPP_NUMBER = "528671781272";
 const CACHE_KEY = 'zr_products_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; 
@@ -248,13 +247,14 @@ function getShippingBadge(price) {
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
+    .replace(/\\/g, '&#x5C;')    // backslash (primero para no escapar los siguientes)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
     .replace(/`/g, '&#96;')      // backticks
-    .replace(/\//g, '&#x2F;');    // forward slash
+    .replace(/\//g, '&#x2F;');   // forward slash
 }
 
 function escapeAttr(str) {
@@ -883,6 +883,22 @@ const notificationItems = items.map(item => ({
   }
 }
 
+// Valida que un producto venga con la estructura esperada y sin HTML inyectado.
+function validateProduct(p) {
+  if (!p || typeof p !== 'object') return false;
+  const htmlPattern = /<[^>]+>/;
+  const textFields = ['Nombre', 'Descripcion', 'Categoria', 'Talla', 'Badge'];
+  for (const field of textFields) {
+    if (p[field] && htmlPattern.test(String(p[field]))) {
+      console.warn(`⚠️ Producto rechazado por HTML en campo "${field}":`, p.ID);
+      return false;
+    }
+  }
+  if (p.ID === undefined || p.ID === null) return false;
+  if (isNaN(Number(p.Precio))) return false;
+  return true;
+}
+
 async function fetchProductsAPI(shouldIndex = false) {
   const cached = getCachedProducts();
   if (cached && cached.length > 0) {
@@ -893,7 +909,11 @@ async function fetchProductsAPI(shouldIndex = false) {
   try {
     const res = await fetch(API_URL);
     const data = await res.json();
-    const products = data.products || data || [];
+    const raw = data.products || data || [];
+    const products = raw.filter(validateProduct);
+    if (products.length < raw.length) {
+      console.warn(`⚠️ Se filtraron ${raw.length - products.length} productos inválidos`);
+    }
     setCachedProducts(products);
     if (shouldIndex) buildProductIndex(products);
     return products;
