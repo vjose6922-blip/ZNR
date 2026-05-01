@@ -228,6 +228,12 @@
   </style>
 </head>
 <body class="theme-aeromexico">
+  <script>
+    // Verificación de sesión — síncrono para evitar que se muestre contenido antes del redirect
+    if (!sessionStorage.getItem('admin_token')) {
+      window.location.replace('admin.html');
+    }
+  </script>
   <div id="global-loader" class="global-loader hidden">
     <div class="loader-spinner"></div>
     <div class="loader-text">Cargando...</div>
