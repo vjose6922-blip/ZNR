@@ -1671,8 +1671,8 @@ window.reloadSlot = reloadSlot;
 window.addLookToCart = addLookToCart;
 window.toggleLookWishlist = toggleLookWishlist;
 window.renderWishlistLooks = renderWishlistLooks;
-
-// reloadSlot, addLookToCart, toggleLookWishlist, renderWishlistLooks
-// ya están expuestos como window.X al final del archivo original
+// Necesarios para home.js (genera looks personalizados por clima)
+window.LOOKS_CONFIG = LOOKS_CONFIG;
+window.getProductsForSlot = getProductsForSlot;
 
 })();
