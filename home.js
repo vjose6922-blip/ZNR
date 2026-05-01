@@ -61,7 +61,9 @@ function getCachedProducts() {
 
 function buildProductIndex(products) {
   if (!products || products.length === 0) return;
-  window.allProductsIndexed = products;
+  // No asignar window.allProductsIndexed directamente — common.js lo define
+  // como getter de solo lectura. Usar _commonBuildProductIndex que actualiza
+  // el array interno correctamente.
   if (typeof window._commonBuildProductIndex === 'function') {
     window._commonBuildProductIndex(products);
   }
