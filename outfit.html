@@ -58,7 +58,6 @@
   <div class="looks-nav" id="looks-nav-bg">
     <div class="looks-nav-content">
       <a href="index.html" class="icon-button" style="text-decoration: none; display: inline-flex; align-items: center;">🏠</a>
-      <a href="catalogo.html" class="looks-nav-link">📋 Catálogo</a>
       <div id="weather-widget" class="weather-widget loading">
         <span class="weather-icon">🌡️</span>
         <span class="weather-text">Cargando clima...</span>
@@ -66,20 +65,39 @@
     </div>
   </div>
 
+<body class="theme-aeromexico outfit-page">
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <button class="bottom-nav-item active" data-page="catalogo" id="nav-catalogo">
+    <span class="nav-icon">📋</span>
+    <span>Catálogo</span>
+  </button>
+  
+  <button class="bottom-nav-item" data-page="outfit" id="nav-outfit">
+    <span class="nav-icon">✨</span>
+    <span>Outfits</span>
+  </button>
+  
+  <button class="bottom-nav-item" id="nav-cart">
+    <div class="badge-wrapper">
+      <span class="nav-icon">🛒</span>
+      <span class="bottom-nav-badge" id="bottom-cart-count">0</span>
+    </div>
+    <span>Carrito</span>
+  </button>
+  
+  <button class="bottom-nav-item" id="nav-wishlist">
+    <div class="badge-wrapper">
+      <span class="nav-icon">❤️</span>
+      <span class="bottom-nav-badge" id="bottom-wishlist-count">0</span>
+    </div>
+    <span>Favoritos</span>
+  </button>
+</nav>
+
+
+
   <div class="looks-grid" id="looks-container"></div>
-
-  <button class="floating-cart" id="floating-cart-btn" aria-label="Ver carrito">
-    <span class="cart-icon">🛒</span>
-    <span class="cart-badge" id="cart-count">0</span>
-  </button>
-
-  <!-- Botón flotante de Wishlist para Looks -->
-  <button class="floating-wishlist" id="floating-wishlist-looks-btn" aria-label="Ver lista de deseos">
-    <span class="wishlist-icon">❤️</span>
-    <span class="wishlist-badge" id="wishlist-count-looks">0</span>
-  </button>
-
-  <!-- Wishlist Drawer para Looks -->
   <aside class="cart-drawer" id="wishlist-looks-drawer" aria-hidden="true">
     <div class="cart-header">
       <h2>❤️ Looks favoritos</h2>
@@ -131,11 +149,21 @@
 <script src="looks.js" defer></script>
 
   <script defer>
+// ===== VARIABLES GLOBALES =====
 let cartInitialized = false;
 
+// ===== FUNCIONES AUXILIARES =====
+function updateLooksWishlistBadge() {
+    const count = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]').length;
+    const badge = document.getElementById("wishlist-count-looks");
+    if (badge) badge.textContent = count;
+}
+
+// ===== DOM CONTENT LOADED =====
 document.addEventListener("DOMContentLoaded", () => {
     console.log("🚀 Inicializando página con modales personalizados...");
 
+    // Exponer funciones globales
     window.changePhoneNumber = changePhoneNumber;
     window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
     window.openCartDrawer = openCartDrawer;
@@ -143,6 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.renderCart = renderCart;
     window.addToCart = addToCart;
 
+    // Botón flotante del carrito
     const floatingCartBtn = document.getElementById("floating-cart-btn");
     if (floatingCartBtn) {
         const newBtn = floatingCartBtn.cloneNode(true);
@@ -155,6 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Botón cerrar carrito
     const closeCartBtn = document.getElementById("close-cart-btn");
     if (closeCartBtn) {
         const newBtn = closeCartBtn.cloneNode(true);
@@ -167,6 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Overlay (cierra todo)
     const overlay = document.getElementById("overlay");
     if (overlay) {
         const newOverlay = overlay.cloneNode(true);
@@ -187,60 +218,141 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Inicializar carrito (solo una vez)
     if (!cartInitialized) {
         if (typeof loadCartFromStorage === "function") loadCartFromStorage();
         if (typeof renderCart === "function") renderCart();
         if (typeof updateSavedPhoneDisplay === "function") updateSavedPhoneDisplay();
         cartInitialized = true;
     }
+
+    // Inicializar badge de wishlist de looks
+    updateLooksWishlistBadge();
 });
 
+// ===== EVENTO CART UPDATED =====
 window.addEventListener("cartUpdated", () => {
     if (typeof renderCart === "function") renderCart();
     if (typeof updateCartBadge === "function") updateCartBadge();
 });
 
-// Wishlist loo
+// ===== WISHLIST DE LOOKS - BOTÓN FLOTANTE =====
 const floatingWishlistLooksBtn = document.getElementById("floating-wishlist-looks-btn");
 if (floatingWishlistLooksBtn) {
-  floatingWishlistLooksBtn.addEventListener("click", () => {
-    const drawer = document.getElementById("wishlist-looks-drawer");
-    const overlay = document.getElementById("overlay");
-    if (drawer) drawer.classList.add("open");
-    if (overlay) overlay.classList.add("visible");
-    if (typeof renderWishlistLooks === 'function') renderWishlistLooks();
-  });
+    floatingWishlistLooksBtn.addEventListener("click", () => {
+        const drawer = document.getElementById("wishlist-looks-drawer");
+        const overlay = document.getElementById("overlay");
+        if (drawer) drawer.classList.add("open");
+        if (overlay) overlay.classList.add("visible");
+        if (typeof renderWishlistLooks === 'function') renderWishlistLooks();
+    });
 }
 
+// ===== WISHLIST DE LOOKS - CERRAR =====
 const closeWishlistLooksBtn = document.getElementById("close-wishlist-looks-btn");
 if (closeWishlistLooksBtn) {
-  closeWishlistLooksBtn.addEventListener("click", () => {
-    const drawer = document.getElementById("wishlist-looks-drawer");
-    const overlay = document.getElementById("overlay");
-    if (drawer) drawer.classList.remove("open");
-    if (overlay) overlay.classList.remove("visible");
-  });
+    closeWishlistLooksBtn.addEventListener("click", () => {
+        const drawer = document.getElementById("wishlist-looks-drawer");
+        const overlay = document.getElementById("overlay");
+        if (drawer) drawer.classList.remove("open");
+        if (overlay) overlay.classList.remove("visible");
+    });
 }
 
+// ===== WISHLIST DE LOOKS - AGREGAR TODO AL CARRITO =====
 const addAllLooksToCartBtn = document.getElementById("add-all-looks-to-cart");
 if (addAllLooksToCartBtn) {
-  addAllLooksToCartBtn.addEventListener("click", () => {
-    const wishlistIds = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
-    wishlistIds.forEach(lookId => addLookToCart(lookId));
-    showTemporaryMessage("✅ Todos los looks agregados al carrito", "success");
-  });
+    addAllLooksToCartBtn.addEventListener("click", () => {
+        const wishlistIds = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+        wishlistIds.forEach(lookId => {
+            if (typeof addLookToCart === 'function') addLookToCart(lookId);
+        });
+        if (typeof showTemporaryMessage === 'function') {
+            showTemporaryMessage("✅ Todos los looks agregados al carrito", "success");
+        }
+    });
 }
 
-function updateLooksWishlistBadge() {
-    const count = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]').length;
-    const badge = document.getElementById("wishlist-count-looks");
-    if (badge) badge.textContent = count;
-}
-
-updateLooksWishlistBadge();
+// ===== ACTUALIZAR BADGE POR EVENTO STORAGE =====
 window.addEventListener('storage', (e) => {
     if (e.key === 'zr_looks_wishlist') updateLooksWishlistBadge();
 });
+
+// ===== BOTTOM NAVIGATION =====
+document.addEventListener('DOMContentLoaded', function() {
+    const bottomNav = document.querySelector('.bottom-nav');
+    if (!bottomNav) return;
+    
+    // Actualizar contadores (badges)
+    function updateBottomBadges() {
+        const cartCount = document.getElementById('bottom-cart-count');
+        const wishlistCount = document.getElementById('bottom-wishlist-count');
+        
+        if (cartCount) {
+            const cart = JSON.parse(localStorage.getItem('cart') || '{}');
+            const total = Object.values(cart).reduce((s, i) => s + (i.quantity || 0), 0);
+            cartCount.textContent = total;
+        }
+        
+        if (wishlistCount) {
+            const wishlistLooks = JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]');
+            wishlistCount.textContent = wishlistLooks.length;
+        }
+    }
+    
+    // Navegación
+    const navCatalogo = document.getElementById('nav-catalogo');
+    const navOutfit = document.getElementById('nav-outfit');
+    const navCart = document.getElementById('nav-cart');
+    const navWishlist = document.getElementById('nav-wishlist');
+    
+    if (navCatalogo) {
+        navCatalogo.addEventListener('click', () => {
+            window.location.href = 'catalogo.html';
+        });
+    }
+    
+    if (navOutfit) {
+        navOutfit.addEventListener('click', () => {
+            window.location.href = 'outfit.html';
+        });
+    }
+    
+    if (navCart && typeof openCartDrawer === 'function') {
+        navCart.addEventListener('click', (e) => {
+            e.preventDefault();
+            openCartDrawer();
+        });
+    }
+    
+    // Wishlist de LOOKS desde la barra inferior
+    if (navWishlist) {
+        navWishlist.addEventListener('click', (e) => {
+            e.preventDefault();
+            const drawer = document.getElementById('wishlist-looks-drawer');
+            const overlay = document.getElementById('overlay');
+            if (drawer) drawer.classList.add('open');
+            if (overlay) overlay.classList.add('visible');
+            if (typeof renderWishlistLooks === 'function') renderWishlistLooks();
+        });
+    }
+    
+    // Escuchar eventos para actualizar badges
+    window.addEventListener('cartUpdated', updateBottomBadges);
+    window.addEventListener('storage', updateBottomBadges);
+    
+    // Inicializar badges
+    updateBottomBadges();
+    
+    // Estado activo: destacar "Outfits"
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById('nav-outfit')?.classList.add('active');
+});
+
+
+    
   </script>
 
   <footer class="app-footer">
