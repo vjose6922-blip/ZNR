@@ -59,10 +59,44 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
   <div class="looks-nav">
     <div class="looks-nav-content" style="justify-content: flex-start;">
       <a href="index.html" class="icon-button" style="text-decoration: none; display: inline-flex; align-items: center;">🏠</a>
-      <a href="outfit.html" class="looks-nav-link">✨ Outfits</a>
     </div>
   </div>
 
+
+
+<body class="theme-aeromexico catalogo-page">
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <button class="bottom-nav-item active" data-page="catalogo" id="nav-catalogo">
+    <span class="nav-icon">📋</span>
+    <span>Catálogo</span>
+  </button>
+  
+  <button class="bottom-nav-item" data-page="outfit" id="nav-outfit">
+    <span class="nav-icon">✨</span>
+    <span>Outfits</span>
+  </button>
+  
+  <button class="bottom-nav-item" id="nav-cart">
+    <div class="badge-wrapper">
+      <span class="nav-icon">🛒</span>
+      <span class="bottom-nav-badge" id="bottom-cart-count">0</span>
+    </div>
+    <span>Carrito</span>
+  </button>
+  
+  <button class="bottom-nav-item" id="nav-wishlist">
+    <div class="badge-wrapper">
+      <span class="nav-icon">❤️</span>
+      <span class="bottom-nav-badge" id="bottom-wishlist-count">0</span>
+    </div>
+    <span>Favoritos</span>
+  </button>
+</nav>
+
+
+
+  
   <section class="filters-bar">
     <div class="filters-row-top">
       <div class="search-wrapper">
@@ -91,16 +125,6 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
   <section class="pagination-section">
     <div id="pagination"></div>
   </section>
-
-  <button class="floating-cart" id="floating-cart-btn" aria-label="Ver carrito">
-    <span class="cart-icon">🛒</span>
-    <span class="cart-badge" id="cart-count">0</span>
-  </button>
-<button class="floating-wishlist" id="floating-wishlist-btn" aria-label="Ver lista de deseos">
-  <span class="wishlist-icon">❤️</span>
-  <span class="wishlist-badge" id="wishlist-count">0</span>
-</button>
-
 <aside class="cart-drawer" id="wishlist-drawer" aria-hidden="true">
   <div class="cart-header">
     <h2>❤️ Lista de deseos</h2>
