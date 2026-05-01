@@ -1,3 +1,6 @@
+(function () {
+'use strict';
+
 const WEATHER_API_URL = API_URL;
 const LOOKS_CACHE_KEY = 'zr_looks_generated_v2';
 const MAX_WEATHER_RETRIES = 5;
@@ -1668,3 +1671,8 @@ window.reloadSlot = reloadSlot;
 window.addLookToCart = addLookToCart;
 window.toggleLookWishlist = toggleLookWishlist;
 window.renderWishlistLooks = renderWishlistLooks;
+
+// reloadSlot, addLookToCart, toggleLookWishlist, renderWishlistLooks
+// ya están expuestos como window.X al final del archivo original
+
+})();
