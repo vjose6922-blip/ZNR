@@ -282,7 +282,7 @@ async function generateHomeLooksFromWishlist() {
   const container = document.getElementById('home-looks-container');
   if (!container) return;
   
-  if (typeof LOOKS_CONFIG === 'undefined' || typeof getProductsForSlot === 'undefined') {
+  if (typeof window.LOOKS_CONFIG === 'undefined' || typeof window.getProductsForSlot === 'undefined') {
     console.log('⏳ Esperando LOOKS_CONFIG / getProductsForSlot...');
     setTimeout(() => generateHomeLooksFromWishlist(), 500);
     return;
@@ -373,7 +373,7 @@ function buildLookFromAnchor(anchorProduct, allProductsWithStock) {
   const anchorCategory = anchorProduct.Categoria;
   const anchorGender = GENDER_BY_CATEGORY[anchorCategory] || 'UNISEX';
   
-  let candidateConfigs = LOOKS_CONFIG.filter(config => {
+  let candidateConfigs = window.LOOKS_CONFIG.filter(config => {
     const configGender = config.category === 'Mujer' ? 'MUJER' : config.category === 'Hombre' ? 'HOMBRE' : 'UNISEX';
     const genderMatch = anchorGender === 'UNISEX' || configGender === anchorGender || configGender === 'UNISEX';
     if (!genderMatch) return false;
@@ -393,7 +393,7 @@ function buildLookFromAnchor(anchorProduct, allProductsWithStock) {
   });
   
   if (candidateConfigs.length === 0) {
-    candidateConfigs = LOOKS_CONFIG.filter(config => {
+    candidateConfigs = window.LOOKS_CONFIG.filter(config => {
       const configGender = config.category === 'Mujer' ? 'MUJER' : config.category === 'Hombre' ? 'HOMBRE' : 'UNISEX';
       return anchorGender === 'UNISEX' || configGender === anchorGender;
     });
@@ -447,7 +447,7 @@ function selectProductsForLookHome(lookConfig, productsWithImages, preselection 
       }
     }
     
-    const available = getProductsForSlot(productsWithImages, slot)
+    const available = window.getProductsForSlot(productsWithImages, slot)
       .filter(p => !usedIds.includes(String(p.ID)));
     
     if (available.length > 0) {
@@ -502,7 +502,7 @@ function reloadHomeLookSlot(lookId, slotType, event) {
     if (lookIdx === -1) return;
 
     const look = homeLooks[lookIdx];
-    const config = LOOKS_CONFIG.find(c => c.name === look.name || c.id === look.id);
+    const config = window.LOOKS_CONFIG.find(c => c.name === look.name || c.id === look.id);
     if (!config) return;
 
     const slot = config.slots.find(s => s.type === slotType);
@@ -520,12 +520,12 @@ function reloadHomeLookSlot(lookId, slotType, event) {
     const currentId = look.products[slotType] ? String(look.products[slotType].id) : null;
     if (currentId) usedIds.push(currentId);
 
-    let available = getProductsForSlot(productsWithStock, slot)
+    let available = window.getProductsForSlot(productsWithStock, slot)
         .filter(p => !usedIds.includes(String(p.ID)));
 
     if (available.length === 0) {
         
-        available = getProductsForSlot(productsWithStock, slot)
+        available = window.getProductsForSlot(productsWithStock, slot)
             .filter(p => !currentId || String(p.ID) !== currentId);
     }
 
