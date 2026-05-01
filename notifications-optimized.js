@@ -290,7 +290,7 @@ function processAndRenderNotifications(data) {
 }
 
 function getOptimizedThumbnail(imagenUrl) {
-  if (!imagenUrl) return 'https:
+  if (!imagenUrl) return 'https://placehold.co/70x70/eee/999?text=No+img';
   if (imagenUrl.includes('lh3.googleusercontent.com')) {
     return imagenUrl.replace(/=w[0-9]+/, '=w100');
   }
