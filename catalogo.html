@@ -186,9 +186,14 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
   <script defer>
 let cartRendered = false;
 
+// ===== INICIALIZAR VARIABLE GLOBAL =====
+window.cartRendered = window.cartRendered || false;
+
+// ===== DOM CONTENT LOADED =====
 document.addEventListener('DOMContentLoaded', function () {
     console.log('🚀 Inicializando página con modales personalizados...');
 
+    // Exponer funciones globales
     window.changePhoneNumber = changePhoneNumber;
     window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
     window.openCartDrawer = openCartDrawer;
@@ -196,6 +201,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.renderCart = renderCart;
     window.addToCart = addToCart;
 
+    // Botón flotante del carrito
     const floatingCartBtn = document.getElementById('floating-cart-btn');
     if (floatingCartBtn) {
         const newBtn = floatingCartBtn.cloneNode(true);
@@ -207,8 +213,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Actualizar badge de wishlist
     if (typeof updateWishlistBadge === 'function') updateWishlistBadge();
 
+    // Botón cerrar carrito
     const closeCartBtn = document.getElementById('close-cart-btn');
     if (closeCartBtn) {
         const newBtn = closeCartBtn.cloneNode(true);
@@ -221,6 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Overlay (cierra carrito, wishlist e imagen modal)
     const overlay = document.getElementById('overlay');
     if (overlay) {
         const newOverlay = overlay.cloneNode(true);
@@ -229,12 +238,17 @@ document.addEventListener('DOMContentLoaded', function () {
             if (typeof window.closeCartDrawer === 'function') {
                 window.closeCartDrawer();
             }
+            if (typeof window.closeWishlistDrawer === 'function') {
+                window.closeWishlistDrawer();
+            }
             if (typeof closeImageModal === 'function') {
                 closeImageModal();
             }
+            newOverlay.classList.remove('visible');
         });
     }
 
+    // Inicializar carrito (solo una vez)
     if (!window.cartRendered) {
         if (typeof loadCartFromStorage === 'function') loadCartFromStorage();
         if (typeof renderCart === 'function') renderCart();
@@ -249,9 +263,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-// Función separada para la barra inferior
+// ===== FUNCIÓN SEPARADA PARA LA BARRA INFERIOR =====
 function initBottomNavigation() {
-    // Actualizar contadores
+    // Actualizar contadores (badges)
     function updateBottomBadges() {
         const cartCount = document.getElementById('bottom-cart-count');
         const wishlistCount = document.getElementById('bottom-wishlist-count');
@@ -304,10 +318,10 @@ function initBottomNavigation() {
     window.addEventListener('cartUpdated', updateBottomBadges);
     window.addEventListener('wishlistUpdated', updateBottomBadges);
     
-    // Inicializar
+    // Inicializar badges
     updateBottomBadges();
     
-    // Estado activo de la página
+    // Estado activo de la página (destacar "Catálogo")
     const currentPage = window.location.pathname.includes('outfit.html') ? 'outfit' : 'catalogo';
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         btn.classList.remove('active');
@@ -317,13 +331,13 @@ function initBottomNavigation() {
     });
 }
 
-// Evento global para el carrito
+// ===== EVENTO GLOBAL PARA EL CARRITO =====
 window.addEventListener('cartUpdated', function () {
     if (typeof renderCart === 'function') renderCart();
     if (typeof updateCartBadge === 'function') updateCartBadge();
 });
 
-// Wishlist flotante (si existe)
+// ===== WISHLIST FLOTANTE (PRODUCTOS) =====
 const floatingWishlistBtn = document.getElementById('floating-wishlist-btn');
 if (floatingWishlistBtn) {
     floatingWishlistBtn.addEventListener('click', () => {
@@ -333,6 +347,7 @@ if (floatingWishlistBtn) {
     });
 }
 
+// ===== CERRAR WISHLIST =====
 const closeWishlistBtn = document.getElementById('close-wishlist-btn');
 if (closeWishlistBtn) {
     closeWishlistBtn.addEventListener('click', () => {
@@ -342,6 +357,7 @@ if (closeWishlistBtn) {
     });
 }
 
+// ===== AGREGAR TODO EL WISHLIST AL CARRITO =====
 const addAllWishlistBtn = document.getElementById('add-all-wishlist-to-cart');
 if (addAllWishlistBtn) {
     addAllWishlistBtn.addEventListener('click', () => {
@@ -352,6 +368,7 @@ if (addAllWishlistBtn) {
     });
 }
 
+// ===== ACTUALIZAR BOTONES DE WISHLIST CUANDO CAMBIA =====
 window.addEventListener('wishlistUpdated', () => {
     const wishlist = getWishlist();
     wishlist.forEach(item => {
