@@ -1,3 +1,6 @@
+(function () {
+'use strict';
+
 const PAGE_SIZE = 10;
 let allProducts = [];
 let filteredProducts = [];
@@ -987,3 +990,9 @@ window.addEventListener('cartUpdated', () => {
   if (typeof renderCart === 'function') renderCart();
   updateCartBadge();
 });
+
+// Exponer solo lo estrictamente necesario
+// applyFilters ya se expone internamente como window.applyFilters dentro del código
+// No hay funciones de script.js que el HTML llame directamente por nombre
+
+})();
