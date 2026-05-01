@@ -122,7 +122,7 @@ async function handleAdminLogin(e) {
 
     document.getElementById("admin-panel-view").hidden = false;
 
-    
+    initImageUploads();
 
     loadAdminProducts();
 
@@ -1215,7 +1215,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   
 
-  initImageUploads();
+  // initImageUploads() aquí falla: el panel aún está oculto. Se llama al mostrar el panel.
 
   
 
@@ -1271,6 +1271,7 @@ if (hasSession === "true" && document.getElementById("admin-panel-view")) {
   adminSession = "ok"; 
   document.getElementById("admin-login-view").hidden = true;
   document.getElementById("admin-panel-view").hidden = false;
+  initImageUploads();
   loadAdminProducts();
   startNotificationMonitoring();
 }
