@@ -67,8 +67,8 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
 <!-- Bottom Navigation -->
 <nav class="bottom-nav">
   <button class="bottom-nav-item active" data-page="catalogo" id="nav-catalogo">
-    <span class="nav-icon">📋</span>
-    <span>Catálogo</span>
+    <span class="nav-icon">🏠</span>
+    <span>Inicio</span>
   </button>
   
   <button class="bottom-nav-item" data-page="outfit" id="nav-outfit">
@@ -289,7 +289,7 @@ function initBottomNavigation() {
     
     if (navCatalogo) {
         navCatalogo.addEventListener('click', () => {
-            window.location.href = 'catalogo.html';
+            window.location.href = 'index.html';
         });
     }
     
@@ -321,7 +321,7 @@ function initBottomNavigation() {
     updateBottomBadges();
     
     // Estado activo de la página (destacar "Catálogo")
-    const currentPage = window.location.pathname.includes('outfit.html') ? 'outfit' : 'catalogo';
+    const currentPage = window.location.pathname.includes('outfit.html') ? 'index.html;
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.page === currentPage) {
