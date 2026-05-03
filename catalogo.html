@@ -321,7 +321,7 @@ function initBottomNavigation() {
     updateBottomBadges();
     
     // Estado activo de la página (destacar "Catálogo")
-    const currentPage = window.location.pathname.includes('outfit.html') ? 'index.html';
+const currentPage = window.location.pathname.includes('outfit.html') ? 'index.html' : null;
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.page === currentPage) {
