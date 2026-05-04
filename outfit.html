@@ -343,7 +343,11 @@ document.addEventListener('DOMContentLoaded', function() {
     updateBottomBadges();
     
     // Estado activo: destacar "Outfits"
-   
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById('nav-outfit')?.classList.add('active');
+});
 
 
     
