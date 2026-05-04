@@ -66,16 +66,16 @@
 
 <!-- Bottom Navigation -->
 <nav class="bottom-nav">
-  <button class="bottom-nav-item active" data-page="catalogo" id="nav-catalogo">
-    <span class="nav-icon">📋</span>
-    <span>Catálogo</span>
-  </button>
-  
-  <button class="bottom-nav-item" data-page="outfit" id="nav-outfit">
+ <button class="bottom-nav-item" data-page="outfit" id="nav-outfit">
     <span class="nav-icon">🏠</span>
     <span>Inicio</span>
   </button>
   
+  <button class="bottom-nav-item active" data-page="catalogo" id="nav-catalogo">
+    <span class="nav-icon">📋</span>
+    <span>Catálogo</span>
+  </button>
+   
   <button class="bottom-nav-item" id="nav-cart">
     <div class="badge-wrapper">
       <span class="nav-icon">🛒</span>
@@ -343,11 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateBottomBadges();
     
     // Estado activo: destacar "Outfits"
-    document.querySelectorAll('.bottom-nav-item').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.getElementById('nav-outfit')?.classList.add('active');
-});
+   
 
 
     
