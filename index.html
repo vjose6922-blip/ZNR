@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com;
+  connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in;
+  font-src 'self';
+  frame-src 'none';
+  frame-ancestors 'none';
+  object-src 'none';
+  base-uri 'self';
+  worker-src 'self' blob:;
+  child-src 'self' blob:;
+">
+  <title>Z&R | Inicio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Catálogo de ropa para hombre y mujer, outfits personalizados." />
+  <link rel="preconnect" href="https:
+  <link rel="preconnect" href="https:
+  <link rel="preload" href="styles.css" as="style">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="/ZNR/manifest.json">
+  <meta name="theme-color" content="#3b1f5f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Z&R">
+  <link rel="apple-touch-icon" href="/ZNR/logo.svg">
+  <style>
+    .hero-section {
+      background: linear-gradient(135deg, #1a0f2e 0%, #3b1f5f 50%, #ff4f81 100%);
+      border-radius: 0 0 40px 40px;
+      padding: 8px 8px 25px;
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    [data-theme="light"] .hero-section {
+      background: linear-gradient(135deg, #ff9f6e 0%, #ff7a4f 50%, #ff4f81 100%);
+    }
+
+    .hero-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      animation: fadeInUp 0.6s ease;
+    }
+
+    .hero-subtitle {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-bottom: 24px;
+      animation: fadeInUp 0.6s ease 0.1s both;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeInUp 0.6s ease 0.2s both;
+    }
+
+    .hero-btn {
+      padding: 14px 32px;
+      border-radius: 50px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .hero-btn-primary {
+      background: white;
+      color: #ff4f81;
+    }
+
+    .hero-btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .hero-btn-secondary {
+      background: white;
+      color: #ff4f81;
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-btn-secondary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 30px;
+      color: var(--color-text-main);
+    }
+
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 20px;
+      padding: 0 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .category-card {
+      text-align: center;
+      text-decoration: none;
+      background: var(--color-surface);
+      border-radius: 20px;
+      padding: 24px 16px;
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .category-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+    }
+
+    .category-icon {
+      font-size: 30px;
+      display: block;
+      margin-bottom: 12px;
+    }
+
+    .category-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-text-main);
+    }
+
+    .featured-products {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    .products-scroll {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .outfit-preview {
+      background: linear-gradient(135deg, #f8f9fa, #f0f0f5);
+      border-radius: 30px;
+      padding: 15px 8px;
+      margin: 40px 20px;
+      text-align: center;
+    }
+
+    [data-theme="dark"] .outfit-preview {
+      background: linear-gradient(135deg, #1a1a2a, #16161f);
+    }
+
+    
+    #home-looks-container.looks-grid {
+      padding: 0 20px;
+      max-width: 900px;
+      margin: 30px auto 0;
+    }
+
+    
+    #home-looks-container .look-card {
+      max-width: 100%;
+    }
+
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .benefit-card {
+      text-align: center;
+      padding: 24px;
+    }
+
+    .benefit-icon {
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+
+    .benefit-title {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .benefit-text {
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+
+    .recent-products {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .recent-scroll {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .recent-product-card {
+      background: var(--color-surface);
+      border-radius: 16px;
+      overflow: hidden;
+      text-decoration: none;
+      transition: transform 0.2s;
+    }
+
+    .recent-product-card:hover {
+      transform: translateY(-3px);
+    }
+
+    .recent-product-img {
+      width: 90%;
+      aspect-ratio: 1;
+      object-fit: contain;
+      background: #f5f5f8;
+      padding: 10px;
+    }
+
+    .recent-product-info {
+      padding: 12px;
+    }
+
+    .recent-product-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-main);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .recent-product-price {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ff4f81;
+    }
+
+    .floating-wa {
+      position: fixed;
+      right: 16px;
+      bottom: 90px;
+      background: #25D366;
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 28px;
+      text-decoration: none;
+      box-shadow: 0 4px 15px rgba(37,211,102,0.4);
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+
+    .floating-wa:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(37,211,102,0.5);
+    }
+
+    
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .hero-title { font-size: 1.8rem; }
+      .categories-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .products-scroll { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    }
+
+     </style>
+</head>
+<body class="home-page">
+  <div id="global-loader" class="global-loader hidden">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Cargando...</div>
+  </div>
+
+ 
+
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-touch-area">
+        <span class="logo-mark">Z&R</span>
+      </div>
+      <div class="header-text">
+        <h1 class="app-title">Inicio</h1>
+        <p class="app-subtitle"></p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-button" id="up-open-btn" aria-label="Preferencias" title="Preferencias">⚙️</button>
+      <button class="icon-button" id="theme-toggle">🌙</button>
+      <button class="icon-button" id="cart-icon-home">🛒</button>
+      <button class="icon-button" id="wishlist-looks-icon-home">❤️‍🔥</button>
+    </div>
+  </header>
+
+  <section class="hero-section">
+    <h1 class="hero-title">Descubre tu Estilo</h1>
+    <p class="hero-subtitle">Ropa 100% original.</p>
+    <div class="hero-buttons">
+      <a href="catalogo.html" class="hero-btn hero-btn-primary">🛍️ Ver Catálogo</a>
+      <a href="outfit.html" class="hero-btn hero-btn-secondary">✨ Crear Outfit</a>
+      <a href="comunidad.html" class="hero-btn hero-btn-secondary">🤝 Ir a Comunidad</a>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">✨ Explora por Categoría</h2>
+    <div class="categories-grid" id="categories-grid"></div>
+  </section>
+
+  <section>
+    <h2 class="section-title">🌟 Productos Destacados</h2>
+    <div class="featured-products">
+      <div class="products-scroll" id="featured-products"></div>
+    </div>
+  </section>
+
+  <section class="outfit-preview">
+    <h2 class="section-title" style="margin-bottom: 12px;">🤖 Outfit Inteligente</h2>
+    <p style="max-width: 600px; margin: 0 auto 20px; color: var(--color-text-muted);">
+      ¿No sabes qué combinar? Nosotros armamos tu outfit automáticamente según el clima y tus gustos.
+    </p>
+    <a href="outfit.html" class="hero-btn hero-btn-primary" style="display: inline-block; margin-bottom: 10px;">✨ Probar Ahora</a>
+    
+    <h3 style="font-size: 1.3rem; margin: 10px 0 10px;">🔥 Looks basados en tus favoritos</h3>
+    <div id="home-looks-container"></div>
+  </section>
+
+  <section id="home-comunidad-section" style="margin: 0 20px 40px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+      <h2 class="section-title" style="margin:0;">🤝 Comunidad Z&R</h2>
+      <a href="comunidad.html" class="hero-btn hero-btn-secondary" style="font-size:13px; padding:8px 18px; border-radius:30px; text-decoration:none;">Ver todo →</a>
+    </div>
+    <p style="color:var(--color-text-muted); margin:-8px 0 16px; font-size:14px;">Productos únicos de vendedores locales de tu región.</p>
+    <div id="home-comunidad-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:16px;">
+      <div style="grid-column:1/-1; text-align:center; padding:30px; color:#aaa;">🔄 Cargando...</div>
+    </div>
+  </section>
+
+<section>
+    <h2 class="section-title">🕐 Vistos Recientemente</h2>
+    <div class="recent-products">
+      <div class="recent-scroll" id="recent-products"></div>
+    </div>
+  </section>
+
+
+  
+  <section>
+    <div class="benefits-grid">
+      <div class="benefit-card">
+        <div class="benefit-icon">🚚</div>
+        <div class="benefit-title">Envíos Rápidos</div>
+        <div class="benefit-text">Entregas a domicilio o punto intermedio</div>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">🔒</div>
+        <div class="benefit-title">Pago Seguro</div>
+        <div class="benefit-text">Mercado Pago - Protección al comprador</div>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">✨</div>
+        <div class="benefit-title">Nuevos Estilos</div>
+        <div class="benefit-text">Actualizamos el catálogo semanalmente</div>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">💬</div>
+        <div class="benefit-title">Atención Personalizada</div>
+        <div class="benefit-text">Soporte por WhatsApp</div>
+      </div>
+    </div>
+  </section>
+
+ 
+  <a href="https://wa.me/528671781272" class="floating-wa" target="_blank" rel="noopener">💬</a>
+
+  <footer class="app-footer" style="margin-bottom: 70px;">
+    <div class="footer-content">
+      <div class="footer-logo">
+        <span class="logo-mark">Z&R</span>
+      </div>
+      <div class="footer-social">
+        <a href="https://www.facebook.com/tu_pagina" target="_blank" class="social-link">Facebook</a>
+      </div>
+      <div class="footer-copyright">
+        <p>© 2026 Z&R - Todos los derechos reservados</p>
+        <a href="privacidad.html" style="color:#ff4f81; text-decoration:none;">Privacidad</a> ·
+                   <a href="terminos.html" style="color:#ff4f81; text-decoration:none;">Términos</a>
+      </div>
+    </div>
+  </footer>
+
+
+  <aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
+    <div class="cart-header">
+      <h2>Tu carrito</h2>
+      <button class="icon-button" id="close-cart-btn">✕</button>
+    </div>
+    <div class="cart-body" id="cart-items-container"></div>
+    <div class="cart-footer">
+      <div class="cart-summary-row"><span>Subtotal</span><span id="cart-subtotal">$0</span></div>
+      <div class="cart-summary-row total"><span>Total</span><span id="cart-total">$0</span></div>
+      <div id="saved-phone-container" style="font-size: 11px; text-align: center; margin: 8px 0; display: none;">
+        📱 Número guardado: <span id="saved-phone-display"></span>
+        <button id="change-phone-btn" style="background: none; border: none; color: #ff4f81; cursor: pointer;">Cambiar</button>
+      </div>
+      <div id="saved-address-container" style="font-size: 11px; text-align: center; margin: 4px 0 8px; display: none; color: #888;">
+        🏠 <span id="saved-address-display" style="word-break:break-word"></span>
+        <button id="change-address-btn" style="background: none; border: none; color: #ff4f81; cursor: pointer; margin-left:4px">Cambiar</button>
+      </div>
+      <button id="request-purchase-btn" class="primary-button full-width">📝 Solicitar compra</button>
+    </div>
+  </aside>
+
+  <aside class="cart-drawer" id="wishlist-looks-drawer" aria-hidden="true">
+  <div class="cart-header">
+    <h2>❤️ Looks favoritos</h2>
+    <button class="icon-button" id="close-wishlist-looks-btn" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="cart-body" id="wishlist-looks-container"></div>
+  <div class="cart-footer">
+    <button id="add-all-looks-to-cart" class="primary-button full-width" style="background: linear-gradient(135deg, #ff4f81, #ff7a4f);">
+      🛒 Agregar todos al carrito
+    </button>
+  </div>
+</aside>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="image-modal" id="image-modal">
+    <button class="icon-button close-image-modal" id="close-image-modal">✕</button>
+    <img id="image-modal-img" alt="Vista de producto" />
+  </div>
+
+  <script src="common.js" defer></script>
+<script src="cache-manager.js" defer></script>
+<script src="offline-manager.js" defer></script>
+<script src="looks.js" defer></script>
+<script src="home.js" defer></script>
+<script>
+
+
+(function() {
+  const PREVIEW_COUNT = 6;
+  async function loadHomeComunidad() {
+    const grid = document.getElementById('home-comunidad-grid');
+    if (!grid || !window.API_URL) return;
+    try {
+      const res  = await fetch(window.API_URL + '?action=listarComunidad');
+      const data = await res.json();
+      if (!data.ok || !data.products) throw new Error();
+      const aprobados = data.products.filter(p => p.estado === 'aprobado').slice(0, PREVIEW_COUNT);
+      if (!aprobados.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:#aaa">Pronto habrá productos de la comunidad aquí.</div>';
+        return;
+      }
+      const esc = typeof escapeHtml === 'function' ? escapeHtml : s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      grid.innerHTML = aprobados.map(p => {
+        const img   = p.imagen1 || 'https://placehold.co/300x300/3b1f5f/white?text=Z%26R';
+        const allImages = [p.imagen1, p.imagen2, p.imagen3].filter(Boolean).map(url => optimizeDriveUrl(url, 800));
+        const price = Number(p.precio || 0).toLocaleString('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:0 });
+        const stock = Number(p.stock) || 0;
+        return `<div style="background:var(--color-surface,#fff);border-radius:18px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.07);display:flex;flex-direction:column;">
+            <div style="cursor:pointer;" class="home-comunidad-img" data-img="${esc(img)}" data-all="${esc(JSON.stringify(allImages))}" data-id="${p.id}">
+              <img src="${esc(img)}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:contain;background:#f5f5f8;padding:12px;box-sizing:border-box;">
+            </div>
+            <div style="padding:12px;flex:1;display:flex;flex-direction:column;gap:4px;">
+              <span style="font-size:9px;font-weight:800;color:#3b1f5f;background:#e8e8ff;padding:2px 8px;border-radius:20px;width:fit-content;text-transform:uppercase;">Comunidad</span>
+              <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(p.nombre)}</div>
+              <div style="color:#ff4f81;font-weight:800;font-size:15px;">${price}</div>
+              ${stock <= 0 ? '<div style="font-size:10px;color:#c62828;">Sin stock</div>' : ''}
+              <button class="home-comunidad-add" data-id="${p.id}" data-nombre="${esc(p.nombre)}" data-precio="${p.precio}" data-img="${esc(p.imagen1)}" data-talla="${esc(p.talla||'')}" data-vendedor="${esc(p.vendedor_nombre||'')}" data-vendortel="${esc(p.vendedor_tel||'')}" style="margin-top:8px;padding:8px;background:linear-gradient(135deg,#ff4f81,#ff7a4f);border:none;border-radius:30px;color:white;font-weight:600;cursor:pointer;">🛒 Agregar</button>
+            </div></div>`;
+      }).join('');
+
+      // Eventos después de insertar
+      document.querySelectorAll('.home-comunidad-img').forEach(el => {
+        el.addEventListener('click', (e) => {
+          const imgUrl = el.dataset.img;
+          const all = JSON.parse(el.dataset.all);
+          const productId = el.dataset.id;
+          if (window.openImageModal) openImageModal(imgUrl, productId, all);
+        });
+      });
+      document.querySelectorAll('.home-comunidad-add').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          addToCart({
+            ID: btn.dataset.id,
+            Nombre: btn.dataset.nombre,
+            Precio: Number(btn.dataset.precio),
+            Imagen1: btn.dataset.img,
+            Talla: btn.dataset.talla,
+            _comunidad: true,
+            _vendedor: btn.dataset.vendedor,
+            _vendorTel: btn.dataset.vendortel
+          });
+          showTemporaryMessage(`✅ ${btn.dataset.nombre} agregado`, 'success');
+        });
+      });
+    } catch(e) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:#aaa">No se pudo cargar la comunidad.</div>';
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(loadHomeComunidad, 500);
+  });
+})();
+
+</script>
+
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(registration => console.log('✅ SW registrado:', registration.scope))
+          .catch(error => console.log('❌ Error SW:', error));
+      });
+    }
+  </script>
+
+
+
+
+
+
+
+  <script>
+
+const looksWishlistDrawer = document.getElementById('wishlist-looks-drawer');
+const overlay = document.getElementById('overlay');
+
+document.getElementById('wishlist-looks-icon-home').addEventListener('click', () => {
+  looksWishlistDrawer.classList.add('open');
+  overlay.classList.add('visible');
+  if (typeof renderWishlistLooks === 'function') renderWishlistLooks();
+});
+
+document.getElementById('close-wishlist-looks-btn').addEventListener('click', () => {
+  looksWishlistDrawer.classList.remove('open');
+  overlay.classList.remove('visible');
+});
+
+overlay.addEventListener('click', () => {
+  looksWishlistDrawer?.classList.remove('open');
+});
+
+window.addEventListener('looksWishlistUpdated', () => {
+  const count = (JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]')).length;
+  const badgeBtn = document.getElementById('wishlist-looks-icon-home');
+  if (badgeBtn) badgeBtn.textContent = count > 0 ? `❤️‍🔥 (${count})` : '❤️‍🔥';
+});
+
+  </script>
+
+
+
+
+    
+</body>
+</html>

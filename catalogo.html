@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com;
+connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in;  
+  font-src 'self';
+  frame-src 'none';
+  frame-ancestors 'none';
+  object-src 'none';
+  base-uri 'self';
+  worker-src 'self' blob:;
+  child-src 'self' blob:;
+">
+  <title>Z&R</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
+  <link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
+  <link rel="preload" href="styles.css" as="style">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css" />
+<link rel="manifest" href="/ZNR/manifest.json">
+<meta name="theme-color" content="#3b1f5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Z&R">
+<link rel="apple-touch-icon" href="/ZNR/logo.svg">
+<meta name="mobile-web-app-capable" content="yes">
+</head>
+<body class="theme-aeromexico">
+  <div id="global-loader" class="global-loader hidden">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Cargando...</div>
+  </div>
+ 
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-touch-area" id="secret-logo">
+        <span class="logo-mark">Z&R</span>
+      </div>
+      <div class="header-text">
+        <h1 class="app-title">Catálogo</h1>
+        <p class="app-subtitle">Colección actual</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-button" id="up-open-btn" aria-label="Preferencias" title="Preferencias">⚙️</button>
+      <button class="icon-button" id="theme-toggle" aria-label="Cambiar tema">🌙</button>
+      <button class="icon-button" id="refresh-btn" aria-label="Actualizar catálogo">⟳</button> 
+      <button class="icon-button" id="layout-toggle-btn" aria-label="Cambiar vista">📱</button>
+    </div>
+  </header>
+ 
+  
+<nav class="bottom-nav">
+  <button class="bottom-nav-item" data-page="catalogo" id="nav-catalogo">
+    <span class="nav-icon">🏠</span>
+    <span>Inicio</span>
+  </button>
+  
+  <button class="bottom-nav-item" data-page="outfit" id="nav-outfit">
+    <span class="nav-icon">✨</span>
+    <span>Outfits</span>
+  </button>
+  
+  <button class="bottom-nav-item" id="nav-cart">
+    <div class="badge-wrapper">
+      <span class="nav-icon">🛒</span>
+      <span class="bottom-nav-badge" id="bottom-cart-count">0</span>
+    </div>
+    <span>Carrito</span>
+  </button>
+  
+  <button class="bottom-nav-item" id="nav-wishlist">
+    <div class="badge-wrapper">
+      <span class="nav-icon">❤️</span>
+      <span class="bottom-nav-badge" id="bottom-wishlist-count">0</span>
+    </div>
+    <span>Favoritos</span>
+  </button>
+</nav>
+ 
+ 
+ 
+  
+  <section class="filters-bar">
+    <div class="filters-row-top">
+      <div class="search-wrapper">
+        <input type="search" id="search-input" placeholder="Buscar productos..." autocomplete="off" />
+      </div>
+      <select id="gender-filter" class="gender-select">
+        <option value="">Todos</option>
+        <option value="HOMBRE">👔 Caballero</option>
+        <option value="MUJER">👗 Dama</option>
+      </select>
+    </div>
+    <div class="filters-row-bottom">
+      <select id="category-filter">
+        <option value="">Todas las categorías</option>
+      </select>
+      <select id="sort-select">
+        <option value="">Ordenar</option>
+        <option value="price-asc">Precio: menor a mayor</option>
+        <option value="price-desc">Precio: mayor a menor</option>
+      </select>
+    </div>
+    <!-- Chips de filtros activos -->
+    <div id="active-filter-chips" class="active-filter-chips" style="display:none"></div>
+  </section>
+ 
+  <main class="products-container" id="products-container"></main>
+ 
+  <section class="pagination-section">
+    <div id="pagination"></div>
+  </section>
+<aside class="cart-drawer" id="wishlist-drawer" aria-hidden="true">
+  <div class="cart-header">
+    <h2>❤️ Lista de deseos</h2>
+    <button class="icon-button" id="close-wishlist-btn" aria-label="Cerrar wishlist">✕</button>
+  </div>
+  <div class="cart-body" id="wishlist-items-container"></div>
+  <div class="cart-footer">
+    <button id="add-all-wishlist-to-cart" class="primary-button full-width" style="background: linear-gradient(135deg, #ff4f81, #ff7a4f);">
+      🛒 Agregar todo al carrito
+    </button>
+  </div>
+</aside>
+  <aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
+    <div class="cart-header">
+      <h2>Tu carrito</h2>
+      <button class="icon-button" id="close-cart-btn" aria-label="Cerrar carrito">✕</button>
+    </div>
+    <div class="cart-body" id="cart-items-container"></div>
+    <div class="cart-footer">
+      <div class="cart-summary-row">
+        <span>Subtotal</span>
+        <span id="cart-subtotal">$0</span>
+      </div>
+      <div class="cart-summary-row total">
+        <span>Total</span>
+        <span id="cart-total">$0</span>
+      </div>
+      <div id="saved-phone-container" style="font-size: 11px; text-align: center; margin: 8px 0; color: #666; display: none;">
+        📱 Número guardado: <span id="saved-phone-display"></span>
+        <button id="change-phone-btn" style="background: none; border: none; color: #ff4f81; cursor: pointer; text-decoration: underline; margin-left: 5px;">Cambiar</button>
+      </div>
+      <div id="saved-address-container" style="font-size: 11px; text-align: center; margin: 4px 0 8px; display: none; color: #888;">
+        🏠 <span id="saved-address-display" style="word-break:break-word"></span>
+        <button id="change-address-btn" style="background: none; border: none; color: #ff4f81; cursor: pointer; text-decoration: underline; margin-left:4px">Cambiar</button>
+      </div>
+      <button id="request-purchase-btn" class="primary-button full-width" style="background: linear-gradient(135deg, #25D366, #128C7E); margin-top: 8px;">
+        📝 Solicitar compra 
+      </button>
+    </div>
+  </aside>
+ 
+  <div class="overlay" id="overlay" aria-hidden="true"></div>
+  
+  <div class="image-modal" id="image-modal" aria-hidden="true">
+    <button class="icon-button close-image-modal" id="close-image-modal">✕</button>
+    <img id="image-modal-img" alt="Vista de producto" />
+  </div>
+ 
+      <script src="common.js" defer></script>
+<script src="cache-manager.js" defer></script>
+<script src="offline-manager.js" defer></script>
+<script src="script.js" defer></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(registration => console.log('✅ SW registrado:', registration.scope))
+          .catch(error => console.log('❌ Error SW:', error));
+      });
+    }
+  </script>
+ 
+  <script defer>
+let cartRendered = false;
+ 
+// ===== INICIALIZAR VARIABLE GLOBAL =====
+window.cartRendered = window.cartRendered || false;
+ 
+// ===== DOM CONTENT LOADED =====
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('🚀 Inicializando página con modales personalizados...');
+ 
+    // Exponer funciones globales
+    window.changePhoneNumber = changePhoneNumber;
+    window.updateSavedPhoneDisplay = updateSavedPhoneDisplay;
+    window.openCartDrawer = openCartDrawer;
+    window.closeCartDrawer = closeCartDrawer;
+    window.renderCart = renderCart;
+    window.addToCart = addToCart;
+ 
+    // Botón flotante del carrito
+    const floatingCartBtn = document.getElementById('floating-cart-btn');
+    if (floatingCartBtn) {
+        const newBtn = floatingCartBtn.cloneNode(true);
+        floatingCartBtn.parentNode.replaceChild(newBtn, floatingCartBtn);
+        newBtn.addEventListener('click', () => {
+            if (typeof window.openCartDrawer === 'function') {
+                window.openCartDrawer();
+            }
+        });
+    }
+ 
+    // Actualizar badge de wishlist
+    if (typeof updateWishlistBadge === 'function') updateWishlistBadge();
+ 
+    // Botón cerrar carrito
+    const closeCartBtn = document.getElementById('close-cart-btn');
+    if (closeCartBtn) {
+        const newBtn = closeCartBtn.cloneNode(true);
+        closeCartBtn.parentNode.replaceChild(newBtn, closeCartBtn);
+        newBtn.addEventListener('click', () => {
+            console.log('❌ Cerrando carrito');
+            if (typeof window.closeCartDrawer === 'function') {
+                window.closeCartDrawer();
+            }
+        });
+    }
+ 
+    // Overlay (cierra carrito, wishlist e imagen modal)
+    const overlay = document.getElementById('overlay');
+    if (overlay) {
+        const newOverlay = overlay.cloneNode(true);
+        overlay.parentNode.replaceChild(newOverlay, overlay);
+        newOverlay.addEventListener('click', () => {
+            if (typeof window.closeCartDrawer === 'function') {
+                window.closeCartDrawer();
+            }
+            if (typeof window.closeWishlistDrawer === 'function') {
+                window.closeWishlistDrawer();
+            }
+            if (typeof closeImageModal === 'function') {
+                closeImageModal();
+            }
+            newOverlay.classList.remove('visible');
+        });
+    }
+ 
+    // Inicializar carrito (solo una vez)
+    if (!window.cartRendered) {
+        if (typeof loadCartFromStorage === 'function') loadCartFromStorage();
+        if (typeof renderCart === 'function') renderCart();
+        if (typeof updateSavedPhoneDisplay === 'function') updateSavedPhoneDisplay();
+        window.cartRendered = true;
+    }
+ 
+    // ===== BOTTOM NAVIGATION (INICIALIZAR SOLO SI EXISTE) =====
+    const bottomNav = document.querySelector('.bottom-nav');
+    if (bottomNav) {
+        initBottomNavigation();
+    }
+});
+ 
+// ===== FUNCIÓN SEPARADA PARA LA BARRA INFERIOR =====
+function initBottomNavigation() {
+    // Actualizar contadores (badges)
+    function updateBottomBadges() {
+        const cartCount = document.getElementById('bottom-cart-count');
+        const wishlistCount = document.getElementById('bottom-wishlist-count');
+        
+        if (cartCount) {
+            const cart = JSON.parse(localStorage.getItem('cart') || '{}');
+            const total = Object.values(cart).reduce((s, i) => s + (i.quantity || 0), 0);
+            cartCount.textContent = total;
+        }
+        
+        if (wishlistCount) {
+            const wishlist = JSON.parse(localStorage.getItem('zr_wishlist') || '[]');
+            wishlistCount.textContent = wishlist.length;
+        }
+    }
+    
+    // Navegación
+    const navCatalogo = document.getElementById('nav-catalogo');
+    const navOutfit = document.getElementById('nav-outfit');
+    const navCart = document.getElementById('nav-cart');
+    const navWishlist = document.getElementById('nav-wishlist');
+    
+    if (navCatalogo) {
+        navCatalogo.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    }
+    
+    if (navOutfit) {
+        navOutfit.addEventListener('click', () => {
+            window.location.href = 'outfit.html';
+        });
+    }
+    
+    if (navCart && typeof openCartDrawer === 'function') {
+        navCart.addEventListener('click', (e) => {
+            e.preventDefault();
+            openCartDrawer();
+        });
+    }
+    
+    if (navWishlist && typeof openWishlistDrawer === 'function') {
+        navWishlist.addEventListener('click', (e) => {
+            e.preventDefault();
+            openWishlistDrawer();
+        });
+    }
+    
+    window.addEventListener('cartUpdated', updateBottomBadges);
+    window.addEventListener('wishlistUpdated', updateBottomBadges);
+    
+    updateBottomBadges();
+    
+const currentPage = window.location.pathname.includes('outfit.html') ? 'index.html' : null;
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.page === currentPage) {
+            btn.classList.add('active');
+        }
+    });
+}
+ 
+window.addEventListener('cartUpdated', function () {
+    if (typeof renderCart === 'function') renderCart();
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+});
+ 
+const floatingWishlistBtn = document.getElementById('floating-wishlist-btn');
+if (floatingWishlistBtn) {
+    floatingWishlistBtn.addEventListener('click', () => {
+        if (typeof window.openWishlistDrawer === 'function') {
+            window.openWishlistDrawer();
+        }
+    });
+}
+ 
+const closeWishlistBtn = document.getElementById('close-wishlist-btn');
+if (closeWishlistBtn) {
+    closeWishlistBtn.addEventListener('click', () => {
+        if (typeof window.closeWishlistDrawer === 'function') {
+            window.closeWishlistDrawer();
+        }
+    });
+}
+ 
+const addAllWishlistBtn = document.getElementById('add-all-wishlist-to-cart');
+if (addAllWishlistBtn) {
+    addAllWishlistBtn.addEventListener('click', () => {
+        if (typeof window.addAllWishlistToCart === 'function') {
+            window.addAllWishlistToCart();
+            if (typeof closeWishlistDrawer === 'function') closeWishlistDrawer();
+        }
+    });
+}
+ 
+window.addEventListener('wishlistUpdated', () => {
+    const wishlist = getWishlist();
+    wishlist.forEach(item => {
+        if (typeof updateAllWishlistButtons === 'function') {
+            updateAllWishlistButtons(item.id, true);
+        }
+    });
+});
+ 
+</script>
+ 
+  <footer class="app-footer" style="margin-bottom: 70px;">
+    <div class="footer-content">
+      <div class="footer-logo">
+        <span class="logo-mark">Z&R</span>
+      </div>
+      <div class="footer-social">
+        <a href="https://www.facebook.com/tu_pagina" target="_blank" class="social-link">Facebook</a>
+      </div>
+      <div class="footer-copyright">
+        <p>© 2026 Z&R - Todos los derechos reservados</p>
+        <a href="privacidad.html" style="color:#ff4f81; text-decoration:none;">Privacidad</a> ·
+                   <a href="terminos.html" style="color:#ff4f81; text-decoration:none;">Términos</a>
+      </div>
+    </div>
+  </footer>
+ 
+ 
+ 
+
+  
+</body>
+</html>
