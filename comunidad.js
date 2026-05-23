@@ -26,7 +26,7 @@
     console.warn('⚠️ addToCart no definida');
   }
   if (typeof window.openImageModal !== 'function') {
-    window.openImageModal = function(url, id, images) { console.warn('openImageModal no definida', url); };
+    window.openImageModal = function(url, id, images, productData) { console.warn('openImageModal no definida', url); };
     console.warn('⚠️ openImageModal no definida');
   }
   if (typeof window.showTemporaryMessage !== 'function') {
@@ -491,7 +491,18 @@
       // Imagen → modal
       card.querySelector('.product-slider').addEventListener('click', (e) => {
         if (!e.target.closest('button')) {
-          if (window.openImageModal) window.openImageModal(imgUrl, product.id, allImages);
+          if (window.openImageModal) {
+            const productData = {
+              ID:        product.id,
+              Nombre:    product.nombre    || '',
+              Precio:    product.precio    || 0,
+              Categoria: product.categoria || '',
+              Imagen1:   product.imagen1   || '',
+              Imagen2:   product.imagen2   || '',
+              Imagen3:   product.imagen3   || '',
+            };
+            window.openImageModal(imgUrl, product.id, allImages, productData);
+          }
         }
       });
 
