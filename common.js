@@ -858,32 +858,56 @@ function _renderModalImage(modal, idx, direction) {
 
 // ─── _renderMagazinePanel ──────────────────────────────────────────────────────
 // Builds / refreshes the magazine-layout side panel with 3 related products.
+// Si el producto actual es de comunidad (_comunidad:true), busca en
+// window.allCommunityProductsIndexed; si no, en allProductsIndexed (catálogo).
 function _renderMagazinePanel(modal) {
   const panel = modal.querySelector('.im-magazine-panel');
   if (!panel) return;
 
-  // Gather related products from the global index
-  const pool = (typeof allProductsIndexed !== 'undefined' ? allProductsIndexed : []);
   const current = _modalProduct;
+
+  // ── Determinar pool correcto ──────────────────────────────────────────────
+  const isComunidad = current && (current._comunidad === true);
+  let rawPool;
+  if (isComunidad) {
+    rawPool = window.allCommunityProductsIndexed || [];
+  } else {
+    rawPool = (typeof allProductsIndexed !== 'undefined' ? allProductsIndexed : []);
+  }
+
+  // ── Normalizar campos (catálogo usa PascalCase, comunidad usa minúsculas) ─
+  const pool = rawPool.map(p => ({
+    _raw:      p,
+    _id:       String(p.ID   || p.id   || ''),
+    _nombre:   p.Nombre   || p.nombre   || '',
+    _precio:   p.Precio   || p.precio   || 0,
+    _categoria:p.Categoria|| p.categoria|| '',
+    _stock:    Number(p.Stock || p.stock || 0),
+    _imagen1:  p.Imagen1  || p.imagen1  || '',
+    _imagen2:  p.Imagen2  || p.imagen2  || '',
+    _imagen3:  p.Imagen3  || p.imagen3  || '',
+    _comunidad: isComunidad,
+  }));
+
+  const currentId  = current ? String(current.ID || current.id || '') : '';
+  const currentCat = current ? (current.Categoria || current.categoria || '') : '';
 
   let related = [];
   if (current && pool.length) {
-    // Same category first, excluding itself
+    // Misma categoría primero, excluyendo el producto actual
     const sameCat = pool.filter(p =>
-      String(p.ID) !== String(current.ID) &&
-      p.Categoria === current.Categoria &&
-      Number(p.Stock || 0) > 0
+      p._id !== currentId &&
+      p._categoria === currentCat &&
+      p._stock > 0
     );
-    // Shuffle and pick up to 3
-    const shuffled = sameCat.sort(() => Math.random() - 0.5);
-    related = shuffled.slice(0, 3);
+    related = sameCat.sort(() => Math.random() - 0.5).slice(0, 3);
 
-    // If not enough, pad with any in-stock products
+    // Completar con cualquier otro si no hay suficientes
     if (related.length < 3) {
       const others = pool.filter(p =>
-        String(p.ID) !== String(current.ID) &&
-        !related.find(r => String(r.ID) === String(p.ID)) &&
-        Number(p.Stock || 0) > 0
+        p._id !== currentId &&
+        !related.find(r => r._id === p._id) &&
+        p._stock > 0
       ).sort(() => Math.random() - 0.5);
       related = [...related, ...others].slice(0, 3);
     }
@@ -901,26 +925,28 @@ function _renderMagazinePanel(modal) {
   panel.innerHTML = `
     <p class="im-panel-label">También te puede gustar</p>
     ${related.map(p => {
+      // Usar campos normalizados (_nombre, _precio, etc.) sin importar el origen
       const img  = typeof optimizeDriveUrl === 'function'
-        ? optimizeDriveUrl(p.Imagen1, 200)
-        : (p.Imagen1 || '');
-      const name = (p.Nombre || 'Producto').substring(0, 28);
+        ? optimizeDriveUrl(p._imagen1, 200)
+        : (p._imagen1 || '');
+      const name = (p._nombre || 'Producto').substring(0, 28);
       const price = typeof formatCurrency === 'function'
-        ? formatCurrency(p.Precio)
-        : `$${p.Precio}`;
-      const safeImg  = img  ? escapeAttr(img)  : 'https://placehold.co/200x200/3b1f5f/white?text=Z%26R';
-      const safeName = typeof escapeHtml === 'function' ? escapeHtml(name) : name;
-      const safeId   = escapeAttr(String(p.ID));
-      const allImg   = [p.Imagen1, p.Imagen2, p.Imagen3]
-        .map(u => typeof optimizeDriveUrl === 'function' ? optimizeDriveUrl(u) : u)
+        ? formatCurrency(p._precio)
+        : `$${p._precio}`;
+      const safeImg       = img ? escapeAttr(img) : 'https://placehold.co/200x200/3b1f5f/white?text=Z%26R';
+      const safeName      = typeof escapeHtml === 'function' ? escapeHtml(name) : name;
+      const safeId        = escapeAttr(p._id);
+      const allImg        = [p._imagen1, p._imagen2, p._imagen3]
+        .map(u => u ? (typeof optimizeDriveUrl === 'function' ? optimizeDriveUrl(u) : u) : '')
         .filter(Boolean);
       const allImgEncoded = escapeAttr(JSON.stringify(allImg));
-      const safeNombre  = typeof escapeAttr === 'function' ? escapeAttr(p.Nombre || '') : '';
-      const safePrecio  = escapeAttr(String(p.Precio || 0));
-      const safeCat     = escapeAttr(p.Categoria || '');
-      const safeImg1    = escapeAttr(p.Imagen1 || '');
-      const safeImg2    = escapeAttr(p.Imagen2 || '');
-      const safeImg3    = escapeAttr(p.Imagen3 || '');
+      const safeNombre    = escapeAttr(p._nombre   || '');
+      const safePrecio    = escapeAttr(String(p._precio   || 0));
+      const safeCat       = escapeAttr(p._categoria || '');
+      const safeImg1      = escapeAttr(p._imagen1  || '');
+      const safeImg2      = escapeAttr(p._imagen2  || '');
+      const safeImg3      = escapeAttr(p._imagen3  || '');
+      const safeComunidad = p._comunidad ? '1' : '0';
       return `
         <button class="im-related-card"
           data-id="${safeId}"
@@ -932,6 +958,7 @@ function _renderMagazinePanel(modal) {
           data-imagen1="${safeImg1}"
           data-imagen2="${safeImg2}"
           data-imagen3="${safeImg3}"
+          data-comunidad="${safeComunidad}"
           aria-label="Ver ${safeName}">
           <div class="im-related-img-wrap">
             <img src="${safeImg}" alt="${safeName}" loading="lazy" />
@@ -957,6 +984,7 @@ function _renderMagazinePanel(modal) {
         Imagen1:   btn.dataset.imagen1,
         Imagen2:   btn.dataset.imagen2,
         Imagen3:   btn.dataset.imagen3,
+        _comunidad: btn.dataset.comunidad === '1',
       };
       // Navigate the modal to this product (no close/reopen flicker)
       _modalImages  = [img1, ...allImgs.filter(u => u && u !== img1)];
