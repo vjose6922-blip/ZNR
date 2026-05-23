@@ -182,7 +182,18 @@ function createMiniProductCard(product) {
   });
 
   card.querySelectorAll('.look-slot-image').forEach(div => {
-    div.addEventListener('click', () => openImageModal(div.dataset.modalUrl, div.dataset.productId));
+    div.addEventListener('click', () => {
+      const productData = {
+        ID:        div.dataset.productId,
+        Nombre:    div.dataset.nombre    || '',
+        Precio:    div.dataset.precio    || 0,
+        Categoria: div.dataset.categoria || '',
+        Imagen1:   div.dataset.imagen1   || '',
+        Imagen2:   '',
+        Imagen3:   '',
+      };
+      openImageModal(div.dataset.modalUrl, div.dataset.productId, [], productData);
+    });
   });
 
   card.querySelectorAll('.look-product-add').forEach(btn => {
@@ -429,7 +440,16 @@ async function generateHomeLooksFromWishlist() {
         e.stopPropagation();
         const url = slotImage.dataset.modalUrl;
         const productId = slotImage.dataset.productId;
-        openImageModal(url, productId);
+        const productData = {
+          ID:        productId,
+          Nombre:    slotImage.dataset.nombre    || '',
+          Precio:    slotImage.dataset.precio    || 0,
+          Categoria: slotImage.dataset.categoria || '',
+          Imagen1:   slotImage.dataset.imagen1   || '',
+          Imagen2:   '',
+          Imagen3:   '',
+        };
+        openImageModal(url, productId, [], productData);
         return;
       }
     });
@@ -757,7 +777,11 @@ function createHomeLookCard(look) {
     imagesHtml += `
       <div class="look-slot-image" data-slot="${escapeHtml(slotKey)}"
            data-modal-url="${escapeHtml(optimizedModalImg)}"
-           data-product-id="${escapeHtml(String(product.id))}">
+           data-product-id="${escapeHtml(String(product.id))}"
+           data-nombre="${escapeHtml(product.name || '')}"
+           data-precio="${escapeHtml(String(product.price || 0))}"
+           data-categoria="${escapeHtml(product.category || '')}"
+           data-imagen1="${escapeHtml(product.image || '')}">
         <img class="look-slot-img lazy"
              data-src="${escapeHtml(optimizedImg)}"
              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
