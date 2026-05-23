@@ -539,7 +539,18 @@
     if (sliderEl) {
       sliderEl.style.cursor = 'pointer';
       sliderEl.addEventListener('click', () => {
-        if (window.openImageModal) openImageModal(img, p.id, allImages);
+        if (window.openImageModal) {
+          const productData = {
+            ID:        p.id,
+            Nombre:    p.nombre    || '',
+            Precio:    p.precio    || 0,
+            Categoria: p.categoria || '',
+            Imagen1:   p.imagen1   || '',
+            Imagen2:   p.imagen2   || '',
+            Imagen3:   p.imagen3   || '',
+          };
+          openImageModal(img, p.id, allImages, productData);
+        }
       });
     }
 
