@@ -491,7 +491,7 @@ function createProductCard(product) {
     img.alt = safeNombre;
     img.src = url;
     img.loading = "lazy";
-    img.addEventListener("click", () => openImageModal(url, ID));
+    img.addEventListener("click", () => openImageModal(url, ID, images, product));
 
     slide.appendChild(img);
     track.appendChild(slide);
