@@ -8,7 +8,10 @@
   "orientation": "portrait-primary",
   "theme_color": "#3b1f5f",
   "background_color": "#05030a",
-  "categories": ["shopping", "fashion"],
+  "categories": [
+    "shopping",
+    "fashion"
+  ],
   "icons": [
     {
       "src": "/ZNR/logo.svg",
@@ -21,23 +24,54 @@
     {
       "name": "Inicio",
       "url": "/ZNR/index.html",
-      "icons": [{ "src": "/ZNR/logo.svg", "sizes": "any" }]
+      "icons": [
+        {
+          "src": "/ZNR/logo.svg",
+          "sizes": "any"
+        }
+      ]
     },
     {
       "name": "Catálogo",
       "url": "/ZNR/catalogo.html",
-      "icons": [{ "src": "/ZNR/logo.svg", "sizes": "any" }]
+      "icons": [
+        {
+          "src": "/ZNR/logo.svg",
+          "sizes": "any"
+        }
+      ]
     },
     {
       "name": "Outfits",
       "url": "/ZNR/outfit.html",
-      "icons": [{ "src": "/ZNR/logo.svg", "sizes": "any" }]
+      "icons": [
+        {
+          "src": "/ZNR/logo.svg",
+          "sizes": "any"
+        }
+      ]
     },
     {
       "name": "Panel Vendedor",
       "url": "/ZNR/vendedor.html",
       "description": "Acceso al panel de vendedor de la comunidad Z&R",
-      "icons": [{ "src": "/ZNR/logo.svg", "sizes": "any" }]
+      "icons": [
+        {
+          "src": "/ZNR/logo.svg",
+          "sizes": "any"
+        }
+      ]
+    },
+    {
+      "name": "Comunidad",
+      "url": "/ZNR/comunidad.html",
+      "description": "Productos de vendedores de la comunidad Z&R",
+      "icons": [
+        {
+          "src": "/ZNR/logo.svg",
+          "sizes": "any"
+        }
+      ]
     }
   ]
 }
