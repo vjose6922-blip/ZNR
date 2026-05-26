@@ -269,10 +269,103 @@ function showChangePasswordModal() {
 
 
 
+    // ── renderVendorProducts: dibuja la lista; reutilizable desde caché y red ──
+    function renderVendorProducts(container, myProducts) {
+      if (myProducts.length === 0) {
+        container.innerHTML = `<p style="color:#aaa;text-align:center">Aún no has publicado productos.<br>
+          <button class="btn-secondary" onclick="switchTab('form')" style="margin-top:12px">➕ Publicar ahora</button></p>`;
+        window._vendorProducts = [];
+        return;
+      }
+      container.innerHTML = myProducts.map(p => {
+        const imgs = [p.imagen1, p.imagen2, p.imagen3].filter(Boolean);
+        const thumbs = imgs.map((img, i) => `
+          <img src="${escapeHtml(optimizeDriveUrl(img, 80))}" alt="foto ${i+1}"
+            onclick="openVendorImgModal('${escapeHtml(img)}', ${JSON.stringify(imgs).replace(/'/g,"\'")})"
+            style="width:56px;height:56px;object-fit:contain;border-radius:8px;background:#f5f5f8;cursor:pointer;border:1.5px solid #e0e0e0;flex-shrink:0;"
+            onerror="this.style.display='none'">
+        `).join('');
+        return `
+        <div class="vendor-product-row" id="vrow-${p.id}">
+          <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
+            ${thumbs || '<div style="width:56px;height:56px;background:#f5f5f8;border-radius:8px;"></div>'}
+          </div>
+          <div class="info">
+            <strong>${escapeHtml(p.nombre)}</strong>
+            <span>$${Number(p.precio).toLocaleString()} · Stock: ${p.stock}</span><br>
+            <span class="estado-badge estado-${escapeHtml(p.estado)}">${escapeHtml(p.estado)}</span>
+          </div>
+          <div class="actions">
+            <button class="btn-secondary" onclick="editProduct(${p.id})">✏️</button>
+            <button class="btn-secondary btn-danger" onclick="deleteMyProduct(${p.id})">🗑</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      window._vendorProducts = myProducts;
+
+      // Modal de imágenes del vendedor (inyectar solo una vez)
+      if (!window._vendorImgModalReady) {
+        window._vendorImgModalReady = true;
+        const mo = document.createElement('div');
+        mo.id = 'vendor-img-modal';
+        mo.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:16px;';
+        mo.innerHTML = `
+          <button onclick="document.getElementById('vendor-img-modal').style.display='none'"
+            style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;">✕</button>
+          <img id="vendor-img-modal-img" style="max-width:90vw;max-height:75vh;object-fit:contain;border-radius:12px;">
+          <div id="vendor-img-modal-thumbs" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;"></div>`;
+        document.body.appendChild(mo);
+        mo.addEventListener('click', (e) => { if (e.target === mo) mo.style.display='none'; });
+      }
+      window.openVendorImgModal = function(src, imgs) {
+        const mo = document.getElementById('vendor-img-modal');
+        const bigImg = document.getElementById('vendor-img-modal-img');
+        const thumbsEl = document.getElementById('vendor-img-modal-thumbs');
+        bigImg.src = src;
+        thumbsEl.innerHTML = imgs.map(img => `
+          <img src="${escapeHtml(optimizeDriveUrl(img, 90))}" onclick="document.getElementById('vendor-img-modal-img').src='${escapeHtml(img)}'"
+            style="width:64px;height:64px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.1);cursor:pointer;border:2px solid rgba(255,255,255,.3);"
+            onerror="this.style.display='none'">`).join('');
+        mo.style.display = 'flex';
+      };
+    }
+
+    // ── loadMyProducts: caché inmediato + fetch en fondo ──────────────────────
     async function loadMyProducts() {
       const container = document.getElementById('vendor-products-list');
       if (!container) return;
-      container.innerHTML = '<p style="color:#aaa;text-align:center">Cargando...</p>';
+
+      const VENDOR_CACHE_KEY = `zr_vendor_products_${vendorSession.uid}`;
+      const CACHE_MAX_AGE = 300000; // 5 min
+
+      // 1. Mostrar caché inmediatamente si existe y no está vencida
+      let cachedShown = false;
+      try {
+        const raw = localStorage.getItem(VENDOR_CACHE_KEY);
+        if (raw) {
+          const { data, timestamp } = JSON.parse(raw);
+          if (Date.now() - timestamp < CACHE_MAX_AGE && data && data.length > 0) {
+            renderVendorProducts(container, data);
+            cachedShown = true;
+            console.log('📦 Mis productos: desde caché, actualizando en fondo...');
+          }
+        }
+      } catch(e) {}
+
+      if (!cachedShown)
+        container.innerHTML = '<p style="color:#aaa;text-align:center">Cargando...</p>';
+
+      // 2. Sin internet: quedarse con lo que hay
+      if (!navigator.onLine) {
+        if (!cachedShown)
+          container.innerHTML = '<p style="color:#ef4444;text-align:center">📡 Sin conexión. No hay caché local disponible.</p>';
+        else if (typeof showTemporaryMessage === 'function')
+          showTemporaryMessage('📡 Sin conexión — mostrando tus productos en caché', 'info');
+        return;
+      }
+
+      // 3. Fetch en fondo (o primer carga si no había caché)
       try {
         const data = await apiFetch({
           action: 'listarComunidad',
@@ -281,63 +374,21 @@ function showChangePasswordModal() {
         }, 'GET');
         if (!data.ok) throw new Error(data.error);
         const myProducts = (data.products || []).filter(p => p.vendedor_uid === vendorSession.uid);
-        if (myProducts.length === 0) {
-          container.innerHTML = `<p style="color:#aaa;text-align:center">Aún no has publicado productos.<br>
-            <button class="btn-secondary" onclick="switchTab('form')" style="margin-top:12px">➕ Publicar ahora</button></p>`;
-          return;
-        }
-        container.innerHTML = myProducts.map(p => {
-          const imgs = [p.imagen1, p.imagen2, p.imagen3].filter(Boolean);
-          const thumbs = imgs.map((img, i) => `
-            <img src="${escapeHtml(optimizeDriveUrl(img, 80))}" alt="foto ${i+1}"
-              onclick="openVendorImgModal('${escapeHtml(img)}', ${JSON.stringify(imgs).replace(/'/g,"\\'")})"
-              style="width:56px;height:56px;object-fit:contain;border-radius:8px;background:#f5f5f8;cursor:pointer;border:1.5px solid #e0e0e0;flex-shrink:0;"
-              onerror="this.style.display='none'">
-          `).join('');
-          return `
-          <div class="vendor-product-row" id="vrow-${p.id}">
-            <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
-              ${thumbs || '<div style="width:56px;height:56px;background:#f5f5f8;border-radius:8px;"></div>'}
-            </div>
-            <div class="info">
-              <strong>${escapeHtml(p.nombre)}</strong>
-              <span>$${Number(p.precio).toLocaleString()} · Stock: ${p.stock}</span><br>
-              <span class="estado-badge estado-${escapeHtml(p.estado)}">${escapeHtml(p.estado)}</span>
-            </div>
-            <div class="actions">
-              <button class="btn-secondary" onclick="editProduct(${p.id})">✏️</button>
-              <button class="btn-secondary btn-danger" onclick="deleteMyProduct(${p.id})">🗑</button>
-            </div>
-          </div>`;
-        }).join('');
-        // Inyectar función de modal si no existe
-        if (!window._vendorImgModalReady) {
-          window._vendorImgModalReady = true;
-          const mo = document.createElement('div');
-          mo.id = 'vendor-img-modal';
-          mo.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:16px;';
-          mo.innerHTML = `
-            <button onclick="document.getElementById('vendor-img-modal').style.display='none'"
-              style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;">✕</button>
-            <img id="vendor-img-modal-img" style="max-width:90vw;max-height:75vh;object-fit:contain;border-radius:12px;">
-            <div id="vendor-img-modal-thumbs" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;"></div>`;
-          document.body.appendChild(mo);
-          mo.addEventListener('click', (e) => { if (e.target === mo) mo.style.display='none'; });
-        }
-        window.openVendorImgModal = function(src, imgs) {
-          const mo = document.getElementById('vendor-img-modal');
-          const bigImg = document.getElementById('vendor-img-modal-img');
-          const thumbs = document.getElementById('vendor-img-modal-thumbs');
-          bigImg.src = src;
-          thumbs.innerHTML = imgs.map(img => `
-            <img src="${escapeHtml(optimizeDriveUrl(img, 90))}" onclick="document.getElementById('vendor-img-modal-img').src='${escapeHtml(img)}'"
-              style="width:64px;height:64px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.1);cursor:pointer;border:2px solid rgba(255,255,255,.3);"
-              onerror="this.style.display='none'">`).join('');
-          mo.style.display = 'flex';
-        };
-        window._vendorProducts = myProducts;
+
+        // Guardar en caché
+        try {
+          localStorage.setItem(VENDOR_CACHE_KEY, JSON.stringify({
+            data: myProducts,
+            timestamp: Date.now()
+          }));
+        } catch(e) {}
+
+        renderVendorProducts(container, myProducts);
       } catch (err) {
-        container.innerHTML = `<p style="color:#ef4444">Error: ${escapeHtml(err.message)}</p>`;
+        if (!cachedShown)
+          container.innerHTML = `<p style="color:#ef4444">Error: ${escapeHtml(err.message)}</p>`;
+        else if (typeof showTemporaryMessage === 'function')
+          showTemporaryMessage('⚠️ No se pudo actualizar. Mostrando caché local.', 'info');
       }
     }
 
@@ -388,6 +439,8 @@ function showChangePasswordModal() {
         const res = await apiFetch({ action: 'deleteComunidad', id, vendorToken: vendorSession.token });
         if (!res.ok) throw new Error(res.error);
         showTemporaryMessage('🗑 Producto eliminado', 'info');
+        // Invalidar caché para que la lista refleje el cambio
+        try { localStorage.removeItem(`zr_vendor_products_${vendorSession.uid}`); } catch(e) {}
         loadMyProducts();
       } catch (err) {
         showTemporaryMessage('❌ ' + err.message, 'error');
@@ -595,6 +648,8 @@ window.removeImg = function(e, n) {
     if (!res.ok) throw new Error(res.error || 'Error del servidor');
 
     showTemporaryMessage(editId ? '✅ Producto actualizado' : '✅ Producto publicado', 'success');
+    // Invalidar caché para que la lista muestre los datos frescos
+    try { localStorage.removeItem(`zr_vendor_products_${vendorSession.uid}`); } catch(e) {}
     cancelEdit();
     loadMyProducts();
   } catch (err) {
