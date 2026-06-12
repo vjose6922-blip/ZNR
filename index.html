@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+ <meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="
+ default-src 'self';
+ script-src 'self' 'unsafe-inline';
+ style-src 'self' 'unsafe-inline';
+ img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com;
+ connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in;
+ font-src 'self';
+ frame-src 'none';
+ frame-ancestors 'none';
+ object-src 'none';
+ base-uri 'self';
+ worker-src 'self' blob:;
+ child-src 'self' blob:;
+">
+ <title>Z&R | Inicio</title>
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="Catálogo de ropa para hombre y mujer, outfits personalizados." />
+ <link rel="preconnect" href="https:
+ <link rel="preconnect" href="https:
+ <link rel="preload" href="styles.css" as="style">
+ <link rel="stylesheet" href="styles.css" />
+ <link rel="manifest" href="manifest.json">
+ <meta name="theme-color" content="#1e2128">
+ <!-- Favicon -->
+ <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
+ <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
+ <link rel="shortcut icon" href="icons/favicon.ico">
+ <!-- iOS / iPadOS -->
+ <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+ <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+ <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120x120.png">
+ <meta name="apple-mobile-web-app-capable" content="yes">
+ <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ <meta name="apple-mobile-web-app-title" content="Z&R">
+ <!-- Android / Chrome -->
+ <meta name="mobile-web-app-capable" content="yes">
+ <!-- Windows / MS Edge -->
+ <meta name="msapplication-TileImage" content="icons/icon-144x144.png">
+ <meta name="msapplication-TileColor" content="#1e2128">
+ <style>
+ .hero-section {
+ background: linear-gradient(135deg, #1a0f2e 0%, #3b1f5f 50%, #ff4f81 100%);
+ border-radius: 0 0 40px 40px;
+ padding: 8px 8px 25px;
+ text-align: center;
+ color: white;
+ margin-bottom: 30px;
+ }
+
+ [data-theme="light"] .hero-section {
+ background: linear-gradient(135deg, #ff9f6e 0%, #ff7a4f 50%, #ff4f81 100%);
+ }
+
+ .hero-title {
+ font-size: 2.5rem;
+ font-weight: 800;
+ margin-bottom: 12px;
+ animation: fadeInUp 0.6s ease;
+ }
+
+ .hero-subtitle {
+ font-size: 1.1rem;
+ opacity: 0.9;
+ margin-bottom: 24px;
+ animation: fadeInUp 0.6s ease 0.1s both;
+ }
+
+ .hero-buttons {
+ display: flex;
+ gap: 16px;
+ justify-content: center;
+ flex-wrap: wrap;
+ animation: fadeInUp 0.6s ease 0.2s both;
+ }
+
+ .hero-btn {
+ padding: 10px 14px;
+ border-radius: 50px;
+ font-weight: 600;
+ text-decoration: none;
+ transition: all 0.3s ease;
+ }
+
+ .hero-btn-primary {
+ background: white;
+ color: #ff4f81;
+ }
+
+ .hero-btn-primary:hover {
+ transform: translateY(-3px);
+ box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+ }
+
+ .hero-btn-secondary {
+ background: white;
+ color: #ff4f81;
+ backdrop-filter: blur(10px);
+ }
+
+ .hero-btn-secondary:hover {
+ transform: translateY(-3px);
+ box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+ }
+
+ .section-title {
+ font-size: 1.8rem;
+ font-weight: 700;
+ text-align: center;
+ margin-bottom: 30px;
+ color: var(--color-text-main);
+ }
+
+ .categories-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+ gap: 20px;
+ padding: 0 20px;
+ max-width: 1000px;
+ margin: 0 auto;
+ }
+
+ .category-card {
+ text-align: center;
+ text-decoration: none;
+ background: var(--color-surface);
+ border-radius: 20px;
+ padding: 24px 16px;
+ transition: all 0.3s ease;
+ box-shadow: var(--shadow-soft);
+ }
+
+ .category-card:hover {
+ transform: translateY(-5px);
+ box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+ }
+
+ .category-icon {
+ font-size: 30px;
+ display: block;
+ margin-bottom: 12px;
+ }
+
+ .category-name {
+ font-size: 0.8rem;
+ font-weight: 600;
+ color: var(--color-text-main);
+ }
+
+ .featured-products {
+ max-width: 1400px;
+ margin: 0 auto;
+ padding: 0 20px;
+ }
+
+ .products-scroll {
+ display: grid;
+ grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+ gap: 24px;
+ }
+
+ .outfit-preview {
+ border-radius: 30px;
+ padding: 15px 8px;
+ margin: 40px 20px;
+ text-align: center;
+ }
+
+ 
+
+ #home-looks-container.looks-grid {
+ padding: 0 20px;
+ max-width: 900px;
+ margin: 30px auto 0;
+ display: flex;
+ flex-direction: column;
+ gap: 12px;
+ }
+
+ #home-looks-container.looks-grid.layout-grid {
+ display: grid !important;
+ grid-template-columns: repeat(2, 1fr) !important;
+ gap: 8px !important;
+ padding: 0 12px !important;
+ }
+
+ #home-looks-container .look-card {
+ max-width: 100%;
+ }
+
+ .benefits-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+ gap: 24px;
+ max-width: 1000px;
+ margin: 40px auto;
+ padding: 0 20px;
+ }
+
+ .benefit-card {
+ text-align: center;
+ padding: 24px;
+ }
+
+ .benefit-icon {
+ font-size: 24px;
+ margin-bottom: 16px;
+ }
+
+ .benefit-title {
+ font-weight: 700;
+ margin-bottom: 8px;
+ }
+
+ .benefit-text {
+ font-size: 13px;
+ color: var(--color-text-muted);
+ }
+
+ .recent-products {
+ max-width: 1400px;
+ margin: 0 auto;
+ padding: 20px;
+ }
+
+ .recent-scroll {
+ display: grid;
+ grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+ gap: 14px;
+ transition: all 0.2s ease;
+ }
+
+ .recent-scroll.layout-list {
+ grid-template-columns: 1fr;
+ }
+ .recent-scroll.layout-list .recent-product-card {
+ display: flex;
+ flex-direction: row;
+ align-items: center;
+ border-radius: 12px;
+ }
+ .recent-scroll.layout-list .recent-product-img {
+ width: 80px;
+ height: 80px;
+ aspect-ratio: 1;
+ flex-shrink: 0;
+ border-radius: 10px 0 0 10px;
+ padding: 6px;
+ }
+ .recent-scroll.layout-list .recent-product-info {
+ padding: 10px 12px;
+ flex: 1;
+ min-width: 0;
+ }
+
+ .recent-scroll.layout-grid {
+ grid-template-columns: repeat(2, 1fr);
+ }
+
+ .recent-product-card {
+ background: var(--color-surface);
+ border-radius: 16px;
+ overflow: hidden;
+ text-decoration: none;
+ transition: transform 0.2s;
+ }
+
+ .recent-product-card:hover {
+ transform: translateY(-3px);
+ }
+
+ .recent-product-img {
+ width: 90%;
+ aspect-ratio: 1;
+ object-fit: contain;
+ background: var(--color-surface-2);
+ padding: 10px;
+ }
+
+ .recent-product-info {
+ padding: 12px;
+ }
+
+ .recent-product-name {
+ font-size: 13px;
+ font-weight: 500;
+ color: var(--color-text-main);
+ margin-bottom: 4px;
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+ }
+
+ .recent-product-price {
+ font-size: 14px;
+ font-weight: 700;
+ color: #ff4f81;
+ }
+
+ .floating-wa {
+ position: fixed;
+ right: 16px;
+ bottom: 90px;
+ background: #25D366;
+ width: 55px;
+ height: 55px;
+ border-radius: 50%;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ color: white;
+ font-size: 28px;
+ text-decoration: none;
+ box-shadow: 0 4px 15px rgba(37,211,102,0.4);
+ z-index: 90;
+ transition: all 0.3s ease;
+ }
+
+ .floating-wa:hover {
+ transform: scale(1.1);
+ box-shadow: 0 6px 20px rgba(37,211,102,0.5);
+ }
+
+ 
+
+ @keyframes fadeInUp {
+ from {
+ opacity: 0;
+ transform: translateY(30px);
+ }
+ to {
+ opacity: 1;
+ transform: translateY(0);
+ }
+ }
+
+ @media (max-width: 768px) {
+ .hero-title { font-size: 1.8rem; }
+ .categories-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+ .products-scroll { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+ }
+
+ </style>
+ <style>
+ /* Fixed header override for this page */
+ .app-header { position: fixed !important; top: 0; left: 0; right: 0; width: 100%; box-sizing: border-box; }
+ body { padding-top: var(--header-height, 64px); }
+ </style>
+</head>
+<body class="home-page">
+
+ <div id="global-loader" class="global-loader hidden">
+ <div class="loader-spinner"></div>
+ <div class="loader-text">Cargando...</div>
+ </div>
+
+ 
+
+ <header class="app-header">
+ <div class="header-left">
+ <div class="logo-touch-area">
+ <span class="logo-mark">Z&R</span>
+ </div>
+ <div class="header-text">
+ <h1 class="app-title">Inicio</h1>
+ <p class="app-subtitle"></p>
+ </div>
+ </div>
+ <div class="header-right">
+ <button class="icon-button" id="up-open-btn" aria-label="Preferencias" title="Preferencias"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-settings"/></svg></button>
+ </div>
+ </header>
+
+ <section class="hero-section">
+ <h1 class="hero-title">Descubre tu Estilo</h1>
+ <p class="hero-subtitle">Ropa 100% original.</p>
+ <div class="hero-buttons">
+ <a href="catalogo.html" class="hero-btn hero-btn-primary">Ver Catálogo</a>
+ <a href="outfit.html" class="hero-btn hero-btn-secondary">Crear Outfit</a>
+ <a href="comunidad.html" class="hero-btn hero-btn-secondary">Ir a Comunidad</a>
+ </div>
+ </section>
+
+ <section>
+ <h2 class="section-title">Explora por Categoría</h2>
+ <div class="categories-grid" id="categories-grid"></div>
+ </section>
+
+ <section>
+ 
+ <h2 class="section-title">Productos Destacados</h2>
+ 
+ <div class="featured-products">
+ <div class="products-container" id="featured-products" style="padding:0 8px;"></div>
+ </div>
+ </section>
+
+ <section class="outfit-preview">
+ <h2 class="section-title" style="margin-bottom: 5px;">Outfit Inteligente</h2>
+ <p style="max-width: 600px; margin: 10px; color: var(--color-text-muted);">
+ ¿No sabes qué combinar? Nosotros armamos tu outfit automáticamente según el clima y tus gustos.</p>
+ <a href="outfit.html" class="hero-btn hero-btn-primary" style="display: inline-block; margin 10px; box-shadow: 0 15px 30px rgba(0,0,0,0.15);"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z"/></svg> Probar Ahora</a>
+ <h3 style="font-size: 1.3rem; margin: 8px;">Looks basados en tus favoritos</h3>
+ <div id="home-looks-container"></div>
+ </section>
+
+ <section class="home-comunidad-section">
+ <h2 class="section-title" style="margin-bottom: 12px;">Comunidad Z&R</h2>
+
+ <div style="text-align:center; margin-bottom: 10px;">
+
+
+ <a href="comunidad.html" class="hero-btn hero-btn-primary" style="display: inline-block; margin 10px; box-shadow: 0 15px 30px rgba(0,0,0,0.15);">Ver Más</a>
+
+ </div>
+
+ <p style="color:var(--color-text-muted); margin: 0 0 12px; font-size:14px; text-align:center;">Productos únicos de vendedores locales de tu región.
+ </p>
+
+ <div class="products-container" id="home-comunidad-grid">
+ <div style="grid-column:1/-1; text-align:center; padding:30px; color:#aaa;">Cargando...
+ </div>
+ </div>
+</section>
+
+
+<section>
+ <h2 class="section-title">Vistos Recientemente</h2>
+ <div class="recent-products">
+ <div class="recent-scroll" id="recent-products"></div>
+ </div>
+ </section>
+
+
+ 
+ <section>
+ <div class="benefits-grid">
+ <div class="benefit-card">
+ <div class="benefit-icon"></div>
+ <div class="benefit-title">Envíos Rápidos</div>
+ <div class="benefit-text">Entregas a domicilio o punto intermedio</div>
+ </div>
+ <div class="benefit-card">
+ <div class="benefit-icon"></div>
+ <div class="benefit-title">Pago Seguro</div>
+ <div class="benefit-text">Mercado Pago - Protección al comprador</div>
+ </div>
+ <div class="benefit-card">
+ <div class="benefit-icon"></div>
+ <div class="benefit-title">Nuevos Estilos</div>
+ <div class="benefit-text">Actualizamos el catálogo semanalmente</div>
+ </div>
+ <div class="benefit-card">
+ <div class="benefit-icon"></div>
+ <div class="benefit-title">Atención Personalizada</div>
+ <div class="benefit-text">Soporte por WhatsApp</div>
+ </div>
+ </div>
+ </section>
+
+ 
+ <a href="https://wa.me/528671781272" class="floating-wa" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.549 4.107 1.51 5.833L.057 23.57a.75.75 0 00.918.917l5.735-1.453A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.713 9.713 0 01-4.953-1.354l-.355-.21-3.676.932.948-3.557-.23-.368A9.714 9.714 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg></a>
+
+ <footer class="app-footer" style="margin-bottom: 70px;">
+ <div class="footer-content">
+ <div class="footer-logo">
+ <span class="logo-mark">Z&R</span>
+ </div>
+ <div class="footer-social">
+ <a href="https://www.facebook.com/tu_pagina" target="_blank" class="social-link">Facebook</a>
+ </div>
+ <div class="footer-copyright">
+ <p>© 2026 Z&R - Todos los derechos reservados</p>
+ <a href="privacidad.html" style="color:#ff4f81; text-decoration:none;">Privacidad</a> ·
+ <a href="terminos.html" style="color:#ff4f81; text-decoration:none;">Términos</a>
+ </div>
+ </div>
+ </footer>
+
+
+ <aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
+ <div class="cart-header">
+ <h2>Tu carrito</h2>
+ <button class="icon-button" id="close-cart-btn" aria-label="Cerrar carrito"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-x"/></svg></button>
+ </div>
+ <div class="cart-body" id="cart-items-container"></div>
+ <div class="cart-footer">
+ <div class="cart-summary-row"><span>Subtotal</span><span id="cart-subtotal">$0</span></div>
+ <div class="cart-summary-row total"><span>Total</span><span id="cart-total">$0</span></div>
+ <div id="saved-phone-container" style="font-size: 11px; text-align: center; margin: 8px 0; display: none;">Número guardado: <span id="saved-phone-display"></span>
+ <button id="change-phone-btn" style="background: none; border: none; color: #ff4f81; cursor: pointer;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg> Cambiar</button>
+ </div>
+ <!-- Delivery section — always visible -->
+ <div class="cart-delivery-block" id="cart-delivery-block">
+ <div class="cart-delivery-header">
+ <span class="cart-delivery-icon"></span>
+ <div class="cart-delivery-text">
+ <strong id="cart-delivery-title">Dirección de entrega</strong>
+ <span id="cart-delivery-subtitle" class="cart-delivery-sub">Opcional — para envío a domicilio</span>
+ </div>
+ <button id="cart-add-address-btn" class="cart-link-btn"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg> Añadir</button>
+ </div>
+ <div id="saved-address-container" style="display:none;">
+ <div class="cart-address-display">
+ <span id="saved-address-display"></span>
+ <button id="change-address-btn" class="cart-link-btn"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-edit"/></svg> Editar</button>
+ </div>
+ </div>
+ <div id="cart-shipping-status"></div>
+ </div>
+ <button id="request-purchase-btn" class="primary-button full-width"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.549 4.107 1.51 5.833L.057 23.57a.75.75 0 00.918.917l5.735-1.453A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.713 9.713 0 01-4.953-1.354l-.355-.21-3.676.932.948-3.557-.23-.368A9.714 9.714 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg> Solicitar compra</button>
+ </div>
+ </aside>
+
+ <aside class="cart-drawer" id="wishlist-looks-drawer" aria-hidden="true">
+ <div class="cart-header">
+ <h2>Looks favoritos</h2>
+ <button class="icon-button" id="close-wishlist-looks-btn" aria-label="Cerrar"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-x"/></svg></button>
+ </div>
+ <div class="cart-body" id="wishlist-looks-container"></div>
+ <div class="cart-footer">
+ <button id="add-all-looks-to-cart" class="primary-button full-width" style="background: linear-gradient(135deg, #ff4f81, #ff7a4f);"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-cart"/></svg> Agregar todos al carrito
+ </button>
+ </div>
+</aside>
+
+ <div class="overlay" id="overlay"></div>
+ <!-- image-modal is built dynamically by initImageModalControls() in common.js -->
+ <div class="image-modal" id="image-modal"></div>
+
+ <script src="api-config.js"></script>
+ <script src="common.js" defer></script>
+ <script src="error-monitor.js" defer></script>
+<script src="cache-manager.js" defer></script>
+<script src="offline-manager.js" defer></script>
+<script>
+(function() {
+ // Lazy load de looks.js — solo cuando la sección es visible
+ const looksSection = document.getElementById('home-looks-container');
+ if (!looksSection) return;
+ const obs = new IntersectionObserver(function(entries) {
+ if (entries[0].isIntersecting) {
+ obs.disconnect();
+ const s = document.createElement('script');
+ s.src = 'looks.js';
+ s.defer = true;
+ document.head.appendChild(s);
+ }
+ }, { rootMargin: '200px' });
+ obs.observe(looksSection);
+})();
+</script>
+<script src="home.js" defer></script>
+
+
+<script>
+
+
+(function() {
+ const PREVIEW_COUNT = 6;
+
+ function buildComunidadCard(p) {
+ const esc  = typeof escapeHtml === 'function' ? escapeHtml : s =>String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const optUrl = typeof optimizeDriveUrl === 'function' ? optimizeDriveUrl : u => u;
+ const img  = optUrl(p.imagen1 || '', 400) || 'https://placehold.co/300x300/3b1f5f/white?text=Z%26R';
+ const allImages = [p.imagen1, p.imagen2, p.imagen3].filter(Boolean).map(u => optUrl(u, 800));
+ const price = Number(p.precio || 0).toLocaleString('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:0 });
+ const stock = Number(p.stock) || 0;
+ const hasStock = stock > 0;
+
+ const card = document.createElement('div');
+ card.className = 'product-card';
+ card.dataset.productId = p.id;
+
+ card.innerHTML = `
+ <div class="product-slider" style="position:relative;">
+ <span class="product-badge" style="position:absolute;top:8px;left:8px;font-size:9px;padding:2px 8px;background:var(--color-primary);color:#fff;border-radius:20px;font-weight:800;">Comunidad</span>
+ <img src="${esc(img)}" alt="${esc(p.nombre)}" loading="lazy"
+ style="width:100%;aspect-ratio:1;object-fit:contain;display:block;background:var(--color-surface-2);">
+ </div>
+ <div class="product-info" style="padding:12px;">
+ <div class="product-title-row">
+ <h3 class="product-name" style="font-size:14px;">${esc(p.nombre)}</h3>
+ <div class="product-price" style="font-size:16px;">${price}</div>
+ </div>
+ ${p.vendedor_nombre ? `<div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;"> ${esc(p.vendedor_nombre)}</div>` : ''}
+ ${p.talla ? `<div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">Info: ${esc(p.talla)}</div>` : ''}
+ <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+ ${!hasStock
+ ? '<span style="color:var(--color-error);font-size:11px;font-weight:600;">Sin stock</span>'
+ : `<span style="color:var(--color-success);font-size:11px;">Stock: ${stock}</span>`}
+ </div>
+ <div class="product-actions" style="margin-top:8px;">
+ <button class="primary-button home-com-add-btn"
+ style="padding:8px 12px;font-size:12px;${!hasStock ? 'opacity:.5;cursor:not-allowed;' : ''}"
+ ${!hasStock ? 'disabled' : ''}
+ data-id="${esc(String(p.id))}"
+ data-nombre="${esc(p.nombre)}"
+ data-precio="${p.precio || 0}"
+ data-img="${esc(p.imagen1 || '')}"
+ data-talla="${esc(p.talla || '')}"
+ data-vendedor="${esc(p.vendedor_nombre || '')}"
+ data-vendortel="${esc(p.vendedor_tel || '')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-plus"/></svg> Agregar</button>
+ </div>
+ </div>`;
+
+ // Click imagen → modal
+ const sliderEl = card.querySelector('.product-slider');
+ if (sliderEl) {
+ sliderEl.style.cursor = 'pointer';
+ sliderEl.addEventListener('click', () => {
+ if (window.openImageModal) {
+ const productData = {
+ ID:  p.id,
+ Nombre:  p.nombre  || '',
+ Precio:  p.precio  || 0,
+ Categoria:  p.categoria  || '',
+ Talla:  p.talla  || '',
+ Descripcion: p.descripcion || '',
+ Stock:  p.stock !== undefined ? Number(p.stock) : -1,
+ Badge:  p.badge  || '',
+ Imagen1:  p.imagen1  || '',
+ Imagen2:  p.imagen2  || '',
+ Imagen3:  p.imagen3  || '',
+ _comunidad: true,
+ };
+ openImageModal(img, p.id, allImages, productData);
+ }
+ });
+ }
+
+ // Click agregar
+ card.querySelector('.home-com-add-btn')?.addEventListener('click', (e) => {
+ e.stopPropagation();
+ if (typeof addToCart === 'function') {
+ addToCart({
+ ID: p.id, Nombre: p.nombre, Precio: Number(p.precio),
+ Imagen1: p.imagen1, Talla: p.talla,
+ _comunidad: true, _vendedor: p.vendedor_nombre, _vendorTel: p.vendedor_tel
+ });
+ if (typeof showTemporaryMessage === 'function')
+ showTemporaryMessage(' ' + p.nombre + ' agregado', 'success');
+ }
+ });
+
+ return card;
+ }
+
+ async function loadHomeComunidad() {
+ const grid = document.getElementById('home-comunidad-grid');
+ if (!grid || !window.API_URL) return;
+ try {
+ const res  = await fetch(window.API_URL + '?action=listarComunidad');
+ const data = await res.json();
+ if (!data.ok || !data.products) throw new Error('Sin datos');
+ const aprobados = data.products.filter(p => p.estado === 'aprobado').slice(0, PREVIEW_COUNT);
+ window.allCommunityProductsIndexed = data.products.filter(p => p.estado === 'aprobado'); // expuesto para el modal
+ grid.innerHTML = '';
+ if (!aprobados.length) {
+ grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--color-text-muted)">Pronto habrá productos de la comunidad aquí.</div>';
+ return;
+ }
+ aprobados.forEach(p => grid.appendChild(buildComunidadCard(p)));
+
+ // Aplicar layout guardado
+ const savedLayout = localStorage.getItem('products_layout') || 'grid';
+ if (savedLayout === 'grid') grid.classList.add('layout-grid');
+ else grid.classList.remove('layout-grid');
+
+ } catch(e) {
+ grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--color-text-muted)">No se pudo cargar la comunidad.</div>';
+ }
+ }
+
+ document.addEventListener('DOMContentLoaded', function() {
+ setTimeout(loadHomeComunidad, 500);
+ });
+
+ // Escuchar cambios de layout del panel de ajustes
+ window.addEventListener('layoutChanged', (e) => {
+ const grid = document.getElementById('home-comunidad-grid');
+ if (!grid) return;
+ if (e.detail.layout === 'grid') grid.classList.add('layout-grid');
+ else grid.classList.remove('layout-grid');
+ });
+})();
+
+</script>
+
+
+ <script>
+ // Layout: aplicar preferencia guardada a featured-products al cargar
+ document.addEventListener('DOMContentLoaded', () => {
+ const layout = localStorage.getItem('products_layout') || 'grid';
+ const fp = document.getElementById('featured-products');
+ const looksContainer = document.getElementById('home-looks-container');
+ if (fp) {
+ if (layout === 'grid') fp.classList.add('layout-grid');
+ else fp.classList.remove('layout-grid');
+ }
+ if (looksContainer) {
+ looksContainer.classList.add('looks-grid');
+ if (layout === 'grid') looksContainer.classList.add('layout-grid');
+ else looksContainer.classList.remove('layout-grid');
+ }
+ // Escuchar cambios del panel de ajustes
+ window.addEventListener('layoutChanged', (e) => {
+ if (fp) {
+ if (e.detail.layout === 'grid') fp.classList.add('layout-grid');
+ else fp.classList.remove('layout-grid');
+ }
+ if (looksContainer) {
+ if (e.detail.layout === 'grid') looksContainer.classList.add('layout-grid');
+ else looksContainer.classList.remove('layout-grid');
+ }
+ });
+ });
+ </script>
+
+ <script>
+ if ('serviceWorker' in navigator) {
+ window.addEventListener('load', () => {
+ navigator.serviceWorker.register('./sw.js')
+ .then(registration => console.log(' SW registrado:', registration.scope))
+ .catch(error => console.log(' Error SW:', error));
+ });
+ }
+ </script>
+
+
+
+
+
+
+
+ <script>
+
+const looksWishlistDrawer = document.getElementById('wishlist-looks-drawer');
+const overlay = document.getElementById('overlay');
+
+document.getElementById('wishlist-looks-icon-home').addEventListener('click', () => {
+ looksWishlistDrawer.classList.add('open');
+ overlay.classList.add('visible');
+ if (typeof renderWishlistLooks === 'function') renderWishlistLooks();
+});
+
+document.getElementById('close-wishlist-looks-btn').addEventListener('click', () => {
+ looksWishlistDrawer.classList.remove('open');
+ overlay.classList.remove('visible');
+});
+
+overlay.addEventListener('click', () => {
+ looksWishlistDrawer?.classList.remove('open');
+});
+
+window.addEventListener('looksWishlistUpdated', () => {
+ const count = (JSON.parse(localStorage.getItem('zr_looks_wishlist') || '[]')).length;
+ const badgeBtn = document.getElementById('wishlist-looks-icon-home');
+ if (badgeBtn) badgeBtn.textContent = count > 0 ? ` (${count})` : '';
+});
+
+ </script>
+
+
+
+
+ 
+
+ <nav class="bottom-nav">
+ <button class="bottom-nav-item" data-page="catalogo" id="nav-catalogo">
+ <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-catalog"/></svg></span>
+ <span>Catálogo</span>
+ </button>
+ <button class="bottom-nav-item" data-page="outfit" id="nav-outfit">
+ <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-outfit"/></svg></span>
+ <span>Outfits</span>
+ </button>
+ <button class="bottom-nav-item" data-page="comunidad" id="nav-comunidad">
+ <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-community"/></svg></span>
+ <span>Comunidad</span>
+ </button>
+ <button class="bottom-nav-item" id="nav-cart">
+ <div class="badge-wrapper">
+ <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-cart"/></svg></span>
+ <span class="bottom-nav-badge" id="bottom-cart-count">0</span>
+ </div>
+ <span>Carrito</span>
+ </button>
+ </nav>
+ <script>
+ document.getElementById('nav-catalogo')?.addEventListener('click', () => { window.location.href = 'catalogo.html'; });
+ document.getElementById('nav-outfit')?.addEventListener('click', () => { window.location.href = 'outfit.html'; });
+ document.getElementById('nav-comunidad')?.addEventListener('click', () => { window.location.href = 'comunidad.html'; });
+ document.getElementById('nav-cart')?.addEventListener('click', (e) => {
+ e.preventDefault();
+ if (typeof openCartDrawer === 'function') openCartDrawer();
+ });
+ window.addEventListener('cartUpdated', () => {
+ const count = Object.values(localCart || {}).reduce((s, i) => s + i.quantity, 0);
+ const badge = document.getElementById('bottom-cart-count');
+ if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'flex' : 'none'; }
+ });
+ </script>
+</body>
+ </html>
