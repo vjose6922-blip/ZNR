@@ -2906,8 +2906,8 @@ async function clientCancelOrder(requestId) {
             mostrarMensajeFlotante('GAS respondió: ' + JSON.stringify(data), 'error', 10000);
             return;
           }
-        } catch {
-          // Sin conexión o CORS (local) — la UI ya se actualizó optimistamente, dejar así
+       } catch(fetchErr) {
+          mostrarMensajeFlotante('Error fetch: ' + String(fetchErr), 'error', 15000);
           gasOk = true;
         }
 
