@@ -2848,7 +2848,7 @@ ${actionBtn}
 async function clientCancelOrder(requestId) {
   const phone = localStorage.getItem('client_phone') || '';
   if (!phone) {
-    mostrarMensajeFlotante('No se encontró tu número de teléfono. Intenta de nuevo desde el carrito.', 'error');
+    showTemporaryMessage('No se encontró tu número de teléfono. Intenta de nuevo desde el carrito.', 'error');
     return;
   }
   showCustomConfirm({
@@ -2891,7 +2891,7 @@ async function clientCancelOrder(requestId) {
               attachOrderCancelListeners();
             }
             hideLoader();
-            mostrarMensajeFlotante('Tu pedido ya fue confirmado. Usa el botón de WhatsApp para solicitar la cancelación al admin.', 'warning', 6000);
+            showTemporaryMessage('Tu pedido ya fue confirmado. Usa el botón de WhatsApp para solicitar la cancelación al admin.', 'warning', 6000);
             return;
           } else {
             // Revertir — error del GAS
@@ -2903,20 +2903,20 @@ async function clientCancelOrder(requestId) {
               attachOrderCancelListeners();
             }
             hideLoader();
-            mostrarMensajeFlotante('GAS respondió: ' + JSON.stringify(data), 'error', 10000);
+            showTemporaryMessage('GAS respondió: ' + JSON.stringify(data), 'error', 10000);
             return;
           }
        } catch(fetchErr) {
-          mostrarMensajeFlotante('Error fetch: ' + String(fetchErr), 'error', 15000);
+          showTemporaryMessage('Error fetch: ' + String(fetchErr), 'error', 15000);
           gasOk = true;
         }
 
         hideLoader();
-        if (gasOk) mostrarMensajeFlotante('Pedido cancelado correctamente.', 'success');
+        if (gasOk) showTemporaryMessage('Pedido cancelado correctamente.', 'success');
 
       } catch(err) {
         hideLoader();
-        mostrarMensajeFlotante('Error inesperado al cancelar.', 'error');
+        showTemporaryMessage('Error inesperado al cancelar.', 'error');
       }
     }
   });
