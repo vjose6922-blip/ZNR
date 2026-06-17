@@ -2903,11 +2903,11 @@ async function clientCancelOrder(requestId) {
               attachOrderCancelListeners();
             }
             hideLoader();
-            showTemporaryMessage('GAS respondió: ' + JSON.stringify(data), 'error', 10000);
+            window.originalAlert('GAS: ' + JSON.stringify(data));
             return;
           }
        } catch(fetchErr) {
-          showTemporaryMessage('Error fetch: ' + String(fetchErr), 'error', 15000);
+          window.originalAlert('Fetch falló: ' + String(fetchErr));
           gasOk = true;
         }
 
@@ -2916,7 +2916,7 @@ async function clientCancelOrder(requestId) {
 
       } catch(err) {
         hideLoader();
-        showTemporaryMessage('Error inesperado al cancelar.', 'error');
+        window.originalAlert('Error inesperado: ' + String(err));
       }
     }
   });
