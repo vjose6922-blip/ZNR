@@ -2875,10 +2875,9 @@ async function clientCancelOrder(requestId) {
         let gasOk = false;
         try {
           const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'clientCancelRequest', requestId, phone })
-          });
+  method: 'POST',
+  body: JSON.stringify({ action: 'clientCancelRequest', requestId, phone })
+});
 
           // 🔍 LEE LA RESPUESTA COMO TEXTO PRIMERO
           const responseText = await res.text();
