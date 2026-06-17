@@ -761,6 +761,12 @@ const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${r
 const data = await response.json();
 if (data.ok && data.status === 'approved' && data.paymentLink) {
 clearInterval(interval);
+// Actualizar status en historial local
+if (typeof loadOrders === 'function' && typeof saveOrders === 'function') {
+  const orders = loadOrders();
+  const idx = orders.findIndex(o => o.requestId === requestId);
+  if (idx !== -1) { orders[idx].status = 'confirmado'; saveOrders(orders); }
+}
 const itemsFromRequest = data.items || Object.values(localCart);
 let message = " *¡PEDIDO CONFIRMADO!*\n";
 message += "\n\n";

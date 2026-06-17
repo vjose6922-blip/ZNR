@@ -3,8 +3,8 @@
 //   • Añadidas nuevas páginas de vendedor al caché estático
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_NAME    = 'zr-cache-v11';   // ← incrementado: icons sprite + error monitor
-const DYNAMIC_CACHE = 'zr-dynamic-v10';
+const CACHE_NAME    = 'zr-cache-v12';   // ← incrementado: admin-comunidad.js añadido al caché
+const DYNAMIC_CACHE = 'zr-dynamic-v11';
 const OFFLINE_URL   = '/ZNR/offline.html';
 
 const STATIC_ASSETS = [
@@ -27,6 +27,7 @@ const STATIC_ASSETS = [
   '/ZNR/comunidad.js',
   '/ZNR/vendedor-unificado.js',
   '/ZNR/notifications-optimized.js',
+  '/ZNR/admin-comunidad.js',
   '/ZNR/offline-manager.js',
   '/ZNR/cache-manager.js',
   '/ZNR/error-monitor.js',

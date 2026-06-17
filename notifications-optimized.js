@@ -74,9 +74,16 @@ localStorage.removeItem(NOTIF_CACHE_KEY);
 function getGroupStatus(group) {
 if (!group.notifications || group.notifications.length === 0) return 'pending';
 const allConfirmed = group.notifications.every(n => n.status === 'confirmed');
-const allRejected = group.notifications.every(n => n.status === 'rejected');
+const allRejected  = group.notifications.every(n => n.status === 'rejected');
+const allCancelled = group.notifications.every(n => n.status === 'cancelled');
 if (allConfirmed) return 'confirmed';
-if (allRejected) return 'rejected';
+if (allRejected)  return 'rejected';
+if (allCancelled) return 'cancelled';
+// Mixto: si hay algún cancelled y ningún pending/confirmed → cancelled
+const hasPending   = group.notifications.some(n => n.status === 'pending');
+const hasConfirmed = group.notifications.some(n => n.status === 'confirmed');
+const hasCancelled = group.notifications.some(n => n.status === 'cancelled');
+if (hasCancelled && !hasPending && !hasConfirmed) return 'cancelled';
 return 'pending';
 }
 function addStatusFilterUI() {
@@ -86,10 +93,11 @@ if (document.querySelector('.notifications-filters')) return;
 const filterBar = document.createElement("div");
 filterBar.className = "notifications-filters";
 const filters = [
-{ value: 'all', label: `${LIST} Todas`, color: '#3b1f5f' },
-{ value: 'pending', label: `${CLOCK} Pendientes`, color: '#f97316' },
-{ value: 'confirmed', label: `${CHECK} Confirmadas`, color: '#22c55e' },
-{ value: 'rejected', label: `${X_ICO} Rechazadas`, color: '#ef4444' }
+{ value: 'all',       label: `${LIST}  Todas`,      color: '#3b1f5f' },
+{ value: 'pending',   label: `${CLOCK} Pendientes`, color: '#f97316' },
+{ value: 'confirmed', label: `${CHECK} Confirmadas`,color: '#22c55e' },
+{ value: 'cancelled', label: `✕ Canceladas`,         color: '#ef4444' },
+{ value: 'rejected',  label: `${X_ICO} Rechazadas`, color: '#9ca3af' }
 ];
 filters.forEach(filter => {
 const btn = document.createElement("button");
@@ -141,9 +149,10 @@ const counter = document.getElementById("filter-result-counter");
 if (counter) {
 let statusText = "";
 switch(statusFilter) {
-case 'pending': statusText = "pendientes"; break;
+case 'pending':   statusText = "pendientes"; break;
 case 'confirmed': statusText = "confirmadas"; break;
-case 'rejected': statusText = "rechazadas"; break;
+case 'cancelled': statusText = "canceladas"; break;
+case 'rejected':  statusText = "rechazadas"; break;
 default: statusText = "total";
 }
 counter.textContent = `${count} solicitud${count !== 1 ? 'es' : ''} ${statusText !== 'total' ? statusText : ''}`;
@@ -174,9 +183,10 @@ if (!container) return;
 if (groups.length === 0) {
 let emptyMessage = "";
 switch(currentStatusFilter) {
-case 'pending': emptyMessage += "No hay solicitudes pendientes"; break;
+case 'pending':   emptyMessage += "No hay solicitudes pendientes"; break;
 case 'confirmed': emptyMessage += "No hay solicitudes confirmadas"; break;
-case 'rejected': emptyMessage += "No hay solicitudes rechazadas"; break;
+case 'cancelled': emptyMessage += "No hay solicitudes canceladas por clientes"; break;
+case 'rejected':  emptyMessage += "No hay solicitudes rechazadas"; break;
 default: emptyMessage += "No hay solicitudes";
 }
 container.innerHTML = `<div class="empty">${emptyMessage}</div>`;
@@ -290,7 +300,8 @@ return imagenUrl;
 }
 function getStatusLabel(status, hasStock) {
 if (status === 'confirmed') return 'Confirmado';
-if (status === 'rejected') return 'Rechazado';
+if (status === 'rejected')  return 'Rechazado';
+if (status === 'cancelled') return 'Cancelado por cliente';
 return hasStock ? 'Pendiente' : 'Sin stock';
 }
 
@@ -304,6 +315,7 @@ function createOptimizedNotificationCard(group) {
   let statusBadge = '';
   switch (groupStatus) {
     case 'confirmed': statusBadge = '<span class="group-status-badge confirmed">Confirmado</span>'; break;
+    case 'cancelled': statusBadge = '<span class="group-status-badge cancelled">Cancelado por cliente</span>'; break;
     case 'rejected':  statusBadge = '<span class="group-status-badge rejected">Rechazado</span>'; break;
     default:          statusBadge = '<span class="group-status-badge pending">Pendiente</span>';
   }
@@ -372,7 +384,7 @@ function createOptimizedNotificationCard(group) {
         <button class="btn btn-cancel" data-action="cancel"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" aria-hidden="true"><use href="#ic-x"/></svg> Cancelar</button>
       ` : `
         <span class="completed-badge ${groupStatus}">
-          ${groupStatus === 'confirmed' ? 'confirmado' : 'cancelado'}
+          ${groupStatus === 'confirmed' ? 'confirmado' : groupStatus === 'cancelled' ? '✕ Cancelado por cliente' : 'cancelado'}
         </span>
       `}
     </div>
