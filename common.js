@@ -2889,10 +2889,12 @@ async function clientCancelOrder(requestId) {
             data = JSON.parse(responseText);
           } catch (parseError) {
             console.error('❌ No se pudo parsear JSON:', responseText);
-            // Si no es JSON, mostrar el texto como error
             throw new Error('El servidor devolvió: ' + responseText.substring(0, 200));
           }
-
+          if (!data) {
+            throw new Error('Sin conexión con el servidor. Intenta de nuevo.');
+          }
+          
           if (data && data.ok && data.cancelled) {
             gasOk = true;
           } else if (data && data.ok && data.alreadyConfirmed) {
