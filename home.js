@@ -715,8 +715,36 @@ productsHtml += `
   </div>
 </div>
 `;
+const categoryLabel = look.category === 'Mujer' ? 'Mujer' : look.category === 'Hombre' ? 'Hombre' : 'Unisex';
+const card = document.createElement('div');
+card.className = 'look-card';
+card.dataset.lookId = look.id;
+card.innerHTML = `
+<div class="look-images-container">
+${imagesHtml || '<div class="look-slot-image empty">Sin imágenes</div>'}
+</div>
+<div class="look-info">
+<div class="look-header">
+<span class="look-category">${escapeHtml(categoryLabel)}</span>
+<span class="look-item-count">${productCount} prenda${productCount !== 1 ? 's' : ''}</span>
+</div>
+<h2 class="look-title">${escapeHtml(look.name)}</h2>
+<p class="look-description">${escapeHtml(look.description || '')}</p>
+<div class="look-products">
+<div class="look-products-title"><span>Este outfit incluye:</span></div>
+<div class="look-products-list">${productsHtml}</div>
+<div class="look-total">
+<span class="look-total-label">Precio total:</span>
+<span class="look-total-price">${formatCurrency(totalPrice)}</span>
+</div>
+</div>
+<button class="buy-look-btn" data-look-id="${escapeHtml(String(look.id))}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/></svg> Comprar todo</button>
+</div>
+`;
 return card;
 }
+
+  
 function addCompleteLookToCart(look) {
 let addedCount = 0;
 for (const product of Object.values(look.products)) {
