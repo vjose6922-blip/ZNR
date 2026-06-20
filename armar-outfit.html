@@ -78,30 +78,27 @@
     background-repeat: no-repeat; background-position: right 12px center;
   }
 
-  /* ---- Fila única de tallas: torso / piernas / pies, diferenciadas por ícono ---- */
-  .ob-talla-row { display:flex; gap:8px; }
-  .ob-talla-item {
-    flex: 1; min-width: 0; display:flex; align-items:center; gap:5px;
+  .ob-filters-btn {
+    display:flex; align-items:center; justify-content:center; gap:7px;
     border: 1.5px solid var(--color-border-subtle); background: var(--color-surface);
-    border-radius: 999px; padding: 3px 8px;
+    color: var(--color-text-main); padding: 9px 16px; border-radius: 999px;
+    font-size: 13px; font-weight: 700; cursor: pointer; align-self: flex-start;
   }
-  .ob-talla-tag {
-    font-size: 9.5px; font-weight: 700; color: var(--color-text-soft);
-    text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; flex-shrink: 0;
+  .ob-filters-badge {
+    background: linear-gradient(135deg, #ff4f81, #ff7a4f); color:#fff;
+    font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 1px 7px; line-height: 1.5;
   }
-  .ob-talla-item .ob-select-sm {
-    flex: 1; min-width: 0; width: 100%; border: none; background: transparent;
-    padding: 4px 16px 4px 0;
-    background-position: right 0 center;
+
+  /* ---- Contenido del drawer de filtros (Género / Estilo / Tallas) ---- */
+  .ob-filter-group { margin-bottom: 20px; }
+  .ob-filter-group:last-child { margin-bottom: 4px; }
+  .ob-talla-list { display:flex; flex-direction:column; gap:10px; }
+  .ob-talla-row-item { display:flex; align-items:center; gap:10px; }
+  .ob-talla-row-item .ob-talla-tag {
+    width: 62px; flex-shrink: 0; font-size: 11.5px; font-weight: 700;
+    color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .02em;
   }
-  .ob-select-sm {
-    width: auto; min-width: 78px;
-    border: 1.5px solid var(--color-border-subtle); background: var(--color-surface);
-    color: var(--color-text-muted); padding: 4px 22px 4px 10px; border-radius: 999px;
-    font-size: 11px; font-weight: 600; cursor: pointer; appearance: none; -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 8px center;
-  }
+  .ob-talla-row-item .ob-select { flex: 1; }
 
   .ob-section { margin: 0 0 6px; }
   .ob-section[hidden] { display:none; }
@@ -205,7 +202,7 @@
     display:flex; align-items:center; justify-content:center;
     font-size: 10px; color: var(--color-text-soft);
   }
-  .ob-summary-slot img { width:100%; height:100%; object-fit:cover; }
+  .ob-summary-slot img { width:100%; height:100%; object-fit:contain; }
   .ob-summary-mid { flex:1; min-width:0; }
   .ob-summary-total-label { font-size: 10.5px; color: var(--color-text-soft); }
   .ob-summary-total { font-size: 16px; font-weight: 800; color: var(--color-text-main); }
@@ -252,55 +249,17 @@
  </div>
  </header>
 
- <!-- Barra de filtros: siempre visible, sin modal -->
+ <!-- Barra de filtros: solo el switch + botón que abre el menú de filtros -->
  <div class="ob-filterbar">
   <div class="ob-mode-switch" id="ob-mode-switch">
    <button class="ob-mode-btn active" data-modo="conjunto">Conjunto</button>
    <button class="ob-mode-btn" data-modo="vestido">Vestido</button>
   </div>
 
-  <div>
-   <p class="ob-chip-label">Género</p>
-   <div class="ob-chip-row" id="ob-chips-genero">
-    <button class="ob-chip active" data-genero="todos">Todos</button>
-    <button class="ob-chip" data-genero="mujer">Mujer</button>
-    <button class="ob-chip" data-genero="hombre">Hombre</button>
-   </div>
-  </div>
-
-  <div>
-   <p class="ob-chip-label">Estilo</p>
-   <div class="ob-chip-row" id="ob-chips-estilo">
-    <button class="ob-chip active" data-estilo="todos">Todos</button>
-    <button class="ob-chip" data-estilo="casual">Casual</button>
-    <button class="ob-chip" data-estilo="formal">Formal</button>
-    <button class="ob-chip" data-estilo="deportivo">Deportivo</button>
-   </div>
-  </div>
-
-  <div>
-   <p class="ob-chip-label">Tallas</p>
-   <div class="ob-talla-row">
-    <div class="ob-talla-item">
-     <span class="ob-talla-tag">Torso</span>
-     <select class="ob-select-sm" id="ob-select-talla-torso" aria-label="Talla de torso">
-      <option value="todos">Talla</option>
-     </select>
-    </div>
-    <div class="ob-talla-item">
-     <span class="ob-talla-tag">Piernas</span>
-     <select class="ob-select-sm" id="ob-select-talla-piernas" aria-label="Talla de piernas">
-      <option value="todos">Talla</option>
-     </select>
-    </div>
-    <div class="ob-talla-item">
-     <span class="ob-talla-tag">Calzado</span>
-     <select class="ob-select-sm" id="ob-select-talla-pies" aria-label="Talla de calzado">
-      <option value="todos">Talla</option>
-     </select>
-    </div>
-   </div>
-  </div>
+  <button class="ob-filters-btn" id="ob-filters-open-btn" type="button">
+   <span>Filtros</span>
+   <span class="ob-filters-badge" id="ob-filters-badge" hidden>0</span>
+  </button>
  </div>
 
  <main class="ob-main">
@@ -310,6 +269,7 @@
     <div class="ob-skeleton-track"><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div></div>
    </div>
   </div>
+
 
   <div class="ob-section" data-section="piernas" id="ob-section-piernas">
    <div class="ob-track-wrapper" id="ob-wrap-piernas">
@@ -416,6 +376,62 @@
  </div>
  <button id="request-purchase-btn" class="primary-button full-width" style="background: linear-gradient(135deg, #25D366, #128C7E); margin-top: 8px;">Solicitar compra</button>
  <button id="view-orders-btn" onclick="if(typeof openPanelOnTab==='function')openPanelOnTab('pedidos')" style="width:100%;margin-top:8px;padding:8px;border:none;background:transparent;color:var(--color-text-muted);font-size:12px;cursor:pointer;text-decoration:underline;">Ver mis pedidos</button>
+ </div>
+ </aside>
+
+ <aside class="cart-drawer" id="ob-filters-drawer" aria-hidden="true">
+ <div class="cart-header">
+ <h2>Filtros</h2>
+ <button class="icon-button" id="ob-filters-close-btn" aria-label="Cerrar filtros"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-x"/></svg></button>
+ </div>
+ <div class="cart-body">
+
+  <div class="ob-filter-group">
+   <p class="ob-chip-label">Género</p>
+   <div class="ob-chip-row" id="ob-chips-genero">
+    <button class="ob-chip active" data-genero="todos">Todos</button>
+    <button class="ob-chip" data-genero="mujer">Mujer</button>
+    <button class="ob-chip" data-genero="hombre">Hombre</button>
+   </div>
+  </div>
+
+  <div class="ob-filter-group">
+   <p class="ob-chip-label">Estilo</p>
+   <div class="ob-chip-row" id="ob-chips-estilo">
+    <button class="ob-chip active" data-estilo="todos">Todos</button>
+    <button class="ob-chip" data-estilo="casual">Casual</button>
+    <button class="ob-chip" data-estilo="formal">Formal</button>
+    <button class="ob-chip" data-estilo="deportivo">Deportivo</button>
+   </div>
+  </div>
+
+  <div class="ob-filter-group">
+   <p class="ob-chip-label">Tallas</p>
+   <div class="ob-talla-list">
+    <div class="ob-talla-row-item">
+     <span class="ob-talla-tag">Torso</span>
+     <select class="ob-select" id="ob-select-talla-torso" aria-label="Talla de torso">
+      <option value="todos">Todas las tallas</option>
+     </select>
+    </div>
+    <div class="ob-talla-row-item">
+     <span class="ob-talla-tag">Piernas</span>
+     <select class="ob-select" id="ob-select-talla-piernas" aria-label="Talla de piernas">
+      <option value="todos">Todas las tallas</option>
+     </select>
+    </div>
+    <div class="ob-talla-row-item">
+     <span class="ob-talla-tag">Calzado</span>
+     <select class="ob-select" id="ob-select-talla-pies" aria-label="Talla de calzado">
+      <option value="todos">Todas las tallas</option>
+     </select>
+    </div>
+   </div>
+  </div>
+
+ </div>
+ <div class="cart-footer">
+  <button id="ob-filters-clear-btn" class="cart-link-btn" style="width:100%;text-align:center;">Limpiar filtros</button>
  </div>
  </aside>
 
@@ -728,6 +744,7 @@ function applyFiltersAndRender() {
     renderSection('piernas', pools.piernas.filter(p => matchesTalla(p, filters.talla.piernas)));
   }
   renderSection('pies', pools.pies.filter(p => matchesTalla(p, filters.talla.pies)));
+  updateFiltersBadge();
 
   // Mostrar mensaje si no hay productos en ninguna sección
   const hasItems = Object.values(pools).some(arr => arr.length > 0);
@@ -736,6 +753,17 @@ function applyFiltersAndRender() {
   } else if (CLASSIFIED.length === 0) {
     showTemporaryMessage('No se encontraron productos en el catálogo. Revisa tu conexión.', 'error');
   }
+}
+
+function updateFiltersBadge() {
+  const badge = document.getElementById('ob-filters-badge');
+  if (!badge) return;
+  let count = 0;
+  if (filters.genero !== 'todos') count++;
+  if (filters.estilo !== 'todos') count++;
+  SECTION_KEYS.forEach(k => { if (filters.talla[k] !== 'todos') count++; });
+  badge.textContent = String(count);
+  badge.hidden = count === 0;
 }
 
 function buildSections(products) {
@@ -848,6 +876,38 @@ SECTION_KEYS.forEach(key => {
   }
 });
 
+// ===== MENÚ DE FILTROS (drawer) =====
+function openFiltersDrawer() {
+  const drawer = document.getElementById('ob-filters-drawer');
+  const overlay = document.getElementById('overlay');
+  if (drawer) { drawer.classList.add('open'); drawer.setAttribute('aria-hidden', 'false'); }
+  if (overlay) { overlay.classList.add('visible'); overlay.setAttribute('aria-hidden', 'false'); }
+}
+function closeFiltersDrawer() {
+  const drawer = document.getElementById('ob-filters-drawer');
+  if (drawer) { drawer.classList.remove('open'); drawer.setAttribute('aria-hidden', 'true'); }
+}
+window.closeFiltersDrawer = closeFiltersDrawer;
+
+const filtersOpenBtn = document.getElementById('ob-filters-open-btn');
+if (filtersOpenBtn) filtersOpenBtn.addEventListener('click', openFiltersDrawer);
+
+const filtersCloseBtn = document.getElementById('ob-filters-close-btn');
+if (filtersCloseBtn) filtersCloseBtn.addEventListener('click', closeFiltersDrawer);
+
+const filtersClearBtn = document.getElementById('ob-filters-clear-btn');
+if (filtersClearBtn) {
+  filtersClearBtn.addEventListener('click', () => {
+    filters.genero = 'todos';
+    filters.estilo = 'todos';
+    filters.talla = { torso: 'todos', piernas: 'todos', pies: 'todos' };
+    document.querySelectorAll('#ob-chips-genero .ob-chip').forEach(b => b.classList.toggle('active', b.dataset.genero === 'todos'));
+    document.querySelectorAll('#ob-chips-estilo .ob-chip').forEach(b => b.classList.toggle('active', b.dataset.estilo === 'todos'));
+    saveFilters();
+    applyFiltersAndRender();
+  });
+}
+
 // ===== BOTONES DE ACCIÓN =====
 const addCartBtn = document.getElementById('ob-add-cart-btn');
 if (addCartBtn) {
@@ -916,6 +976,7 @@ document.addEventListener('DOMContentLoaded', function () {
     overlay.addEventListener('click', () => {
       if (typeof window.closeCartDrawer === 'function') window.closeCartDrawer();
       if (typeof closeImageModal === 'function') closeImageModal();
+      if (typeof window.closeFiltersDrawer === 'function') window.closeFiltersDrawer();
       overlay.classList.remove('visible');
     });
   }
