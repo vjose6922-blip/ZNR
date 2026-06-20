@@ -46,10 +46,10 @@
      del navegador (swipe back/forward) y deje un espacio en blanco. */
   html, body { overscroll-behavior-x: none; }
 
-  .ob-main { padding: 4px 0 16px; }
+  .ob-main { padding: 2px 0 180px; }
 
   /* ---- Barra de filtros (fija arriba del contenido, no flotante) ---- */
-  .ob-filterbar { padding: 8px 16px 2px; display:flex; flex-direction:column; gap:9px; }
+  .ob-filterbar { padding: 6px 16px 0; display:flex; flex-direction:column; gap:6px; }
 
   .ob-mode-switch { display:flex; background: var(--color-surface-2); border-radius: 999px; padding:3px; gap:3px; }
   .ob-mode-btn {
@@ -70,7 +70,15 @@
   }
   .ob-chip.active { background: var(--color-accent-solid); border-color: var(--color-accent-solid); color:#fff; }
 
-  .ob-section { margin: 16px 0 26px; }
+  .ob-select {
+    width: 100%; border: 1.5px solid var(--color-border-subtle); background: var(--color-surface);
+    color: var(--color-text-main); padding: 8px 12px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; cursor: pointer; appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+
+  .ob-section { margin: 0 0 6px; }
   .ob-section[hidden] { display:none; }
 
   .ob-section-header { display:flex; align-items:center; gap:10px; padding: 0 16px; margin-bottom: 10px; }
@@ -233,47 +241,30 @@
     <button class="ob-chip" data-estilo="deportivo">Deportivo</button>
    </div>
   </div>
+
+  <div>
+   <p class="ob-chip-label">Talla</p>
+   <select class="ob-select" id="ob-select-talla" aria-label="Filtrar por talla">
+    <option value="todos">Todas las tallas</option>
+   </select>
+  </div>
  </div>
 
  <main class="ob-main">
 
   <div class="ob-section" data-section="torso" id="ob-section-torso">
-   <div class="ob-section-header">
-    <span class="ob-section-badge" id="ob-badge-torso">1</span>
-    <div class="ob-section-titles">
-     <h2 class="ob-section-title" id="ob-title-torso">Torso</h2>
-     <p class="ob-section-hint" id="ob-hint-torso">Playeras, camisas, sudaderas, chamarras…</p>
-    </div>
-    <span class="ob-section-count" id="ob-count-torso"></span>
-   </div>
    <div class="ob-track-wrapper" id="ob-wrap-torso">
     <div class="ob-skeleton-track"><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div></div>
    </div>
   </div>
 
   <div class="ob-section" data-section="piernas" id="ob-section-piernas">
-   <div class="ob-section-header">
-    <span class="ob-section-badge" id="ob-badge-piernas">2</span>
-    <div class="ob-section-titles">
-     <h2 class="ob-section-title" id="ob-title-piernas">Piernas</h2>
-     <p class="ob-section-hint" id="ob-hint-piernas">Pantalones, jeans, shorts, faldas…</p>
-    </div>
-    <span class="ob-section-count" id="ob-count-piernas"></span>
-   </div>
    <div class="ob-track-wrapper" id="ob-wrap-piernas">
     <div class="ob-skeleton-track"><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div></div>
    </div>
   </div>
 
   <div class="ob-section" data-section="pies" id="ob-section-pies">
-   <div class="ob-section-header">
-    <span class="ob-section-badge" id="ob-badge-pies">3</span>
-    <div class="ob-section-titles">
-     <h2 class="ob-section-title" id="ob-title-pies">Pies</h2>
-     <p class="ob-section-hint" id="ob-hint-pies">Tenis, botas, sandalias, zapatos…</p>
-    </div>
-    <span class="ob-section-count" id="ob-count-pies"></span>
-   </div>
    <div class="ob-track-wrapper" id="ob-wrap-pies">
     <div class="ob-skeleton-track"><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div></div>
    </div>
@@ -403,7 +394,7 @@ const filters = loadFilters();
 function loadFilters() {
   try {
     const saved = JSON.parse(localStorage.getItem(FILTERS_KEY));
-    return Object.assign({ modo: 'conjunto', genero: 'todos', estilo: 'todos' }, saved || {});
+    return Object.assign({ modo: 'conjunto', genero: 'todos', estilo: 'todos', talla: 'todos' }, saved || {});
   } catch (e) { return { modo: 'conjunto', genero: 'todos', estilo: 'todos' }; }
 }
 function saveFilters() {
@@ -447,6 +438,12 @@ function detectVestido(p) {
 }
 function matchesGenero(g, filtro) { return filtro === 'todos' || g === filtro || g === 'unisex'; }
 function matchesEstilo(e, filtro) { return filtro === 'todos' || e === filtro || e === 'sin-estilo'; }
+function matchesTalla(p, filtro) {
+  if (filtro === 'todos') return true;
+  const talla = String((p && (p.Talla ?? p.talla)) ?? '').trim();
+  if (!talla) return false;
+  return talla.split(/[,\/]/).map(t => t.trim()).includes(filtro);
+}
 
 // ===== FUNCIONES DE RENDER =====
 function cardThumb(p) {
@@ -633,31 +630,12 @@ function updateSummary() {
   if (totalEl) totalEl.textContent = formatCurrency(total);
 }
 
-function renumberBadges() {
-  const torsoBadge = document.getElementById('ob-badge-torso');
-  const piernasBadge = document.getElementById('ob-badge-piernas');
-  const piesBadge = document.getElementById('ob-badge-pies');
-  if (torsoBadge) torsoBadge.textContent = '1';
-  if (filters.modo === 'vestido') {
-    if (piesBadge) piesBadge.textContent = '2';
-  } else {
-    if (piernasBadge) piernasBadge.textContent = '2';
-    if (piesBadge) piesBadge.textContent = '3';
-  }
-}
-
-function setSectionLabel(key, title, hint) {
-  const t = document.getElementById('ob-title-' + key);
-  const h = document.getElementById('ob-hint-' + key);
-  if (t) t.textContent = title;
-  if (h) h.textContent = hint;
-}
-
 function applyFiltersAndRender() {
   const pools = { torso: [], piernas: [], pies: [], vestido: [] };
   CLASSIFIED.forEach(x => {
     if (!matchesGenero(x.genero, filters.genero)) return;
     if (!matchesEstilo(x.estilo, filters.estilo)) return;
+    if (!matchesTalla(x.p, filters.talla)) return;
     pools[x.section].push(x.p);
   });
 
@@ -665,16 +643,13 @@ function applyFiltersAndRender() {
 
   if (filters.modo === 'vestido') {
     if (piernasSectionEl) piernasSectionEl.hidden = true;
-    setSectionLabel('torso', 'Vestido', 'Vestidos completos para tu look');
     renderSection('torso', pools.vestido);
   } else {
     if (piernasSectionEl) piernasSectionEl.hidden = false;
-    setSectionLabel('torso', 'Torso', 'Playeras, camisas, sudaderas, chamarras…');
     renderSection('torso', pools.torso);
     renderSection('piernas', pools.piernas);
   }
   renderSection('pies', pools.pies);
-  renumberBadges();
 
   // Mostrar mensaje si no hay productos en ninguna sección
   const hasItems = Object.values(pools).some(arr => arr.length > 0);
@@ -699,7 +674,32 @@ function buildSections(products) {
       return { p: p, section: section, genero: detectGenero(p), estilo: detectEstilo(p) };
     })
     .filter(x => !!x.section);
+  populateTallaFilter();
   applyFiltersAndRender();
+}
+
+function populateTallaFilter() {
+  const sel = document.getElementById('ob-select-talla');
+  if (!sel) return;
+  const currentVal = filters.talla;
+  const sizes = new Set();
+  CLASSIFIED.forEach(x => {
+    const talla = String((x.p && (x.p.Talla ?? x.p.talla)) ?? '').trim();
+    if (!talla) return;
+    talla.split(/[,\/]/).forEach(t => { const clean = t.trim(); if (clean) sizes.add(clean); });
+  });
+  const order = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+  const sorted = [...sizes].sort((a, b) => {
+    const ai = order.indexOf(a.toUpperCase()), bi = order.indexOf(b.toUpperCase());
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.localeCompare(b, 'es', { numeric: true });
+  });
+  const safeVal = sorted.includes(currentVal) || currentVal === 'todos' ? currentVal : 'todos';
+  sel.innerHTML = '<option value="todos">Todas las tallas</option>' +
+    sorted.map(s => '<option value="' + escapeHtml(s) + '"' + (s === safeVal ? ' selected' : '') + '>' + escapeHtml(s) + '</option>').join('');
+  if (safeVal !== currentVal) { filters.talla = safeVal; saveFilters(); }
 }
 
 // ===== INICIALIZACIÓN PRINCIPAL =====
@@ -760,6 +760,14 @@ document.querySelectorAll('#ob-chips-estilo .ob-chip').forEach(btn => {
     applyFiltersAndRender();
   });
 });
+const tallaSelect = document.getElementById('ob-select-talla');
+if (tallaSelect) {
+  tallaSelect.addEventListener('change', () => {
+    filters.talla = tallaSelect.value;
+    saveFilters();
+    applyFiltersAndRender();
+  });
+}
 
 // ===== BOTONES DE ACCIÓN =====
 const addCartBtn = document.getElementById('ob-add-cart-btn');
@@ -889,4 +897,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-</html>
+     </html>
