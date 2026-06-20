@@ -78,6 +78,17 @@
     background-repeat: no-repeat; background-position: right 12px center;
   }
 
+  /* ---- Select de talla por sección (torso/piernas/pies) ---- */
+  .ob-section-talla { display:flex; justify-content:flex-end; padding: 0 16px; margin-bottom: 4px; }
+  .ob-select-sm {
+    width: auto; min-width: 78px;
+    border: 1.5px solid var(--color-border-subtle); background: var(--color-surface);
+    color: var(--color-text-muted); padding: 4px 22px 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; cursor: pointer; appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+  }
+
   .ob-section { margin: 0 0 6px; }
   .ob-section[hidden] { display:none; }
 
@@ -117,7 +128,7 @@
     background: var(--color-surface);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-soft);
-    padding: 10px 10px 12px;
+    padding: 8px;
     cursor: pointer;
     opacity: .45;
     transform: scale(.82);
@@ -126,18 +137,29 @@
   }
   .ob-card.active { opacity: 1; transform: scale(1); border-color: var(--color-accent-solid); }
   .ob-card-img-wrap {
+    position: relative;
     width: 100%; aspect-ratio: 1/1; border-radius: var(--radius-md);
     overflow: hidden; background: var(--color-surface-2);
-    margin-bottom: 8px;
   }
-  .ob-card-img-wrap img { width:100%; height:100%; object-fit: cover; display:block; }
-  .ob-card-name {
-    font-size: 12.5px; font-weight: 600; color: var(--color-text-main);
+  .ob-card-img-wrap img { width:100%; height:100%; object-fit: contain; display:block; }
+
+  /* ---- Info de la prenda: solo visible al tocar la card activa ---- */
+  .ob-card-info {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.64);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:2px; padding: 8px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .18s ease;
+  }
+  .ob-card-info.show { opacity: 1; pointer-events: auto; }
+  .ob-card-info .ob-card-name {
+    font-size: 12.5px; font-weight: 600; color: #fff;
     line-height: 1.25; max-height: 30px; overflow: hidden;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient: vertical;
   }
-  .ob-card-price { font-size: 13px; font-weight: 700; color: var(--color-accent); margin-top: 3px; }
-  .ob-card-size { font-size: 10.5px; color: var(--color-text-soft); margin-top: 2px; }
+  .ob-card-info .ob-card-price { font-size: 13px; font-weight: 700; color: #ffb3c7; margin-top: 3px; }
+  .ob-card-info .ob-card-size { font-size: 10.5px; color: rgba(255,255,255,0.82); margin-top: 2px; }
 
   .ob-empty {
     margin: 0 16px; padding: 22px 16px; text-align:center;
@@ -147,7 +169,7 @@
 
   .ob-skeleton-track { display:flex; gap:14px; padding: 6px 16px; }
   .ob-skeleton-card {
-    flex: 0 0 144px; width:144px; height: 210px; border-radius: var(--radius-lg);
+    flex: 0 0 144px; width:144px; height: 160px; border-radius: var(--radius-lg);
     background: linear-gradient(110deg, var(--color-surface-2) 8%, var(--color-surface-3) 18%, var(--color-surface-2) 33%);
     background-size: 200% 100%; animation: ob-shimmer 1.4s linear infinite;
   }
@@ -241,30 +263,38 @@
     <button class="ob-chip" data-estilo="deportivo">Deportivo</button>
    </div>
   </div>
-
-  <div>
-   <p class="ob-chip-label">Talla</p>
-   <select class="ob-select" id="ob-select-talla" aria-label="Filtrar por talla">
-    <option value="todos">Todas las tallas</option>
-   </select>
-  </div>
  </div>
 
  <main class="ob-main">
 
   <div class="ob-section" data-section="torso" id="ob-section-torso">
+   <div class="ob-section-talla">
+    <select class="ob-select-sm" id="ob-select-talla-torso" aria-label="Talla (torso)">
+     <option value="todos">Talla</option>
+    </select>
+   </div>
    <div class="ob-track-wrapper" id="ob-wrap-torso">
     <div class="ob-skeleton-track"><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div></div>
    </div>
   </div>
 
   <div class="ob-section" data-section="piernas" id="ob-section-piernas">
+   <div class="ob-section-talla">
+    <select class="ob-select-sm" id="ob-select-talla-piernas" aria-label="Talla (piernas)">
+     <option value="todos">Talla</option>
+    </select>
+   </div>
    <div class="ob-track-wrapper" id="ob-wrap-piernas">
     <div class="ob-skeleton-track"><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div></div>
    </div>
   </div>
 
   <div class="ob-section" data-section="pies" id="ob-section-pies">
+   <div class="ob-section-talla">
+    <select class="ob-select-sm" id="ob-select-talla-pies" aria-label="Talla (pies)">
+     <option value="todos">Talla</option>
+    </select>
+   </div>
    <div class="ob-track-wrapper" id="ob-wrap-pies">
     <div class="ob-skeleton-track"><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div><div class="ob-skeleton-card"></div></div>
    </div>
@@ -394,8 +424,10 @@ const filters = loadFilters();
 function loadFilters() {
   try {
     const saved = JSON.parse(localStorage.getItem(FILTERS_KEY));
-    return Object.assign({ modo: 'conjunto', genero: 'todos', estilo: 'todos', talla: 'todos' }, saved || {});
-  } catch (e) { return { modo: 'conjunto', genero: 'todos', estilo: 'todos' }; }
+    const merged = Object.assign({ modo: 'conjunto', genero: 'todos', estilo: 'todos' }, saved || {});
+    merged.talla = Object.assign({ torso: 'todos', piernas: 'todos', pies: 'todos' }, (saved && saved.talla) || {});
+    return merged;
+  } catch (e) { return { modo: 'conjunto', genero: 'todos', estilo: 'todos', talla: { torso: 'todos', piernas: 'todos', pies: 'todos' } }; }
 }
 function saveFilters() {
   try { localStorage.setItem(FILTERS_KEY, JSON.stringify(filters)); } catch (e) {}
@@ -497,10 +529,14 @@ function renderSection(key, items) {
     const name = escapeHtml(p.Nombre || 'Producto');
     const talla = escapeHtml(p.Talla || '');
     card.innerHTML =
-      '<div class="ob-card-img-wrap"><img src="' + cardThumb(p) + '" alt="' + name + '" loading="lazy"></div>' +
-      '<div class="ob-card-name">' + name + '</div>' +
-      '<div class="ob-card-price">' + formatCurrency(p.Precio) + '</div>' +
-      (talla ? '<div class="ob-card-size">Talla ' + talla + '</div>' : '');
+      '<div class="ob-card-img-wrap">' +
+        '<img src="' + cardThumb(p) + '" alt="' + name + '" loading="lazy">' +
+        '<div class="ob-card-info">' +
+          '<div class="ob-card-name">' + name + '</div>' +
+          '<div class="ob-card-price">' + formatCurrency(p.Precio) + '</div>' +
+          (talla ? '<div class="ob-card-size">Talla ' + talla + '</div>' : '') +
+        '</div>' +
+      '</div>';
     track.appendChild(card);
   });
 
@@ -539,7 +575,7 @@ function renderSection(key, items) {
   // Inicializar estado
   outfitState[key] = items[0];
 
-  // ==== EVENTO CLICK (scroll manual) ====
+  // ==== EVENTO CLICK ====
   track.addEventListener('click', (e) => {
     const card = e.target.closest('.ob-card');
     if (!card) return;
@@ -547,11 +583,22 @@ function renderSection(key, items) {
     const product = sectionById[key].get(pid);
     if (!product) return;
 
-    // Actualizar estado y clases
+    // Si ya es la tarjeta en foco: solo alterna su info (no afecta a las de los lados)
+    if (card.classList.contains('active')) {
+      const info = card.querySelector('.ob-card-info');
+      if (info) info.classList.toggle('show');
+      return;
+    }
+
+    // Tarjeta lateral: la selecciona y la centra (comportamiento de siempre)
+    Array.from(track.children).forEach(c => {
+      c.classList.remove('active');
+      const i = c.querySelector('.ob-card-info');
+      if (i) i.classList.remove('show');
+    });
+    card.classList.add('active');
     outfitState[key] = product;
     updateSummary();
-    Array.from(track.children).forEach(c => c.classList.remove('active'));
-    card.classList.add('active');
 
     // Calcular offset para centrar la tarjeta
     const wrapRect = wrap.getBoundingClientRect();
@@ -595,6 +642,8 @@ function updateActiveCard(key, track) {
     const dist = Math.abs((r.left + r.width / 2) - centerX);
     if (dist < closestDist) { closestDist = dist; closest = card; }
     card.classList.remove('active');
+    const info = card.querySelector('.ob-card-info');
+    if (info) info.classList.remove('show');
   });
   if (closest) {
     closest.classList.add('active');
@@ -635,21 +684,27 @@ function applyFiltersAndRender() {
   CLASSIFIED.forEach(x => {
     if (!matchesGenero(x.genero, filters.genero)) return;
     if (!matchesEstilo(x.estilo, filters.estilo)) return;
-    if (!matchesTalla(x.p, filters.talla)) return;
     pools[x.section].push(x.p);
   });
 
   const piernasSectionEl = document.getElementById('ob-section-piernas');
+  const torsoPool = filters.modo === 'vestido' ? pools.vestido : pools.torso;
+
+  // Cada select de talla se llena con las opciones disponibles ANTES de aplicar
+  // su propio filtro de talla (igual que género/estilo), para no auto-eliminar opciones.
+  populateTallaFilter('torso', torsoPool);
+  populateTallaFilter('piernas', pools.piernas);
+  populateTallaFilter('pies', pools.pies);
 
   if (filters.modo === 'vestido') {
     if (piernasSectionEl) piernasSectionEl.hidden = true;
-    renderSection('torso', pools.vestido);
+    renderSection('torso', torsoPool.filter(p => matchesTalla(p, filters.talla.torso)));
   } else {
     if (piernasSectionEl) piernasSectionEl.hidden = false;
-    renderSection('torso', pools.torso);
-    renderSection('piernas', pools.piernas);
+    renderSection('torso', torsoPool.filter(p => matchesTalla(p, filters.talla.torso)));
+    renderSection('piernas', pools.piernas.filter(p => matchesTalla(p, filters.talla.piernas)));
   }
-  renderSection('pies', pools.pies);
+  renderSection('pies', pools.pies.filter(p => matchesTalla(p, filters.talla.pies)));
 
   // Mostrar mensaje si no hay productos en ninguna sección
   const hasItems = Object.values(pools).some(arr => arr.length > 0);
@@ -674,17 +729,16 @@ function buildSections(products) {
       return { p: p, section: section, genero: detectGenero(p), estilo: detectEstilo(p) };
     })
     .filter(x => !!x.section);
-  populateTallaFilter();
   applyFiltersAndRender();
 }
 
-function populateTallaFilter() {
-  const sel = document.getElementById('ob-select-talla');
+function populateTallaFilter(key, items) {
+  const sel = document.getElementById('ob-select-talla-' + key);
   if (!sel) return;
-  const currentVal = filters.talla;
+  const currentVal = filters.talla[key];
   const sizes = new Set();
-  CLASSIFIED.forEach(x => {
-    const talla = String((x.p && (x.p.Talla ?? x.p.talla)) ?? '').trim();
+  items.forEach(p => {
+    const talla = String((p && (p.Talla ?? p.talla)) ?? '').trim();
     if (!talla) return;
     talla.split(/[,\/]/).forEach(t => { const clean = t.trim(); if (clean) sizes.add(clean); });
   });
@@ -697,9 +751,9 @@ function populateTallaFilter() {
     return a.localeCompare(b, 'es', { numeric: true });
   });
   const safeVal = sorted.includes(currentVal) || currentVal === 'todos' ? currentVal : 'todos';
-  sel.innerHTML = '<option value="todos">Todas las tallas</option>' +
+  sel.innerHTML = '<option value="todos">Talla</option>' +
     sorted.map(s => '<option value="' + escapeHtml(s) + '"' + (s === safeVal ? ' selected' : '') + '>' + escapeHtml(s) + '</option>').join('');
-  if (safeVal !== currentVal) { filters.talla = safeVal; saveFilters(); }
+  if (safeVal !== currentVal) { filters.talla[key] = safeVal; saveFilters(); }
 }
 
 // ===== INICIALIZACIÓN PRINCIPAL =====
@@ -760,14 +814,16 @@ document.querySelectorAll('#ob-chips-estilo .ob-chip').forEach(btn => {
     applyFiltersAndRender();
   });
 });
-const tallaSelect = document.getElementById('ob-select-talla');
-if (tallaSelect) {
-  tallaSelect.addEventListener('change', () => {
-    filters.talla = tallaSelect.value;
-    saveFilters();
-    applyFiltersAndRender();
-  });
-}
+SECTION_KEYS.forEach(key => {
+  const sel = document.getElementById('ob-select-talla-' + key);
+  if (sel) {
+    sel.addEventListener('change', () => {
+      filters.talla[key] = sel.value;
+      saveFilters();
+      applyFiltersAndRender();
+    });
+  }
+});
 
 // ===== BOTONES DE ACCIÓN =====
 const addCartBtn = document.getElementById('ob-add-cart-btn');
@@ -897,4 +953,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-     </html>
+ </html>
