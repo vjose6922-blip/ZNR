@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1716,10 +1717,10 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
  <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:16px 0;">
  <p style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Herramientas</p>
 
- <a href="comunidad.html?inspector=1" target="_blank" class="notif-panel-item" style="margin-bottom:10px;">
+ <button onclick="closeAdminNotifPanel(); openInspectorMode();" class="notif-panel-item" style="width:100%;text-align:left;border:1px solid rgba(255,255,255,.06);cursor:pointer;margin-bottom:10px;">
  <span class="npi-icon"></span>
  <span class="npi-label">Modo Inspector (Comunidad)</span>
- </a>
+ </button>
 
  <button onclick="closeAdminNotifPanel(); openVendorStatsGlobal();" class="notif-panel-item" style="width:100%;text-align:left;border:1px solid rgba(255,255,255,.06);cursor:pointer;margin-bottom:10px;">
  <span class="npi-icon"></span>
@@ -1815,6 +1816,13 @@ function setBadge(id, count) {
  if (!el) return;
  el.textContent = count;
  el.classList.toggle('zero', count === 0);
+}
+
+function openInspectorMode() {
+ const token = sessionStorage.getItem('admin_token') || '';
+ if (!token) { if (window.showTemporaryMessage) window.showTemporaryMessage('Sin sesión de admin', 'error'); return; }
+ const url = 'comunidad.html?inspector=1&token=' + encodeURIComponent(token);
+ window.open(url, '_blank');
 }
 
 
@@ -2235,4 +2243,4 @@ async function renderAnalyticsCharts() {
 }
 </script>
 </body>
-                                                  </html>
+              </html>
