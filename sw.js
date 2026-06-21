@@ -1,9 +1,10 @@
+
 // ── sw.js — Z&R PWA (con rutas de Comunidad) ────────────────────────────────
 // Cambios respecto a la versión anterior:
 //   • Añadidas nuevas páginas de vendedor al caché estático
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_NAME    = 'zr-cache-v13';   // ← incrementado: armar-outfit.html añadido al caché
+const CACHE_NAME    = 'zr-cache-v16';   // ← incrementado: fix CORS en estadísticas de vendedores y modo inspector
 const DYNAMIC_CACHE = 'zr-dynamic-v11';
 const OFFLINE_URL   = '/ZNR/offline.html';
 
