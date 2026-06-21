@@ -4,7 +4,7 @@
 //   • Añadidas nuevas páginas de vendedor al caché estático
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_NAME    = 'zr-cache-v16';   // ← incrementado: fix CORS en estadísticas de vendedores y modo inspector
+const CACHE_NAME    = 'zr-cache-v17';   // ← incrementado: token del modo inspector ahora viaja por URL, no solo sessionStorage
 const DYNAMIC_CACHE = 'zr-dynamic-v11';
 const OFFLINE_URL   = '/ZNR/offline.html';
 
