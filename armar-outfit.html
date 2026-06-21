@@ -581,35 +581,6 @@ function renderSection(key, items) {
   wrap.innerHTML = '';
   wrap.appendChild(track);
 
-  // 🔥 CALCULAR PADDING DINÁMICO
-  const updateTrackPadding = () => {
-    const firstCard = track.firstElementChild;
-    const lastCard = track.lastElementChild;
-    if (!firstCard || !lastCard) return;
-    const wrapWidth = wrap.clientWidth;
-    const cardWidth = firstCard.offsetWidth;
-    const gap = 14; // mismo gap que en CSS
-    const totalCards = items.length;
-    const trackWidth = totalCards * cardWidth + (totalCards - 1) * gap;
-    
-    // Si el track es más ancho que el contenedor, aplicar padding para centrar
-    if (trackWidth > wrapWidth) {
-      const padding = Math.max(0, (wrapWidth - cardWidth) / 2);
-      track.style.paddingLeft = padding + 'px';
-      track.style.paddingRight = padding + 'px';
-    } else {
-      // Si no hay scroll, centrar todo el track
-      const padding = (wrapWidth - trackWidth) / 2;
-      track.style.paddingLeft = Math.max(0, padding) + 'px';
-      track.style.paddingRight = Math.max(0, padding) + 'px';
-    }
-  };
-
-  updateTrackPadding();
-  const resizeObserver = new ResizeObserver(() => updateTrackPadding());
-  resizeObserver.observe(wrap);
-  track._resizeObserver = resizeObserver;
-
   // Inicializar estado
   outfitState[key] = items[0];
 
@@ -638,22 +609,8 @@ function renderSection(key, items) {
     outfitState[key] = product;
     updateSummary();
 
-    // Calcular offset para centrar la tarjeta
-    const wrapRect = wrap.getBoundingClientRect();
-    const cardRect = card.getBoundingClientRect();
-    let offset = cardRect.left - wrapRect.left + wrap.scrollLeft - (wrapRect.width / 2) + (cardRect.width / 2);
-
-    // Limitar offset al máximo permitido (sin espacios en blanco)
-    const maxScroll = track.scrollWidth - wrap.clientWidth;
-    offset = Math.max(0, Math.min(offset, maxScroll));
-
-    wrap.scrollTo({ left: offset, behavior: 'smooth' });
-
-    // Forzar selección después del scroll
-    setTimeout(() => {
-      Array.from(track.children).forEach(c => c.classList.remove('active'));
-      card.classList.add('active');
-    }, 400);
+    // Centrar usando el motor nativo de scroll-snap (simétrico en ambas direcciones)
+    card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   });
 
   // ==== EVENTO SCROLL (deslizar) ====
