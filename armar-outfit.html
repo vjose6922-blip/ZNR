@@ -137,6 +137,7 @@
   .ob-card {
     flex: 0 0 144px;
     width: 144px;
+    box-sizing: border-box;
     scroll-snap-align: center;
     background: var(--color-surface);
     border-radius: var(--radius-lg);
@@ -404,7 +405,6 @@
     <button class="ob-chip active" data-estilo="todos">Todos</button>
     <button class="ob-chip" data-estilo="casual">Casual</button>
     <button class="ob-chip" data-estilo="formal">Formal</button>
-    <button class="ob-chip" data-estilo="deportivo">Deportivo</button>
    </div>
   </div>
 
@@ -467,6 +467,7 @@ function loadFilters() {
   try {
     const saved = JSON.parse(localStorage.getItem(FILTERS_KEY));
     const merged = Object.assign({ modo: 'conjunto', genero: 'todos', estilo: 'todos' }, saved || {});
+    if (!['todos', 'casual', 'formal'].includes(merged.estilo)) merged.estilo = 'todos';
     merged.talla = Object.assign({ torso: 'todos', piernas: 'todos', pies: 'todos' }, (saved && saved.talla) || {});
     return merged;
   } catch (e) { return { modo: 'conjunto', genero: 'todos', estilo: 'todos', talla: { torso: 'todos', piernas: 'todos', pies: 'todos' } }; }
@@ -486,11 +487,8 @@ const GENERO_KEYWORDS = {
   mujer: ['mujer', 'dama', 'femenino', 'women', 'woman', 'girl', 'nina', 'femme'],
   hombre: ['hombre', 'caballero', 'masculino', 'men', 'man', 'varonil', 'boy', 'nino']
 };
-const ESTILO_KEYWORDS = {
-  formal: ['formal', 'vestir', 'oficina', 'elegante', 'ejecutivo', 'gala', 'etiqueta'],
-  deportivo: ['deportivo', 'sport', 'gym', 'atletico', 'training', 'correr', 'jogger'],
-  casual: ['casual', 'diario', 'urbano', 'relajado']
-};
+const ESTILO_FORMAL_KEYWORD = 'vestir';
+const PIES_FORMAL_KEYWORD = 'zapato';
 const VESTIDO_KEYWORDS = ['vestido', 'vestidos', 'dress'];
 
 function detectGenero(p) {
@@ -499,19 +497,17 @@ function detectGenero(p) {
   if (GENERO_KEYWORDS.mujer.some(k => hay.includes(k))) return 'mujer';
   return 'unisex';
 }
-function detectEstilo(p) {
+function detectEstilo(p, section) {
   const hay = _obHay(p);
-  for (const key of Object.keys(ESTILO_KEYWORDS)) {
-    if (ESTILO_KEYWORDS[key].some(k => hay.includes(k))) return key;
-  }
-  return 'sin-estilo';
+  if (section === 'pies') return hay.includes(PIES_FORMAL_KEYWORD) ? 'formal' : 'casual';
+  return hay.includes(ESTILO_FORMAL_KEYWORD) ? 'formal' : 'casual';
 }
 function detectVestido(p) {
   const hay = _obHay(p);
   return VESTIDO_KEYWORDS.some(k => hay.includes(k));
 }
 function matchesGenero(g, filtro) { return filtro === 'todos' || g === filtro || g === 'unisex'; }
-function matchesEstilo(e, filtro) { return filtro === 'todos' || e === filtro || e === 'sin-estilo'; }
+function matchesEstilo(e, filtro) { return filtro === 'todos' || e === filtro; }
 function matchesTalla(p, filtro) {
   if (filtro === 'todos') return true;
   const talla = String((p && (p.Talla ?? p.talla)) ?? '').trim();
@@ -780,7 +776,7 @@ function buildSections(products) {
     .map(p => {
       const vestido = detectVestido(p);
       const section = vestido ? 'vestido' : (typeof detectSection === 'function' ? detectSection(p) : null);
-      return { p: p, section: section, genero: detectGenero(p), estilo: detectEstilo(p) };
+      return { p: p, section: section, genero: detectGenero(p), estilo: detectEstilo(p, section) };
     })
     .filter(x => !!x.section);
   applyFiltersAndRender();
