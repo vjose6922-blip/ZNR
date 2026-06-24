@@ -365,7 +365,7 @@ if (catSelect) {
 const categories = new Set();
 allCommunityProducts.forEach(p => { if (p.categoria) categories.add(safeString(p.categoria)); });
 const currentVal = catSelect.value;
-catSelect.innerHTML = '<option value="">Todas las categorías</option>';
+catSelect.innerHTML = '<option value="">Categorías</option>';
 Array.from(categories).sort().forEach(cat => {
 const opt = document.createElement('option');
 opt.value = cat;
@@ -381,7 +381,7 @@ allCommunityProducts.forEach(p => {
 if (p.vendedor_nombre) vendors.set(safeString(p.vendedor_nombre), safeString(p.vendedor_nombre));
 });
 const currentVal = vendorSelect.value;
-vendorSelect.innerHTML = '<option value="">Todos los vendedores</option>';
+vendorSelect.innerHTML = '<option value="">Vendedores</option>';
 Array.from(vendors.keys()).sort().forEach(v => {
 const opt = document.createElement('option');
 opt.value = v;
