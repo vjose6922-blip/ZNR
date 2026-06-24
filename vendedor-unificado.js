@@ -1237,47 +1237,78 @@ if (e.target === this) closeSettingsModal();
 });
 
 async function guardarPerfil() {
-const btn = document.getElementById('btn-guardar-perfil');
-const msg = document.getElementById('settings-perfil-msg');
-if (!vendorSession) return;
+  const btn = document.getElementById('btn-guardar-perfil');
+  const msg = document.getElementById('settings-perfil-msg');
+  if (!vendorSession) return;
 
-const nombre     = document.getElementById('settings-nombre').value.trim();
-const descripcion = document.getElementById('settings-descripcion').value.trim();
-const whatsapp   = document.getElementById('settings-whatsapp').value.trim();
-const categoria  = document.getElementById('settings-categoria').value;
+  const nombre     = document.getElementById('settings-nombre').value.trim();
+  const descripcion = document.getElementById('settings-descripcion').value.trim();
+  const whatsapp   = document.getElementById('settings-whatsapp').value.trim();
+  const categoria  = document.getElementById('settings-categoria').value;
 
-if (!nombre || nombre.length < 2) {
-msg.style.color = '#dc2626'; msg.textContent = 'El nombre debe tener al menos 2 caracteres.'; return;
+  // 🔽 NUEVO: leer redes sociales
+  const facebook  = document.getElementById('settings-facebook').value.trim();
+  const twitter   = document.getElementById('settings-twitter').value.trim();
+  const instagram = document.getElementById('settings-instagram').value.trim();
+  const tiktok    = document.getElementById('settings-tiktok').value.trim();
+
+  if (!nombre || nombre.length < 2) {
+    msg.style.color = '#dc2626'; msg.textContent = 'El nombre debe tener al menos 2 caracteres.';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  msg.textContent = '';
+
+  try {
+    const res = await apiCall({
+      action: 'actualizarPerfilVendedor',
+      vendorToken: vendorSession.token,
+      nombre,
+      descripcion,
+      whatsapp,
+      categoria,
+      facebook,    // ← enviar
+      twitter,     // ← enviar
+      instagram,   // ← enviar
+      tiktok       // ← enviar
+    });
+
+    if (!res.ok) {
+      msg.style.color = '#dc2626';
+      msg.textContent = res.error || 'Error al guardar.';
+      return;
+    }
+
+    // Actualizar la sesión local
+    vendorSession.nombre      = nombre;
+    vendorSession.descripcion = descripcion;
+    vendorSession.whatsapp    = whatsapp;
+    vendorSession.categoria   = categoria;
+    vendorSession.facebook    = facebook;   // ← guardar en sesión
+    vendorSession.twitter     = twitter;
+    vendorSession.instagram   = instagram;
+    vendorSession.tiktok      = tiktok;
+
+    try { localStorage.setItem('vendor_session', JSON.stringify(vendorSession)); } catch(e) {}
+
+    // Actualizar UI
+    const nameHeader = document.getElementById('vendor-name-header');
+    if (nameHeader) nameHeader.textContent = nombre;
+    updateVendorAvatar();
+    document.getElementById('settings-header-name').textContent = nombre;
+
+    msg.style.color = '#16a34a';
+    msg.textContent = '✅ Cambios guardados';
+
+  } catch(e) {
+    msg.style.color = '#dc2626';
+    msg.textContent = 'Error de red.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar cambios';
+  }
 }
-
-btn.disabled = true; btn.textContent = 'Guardando...';
-msg.textContent = '';
-
-try {
-const res = await apiCall({ action: 'actualizarPerfilVendedor', vendorToken: vendorSession.token, nombre, descripcion, whatsapp, categoria });
-if (!res.ok) { msg.style.color = '#dc2626'; msg.textContent = res.error || 'Error al guardar.'; return; }
-
-vendorSession.nombre      = nombre;
-vendorSession.descripcion = descripcion;
-vendorSession.whatsapp    = whatsapp;
-vendorSession.categoria   = categoria;
-try { localStorage.setItem('vendor_session', JSON.stringify(vendorSession)); } catch(e) {}
-
-const nameHeader = document.getElementById('vendor-name-header');
-if (nameHeader) nameHeader.textContent = nombre;
-updateVendorAvatar();
-document.getElementById('settings-header-name').textContent = nombre;
-const placeholderEl = document.getElementById('settings-avatar-placeholder');
-if (placeholderEl && placeholderEl.style.display !== 'none') placeholderEl.textContent = getInitials(nombre);
-
-msg.style.color = '#16a34a'; msg.textContent = '✅ Cambios guardados';
-} catch(e) {
-msg.style.color = '#dc2626'; msg.textContent = 'Error de red.';
-} finally {
-btn.disabled = false; btn.textContent = 'Guardar cambios';
-}
-}
-
 async function guardarPassword() {
 const btn  = document.getElementById('btn-guardar-pwd');
 const msg  = document.getElementById('settings-pwd-msg');
