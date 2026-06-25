@@ -1,3 +1,4 @@
+
 (function() {
 'use strict';
 
@@ -35,6 +36,20 @@ window.apiFetch = async function(data, method = 'POST') {
       });
   }
 
+  // Auto-logout si el servidor rechaza el token
+  function checkTokenInvalid(parsed) {
+    if (parsed && parsed.ok === false &&
+        typeof parsed.error === 'string' &&
+        parsed.error.toLowerCase().includes('token')) {
+      localStorage.removeItem('vendor_session');
+      sessionStorage.removeItem('vendor_session');
+      vendorSession = null;
+      // Redirigir al login (recarga la página, que mostrará el panel de login)
+      setTimeout(() => { window.location.reload(); }, 1500);
+    }
+    return parsed;
+  }
+
   if (String(method).toUpperCase() === 'GET') {
     const params = new URLSearchParams();
     Object.entries(data || {}).forEach(([k, v]) => {
@@ -43,7 +58,7 @@ window.apiFetch = async function(data, method = 'POST') {
 
     const res = await fetchWithTimeout(`${API_BASE}?${params.toString()}`, { method: 'GET' });
     const text = await res.text();
-    return JSON.parse(text);
+    return checkTokenInvalid(JSON.parse(text));
   }
 
   const params = new URLSearchParams();
@@ -58,7 +73,7 @@ window.apiFetch = async function(data, method = 'POST') {
   });
 
   const text = await res.text();
-  return JSON.parse(text);
+  return checkTokenInvalid(JSON.parse(text));
 };
 
 window.apiCall = async function(data) {
@@ -1804,4 +1819,4 @@ async function loadBeneficiarioDonaciones() {
           </div>`).join('')}
     </div>`;
   } catch(e) { area.style.display = 'none'; }
-  }
+}
