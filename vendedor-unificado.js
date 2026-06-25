@@ -1741,19 +1741,23 @@ const benData = await window.apiFetch({ action:'obtenerBeneficiariosAprobados' }
         const data = await apiFetch(payload);
         if (data.ok) { showMsg('✅ Donación asignada correctamente', true); loadMyProducts(); setTimeout(() => modal.remove(), 1400); }
         else { showMsg('⚠️ ' + (data.error||'Error'), false); btn.disabled = false; btn.textContent = '❤️ Asignar donación'; }
-      } catch(e) { showMsg('⚠️ Error de conexión', false); btn.disabled = false; btn.textContent = '❤️ Asignar donación'; }
+      } catch(e) {
+        window.debugPanel && window.debugPanel.log('DEBUG ERROR', e.message || String(e));
+        // Si el servidor procesó pero la respuesta falló (JSON parse), aún puede haber funcionado
+        showMsg('⚠️ Error de conexión: ' + (e.message||''), false);
+        btn.disabled = false; btn.textContent = '❤️ Asignar donación';
+      }
     });
   }
 };
 
 // ── "Gestionar donaciones" desde ajustes: muestra todos los productos ──
 window.openGestionarDonacionesModal = async function() {
-  const productos = window._vendorProducts || [];
   const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+  // Abrir modal con spinner mientras carga datos frescos
   const old = document.getElementById('modal-gestionar-donaciones');
   if (old) old.remove();
-
   const modal = document.createElement('div');
   modal.id = 'modal-gestionar-donaciones';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
@@ -1763,9 +1767,24 @@ window.openGestionarDonacionesModal = async function() {
         <h2 style="margin:0;font-size:1rem;font-weight:800;">❤️ Gestionar donaciones</h2>
         <button id="btn-close-gestionar" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1;">×</button>
       </div>
-      <div style="padding:14px 20px 0;">
+      <div id="gestionar-lista" style="padding:32px 20px;text-align:center;color:#aaa;">Actualizando productos…</div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('btn-close-gestionar').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  // Refrescar productos del servidor antes de renderizar
+  try { await loadMyProducts(); } catch(e) { /* usa cache si falla */ }
+
+  const productos = window._vendorProducts || [];
+  const lista = document.getElementById('gestionar-lista');
+  if (!lista) return;
+
+  lista.style.padding = '14px 20px 0';
+  lista.style.textAlign = '';
+  lista.innerHTML = `
         <p style="font-size:.78rem;color:#888;margin:0 0 12px;line-height:1.5;">Toca ❤️ en cualquier producto para asignar o quitar una donación.</p>
-        <div id="gestionar-lista">
+        <div>
           ${productos.length === 0
             ? '<p style="color:#aaa;text-align:center;padding:24px 0;">No tienes productos en Comunidad.<br><small>Publica uno primero desde el formulario.</small></p>'
             : productos.map(p => {
@@ -1787,13 +1806,10 @@ window.openGestionarDonacionesModal = async function() {
                 </div>`;
               }).join('')
           }
-        </div>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  document.getElementById('btn-close-gestionar').onclick = () => modal.remove();
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+        </div>`;
 };
+
+
 
 // ── Panel de donaciones recibidas (si el vendedor es beneficiario) ──
 async function loadBeneficiarioDonaciones() {
@@ -1819,4 +1835,4 @@ async function loadBeneficiarioDonaciones() {
           </div>`).join('')}
     </div>`;
   } catch(e) { area.style.display = 'none'; }
-}
+  }
