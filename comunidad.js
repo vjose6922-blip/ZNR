@@ -1,3 +1,4 @@
+
 (function() {
 const COMUNIDAD_CACHE_KEY = 'zr_comunidad_data';
 const COMUNIDAD_CACHE_TTL_SESSION = 5 * 60 * 1000;
@@ -975,11 +976,44 @@ window.openBeneficiarioRegister = function() {
       <input id="ben-cuenta" type="text" placeholder="18 dígitos CLABE o número de cuenta" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">WhatsApp (10 dígitos) *</label>
       <input id="ben-telefono" type="tel" placeholder="8671234567" maxlength="10" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:16px;font-size:.88rem;">
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Fotos (opcional, máx. 3)</label>
+      <div style="display:flex;gap:8px;margin-bottom:16px;" id="ben-img-previews">
+        <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;" id="ben-img-label-1">
+          <span id="ben-img-placeholder-1" style="font-size:1.4rem;">📷</span>
+          <img id="ben-img-preview-1" style="display:none;width:100%;height:100%;object-fit:cover;">
+          <input type="file" id="ben-img-1" accept="image/*" style="display:none;">
+        </label>
+        <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;" id="ben-img-label-2">
+          <span id="ben-img-placeholder-2" style="font-size:1.4rem;">📷</span>
+          <img id="ben-img-preview-2" style="display:none;width:100%;height:100%;object-fit:cover;">
+          <input type="file" id="ben-img-2" accept="image/*" style="display:none;">
+        </label>
+        <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;" id="ben-img-label-3">
+          <span id="ben-img-placeholder-3" style="font-size:1.4rem;">📷</span>
+          <img id="ben-img-preview-3" style="display:none;width:100%;height:100%;object-fit:cover;">
+          <input type="file" id="ben-img-3" accept="image/*" style="display:none;">
+        </label>
+      </div>
       <button id="btn-submit-ben" style="width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-weight:800;font-size:.92rem;cursor:pointer;">Enviar solicitud</button>
     </div>`;
   document.body.appendChild(modal);
   document.getElementById('btn-close-ben-reg').onclick = () => modal.remove();
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  // Preview de imágenes
+  [1,2,3].forEach(n => {
+    document.getElementById('ben-img-' + n).addEventListener('change', function() {
+      const file = this.files[0];
+      if (!file) return;
+      const preview = document.getElementById('ben-img-preview-' + n);
+      const placeholder = document.getElementById('ben-img-placeholder-' + n);
+      const url = URL.createObjectURL(file);
+      preview.src = url;
+      preview.style.display = 'block';
+      placeholder.style.display = 'none';
+    });
+  });
+
   document.getElementById('btn-submit-ben').addEventListener('click', async () => {
     const showMsg = (txt, ok) => {
       const el = document.getElementById('ben-reg-msg');
@@ -1000,6 +1034,25 @@ window.openBeneficiarioRegister = function() {
     const btn = document.getElementById('btn-submit-ben');
     btn.disabled = true; btn.textContent = 'Enviando…';
     try {
+      // Subir imágenes si se seleccionaron
+      async function uploadBenImg(file) {
+        const reader = new FileReader();
+        const base64 = await new Promise((res, rej) => { reader.onload = () => res(reader.result.split(',')[1]); reader.onerror = rej; reader.readAsDataURL(file); });
+        const params = new URLSearchParams({ action:'uploadImageVendedor', data: base64, mimeType: file.type, fileName: file.name });
+        if (window.vendorSession && window.vendorSession.token) params.append('vendorToken', window.vendorSession.token);
+        const r = await fetch(window.API_URL, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: params.toString() });
+        const j = await r.json();
+        return j.ok ? (j.url || '') : '';
+      }
+      const imgUrls = ['','',''];
+      for (let n = 1; n <= 3; n++) {
+        const fileInput = document.getElementById('ben-img-' + n);
+        if (fileInput && fileInput.files[0]) {
+          btn.textContent = `Subiendo foto ${n}…`;
+          try { imgUrls[n-1] = await uploadBenImg(fileInput.files[0]); } catch(e) {}
+        }
+      }
+      btn.textContent = 'Enviando…';
       const res  = await fetch(window.API_URL, {
         method:'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1007,7 +1060,8 @@ window.openBeneficiarioRegister = function() {
           action:'registrarBeneficiario', nombre,
           organizacion: document.getElementById('ben-org').value.trim(),
           ubicacion, facebook: document.getElementById('ben-facebook').value.trim(),
-          historia, cuenta_bancaria: cuenta, telefono: tel
+          historia, cuenta_bancaria: cuenta, telefono: tel,
+          imagen1: imgUrls[0], imagen2: imgUrls[1], imagen3: imgUrls[2]
         }).toString()
       });
       const data = await res.json();
