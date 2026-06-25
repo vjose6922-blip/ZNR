@@ -510,7 +510,7 @@ el.style.color = '#f97316';
 el.style.fontWeight = '700';
 }
 
-async function loadMyProducts() {
+window.loadMyProducts = async function loadMyProducts() {
 const container = document.getElementById('vendor-products-list');
 if (!container) return;
 container.innerHTML = '<p style="color:#aaa;text-align:center">Cargando...</p>';
