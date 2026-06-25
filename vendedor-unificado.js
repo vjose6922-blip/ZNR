@@ -1671,7 +1671,7 @@ window.openDonarProductosModal = async function(productoId) {
       const btn = document.getElementById('btn-donar-quitar');
       btn.disabled = true; btn.textContent = 'Quitando…';
       try {
-        const data = await apiFetch({ action:'desasignarDonacion', productoId: String(productoId), vendorToken: vendorSession.token });
+        const data = await apiFetch({ action:'desasignarDonacion', producto_id: String(productoId), vendor_token: vendorSession.token });
         if (data.ok) { showMsg('✅ Donación removida', true); loadMyProducts(); setTimeout(() => modal.remove(), 1400); }
         else { showMsg('⚠️ ' + (data.error||'Error'), false); btn.disabled = false; btn.textContent = 'Quitar donación'; }
       } catch(e) { showMsg('⚠️ Error de conexión', false); btn.disabled = false; btn.textContent = 'Quitar donación'; }
@@ -1721,7 +1721,7 @@ const benData = await window.apiFetch({ action:'obtenerBeneficiariosAprobados' }
       const btn = document.getElementById('btn-donar-asignar');
       btn.disabled = true; btn.textContent = 'Guardando…';
       try {
-        const payload = { action:'asignarDonacion', productoId: String(productoId), beneficiarioId: benId, vendorToken: vendorSession.token };
+        const payload = { action:'asignarDonacion', producto_id: String(productoId), beneficiario_id: benId, vendor_token: vendorSession.token };
         window.debugPanel && window.debugPanel.log('DEBUG PAYLOAD', JSON.stringify(payload));
         const data = await apiFetch(payload);
         if (data.ok) { showMsg('✅ Donación asignada correctamente', true); loadMyProducts(); setTimeout(() => modal.remove(), 1400); }
@@ -1804,4 +1804,4 @@ async function loadBeneficiarioDonaciones() {
           </div>`).join('')}
     </div>`;
   } catch(e) { area.style.display = 'none'; }
-             }
+  }
