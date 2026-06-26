@@ -1,3 +1,4 @@
+
 :root {
   
   
@@ -421,7 +422,7 @@ body {
 .product-slider { position: relative; overflow: hidden; border-radius: 20px; background: #f8f9fa; aspect-ratio: 3 / 4; width: 100%; }
 .product-slider-track { display: flex; transition: transform 0.35s ease-out; will-change: transform; height: 100%; }
 .product-slide { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #f8f9fa; }
-.product-slide img { width: 100%; height: 100%; object-fit: contain; padding: 12px; background: #fff; display: block; }
+.product-slide img { width: 100%; height: 100%; object-fit: contain; padding: 12px; box-sizing: border-box; background: #fff; display: block; }
 .product-badge { position: absolute; top: 12px; left: 12px; padding: 6px 14px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 700; color: #ffffff; background: linear-gradient(135deg, #ff4f81, #ff7a4f); backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); z-index: 2; text-transform: uppercase; }
 .slider-dots { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 2; background: rgba(0, 0, 0, 0.3); padding: 4px 10px; border-radius: 30px; backdrop-filter: blur(4px); }
 .slider-dot { width: 6px; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.6); transition: all 0.2s ease; cursor: pointer; }
