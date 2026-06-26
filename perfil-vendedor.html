@@ -427,6 +427,52 @@
       background: var(--color-surface-2);
     }
 
+    /* ── Skeleton ── */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position:  400px 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg,
+        var(--color-surface-2) 25%,
+        var(--color-surface-3) 50%,
+        var(--color-surface-2) 75%
+      );
+      background-size: 800px 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 8px;
+    }
+    .profile-skeleton-wrap { padding: 0 0 40px; }
+    .profile-skeleton-header { height: 120px; border-radius: 0; }
+    .profile-skeleton-body { padding: 16px 20px 0; }
+    .profile-skeleton-avatar {
+      width: var(--avatar-size, 90px);
+      height: var(--avatar-size, 90px);
+      border-radius: 50%;
+      margin-top: calc(var(--avatar-overlap, 32px) * -1);
+      margin-bottom: 12px;
+    }
+    .profile-skeleton-name   { height: 22px; width: 55%; margin-bottom: 10px; }
+    .profile-skeleton-cat    { height: 16px; width: 35%; margin-bottom: 14px; border-radius: 30px; }
+    .profile-skeleton-desc   { height: 14px; width: 90%; margin-bottom: 6px; }
+    .profile-skeleton-desc2  { height: 14px; width: 70%; margin-bottom: 20px; }
+    .profile-skeleton-btn    { height: 42px; width: 200px; border-radius: 40px; margin-bottom: 24px; }
+    .profile-skeleton-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .profile-skeleton-card { border-radius: 16px; overflow: hidden; background: var(--color-surface); }
+    .profile-skeleton-card-img  { height: 150px; }
+    .profile-skeleton-card-body { padding: 10px 12px 14px; }
+    .profile-skeleton-card-name { height: 13px; width: 80%; margin-bottom: 8px; border-radius: 4px; }
+    .profile-skeleton-card-price{ height: 15px; width: 50%; margin-bottom: 10px; border-radius: 4px; }
+    .profile-skeleton-card-btn  { height: 28px; border-radius: 30px; }
+    @media (max-width: 480px) {
+      .profile-skeleton-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    }
+
     @media (max-width: 480px) {
       :root {
         --avatar-size: 80px;
@@ -696,11 +742,15 @@
             const talla = p.talla || '';
             const esConfiable = p.confiable === true || p.confiable === 'true';
             const hiddenClass = idx >= PRODUCTS_PAGE_SIZE ? ' profile-product-hidden' : '';
+            // Las primeras 6 cargan de inmediato; el resto usa lazy load via data-src
+            const imgAttr = idx < 6
+              ? `src="${esc(img)}" loading="lazy"`
+              : `data-src="${esc(img)}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"`;
             return `
               <div class="profile-product-card${hiddenClass}" data-id="${esc(p.id)}" style="animation-delay:${Math.min(idx % PRODUCTS_PAGE_SIZE, 8) * 0.04}s">
                 ${p.badge ? `<span class="product-badge">${esc(p.badge)}</span>` : ''}
                 ${esConfiable ? `<span class="profile-confiable-badge">✓✓</span>` : ''}
-                <img src="${esc(img)}" alt="${esc(p.nombre)}" loading="lazy" onerror="this.src='https://placehold.co/200x200/3b1f5f/white?text=Error'">
+                <img ${imgAttr} alt="${esc(p.nombre)}" onerror="this.src='https://placehold.co/200x200/3b1f5f/white?text=Error'">
                 <div class="profile-product-info">
                   <div class="profile-product-name" title="${esc(p.nombre)}">${esc(p.nombre)}</div>
                   <div class="profile-product-price">${formatCurrency(p.precio)}</div>
@@ -815,7 +865,76 @@
         const sub = document.getElementById('profile-subtitle');
         if (sub) sub.textContent = v.nombre || 'Vendedor';
 
+        // Lazy loading de imágenes con IntersectionObserver
+        const lazyImgs = container.querySelectorAll('img[data-src]');
+        if (lazyImgs.length > 0) {
+          const imgObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+                imgObserver.unobserve(img);
+              }
+            });
+          }, { rootMargin: '200px' });
+          lazyImgs.forEach(img => imgObserver.observe(img));
+        }
+
         hideLoader();
+      }
+
+      // ── Caché de perfil por UID en sessionStorage ──
+      const PROFILE_CACHE_PREFIX = 'zr_perfil_';
+      const PROFILE_CACHE_TTL    = 5 * 60 * 1000; // 5 min en misma sesión
+
+      function getProfileCache(uid) {
+        try {
+          const raw = sessionStorage.getItem(PROFILE_CACHE_PREFIX + uid);
+          if (!raw) return null;
+          const { data, timestamp } = JSON.parse(raw);
+          if (Date.now() - timestamp > PROFILE_CACHE_TTL) {
+            sessionStorage.removeItem(PROFILE_CACHE_PREFIX + uid);
+            return null;
+          }
+          return data;
+        } catch (e) { return null; }
+      }
+
+      function setProfileCache(uid, data) {
+        try {
+          sessionStorage.setItem(
+            PROFILE_CACHE_PREFIX + uid,
+            JSON.stringify({ data, timestamp: Date.now() })
+          );
+        } catch (e) {}
+      }
+
+      // ── Skeleton inmediato mientras carga ──
+      function showProfileSkeleton(container, cardCount = 6) {
+        const cards = Array.from({ length: cardCount }, () => `
+          <div class="profile-skeleton-card">
+            <div class="skeleton profile-skeleton-card-img"></div>
+            <div class="profile-skeleton-card-body">
+              <div class="skeleton profile-skeleton-card-name"></div>
+              <div class="skeleton profile-skeleton-card-price"></div>
+              <div class="skeleton profile-skeleton-card-btn"></div>
+            </div>
+          </div>`).join('');
+
+        container.innerHTML = `
+          <div class="profile-skeleton-wrap">
+            <div class="skeleton profile-skeleton-header"></div>
+            <div class="profile-skeleton-body">
+              <div class="skeleton profile-skeleton-avatar"></div>
+              <div class="skeleton profile-skeleton-name"></div>
+              <div class="skeleton profile-skeleton-cat"></div>
+              <div class="skeleton profile-skeleton-desc"></div>
+              <div class="skeleton profile-skeleton-desc2"></div>
+              <div class="skeleton profile-skeleton-btn"></div>
+              <div class="profile-skeleton-grid">${cards}</div>
+            </div>
+          </div>`;
       }
 
       async function fetchProfile(uid) {
@@ -830,10 +949,35 @@
 
         const apiUrl = window.API_URL;
         if (!apiUrl) {
-          showTemporaryMessage('Error: API_URL no definida', 'error');
+          if (typeof showTemporaryMessage === 'function') showTemporaryMessage('Error: API_URL no definida', 'error');
           hideLoader();
           return;
         }
+
+        const container = document.getElementById('profile-container');
+
+        // 1. Mostrar caché inmediatamente si existe
+        const cached = getProfileCache(uid);
+        if (cached) {
+          renderProfile(cached);
+          // Revalidar en background silenciosamente
+          fetch(`${apiUrl}?action=obtenerPerfilVendedor&uid=${encodeURIComponent(uid)}`)
+            .then(r => r.json())
+            .then(fresh => {
+              if (fresh.ok) {
+                setProfileCache(uid, fresh);
+                // Solo re-render si los datos cambiaron
+                if (JSON.stringify(fresh) !== JSON.stringify(cached)) {
+                  renderProfile(fresh);
+                }
+              }
+            })
+            .catch(() => {});
+          return;
+        }
+
+        // 2. Sin caché: mostrar skeleton + fetch
+        if (container) showProfileSkeleton(container, 6);
 
         try {
           const url = `${apiUrl}?action=obtenerPerfilVendedor&uid=${encodeURIComponent(uid)}`;
@@ -844,10 +988,10 @@
             throw new Error(data.error || 'Error al obtener perfil');
           }
 
+          setProfileCache(uid, data);
           renderProfile(data);
         } catch (err) {
           console.error('Error cargando perfil:', err);
-          const container = document.getElementById('profile-container');
           if (container) {
             container.innerHTML = `
               <div style="text-align:center;padding:40px;color:var(--color-error);">
@@ -865,7 +1009,9 @@
       document.addEventListener('DOMContentLoaded', function() {
         const uid = getVendorUid();
         if (uid) {
-          showLoader('Cargando perfil...');
+          // Si hay caché, el loader apenas aparece; si no, skeleton lo cubre
+          const hasCached = !!getProfileCache(uid);
+          if (!hasCached) showLoader('Cargando perfil...');
           fetchProfile(uid);
         } else {
           const container = document.getElementById('profile-container');
