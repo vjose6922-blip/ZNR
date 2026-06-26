@@ -198,35 +198,33 @@ async function loadCommunityProducts() {
       const url = window.API_URL;
       console.log("🔍 Cargando comunidad desde:", url);
 
-      // Lanzar POST y GET en paralelo — el que responda primero gana
-      const makeRequest = (method, extraOpts = {}) => {
+      const getUrl = (() => { const u = new URL(url); u.searchParams.set('action','listarComunidad'); return u.toString(); })();
+
+      // Wrapper: hace el fetch y devuelve null en caso de fallo (nunca rechaza)
+      const tryFetch = (fetchUrl, opts, label) => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        const opts = method === 'POST'
-          ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'listarComunidad' }), signal: controller.signal }
-          : { method: 'GET', headers: { 'Accept': 'application/json' }, signal: controller.signal };
-        const req = fetch(method === 'GET' ? (() => { const u = new URL(url); u.searchParams.set('action','listarComunidad'); return u.toString(); })() : url, opts)
-          .then(r => { clearTimeout(timeoutId); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-          .catch(err => { clearTimeout(timeoutId); throw err; });
-        return { req, controller };
+        const tid = setTimeout(() => controller.abort(), 10000);
+        return fetch(fetchUrl, { ...opts, signal: controller.signal })
+          .then(r => { clearTimeout(tid); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+          .then(data => ({ data, label }))
+          .catch(err => { clearTimeout(tid); console.warn(`⚠️ ${label} falló:`, err.message); return null; });
       };
 
-      const postReq = makeRequest('POST');
-      const getReq  = makeRequest('GET');
+      const postPromise = tryFetch(url,    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'listarComunidad' }) }, 'POST');
+      const getPromise  = tryFetch(getUrl, { method: 'GET',  headers: { 'Accept': 'application/json' } }, 'GET');
 
-      let data;
-      try {
-        // Race: el primero en resolver gana; el perdedor se cancela
-        data = await Promise.any([
-          postReq.req.finally(() => getReq.controller.abort()),
-          getReq.req.finally(() => postReq.controller.abort()),
-        ]);
-        console.log("✅ Respuesta recibida (ganó el más rápido)");
-      } catch (raceErr) {
-        // Ambos fallaron
-        console.error("❌ Fallaron POST y GET para listarComunidad", raceErr);
-        throw raceErr;
+      // El primero en resolver con valor no-null gana
+      let result = null;
+      await Promise.all([
+        postPromise.then(r => { if (r && !result) { result = r; console.log(`✅ Comunidad cargada vía ${r.label}`); } }),
+        getPromise.then( r => { if (r && !result) { result = r; console.log(`✅ Comunidad cargada vía ${r.label}`); } }),
+      ]);
+
+      if (!result) {
+        throw new Error('No se pudo conectar con el servidor (POST y GET fallaron)');
       }
+
+      const data = result.data;
 
       if (!data.ok && data.ok !== undefined) {
         throw new Error(data.error || 'Error devuelto por el servidor');
