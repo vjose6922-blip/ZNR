@@ -1,4 +1,3 @@
-
 (function() {
 const COMUNIDAD_CACHE_KEY = 'zr_comunidad_data';
 const COMUNIDAD_CACHE_TTL_SESSION = 5 * 60 * 1000;
@@ -949,8 +948,24 @@ initComunidad();
 
 // ── Modal: Registro de beneficiario ─────────────────────────
 window.openBeneficiarioRegister = function() {
+  console.log('🔥 openBeneficiarioRegister ejecutada');
+
+  // Restaurar sesión desde localStorage si no existe
+  if (!window.vendorSession) {
+    try {
+      const stored = localStorage.getItem('vendor_session');
+      if (stored) {
+        window.vendorSession = JSON.parse(stored);
+        console.log('✅ Sesión restaurada desde localStorage:', window.vendorSession.nombre);
+      }
+    } catch (e) {
+      console.warn('No se pudo restaurar sesión:', e);
+    }
+  }
+
   const old = document.getElementById('modal-beneficiario-register');
   if (old) old.remove();
+
   const modal = document.createElement('div');
   modal.id = 'modal-beneficiario-register';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
@@ -976,98 +991,206 @@ window.openBeneficiarioRegister = function() {
       <input id="ben-cuenta" type="text" placeholder="18 dígitos CLABE o número de cuenta" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">WhatsApp (10 dígitos) *</label>
       <input id="ben-telefono" type="tel" placeholder="8671234567" maxlength="10" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:16px;font-size:.88rem;">
-      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Fotos (opcional, máx. 3)</label>
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Fotos (opcional, máx. 3 — puedes elegir varias a la vez)</label>
       <div style="display:flex;gap:8px;margin-bottom:16px;" id="ben-img-previews">
         <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;" id="ben-img-label-1">
           <span id="ben-img-placeholder-1" style="font-size:1.4rem;">📷</span>
           <img id="ben-img-preview-1" style="display:none;width:100%;height:100%;object-fit:cover;">
-          <input type="file" id="ben-img-1" accept="image/*" style="display:none;">
+          <input type="file" id="ben-img-1" accept="image/*" multiple style="display:none;">
         </label>
         <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;" id="ben-img-label-2">
           <span id="ben-img-placeholder-2" style="font-size:1.4rem;">📷</span>
           <img id="ben-img-preview-2" style="display:none;width:100%;height:100%;object-fit:cover;">
-          <input type="file" id="ben-img-2" accept="image/*" style="display:none;">
+          <input type="file" id="ben-img-2" accept="image/*" multiple style="display:none;">
         </label>
         <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;" id="ben-img-label-3">
           <span id="ben-img-placeholder-3" style="font-size:1.4rem;">📷</span>
           <img id="ben-img-preview-3" style="display:none;width:100%;height:100%;object-fit:cover;">
-          <input type="file" id="ben-img-3" accept="image/*" style="display:none;">
+          <input type="file" id="ben-img-3" accept="image/*" multiple style="display:none;">
         </label>
       </div>
       <button id="btn-submit-ben" style="width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-weight:800;font-size:.92rem;cursor:pointer;">Enviar solicitud</button>
     </div>`;
+
   document.body.appendChild(modal);
   document.getElementById('btn-close-ben-reg').onclick = () => modal.remove();
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
   // Preview de imágenes
+  function benUpdatePreview(n, file) {
+    const preview = document.getElementById('ben-img-preview-' + n);
+    const placeholder = document.getElementById('ben-img-placeholder-' + n);
+    if (!preview || !placeholder) return;
+    if (!file) {
+      preview.src = '';
+      preview.style.display = 'none';
+      placeholder.style.display = '';
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    preview.src = url;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  }
+  function benSetSlotFile(n, file) {
+    const input = document.getElementById('ben-img-' + n);
+    if (!input) return;
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+    } catch (e) { /* ignore */ }
+    benUpdatePreview(n, file);
+  }
   [1,2,3].forEach(n => {
     document.getElementById('ben-img-' + n).addEventListener('change', function() {
-      const file = this.files[0];
-      if (!file) return;
-      const preview = document.getElementById('ben-img-preview-' + n);
-      const placeholder = document.getElementById('ben-img-placeholder-' + n);
-      const url = URL.createObjectURL(file);
-      preview.src = url;
-      preview.style.display = 'block';
-      placeholder.style.display = 'none';
+      const files = Array.from(this.files || []);
+      if (!files.length) return;
+      let slot = n;
+      for (const file of files) {
+        if (slot > 3) break;
+        benSetSlotFile(slot, file);
+        slot++;
+      }
     });
   });
 
-  document.getElementById('btn-submit-ben').addEventListener('click', async () => {
+  // Evento de envío
+  document.getElementById('btn-submit-ben').addEventListener('click', async function(e) {
+    e.preventDefault();
     const showMsg = (txt, ok) => {
       const el = document.getElementById('ben-reg-msg');
-      el.textContent = txt; el.style.display = 'block';
+      el.textContent = txt;
+      el.style.display = 'block';
       el.style.background = ok ? '#dcfce7' : '#fee2e2';
       el.style.color = ok ? '#166534' : '#991b1b';
     };
-    const nombre   = document.getElementById('ben-nombre').value.trim();
-    const tel      = document.getElementById('ben-telefono').value.replace(/\D/g,'');
-    const ubicacion = document.getElementById('ben-ubicacion').value.trim();
-    const historia = document.getElementById('ben-historia').value.trim();
-    const cuenta   = document.getElementById('ben-cuenta').value.trim();
+
+    // Validar campos
+    const nombre     = document.getElementById('ben-nombre').value.trim();
+    const tel        = document.getElementById('ben-telefono').value.replace(/\D/g, '');
+    const ubicacion  = document.getElementById('ben-ubicacion').value.trim();
+    const historia   = document.getElementById('ben-historia').value.trim();
+    const cuenta     = document.getElementById('ben-cuenta').value.trim();
+
     if (!nombre)           return showMsg('El nombre es requerido.', false);
     if (!ubicacion)        return showMsg('La ciudad/estado es requerida.', false);
     if (!historia)         return showMsg('Cuéntanos tu propósito.', false);
     if (!cuenta)           return showMsg('La cuenta bancaria es requerida.', false);
     if (tel.length !== 10) return showMsg('El WhatsApp debe tener 10 dígitos.', false);
-    const btn = document.getElementById('btn-submit-ben');
-    btn.disabled = true; btn.textContent = 'Enviando…';
+
+    // Restaurar sesión por si no se hizo antes
+    if (!window.vendorSession) {
+      try {
+        const stored = localStorage.getItem('vendor_session');
+        if (stored) window.vendorSession = JSON.parse(stored);
+      } catch (e) {}
+    }
+
+    const vendor = window.vendorSession;
+    if (!vendor || !vendor.token) {
+      showMsg('⚠️ Debes iniciar sesión como vendedor para registrarte como beneficiario. Ve a "Mi cuenta de vendedor".', false);
+      // Opcional: agregar un enlace para ir a vendedor.html
+      const link = document.createElement('a');
+      link.href = 'vendedor.html';
+      link.textContent = ' Ir a mi cuenta de vendedor';
+      link.style.display = 'block';
+      link.style.marginTop = '8px';
+      link.style.color = '#ff4f81';
+      link.style.textDecoration = 'underline';
+      document.getElementById('ben-reg-msg').appendChild(link);
+      return;
+    }
+
+    // Validar que el teléfono coincida con el de la sesión (opcional)
+    if (vendor.telefono && String(vendor.telefono).replace(/\D/g, '') !== tel) {
+      showMsg('⚠️ El teléfono no coincide con tu cuenta de vendedor. Usa el número registrado: ' + vendor.telefono, false);
+      return;
+    }
+
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+
     try {
-      // Subir imágenes si se seleccionaron
       async function uploadBenImg(file) {
         const reader = new FileReader();
-        const base64 = await new Promise((res, rej) => { reader.onload = () => res(reader.result.split(',')[1]); reader.onerror = rej; reader.readAsDataURL(file); });
-        const params = new URLSearchParams({ action:'uploadImageVendedor', data: base64, mimeType: file.type, fileName: file.name });
-        if (window.vendorSession && window.vendorSession.token) params.append('vendorToken', window.vendorSession.token);
-        const r = await fetch(window.API_URL, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: params.toString() });
+        const base64 = await new Promise((res, rej) => {
+          reader.onload = () => res(reader.result.split(',')[1]);
+          reader.onerror = rej;
+          reader.readAsDataURL(file);
+        });
+        const params = new URLSearchParams({
+          action: 'uploadImageVendedor',
+          data: base64,
+          mimeType: file.type,
+          fileName: file.name,
+          vendorToken: vendor.token
+        });
+        const r = await fetch(window.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString()
+        });
         const j = await r.json();
-        return j.ok ? (j.url || '') : '';
+        if (!j.ok) throw new Error(j.error || 'Error al subir imagen');
+        return j.url || '';
       }
-      const imgUrls = ['','',''];
+
+      const imgUrls = ['', '', ''];
       for (let n = 1; n <= 3; n++) {
         const fileInput = document.getElementById('ben-img-' + n);
         if (fileInput && fileInput.files[0]) {
           btn.textContent = `Subiendo foto ${n}…`;
-          try { imgUrls[n-1] = await uploadBenImg(fileInput.files[0]); } catch(e) {}
+          try {
+            imgUrls[n - 1] = await uploadBenImg(fileInput.files[0]);
+          } catch (e) {
+            showMsg('⚠️ Error al subir la imagen ' + n + ': ' + e.message, false);
+            btn.disabled = false;
+            btn.textContent = 'Enviar solicitud';
+            return;
+          }
         }
       }
-      btn.textContent = 'Enviando…';
-      const res  = await fetch(window.API_URL, {
-        method:'POST',
+
+      btn.textContent = 'Enviando solicitud…';
+      const res = await fetch(window.API_URL, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          action:'registrarBeneficiario', nombre,
+          action: 'registrarBeneficiario',
+          nombre,
           organizacion: document.getElementById('ben-org').value.trim(),
-          ubicacion, facebook: document.getElementById('ben-facebook').value.trim(),
-          historia, cuenta_bancaria: cuenta, telefono: tel,
-          imagen1: imgUrls[0], imagen2: imgUrls[1], imagen3: imgUrls[2]
+          ubicacion,
+          facebook: document.getElementById('ben-facebook').value.trim(),
+          historia,
+          cuenta_bancaria: cuenta,
+          telefono: tel,
+          imagen1: imgUrls[0],
+          imagen2: imgUrls[1],
+          imagen3: imgUrls[2]
         }).toString()
       });
+
       const data = await res.json();
-      if (data.ok) { showMsg('✅ ¡Solicitud enviada! El administrador te contactará pronto por WhatsApp.', true); btn.textContent = 'Enviado'; }
-      else { showMsg('⚠️ ' + (data.error || 'Error al enviar'), false); btn.disabled = false; btn.textContent = 'Enviar solicitud'; }
-    } catch(err) { showMsg('⚠️ Error de conexión.', false); btn.disabled = false; btn.textContent = 'Enviar solicitud'; }
+      if (data.ok) {
+        showMsg('✅ ¡Solicitud enviada! El administrador te contactará pronto por WhatsApp.', true);
+        btn.textContent = 'Enviado';
+        setTimeout(() => {
+          const modal = document.getElementById('modal-beneficiario-register');
+          if (modal) modal.remove();
+        }, 3000);
+      } else {
+        showMsg('⚠️ ' + (data.error || 'Error al enviar'), false);
+        btn.disabled = false;
+        btn.textContent = 'Enviar solicitud';
+      }
+    } catch (err) {
+      console.error('Error en registro beneficiario:', err);
+      showMsg('⚠️ Error de conexión: ' + err.message, false);
+      btn.disabled = false;
+      btn.textContent = 'Enviar solicitud';
+    }
   });
 };
 
@@ -1117,4 +1240,6 @@ window.openBeneficiarioModal = async function(beneficiarioId) {
     if (body) body.innerHTML = '<p style="color:#ef4444;text-align:center;">Error de conexión.</p>';
   }
 };
+
+// Fin del IIFE
 })();

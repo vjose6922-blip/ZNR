@@ -527,111 +527,46 @@ function showLogMessage(msg, isError = false) {
 }
 
 function setupImageUpload(fileInputId, textInputId, previewId, progressId) {
-  const fileInput = document.getElementById(fileInputId);
-  const textInput = document.getElementById(textInputId);
-  const preview = document.getElementById(previewId);
-  const progress = document.getElementById(progressId);
-  
-  if (!fileInput) {
-    console.warn("setupImageUpload: fileInput not found →", fileInputId);
-    return;
-  }
+    const fileInput = document.getElementById(fileInputId);
+    if (!fileInput) return;
 
-  fileInput.removeEventListener('change', fileInput._listener);
-  const newListener = async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+    fileInput.removeEventListener('change', fileInput._listener);
 
-    const apiUrl = window.API_URL || ADMIN_API_URL;
-    if (!apiUrl) {
-      showLogMessage("❌ API_URL no definida", true);
-      return;
-    }
-    const token = sessionStorage.getItem("admin_token");
-    if (!token) {
-      showLogMessage("❌ Token de admin no encontrado. Re-login", true);
-      return;
-    }
+    const newListener = async function(e) {
+        const files = this.files;
+        if (!files || files.length === 0) return;
 
-    showLogMessage(`📤 Subiendo ${file.name}...`);
-    if (progress) progress.style.width = "10%";
+        // Extraer el número de slot del id (ej: image-upload-1 → slot 1)
+        const slotMatch = fileInputId.match(/\d+$/);
+        const startSlot = slotMatch ? parseInt(slotMatch[0]) : 1;
 
-    try {
-
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      if (preview) {
-        preview.src = dataUrl;
-        preview.style.display = "block";
-      }
-      if (progress) progress.style.width = "25%";
-
-      const base64 = await new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const MAX = 1200;
-          let w = img.width, h = img.height;
-          if (w > MAX || h > MAX) {
-            if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-            else { w = Math.round(w * MAX / h); h = MAX; }
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = w;
-          canvas.height = h;
-          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-          const result = canvas.toDataURL("image/jpeg", 0.82);
-          resolve(result.split(",")[1]);
+        // Función de subida para admin (usa token de admin)
+        const adminUploadFn = async (file, slot) => {
+            // Usamos la función existente uploadImageToDrive que ya tiene la lógica de compresión y token
+            return await uploadImageToDrive(file);
         };
-        img.onerror = () => {
-          console.warn("Error comprimiendo, usando original");
-          resolve(dataUrl.split(",")[1]);
+
+        // Callback para actualizar el progreso (opcional)
+        const onProgress = (slot, percent) => {
+            const prog = document.getElementById(`progress-image-upload-${slot}`);
+            if (prog) prog.style.width = percent + '%';
         };
-        img.src = dataUrl;
-      });
-      if (progress) progress.style.width = "50%";
 
-      const formData = new URLSearchParams();
-      formData.append("action", "uploadImage");
-      formData.append("fileName", file.name.replace(/\.[^.]+$/, "") + ".jpg");
-      formData.append("mimeType", "image/jpeg");
-      formData.append("data", base64);
-      formData.append("token", token);
+        // Callback para cuando se sube una imagen (puede ser útil)
+        const onSuccess = (slot, url) => {
+            // Ya se actualiza el campo de texto dentro de uploadImagesInQueue
+            // Pero podemos hacer algo adicional si queremos
+            console.log(`Imagen ${slot} subida: ${url}`);
+        };
 
-      const res = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData.toString()
-      });
-      if (progress) progress.style.width = "80%";
+        // Llamar a la función central
+        await window.uploadImagesInQueue(files, startSlot, adminUploadFn, onProgress, onSuccess);
+        // Limpiar input para permitir nueva selección
+        this.value = '';
+    };
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "Error en el servidor");
-
-      const imageUrl = json.url || (json.id ? `https://lh3.googleusercontent.com/d/${json.id}=w800` : null);
-      if (!imageUrl) throw new Error("El servidor no devolvió URL");
-
-      textInput.value = imageUrl;
-      showLogMessage(`✅ Imagen subida correctamente`);
-      if (progress) progress.style.width = "100%";
-      setTimeout(() => { if (progress) progress.style.width = "0%"; }, 800);
-
-    } catch (err) {
-      console.error(err);
-      showLogMessage(`❌ Error: ${err.message}`, true);
-      if (progress) progress.style.width = "0%";
-    } finally {
-
-      fileInput.value = "";
-    }
-  };
-
-  fileInput._listener = newListener;
-  fileInput.addEventListener('change', newListener);
+    fileInput._listener = newListener;
+    fileInput.addEventListener('change', newListener);
 }
 
 async function compressImage(file) {
@@ -660,6 +595,19 @@ resolve(canvas.toDataURL("image/jpeg", 0.8));
 };
 reader.readAsDataURL(file);
 });
+}
+async function uploadImageToDrive(file) {
+    const dataUrl = await compressImage(file); // data:image/jpeg;base64,....
+    const base64 = dataUrl.split(',')[1];
+    const fileName = (file.name || 'imagen').replace(/\.[^.]+$/, '') + '.jpg';
+    const result = await apiRequest('POST', {
+        action: 'uploadImage',
+        data: base64,
+        mimeType: 'image/jpeg',
+        fileName: fileName
+    });
+    if (!result || !result.ok) throw new Error((result && result.error) || 'Error al subir la imagen');
+    return result.url;
 }
 function clearImageUploads() {
   const previews = document.querySelectorAll(".image-preview");

@@ -184,6 +184,18 @@
 .settings-section-body {
   padding-bottom: 16px;
 }
+
+
+.filter-status-btn.active {
+  background: var(--color-accent-solid) !important;
+  color: #fff !important;
+  border-color: var(--color-accent-solid) !important;
+}
+.filter-status-btn:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-solid);
+}
+
 </style>
  <style>
  
@@ -253,8 +265,7 @@
  </div>
  </div>
 
- <div id="panel-section" class="vendor-wrap" style="display:none">
-
+<div id="panel-section" class="vendor-wrap" style="display:none; padding-bottom: 80px;">
  
  <div id="tab-products">
 
@@ -264,7 +275,7 @@
  </h2>
  <div id="vendor-plan-panel" style="margin:4px 0 16px;"></div>
  <input type="file" id="logo-file-input" accept="image/*" style="display:none">
- <div id="vendor-products-list" class="vendor-products"></div>
+<div id="products-container" class="products-container vendor-products"></div>
 </div>
  </div>
 
@@ -304,21 +315,21 @@
  <div class="img-upload-row">
  <div class="img-upload-slot" id="slot-1" onclick="triggerUpload(1)">
  <span style="font-size:24px;color:#ccc"></span>
- <input type="file" id="file-1" accept="image/*" onchange="handleFileSelect(1, this)">
+ <input type="file" id="file-1" accept="image/*" multiple onchange="handleFileSelect(1, this)">
  <button class="remove-img" onclick="removeImg(event,1)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
  </div>
  <div class="img-upload-slot" id="slot-2" onclick="triggerUpload(2)">
  <span style="font-size:24px;color:#ccc"></span>
- <input type="file" id="file-2" accept="image/*" onchange="handleFileSelect(2, this)">
+ <input type="file" id="file-2" accept="image/*" multiple onchange="handleFileSelect(2, this)">
  <button class="remove-img" onclick="removeImg(event,2)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
  </div>
  <div class="img-upload-slot" id="slot-3" onclick="triggerUpload(3)">
  <span style="font-size:24px;color:#ccc"></span>
- <input type="file" id="file-3" accept="image/*" onchange="handleFileSelect(3, this)">
+ <input type="file" id="file-3" accept="image/*" multiple onchange="handleFileSelect(3, this)">
  <button class="remove-img" onclick="removeImg(event,3)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
  </div>
  </div>
- <p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
+ <p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Puedes seleccionar varias a la vez. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
  </div>
 
  <button class="btn-primary" id="submit-product-btn"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-publish"/></svg> Publicar producto</button>

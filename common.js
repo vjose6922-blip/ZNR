@@ -2686,20 +2686,31 @@ slider.style.position = 'relative';
 slider.appendChild(btn);
 }
 function injectAll() {
-document.querySelectorAll('.product-card').forEach(injectWishlistBtn);
+  document.querySelectorAll('.product-card').forEach(card => {
+    if (card.closest('#panel-section')) return;
+    injectWishlistBtn(card);
+  });
 }
 const observer = new MutationObserver(mutations => {
-mutations.forEach(mut => {
-mut.addedNodes.forEach(node => {
-if (node.nodeType !== 1) return;
-if (node.classList?.contains('product-card')) {
-injectWishlistBtn(node);
-} else {
-node.querySelectorAll?.('.product-card').forEach(injectWishlistBtn);
-}
+  mutations.forEach(mut => {
+    mut.addedNodes.forEach(node => {
+      if (node.nodeType !== 1) return;
+      if (node.classList?.contains('product-card')) {
+        // Solo inyectamos si no está dentro del panel de vendedor
+        if (!node.closest('#panel-section')) {
+          injectWishlistBtn(node);
+        }
+      } else {
+        node.querySelectorAll?.('.product-card').forEach(card => {
+          if (!card.closest('#panel-section')) {
+            injectWishlistBtn(card);
+          }
+        });
+      }
+    });
+  });
 });
-});
-});
+
 if (document.readyState === 'loading') {
 document.addEventListener('DOMContentLoaded', () => {
 injectAll();
@@ -3431,4 +3442,97 @@ margin-top: 2px;
 }
 `;
 document.head.appendChild(style);
+
+
+
+
+
+// En common.js, después de las funciones auxiliares
+
+/**
+ * Sube múltiples archivos en cola.
+ * @param {FileList} files - Archivos seleccionados.
+ * @param {number} startSlot - Índice del primer slot (1-3).
+ * @param {Function} uploadFn - Función asíncrona que recibe (file, slotIndex) y devuelve la URL.
+ * @param {Function} onProgress - Opcional: callback (slotIndex, progress) para actualizar barras.
+ * @param {Function} onSuccess - Opcional: callback (slotIndex, url) al terminar cada archivo.
+ */
+window.uploadImagesInQueue = async function(files, startSlot = 1, uploadFn, onProgress, onSuccess) {
+    const maxFiles = 3;
+    const filesArray = Array.from(files).slice(0, maxFiles);
+    if (filesArray.length === 0) return;
+
+    // Determinar slots a usar (empezando por startSlot, sobrescribiendo si es necesario)
+    const slots = [];
+    for (let i = startSlot; i <= maxFiles; i++) {
+        slots.push(i);
+    }
+    // Si hay más archivos que slots disponibles, truncar
+    const assignments = [];
+    for (let i = 0; i < Math.min(filesArray.length, slots.length); i++) {
+        assignments.push({ slot: slots[i], file: filesArray[i] });
+    }
+
+    // Mostrar previsualizaciones inmediatamente
+    assignments.forEach(({ slot, file }) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // Admin: previsualización en #preview-image-upload-{slot}
+            const previewAdmin = document.getElementById(`preview-image-upload-${slot}`);
+            if (previewAdmin) {
+                previewAdmin.src = e.target.result;
+                previewAdmin.style.display = 'block';
+            }
+            // Vendedor: previsualización en #slot-{slot} (dentro de .img-upload-slot)
+            const slotDiv = document.getElementById(`slot-${slot}`);
+            if (slotDiv) {
+                let img = slotDiv.querySelector('img');
+                if (!img) {
+                    img = document.createElement('img');
+                    img.style.cssText = 'max-width:90%; max-height:90%; object-fit:contain; border-radius:8px;';
+                    slotDiv.appendChild(img);
+                }
+                img.src = e.target.result;
+                slotDiv.classList.add('has-img');
+                // Mostrar botón de eliminar (ya existe en el HTML)
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Subir en cola
+    for (const { slot, file } of assignments) {
+        const progressId = `progress-image-upload-${slot}`;
+        const progress = document.getElementById(progressId);
+        if (progress) progress.style.width = '10%';
+
+        try {
+            if (typeof onProgress === 'function') onProgress(slot, 10);
+            const url = await uploadFn(file, slot);
+            // Actualizar campo de texto (si existe)
+            const textInput = document.getElementById(`product-image${slot}`) || document.getElementById(`Imagen${slot}`);
+            if (textInput) textInput.value = url;
+            if (progress) progress.style.width = '100%';
+            if (typeof onProgress === 'function') onProgress(slot, 100);
+            if (typeof onSuccess === 'function') onSuccess(slot, url);
+            showTemporaryMessage(`Imagen ${slot} subida correctamente`, 'success');
+        } catch (err) {
+            console.error(`Error subiendo imagen ${slot}:`, err);
+            showTemporaryMessage(`Error en imagen ${slot}: ${err.message}`, 'error');
+            if (progress) progress.style.width = '0%';
+            if (typeof onProgress === 'function') onProgress(slot, -1);
+        }
+    }
+};
+
+// Función de subida genérica (debe ser sobrescrita por admin y vendedor)
+window.uploadSingleImage = async function(file, slotIndex) {
+    throw new Error('uploadSingleImage no está implementada. Debes asignarla en admin o vendedor.');
+};
+
+
+
+
+
+
 })();

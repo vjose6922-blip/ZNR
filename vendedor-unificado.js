@@ -1,4 +1,3 @@
-
 (function() {
 'use strict';
 
@@ -36,19 +35,19 @@ window.apiFetch = async function(data, method = 'POST') {
       });
   }
 
-  // Auto-logout si el servidor rechaza el token
   function checkTokenInvalid(parsed) {
-    if (parsed && parsed.ok === false &&
-        typeof parsed.error === 'string' &&
-        parsed.error.toLowerCase().includes('token')) {
-      localStorage.removeItem('vendor_session');
-      sessionStorage.removeItem('vendor_session');
-      vendorSession = null;
-      // Redirigir al login (recarga la página, que mostrará el panel de login)
-      setTimeout(() => { window.location.reload(); }, 1500);
-    }
-    return parsed;
+  if (parsed && parsed.ok === false &&
+      typeof parsed.error === 'string' &&
+      (parsed.error.toLowerCase().includes('token') ||
+       parsed.error.toLowerCase().includes('no autorizado') ||
+       parsed.error.toLowerCase().includes('unauthorized'))) {
+    localStorage.removeItem('vendor_session');
+    sessionStorage.removeItem('vendor_session');
+    vendorSession = null;
+    setTimeout(() => { window.location.reload(); }, 1500);
   }
+  return parsed;
+}
 
   if (String(method).toUpperCase() === 'GET') {
     const params = new URLSearchParams();
@@ -414,84 +413,117 @@ renderVendorPlanPanel();
 }
 
 function renderVendorPlanPanel() {
-const el = document.getElementById('vendor-plan-panel');
-if (!el || !vendorSession) return;
-const esPlus   = vendorSession.plan === 'plus';
-const limite   = vendorSession.limiteProductos || (esPlus ? 200 : 20);
-const actuales = vendorSession.productosActuales || 0;
-const pct = Math.min(100, Math.round((actuales / limite) * 100));
-const diasRestantes = vendorSession.planVence
-? Math.ceil((new Date(vendorSession.planVence) - new Date()) / 86400000)
-: null;
+  const el = document.getElementById('vendor-plan-panel');
+  if (!el || !vendorSession) return;
+  const esPlus   = vendorSession.plan === 'plus';
+  const limite   = vendorSession.limiteProductos || (esPlus ? 200 : 20);
+  const actuales = vendorSession.productosActuales || 0;
+  const pct = Math.min(100, Math.round((actuales / limite) * 100));
+  const diasRestantes = vendorSession.planVence
+    ? Math.ceil((new Date(vendorSession.planVence) - new Date()) / 86400000)
+    : null;
 
-const planBadge = esPlus
-? `<span style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;">PLUS</span>`
-: `<span style="background:#eee;color:#999;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;">FREE</span>`;
+  const planBadge = esPlus
+    ? `<span style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;">PLUS</span>`
+    : `<span style="background:#eee;color:#999;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;">FREE</span>`;
 
-let renovacionHTML = '';
-if (esPlus && diasRestantes != null && diasRestantes <= 7) {
-renovacionHTML = `<div style="margin-top:8px;background:#fff8e1;color:#92702a;font-size:12px;border-radius:10px;padding:8px 12px;">
- Tu plan Plus vence en ${diasRestantes} día${diasRestantes === 1 ? '' : 's'}. Contacta al admin para renovarlo y no perder tu visibilidad.
-</div>`;
+  let renovacionHTML = '';
+  if (esPlus && diasRestantes != null && diasRestantes <= 7) {
+    renovacionHTML = `<div style="margin-top:8px;background:#fff8e1;color:#92702a;font-size:12px;border-radius:10px;padding:8px 12px;">
+      Tu plan Plus vence en ${diasRestantes} día${diasRestantes === 1 ? '' : 's'}. Contacta al admin para renovarlo y no perder tu visibilidad.
+    </div>`;
+  }
+
+  // ── NUEVO: Filtro de estado ──────────────────────────────
+  const statusFilterHTML = `
+    <div class="vendor-status-filter" style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+      <button class="filter-status-btn active" data-status="todos" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:var(--color-accent-solid); color:#fff; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Todos</button>
+      <button class="filter-status-btn" data-status="aprobado" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:transparent; color:var(--color-text-muted); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Aprobados</button>
+      <button class="filter-status-btn" data-status="pendiente" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:transparent; color:var(--color-text-muted); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Pendientes</button>
+      <button class="filter-status-btn" data-status="rechazado" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:transparent; color:var(--color-text-muted); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Rechazados</button>
+          </div>
+  `;
+
+  el.innerHTML = `
+    <div style="background:#f8f8fc;border-radius:14px;padding:12px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="font-size:13px;font-weight:600;">${actuales}/${limite} productos usados</div>
+        ${planBadge}
+      </div>
+      <div style="background:#e6e6ee;border-radius:999px;height:6px;margin-top:8px;overflow:hidden;">
+        <div style="background:${pct >= 100 ? '#c62828' : '#7c3aed'};height:100%;width:${pct}%;"></div>
+      </div>
+      ${renovacionHTML}
+      ${statusFilterHTML}   <!--- Aquí el filtro -->
+    </div>
+  `;
+
+  // Ahora asignamos eventos a los botones del filtro
+  el.querySelectorAll('.filter-status-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      // Quitar clase active de todos
+      el.querySelectorAll('.filter-status-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'transparent';
+        b.style.color = 'var(--color-text-muted)';
+        b.style.borderColor = 'var(--color-border-subtle)';
+      });
+      // Activar este
+      this.classList.add('active');
+      this.style.background = 'var(--color-accent-solid)';
+      this.style.color = '#fff';
+      this.style.borderColor = 'var(--color-accent-solid)';
+
+      // Aplicar filtro
+      const status = this.dataset.status;
+      applyVendorStatusFilter(status);
+    });
+  });
+
+  // Si no hay productos plus, también podemos mostrar el área de notificaciones
+  if (!esPlus) {
+    // No mostramos nada del logo, solo dejamos el filtro
+    // Pero si quieres mantener el área de solicitud plus, la podemos poner después del filtro
+    // Por ahora no, porque el usuario quiere reemplazar el logo con el filtro
+  }
 }
 
-let logoHTML = '';
-if (esPlus) {
-logoHTML = `<div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
- ${vendorSession.logo
- ? `<img src="${escapeHtml(optimizeDriveUrl(vendorSession.logo, 60))}" alt="Logo" onerror="this.replaceWith(Object.assign(document.createElement('div'),{innerHTML:'${escapeHtml((vendorSession.nombre||'?')[0].toUpperCase())}',style:'width:44px;height:44px;border-radius:50%;background:#f3e8ff;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;'}))" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:1.5px solid #eee;">`
- : `<div style="width:44px;height:44px;border-radius:50%;background:#f3e8ff;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:700;">${escapeHtml((vendorSession.nombre||'?')[0].toUpperCase())}</div>`}
- <button class="btn-secondary" style="font-size:12px;" onclick="document.getElementById('logo-file-input').click()">
- ${vendorSession.logo ? 'Cambiar logo' : 'Subir logo de tu negocio'}
- </button>
-</div>`;
-} else {
-logoHTML = `<div style="margin-top:8px;font-size:12px;color:#999;">Con Plus puedes subir el logo de tu negocio, aparecer destacado y aprobación instantánea.</div>
-<div id="vendor-plus-notif-area" style="margin-top:10px;"></div>`;
+
+// Filtro de estado para productos del vendedor
+let currentStatusFilter = 'todos';
+
+function applyVendorStatusFilter(status) {
+  currentStatusFilter = status;
+  const container = document.getElementById('products-container');
+  if (!container) return;
+
+  const allProducts = window._vendorProducts || [];
+  let filtered = allProducts;
+
+  if (status !== 'todos') {
+    filtered = allProducts.filter(p => p.estado === status);
+  }
+
+  // Renderizar los productos filtrados
+  container.innerHTML = '';
+  if (filtered.length === 0) {
+    container.innerHTML = `<p style="color:#aaa;text-align:center;padding:20px;">No hay productos con el estado "${status}".</p>`;
+    return;
+  }
+
+  filtered.forEach(product => {
+    const card = createVendorProductCard(product);
+    container.appendChild(card);
+  });
+
+  // Re-aplicar el layout (grid/lista) después de renderizar
+  const savedLayout = localStorage.getItem('products_layout') || 'list';
+  applyLayoutGlobal(savedLayout);
 }
 
-el.innerHTML = `
-<div style="background:#f8f8fc;border-radius:14px;padding:12px 14px;">
- <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
- <div style="font-size:13px;font-weight:600;">${actuales}/${limite} productos usados</div>
- ${planBadge}
- </div>
- <div style="background:#e6e6ee;border-radius:999px;height:6px;margin-top:8px;overflow:hidden;">
- <div style="background:${pct >= 100 ? '#c62828' : '#7c3aed'};height:100%;width:${pct}%;"></div>
- </div>
- ${renovacionHTML}
- ${logoHTML}
-</div>`;
-
-if (!esPlus) loadPlusSolicitudVendedor();
-
-const logoInput = document.getElementById('logo-file-input');
-if (logoInput && !logoInput._wired) {
-logoInput._wired = true;
-logoInput.addEventListener('change', async (e) => {
-const file = e.target.files && e.target.files[0];
-if (!file) return;
-if (vendorSession.plan !== 'plus') {
-showTemporaryMessage('El logo es exclusivo del plan Plus', 'error');
-return;
-}
-showLoader('Subiendo logo...');
-try {
-await uploadVendorLogo(file);
-showTemporaryMessage(' Logo actualizado', 'success');
-renderVendorPlanPanel();
-} catch (err) {
-showTemporaryMessage(' ' + err.message, 'error');
-} finally {
-hideLoader();
-logoInput.value = '';
-}
-});
-}
-}
 
 async function uploadVendorLogo(file) {
-const url = await uploadImageToDrive(file);
+const url = await uploadSingleImage(file);
 const res = await apiFetch({ action: 'actualizarLogoVendedor', vendorToken: vendorSession.token, logoUrl: url });
 if (!res.ok) throw new Error(res.error || 'No se pudo guardar el logo');
 vendorSession.logo = url;
@@ -510,86 +542,229 @@ el.style.color = '#f97316';
 el.style.fontWeight = '700';
 }
 
+function createVendorProductCard(product) {
+  const { id, nombre, precio, stock, descripcion, talla, categoria, imagen1, imagen2, imagen3, estado } = product;
+  const safeNombre = escapeHtml(nombre || "Producto");
+  const safeDescripcion = escapeHtml(descripcion || "");
+  const safeTalla = escapeHtml(talla || "Única");
+  const safeCategoria = escapeHtml(categoria || "");
+  const stockNum = Number(stock || 0);
+  const isOutOfStock = stockNum <= 0;
+
+  const card = document.createElement("article");
+  card.className = "product-card";
+  card.id = `producto-${id}`;
+
+  // Slider de imágenes
+  const slider = document.createElement("div");
+  slider.className = "product-slider";
+  slider.dataset.productId = id;
+
+  const track = document.createElement("div");
+  track.className = "product-slider-track";
+
+  const images = [imagen1, imagen2, imagen3]
+    .map(u => optimizeDriveUrl(u))
+    .filter(Boolean);
+  if (images.length === 0) {
+    images.push("https://placehold.co/400x400/3b1f5f/white?text=Sin+Imagen");
+  }
+
+  images.forEach((url) => {
+    const slide = document.createElement("div");
+    slide.className = "product-slide";
+    const img = document.createElement("img");
+    img.alt = safeNombre;
+    img.src = url;
+    img.loading = "lazy";
+    img.addEventListener("click", () => openImageModal(url, id, images, product));
+    slide.appendChild(img);
+    track.appendChild(slide);
+  });
+  slider.appendChild(track);
+
+  // Dots del slider
+  const dotsContainer = document.createElement("div");
+  dotsContainer.className = "slider-dots";
+  images.forEach((_, index) => {
+    const dot = document.createElement("div");
+    dot.className = "slider-dot" + (index === 0 ? " active" : "");
+    dot.dataset.index = index;
+    dotsContainer.appendChild(dot);
+  });
+  slider.appendChild(dotsContainer);
+
+  // Badge de estado (aprobado, pendiente, etc.)
+  const badgeEl = document.createElement("div");
+  badgeEl.className = "product-badge";
+  badgeEl.textContent = estado || "Pendiente";
+  slider.appendChild(badgeEl);
+
+  // Información del producto
+  const info = document.createElement("div");
+  info.className = "product-info";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "product-title-row";
+  const nameEl = document.createElement("h2");
+  nameEl.className = "product-name";
+  nameEl.textContent = safeNombre;
+  const priceEl = document.createElement("div");
+  priceEl.className = "product-price";
+  priceEl.textContent = formatCurrency(precio);
+  titleRow.appendChild(nameEl);
+  titleRow.appendChild(priceEl);
+
+  const metaRow = document.createElement("div");
+  metaRow.className = "product-meta-row";
+  if (safeCategoria) {
+    const categoryEl = document.createElement("span");
+    categoryEl.className = "category-badge";
+    categoryEl.textContent = safeCategoria;
+    metaRow.appendChild(categoryEl);
+  }
+  const stockEl = document.createElement("span");
+  stockEl.className = "stock-badge";
+  if (isOutOfStock) {
+    stockEl.classList.add("out-of-stock");
+    stockEl.textContent = " Sin stock";
+  } else {
+    stockEl.textContent = ` Stock: ${stockNum}`;
+  }
+  metaRow.appendChild(stockEl);
+
+  const descEl = document.createElement("p");
+  descEl.className = "product-description";
+  descEl.textContent = safeDescripcion || "Sin descripción";
+
+  const sizesEl = document.createElement("div");
+  sizesEl.className = "product-sizes";
+  sizesEl.textContent = `Talla: ${safeTalla}`;
+
+  info.appendChild(titleRow);
+  info.appendChild(metaRow);
+  info.appendChild(descEl);
+  info.appendChild(sizesEl);
+
+const actions = document.createElement("div");
+actions.className = "product-actions";
+
+const editBtn = document.createElement("button");
+editBtn.className = "btn-secondary";
+editBtn.innerHTML = 'Editar';
+editBtn.onclick = () => editProduct(id);
+
+const deleteBtn = document.createElement("button");
+deleteBtn.className = "btn-secondary btn-danger";
+deleteBtn.innerHTML = 'Eliminar';
+deleteBtn.onclick = () => deleteMyProduct(id);
+
+actions.appendChild(editBtn);
+actions.appendChild(deleteBtn);
+
+  card.appendChild(slider);
+  card.appendChild(info);
+  card.appendChild(actions);
+  attachSliderEvents(slider, images.length);
+  return card;
+}
+
+
+function attachSliderEvents(slider, totalSlides) {
+  const productId = slider.dataset.productId;
+  const track = slider.querySelector(".product-slider-track");
+  const dots = slider.querySelectorAll(".slider-dot");
+  let startX = 0, currentX = 0, isDragging = false;
+  let currentIndex = 0;
+
+  function updateSlider(index) {
+    currentIndex = ((index % totalSlides) + totalSlides) % totalSlides;
+    track.style.transform = `translateX(-${currentIndex * 100}%)`;
+    dots.forEach((dot, i) => {
+      dot.classList.toggle("active", i === currentIndex);
+    });
+  }
+
+  function handleStart(x) {
+    isDragging = true;
+    startX = x;
+    currentX = x;
+  }
+  function handleMove(x) {
+    if (isDragging) currentX = x;
+  }
+  function handleEnd() {
+    if (!isDragging) return;
+    const deltaX = currentX - startX;
+    const threshold = 40;
+    let index = currentIndex;
+    if (deltaX < -threshold) index++;
+    else if (deltaX > threshold) index--;
+    updateSlider(index);
+    isDragging = false;
+  }
+
+  slider.addEventListener("touchstart", (e) => handleStart(e.touches[0].clientX));
+  slider.addEventListener("touchmove", (e) => handleMove(e.touches[0].clientX));
+  slider.addEventListener("touchend", handleEnd);
+  slider.addEventListener("mousedown", (e) => handleStart(e.clientX));
+  slider.addEventListener("mousemove", (e) => { if (isDragging) handleMove(e.clientX); });
+  slider.addEventListener("mouseup", handleEnd);
+  slider.addEventListener("mouseleave", () => { if (isDragging) handleEnd(); });
+
+  dots.forEach((dot) => {
+    dot.addEventListener("click", () => updateSlider(Number(dot.dataset.index)));
+  });
+
+  // Inicializar en la primera imagen
+  updateSlider(0);
+}
+
 window.loadMyProducts = async function loadMyProducts() {
-const container = document.getElementById('vendor-products-list');
-if (!container) return;
-container.innerHTML = '<p style="color:#aaa;text-align:center">Cargando...</p>';
-try {
-const data = await apiFetch({
-action: 'listarComunidad',
-vendedor_uid: vendorSession.uid,
-admin: 'true'
-}, 'GET');
-if (!data.ok) throw new Error(data.error);
-const myProducts = (data.products || []).filter(p => p.vendedor_uid === vendorSession.uid);
+  const container = document.getElementById('products-container');
+  if (!container) return;
+  container.innerHTML = '<p style="color:#aaa;text-align:center">Cargando...</p>';
+  try {
+    const data = await apiFetch({
+      action: 'listarComunidad',
+      vendedor_uid: vendorSession.uid,
+      admin: 'true'
+    }, 'GET');
+    if (!data.ok) throw new Error(data.error);
+    const myProducts = (data.products || []).filter(p => p.vendedor_uid === vendorSession.uid);
 
-const ocupados = myProducts.filter(p => p.estado === 'aprobado' || p.estado === 'pendiente').length;
-if (vendorSession) {
-vendorSession.productosActuales = ocupados;
-localStorage.setItem('vendor_session', JSON.stringify(vendorSession));
-}
-if (typeof renderVendorPlanPanel === 'function') renderVendorPlanPanel();
+    const ocupados = myProducts.filter(p => p.estado === 'aprobado' || p.estado === 'pendiente').length;
+    if (vendorSession) {
+      vendorSession.productosActuales = ocupados;
+      localStorage.setItem('vendor_session', JSON.stringify(vendorSession));
+    }
+    if (typeof renderVendorPlanPanel === 'function') renderVendorPlanPanel();
 
-if (myProducts.length === 0) {
-container.innerHTML = `<p style="color:#aaa;text-align:center">Aún no has publicado productos.<br>
-<button class="btn-secondary" onclick="switchTab('form')" style="margin-top:12px"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-publish"/></svg> Publicar ahora</button></p>`;
-return;
-}
-container.innerHTML = myProducts.map(p => {
-const imgs = [p.imagen1, p.imagen2, p.imagen3].filter(Boolean);
-const thumbs = imgs.map((img, i) => `
-<img src="${escapeHtml(optimizeDriveUrl(img, 80))}" alt="foto ${i+1}"
-onclick="openVendorImgModal('${escapeHtml(img)}', ${JSON.stringify(imgs).replace(/'/g,"\\'")})"
-style="width:56px;height:56px;object-fit:contain;border-radius:8px;background:#f5f5f8;cursor:pointer;border:1.5px solid #e0e0e0;flex-shrink:0;"
-onerror="this.style.display='none'">
-`).join('');
-return `
-<div class="vendor-product-row" id="vrow-${p.id}">
-<div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
-${thumbs || '<div style="width:56px;height:56px;background:#f5f5f8;border-radius:8px;"></div>'}
-</div>
-<div class="info">
-<strong>${escapeHtml(p.nombre)}</strong>
-<span>$${Number(p.precio).toLocaleString()} · Stock: ${p.stock}</span><br>
-<span class="estado-badge estado-${escapeHtml(p.estado)}">${p.estado === 'oculto_limite' ? 'Oculto (límite de plan)' : escapeHtml(p.estado)}</span>
-</div>
-<div class="actions">
-<button class="btn-secondary" onclick="editProduct(${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-edit"/></svg></button>
-<button class="btn-secondary btn-danger" onclick="deleteMyProduct(${p.id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-trash"/></svg></button>
-</div>
-</div>`;
-}).join('');
-if (!window._vendorImgModalReady) {
-window._vendorImgModalReady = true;
-const mo = document.createElement('div');
-mo.id = 'vendor-img-modal';
-mo.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:16px;';
-mo.innerHTML = `
-<button onclick="document.getElementById('vendor-img-modal').style.display='none'" style="display:flex;align-items:center;justify-content:center;"
-style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;"></button>
-<img id="vendor-img-modal-img" style="max-width:90vw;max-height:75vh;object-fit:contain;border-radius:12px;">
-<div id="vendor-img-modal-thumbs" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;"></div>`;
-document.body.appendChild(mo);
-mo.addEventListener('click', (e) => { if (e.target === mo) mo.style.display='none'; });
-}
-window.openVendorImgModal = function(src, imgs) {
-const mo = document.getElementById('vendor-img-modal');
-const bigImg = document.getElementById('vendor-img-modal-img');
-const thumbs = document.getElementById('vendor-img-modal-thumbs');
-bigImg.src = src;
-thumbs.innerHTML = imgs.map(img => `
-<img src="${escapeHtml(optimizeDriveUrl(img, 90))}" onclick="document.getElementById('vendor-img-modal-img').src='${escapeHtml(img)}'"
-style="width:64px;height:64px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.1);cursor:pointer;border:2px solid rgba(255,255,255,.3);"
-onerror="this.style.display='none'">`).join('');
-mo.style.display = 'flex';
+    if (myProducts.length === 0) {
+      container.innerHTML = `<p style="color:#aaa;text-align:center">Aún no has publicado productos.<br>
+      <button class="btn-secondary" onclick="switchTab('form')" style="margin-top:12px">Publicar ahora</button></p>`;
+      return;
+    }
+
+    // Guardar productos en variable global para usar en edición/eliminación
+    window._vendorProducts = myProducts;
+    updateDonacionesBadge();
+    applyVendorStatusFilter(currentStatusFilter);
+    // Construir tarjetas igual que en catalogo.html
+    container.innerHTML = '';
+    myProducts.forEach(product => {
+      const card = createVendorProductCard(product);
+      container.appendChild(card);
+    });
+
+    // Aplicar el layout guardado (grid o lista)
+    const savedLayout = localStorage.getItem('products_layout') || 'list';
+    applyLayoutGlobal(savedLayout);
+
+  } catch (err) {
+    container.innerHTML = `<p style="color:#ef4444">Error: ${escapeHtml(err.message)}</p>`;
+  }
 };
-window._vendorProducts = myProducts;
-updateDonacionesBadge();
-} catch (err) {
-container.innerHTML = `<p style="color:#ef4444">Error: ${escapeHtml(err.message)}</p>`;
-}
-}
-
 window.editProduct = function(id) {
 const p = (window._vendorProducts || []).find(x =>String(x.id) === String(id));
 if (!p) return;
@@ -695,17 +870,33 @@ img.src = url;
 }
 
 window.handleFileSelect = function(n, input) {
-const file = input.files[0];
-console.log(`Archivo seleccionado para slot ${n}:`, file ? file.name : 'ninguno');
-if (!file) return;
-selectedFiles[n] = file;
-const reader = new FileReader();
-reader.onload = e => {
-setSlotPreview(n, e.target.result);
-uploadedImages[n] = null;
-console.log(`Vista previa actualizada para slot ${n}`);
-};
-reader.readAsDataURL(file);
+    const files = input.files;
+    if (!files || files.length === 0) return;
+
+    // Función de subida para vendedor (usa token de vendedor)
+    const vendorUploadFn = async (file, slot) => {
+        // uploadSingleImage ya tiene la lógica de compresión y usa el token de vendorSession
+        return await uploadSingleImage(file);
+    };
+
+    // Callback de éxito para actualizar uploadedImages y selectedFiles
+    const onSuccess = (slot, url) => {
+        uploadedImages[slot] = url;
+        selectedFiles[slot] = null; // ya se subió, no necesitamos el archivo
+        console.log(`Imagen ${slot} subida, URL guardada en uploadedImages`);
+    };
+
+    // Callback de progreso (opcional)
+    const onProgress = (slot, percent) => {
+        const progressId = `progress-image-upload-${slot}`;
+        const progress = document.getElementById(progressId);
+        if (progress) progress.style.width = percent + '%';
+    };
+
+    // Llamar a la función central
+    window.uploadImagesInQueue(files, n, vendorUploadFn, onProgress, onSuccess);
+    // Limpiar input para permitir nueva selección
+    input.value = '';
 };
 
 function setSlotPreview(n, src) {
@@ -746,28 +937,32 @@ uploadedImages[n] = null;
 selectedFiles[n] = null;
 };
 
-async function uploadImageToDrive(file) {
-const compressed = await compressImage(file);
-const base64 = await fileToBase64(compressed);
-const mime = compressed.type || file.type;
-console.log(`Subiendo: ${file.name} | Original: ${(file.size/1024).toFixed(0)}KB → Comprimido: ${(compressed.size/1024).toFixed(0)}KB`);
-const formData = new URLSearchParams();
-formData.append('action', 'uploadImageVendedor');
-formData.append('data', base64);
-formData.append('mimeType', mime);
-formData.append('fileName', file.name.replace(/\.[^.]+$/, '') + (mime === 'image/webp' ? '.webp' : '.jpg'));
-formData.append('vendorToken', vendorSession.token);
-const res = await fetch(API_BASE, {
-method: 'POST',
-headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-body: formData.toString()
-});
-const result = await res.json();
-console.log(" Respuesta de uploadImageVendedor:", result);
-if (!result.ok) throw new Error(result.error || 'Error al subir imagen');
-console.log(" URL de imagen obtenida:", result.url);
-return result.url || `https://drive.google.com/file/d/${result.id}/view`;
+async function uploadSingleImage(file) {
+    // Obtener token de vendedor
+    const token = window.vendorSession?.token;
+    if (!token) throw new Error('Sesión de vendedor no disponible');
+
+    const compressed = await compressImage(file);
+    const base64 = await fileToBase64(compressed);
+    const mime = compressed.type || file.type;
+
+    const formData = new URLSearchParams();
+    formData.append('action', 'uploadImageVendedor');
+    formData.append('data', base64);
+    formData.append('mimeType', mime);
+    formData.append('fileName', file.name.replace(/\.[^.]+$/, '') + (mime === 'image/webp' ? '.webp' : '.jpg'));
+    formData.append('vendorToken', token);
+
+    const res = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+    });
+    const result = await res.json();
+    if (!result.ok) throw new Error(result.error || 'Error al subir imagen');
+    return result.url || `https://drive.google.com/file/d/${result.id}/view`;
 }
+
 
 function fileToBase64(file) {
 return new Promise((resolve, reject) => {
@@ -780,10 +975,10 @@ reader.readAsDataURL(file);
 
 window.submitProduct = async function() {
 if (!vendorSession || !vendorSession.token) {
-showTemporaryMessage(' Sesión no válida. Vuelve a iniciar sesión.', 'error');
-return;
-}
-const editId = document.getElementById('edit-product-id')?.value;
+  showTemporaryMessage(' Sesión expirada. Vuelve a iniciar sesión.', 'error');
+  setTimeout(() => { window.location.reload(); }, 2000);
+  return;
+}const editId = document.getElementById('edit-product-id')?.value;
 if (!editId && (vendorSession.productosActuales || 0) >= (vendorSession.limiteProductos || 20)) {
 const mensaje = vendorSession.plan === 'plus'
 ? `Llegaste al límite de ${vendorSession.limiteProductos} productos de tu plan Plus.`
@@ -807,7 +1002,7 @@ const file = selectedFiles[n];
 console.log(` Slot ${n}: archivo =`, file ? file.name : 'ninguno', '| uploadedImages previo =', uploadedImages[n]);
 if (file && !uploadedImages[n]?.startsWith('http')) {
 console.log(` Subiendo imagen ${n}...`);
-uploadedImages[n] = await uploadImageToDrive(file);
+uploadedImages[n] = await uploadSingleImage(file);
 console.log(` Imagen ${n} subida: ${uploadedImages[n]}`);
 } else {
 console.log(`⏭ Slot ${n} no requiere subida`);
@@ -1256,6 +1451,15 @@ initVendorPanel();
 initPendingVendors();
 });
 
+window.addEventListener('layoutChanged', (e) => {
+  const container = document.getElementById('products-container');
+  if (container) {
+    const isGrid = e.detail.layout === 'grid';
+    container.classList.toggle('layout-grid', isGrid);
+    container.classList.toggle('layout-list', !isGrid);
+  }
+});
+
 // ──────────────────────────────────────────────
 // Funciones expuestas globalmente (onclick en HTML)
 // ──────────────────────────────────────────────
@@ -1265,6 +1469,9 @@ window.closeSettingsModal = function() { closeSettingsModal(); };
 window.guardarPerfil      = function() { guardarPerfil(); };
 window.guardarPassword    = function() { guardarPassword(); };
 window.solicitarPlanPlus  = function() { solicitarPlanPlus(); };
+
+
+
 
 // ──────────────────────────────────────────────
 // Funciones de perfil / configuración
