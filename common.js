@@ -885,6 +885,7 @@ _modalProduct = productData;
 initImageModalControls();
 _renderModalImage(modal, 0, 'none');
 _renderProductInfo(modal);
+_renderVendorRow(modal);
 _renderMagazinePanel(modal);
 modal.classList.add("open");
 if (overlay) overlay.classList.add("visible");
@@ -953,6 +954,38 @@ ${tallaHtml}
 ${descHtml}
 `;
 }
+function _renderVendorRow(modal) {
+const el = modal.querySelector('#im-vendor-row');
+if (!el) return;
+const p = _modalProduct;
+if (!p) { el.innerHTML = ''; return; }
+const esComunidad = p._comunidad === true;
+const vendorName = p._vendedorNombre || p.vendedor_nombre || '';
+const vendorLogo = p._vendedorLogo || p.vendedor_logo || '';
+const vendorPlan = p._vendedorPlan || p.vendedor_plan || '';
+const vendorUid  = p._vendedorUid || p.vendedor_uid || '';
+const donado = p._donado === true || p.donado === true || p.donado === 'TRUE' || p.donado === 'true';
+const beneficiarioId = p._beneficiarioId || p.beneficiario_id || '';
+const vendorInitials = vendorName ? vendorName.trim().split(/\s+/).map(w => w[0]).slice(0,2).join('').toUpperCase() : 'ZR';
+const vendorAvatarHtml = (vendorPlan === 'plus' && vendorLogo)
+? `<img src="${escapeAttr(vendorLogo)}" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
+: `<span style="width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.2);font-size:8px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${escapeHtml(vendorInitials)}</span>`;
+const vendorPillHtml = esComunidad && vendorName
+? `<a href="perfil-vendedor.html?vendedor=${escapeAttr(vendorUid)}" class="im-vendor-pill">${vendorAvatarHtml}<span>${escapeHtml(vendorName)}</span></a>`
+: `<span class="im-vendor-pill im-vendor-pill-znr">Z&amp;R</span>`;
+const donationHtml = donado
+? `<span class="im-donation-badge"> Donativo</span>${beneficiarioId && typeof window.openBeneficiarioModal === 'function' ? `<button class="im-ver-beneficiario-btn" data-ben-id="${escapeAttr(beneficiarioId)}"> Ver beneficiario</button>` : ''}`
+: '';
+el.innerHTML = `${vendorPillHtml}${donationHtml}`;
+const benBtn = el.querySelector('.im-ver-beneficiario-btn');
+if (benBtn) {
+benBtn.addEventListener('click', (e) => {
+e.stopPropagation();
+window.openBeneficiarioModal?.(benBtn.dataset.benId);
+});
+}
+}
+
 function _renderMagazinePanel(modal) {
 const panel = modal.querySelector('.im-magazine-panel');
 if (!panel) return;
@@ -978,6 +1011,12 @@ _imagen1:  p.Imagen1  || p.imagen1  || '',
 _imagen2:  p.Imagen2  || p.imagen2  || '',
 _imagen3:  p.Imagen3  || p.imagen3  || '',
 _comunidad:  isComunidad,
+_vendedorNombre: p.vendedor_nombre || p._vendedorNombre || '',
+_vendedorUid: p.vendedor_uid || p._vendedorUid || '',
+_vendedorLogo: p.vendedor_logo || p._vendedorLogo || '',
+_vendedorPlan: p.vendedor_plan || p._vendedorPlan || '',
+_donado: p.donado === true || p.donado === 'TRUE' || p.donado === 'true',
+_beneficiarioId: p.beneficiario_id || p._beneficiarioId || '',
 }));
 const currentId  = current ? String(current.ID || current.id || '') : '';
 const currentCat = current ? (current.Categoria || current.categoria || '') : '';
@@ -1037,6 +1076,12 @@ const safeImg1  = escapeAttr(p._imagen1  || '');
 const safeImg2  = escapeAttr(p._imagen2  || '');
 const safeImg3  = escapeAttr(p._imagen3  || '');
 const safeComunidad = p._comunidad ? '1' : '0';
+const safeVendNombre = escapeAttr(p._vendedorNombre || '');
+const safeVendUid  = escapeAttr(p._vendedorUid  || '');
+const safeVendLogo  = escapeAttr(p._vendedorLogo  || '');
+const safeVendPlan  = escapeAttr(p._vendedorPlan  || '');
+const safeDonado  = p._donado ? '1' : '0';
+const safeBenId  = escapeAttr(p._beneficiarioId || '');
 return `
 <button class="im-related-card"
 data-id="${safeId}"
@@ -1053,6 +1098,12 @@ data-imagen1="${safeImg1}"
 data-imagen2="${safeImg2}"
 data-imagen3="${safeImg3}"
 data-comunidad="${safeComunidad}"
+data-vendedor-nombre="${safeVendNombre}"
+data-vendedor-uid="${safeVendUid}"
+data-vendedor-logo="${safeVendLogo}"
+data-vendedor-plan="${safeVendPlan}"
+data-donado="${safeDonado}"
+data-ben-id="${safeBenId}"
 aria-label="Ver ${safeName}">
 <div class="im-related-img-wrap">
 <img src="${safeImg}" alt="${safeName}" loading="lazy" />
@@ -1081,6 +1132,12 @@ Imagen1:  btn.dataset.imagen1,
 Imagen2:  btn.dataset.imagen2,
 Imagen3:  btn.dataset.imagen3,
 _comunidad:  btn.dataset.comunidad === '1',
+_vendedorNombre: btn.dataset.vendedorNombre || '',
+_vendedorUid: btn.dataset.vendedorUid || '',
+_vendedorLogo: btn.dataset.vendedorLogo || '',
+_vendedorPlan: btn.dataset.vendedorPlan || '',
+_donado: btn.dataset.donado === '1',
+_beneficiarioId: btn.dataset.benId || '',
 };
 _modalImages  = [img1, ...allImgs.filter(u => u && u !== img1)];
 _modalIndex  = 0;
@@ -1089,6 +1146,7 @@ const modal2 = document.getElementById("image-modal");
 if (modal2) {
 _renderModalImage(modal2, 0, 'right');
 _renderProductInfo(modal2);
+_renderVendorRow(modal2);
 _renderMagazinePanel(modal2);
 }
 });
@@ -1116,6 +1174,7 @@ modal.innerHTML = `
 <div class="im-magazine-layout">
 <!-- Hero column -->
 <div class="im-hero-col">
+<div class="im-vendor-row" id="im-vendor-row"></div>
 <button class="im-prev" aria-label="Anterior">‹</button>
 <div class="im-wrapper">
 <img id="image-modal-img" alt="Vista de producto" />
@@ -1171,6 +1230,33 @@ cursor: pointer; display: flex; align-items: center; justify-content: center;
 transition: background .2s;
 }
 .im-close:hover { background: rgba(255,79,129,.4); }
+.im-vendor-row {
+position: absolute; top: 14px; left: 14px; right: 60px; z-index: 5;
+display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.im-vendor-pill {
+display: inline-flex; align-items: center; gap: 5px;
+background: rgba(0,0,0,.5); backdrop-filter: blur(6px);
+color: #fff; font-size: 11px; font-weight: 700;
+padding: 5px 10px 5px 5px; border-radius: 20px;
+text-decoration: none; max-width: 160px;
+}
+.im-vendor-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.im-vendor-pill-znr {
+padding: 5px 10px; background: linear-gradient(135deg,#ff4f81,#a855f7);
+}
+.im-donation-badge {
+display: inline-flex; align-items: center; gap: 3px;
+background: linear-gradient(135deg,#f97316,#ef4444);
+color: #fff; font-size: 11px; font-weight: 700;
+padding: 5px 10px; border-radius: 20px; white-space: nowrap;
+}
+.im-ver-beneficiario-btn {
+background: rgba(0,0,0,.5); backdrop-filter: blur(6px);
+border: none; color: #ffd9b3; font-size: 11px; font-weight: 700;
+padding: 5px 10px; border-radius: 20px; cursor: pointer; white-space: nowrap;
+}
+.im-ver-beneficiario-btn:hover { background: rgba(249,115,22,.45); color: #fff; }
 .im-magazine-layout {
 display: flex;
 flex-direction: column;

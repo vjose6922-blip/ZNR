@@ -684,6 +684,12 @@ Imagen1:  product.imagen1  || '',
 Imagen2:  product.imagen2  || '',
 Imagen3:  product.imagen3  || '',
 _comunidad:  true,
+_vendedorNombre: vendorName || '',
+_vendedorUid: product.vendedor_uid || '',
+_vendedorLogo: vendorLogo || '',
+_vendedorPlan: product.vendedor_plan || '',
+_donado: esDonativo,
+_beneficiarioId: product.beneficiario_id || '',
 };
 window.openImageModal(imgUrl, product.id, allImages, productData);
 }
