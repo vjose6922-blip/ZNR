@@ -982,170 +982,169 @@ window.openBeneficiarioModal?.(benBtn.dataset.benId);
 }
 
 function _renderMagazinePanel(modal) {
-const panel = modal.querySelector('.im-magazine-panel');
-if (!panel) return;
-const current = _modalProduct;
-const isComunidad = current && (current._comunidad === true);
-let rawPool;
-if (isComunidad) {
-rawPool = window.allCommunityProductsIndexed || [];
-} else {
-rawPool = (typeof allProductsIndexed !== 'undefined' ? allProductsIndexed : []);
-}
-const pool = rawPool.map(p => ({
-_raw:  p,
-_id:  String(p.ID  || p.id  || ''),
-_nombre:  p.Nombre  || p.nombre  || '',
-_precio:  p.Precio  || p.precio  || 0,
-_categoria:  p.Categoria  || p.categoria  || '',
-_stock:  Number(p.Stock || p.stock || 0),
-_talla:  p.Talla  || p.talla  || '',
-_descripcion:p.Descripcion || p.descripcion || '',
-_badge:  p.Badge  || p.badge  || '',
-_imagen1:  p.Imagen1  || p.imagen1  || '',
-_imagen2:  p.Imagen2  || p.imagen2  || '',
-_imagen3:  p.Imagen3  || p.imagen3  || '',
-_comunidad:  isComunidad,
-_vendedorNombre: p.vendedor_nombre || p._vendedorNombre || '',
-_vendedorUid: p.vendedor_uid || p._vendedorUid || '',
-_vendedorLogo: p.vendedor_logo || p._vendedorLogo || '',
-_vendedorPlan: p.vendedor_plan || p._vendedorPlan || '',
-_donado: p.donado === true || p.donado === 'TRUE' || p.donado === 'true',
-_beneficiarioId: p.beneficiario_id || p._beneficiarioId || '',
-}));
-const currentId  = current ? String(current.ID || current.id || '') : '';
-const currentCat = current ? (current.Categoria || current.categoria || '') : '';
-let related = [];
-if (current && pool.length) {
-const sameCat = pool.filter(p =>
-p._id !== currentId &&
-p._categoria === currentCat &&
-p._stock > 0
-);
-related = sameCat.sort(() =>Math.random() - 0.5).slice(0, 3);
-if (related.length < 3) {
-const others = pool.filter(p =>
-p._id !== currentId &&
-!related.find(r => r._id === p._id) &&
-p._stock > 0
-).sort(() =>Math.random() - 0.5);
-related = [...related, ...others].slice(0, 3);
-}
-}
-if (related.length === 0) {
-panel.style.display = 'none';
-modal.querySelector('.im-magazine-layout').classList.add('im-no-panel');
-return;
-}
-panel.style.display = '';
-modal.querySelector('.im-magazine-layout').classList.remove('im-no-panel');
-panel.innerHTML = `
-<p class="im-panel-label">También te puede gustar</p>
-${related.map(p => {
-const thumbImg = typeof optimizeDriveUrl === 'function'
-? optimizeDriveUrl(p._imagen1, 200)
-: (p._imagen1 || '');
-const fullImg  = typeof optimizeDriveUrl === 'function'
-? optimizeDriveUrl(p._imagen1)
-: (p._imagen1 || '');
-const name = (p._nombre || 'Producto').substring(0, 28);
-const price = typeof formatCurrency === 'function'
-? formatCurrency(p._precio)
-: `$${p._precio}`;
-const safeImg     = thumbImg ? escapeAttr(thumbImg) : 'https://placehold.co/200x200/3b1f5f/white?text=Z%26R';
-const safeFullImg = fullImg  ? escapeAttr(fullImg)  : safeImg;
-const safeName  = typeof escapeHtml === 'function' ? escapeHtml(name) : name;
-const safeId  = escapeAttr(p._id);
-const allImg  = [p._imagen1, p._imagen2, p._imagen3]
-.map(u => u ? (typeof optimizeDriveUrl === 'function' ? optimizeDriveUrl(u) : u) : '')
-.filter(Boolean);
-const allImgEncoded = escapeAttr(JSON.stringify(allImg));
-const safeNombre  = escapeAttr(p._nombre  || '');
-const safePrecio  = escapeAttr(String(p._precio  || 0));
-const safeCat  = escapeAttr(p._categoria  || '');
-const safeTalla  = escapeAttr(p._talla  || '');
-const safeDesc  = escapeAttr(p._descripcion || '');
-const safeStock  = escapeAttr(String(p._stock ?? -1));
-const safeBadge  = escapeAttr(p._badge  || '');
-const safeImg1  = escapeAttr(p._imagen1  || '');
-const safeImg2  = escapeAttr(p._imagen2  || '');
-const safeImg3  = escapeAttr(p._imagen3  || '');
-const safeComunidad = p._comunidad ? '1' : '0';
-const safeVendNombre = escapeAttr(p._vendedorNombre || '');
-const safeVendUid  = escapeAttr(p._vendedorUid  || '');
-const safeVendLogo  = escapeAttr(p._vendedorLogo  || '');
-const safeVendPlan  = escapeAttr(p._vendedorPlan  || '');
-const safeDonado  = p._donado ? '1' : '0';
-const safeBenId  = escapeAttr(p._beneficiarioId || '');
-return `
-<button class="im-related-card"
-data-id="${safeId}"
-data-img="${safeFullImg}"
-data-all-images="${allImgEncoded}"
-data-nombre="${safeNombre}"
-data-precio="${safePrecio}"
-data-categoria="${safeCat}"
-data-talla="${safeTalla}"
-data-descripcion="${safeDesc}"
-data-stock="${safeStock}"
-data-badge="${safeBadge}"
-data-imagen1="${safeImg1}"
-data-imagen2="${safeImg2}"
-data-imagen3="${safeImg3}"
-data-comunidad="${safeComunidad}"
-data-vendedor-nombre="${safeVendNombre}"
-data-vendedor-uid="${safeVendUid}"
-data-vendedor-logo="${safeVendLogo}"
-data-vendedor-plan="${safeVendPlan}"
-data-donado="${safeDonado}"
-data-ben-id="${safeBenId}"
-aria-label="Ver ${safeName}">
-<div class="im-related-img-wrap">
-<img src="${safeImg}" alt="${safeName}" loading="lazy" />
-</div>
-<div class="im-related-info">
-<span class="im-related-name">${safeName}</span>
-<span class="im-related-price">${price}</span>
-</div>
-</button>`;
-}).join('')}
-`;
-panel.querySelectorAll('.im-related-card').forEach(btn => {
-btn.addEventListener('click', () => {
-const img1  = btn.dataset.img;
-const allImgs = JSON.parse(btn.dataset.allImages || '[]');
-const pData  = {
-ID:  btn.dataset.id,
-Nombre:  btn.dataset.nombre,
-Precio:  btn.dataset.precio,
-Categoria:  btn.dataset.categoria,
-Talla:  btn.dataset.talla  || '',
-Descripcion: btn.dataset.descripcion || '',
-Stock:  btn.dataset.stock !== undefined ? Number(btn.dataset.stock) : -1,
-Badge:  btn.dataset.badge  || '',
-Imagen1:  btn.dataset.imagen1,
-Imagen2:  btn.dataset.imagen2,
-Imagen3:  btn.dataset.imagen3,
-_comunidad:  btn.dataset.comunidad === '1',
-_vendedorNombre: btn.dataset.vendedorNombre || '',
-_vendedorUid: btn.dataset.vendedorUid || '',
-_vendedorLogo: btn.dataset.vendedorLogo || '',
-_vendedorPlan: btn.dataset.vendedorPlan || '',
-_donado: btn.dataset.donado === '1',
-_beneficiarioId: btn.dataset.benId || '',
-};
-_modalImages  = [img1, ...allImgs.filter(u => u && u !== img1)];
-_modalIndex  = 0;
-_modalProduct = pData;
-const modal2 = document.getElementById("image-modal");
-if (modal2) {
-_renderModalImage(modal2, 0, 'right');
-_renderProductInfo(modal2);
-_renderVendorRow(modal2);
-_renderMagazinePanel(modal2);
-}
-});
-});
+  const panel = modal.querySelector('.im-magazine-panel');
+  if (!panel) return;
+  const current = _modalProduct;
+  const isComunidad = current && (current._comunidad === true);
+  let rawPool;
+  if (isComunidad) {
+    rawPool = window.allCommunityProductsIndexed || [];
+  } else {
+    rawPool = (typeof allProductsIndexed !== 'undefined' ? allProductsIndexed : []);
+  }
+  const pool = rawPool.map(p => ({
+    _raw:  p,
+    _id:  String(p.ID  || p.id  || ''),
+    _nombre:  p.Nombre  || p.nombre  || '',
+    _precio:  p.Precio  || p.precio  || 0,
+    _categoria:  p.Categoria  || p.categoria  || '',
+    _stock:  Number(p.Stock || p.stock || 0),
+    _talla:  p.Talla  || p.talla  || '',
+    _descripcion:p.Descripcion || p.descripcion || '',
+    _badge:  p.Badge  || p.badge  || '',
+    _imagen1:  p.Imagen1  || p.imagen1  || '',
+    _imagen2:  p.Imagen2  || p.imagen2  || '',
+    _imagen3:  p.Imagen3  || p.imagen3  || '',
+    _comunidad:  isComunidad,
+    _vendedorNombre: p.vendedor_nombre || p._vendedorNombre || '',
+    _vendedorUid: p.vendedor_uid || p._vendedorUid || '',
+    _vendedorLogo: p.vendedor_logo || p._vendedorLogo || '',
+    _vendedorPlan: p.vendedor_plan || p._vendedorPlan || '',
+    _donado: p.donado === true || p.donado === 'TRUE' || p.donado === 'true',
+    _beneficiarioId: p.beneficiario_id || p._beneficiarioId || '',
+  }));
+  const currentId  = current ? String(current.ID || current.id || '') : '';
+  const currentCat = current ? (current.Categoria || current.categoria || '') : '';
+  let related = [];
+  if (current && pool.length) {
+    const sameCat = pool.filter(p =>
+      p._id !== currentId &&
+      p._categoria === currentCat &&
+      p._stock > 0
+    );
+    related = sameCat.sort(() =>Math.random() - 0.5).slice(0, 3);
+    if (related.length < 3) {
+      const others = pool.filter(p =>
+        p._id !== currentId &&
+        !related.find(r => r._id === p._id) &&
+        p._stock > 0
+      ).sort(() =>Math.random() - 0.5);
+      related = [...related, ...others].slice(0, 3);
+    }
+  }
+  if (related.length === 0) {
+    panel.style.display = 'none';
+    modal.querySelector('.im-magazine-layout').classList.add('im-no-panel');
+    return;
+  }
+  panel.style.display = '';
+  modal.querySelector('.im-magazine-layout').classList.remove('im-no-panel');
+  panel.innerHTML = `
+    ${related.map(p => {
+      const thumbImg = typeof optimizeDriveUrl === 'function'
+        ? optimizeDriveUrl(p._imagen1, 200)
+        : (p._imagen1 || '');
+      const fullImg  = typeof optimizeDriveUrl === 'function'
+        ? optimizeDriveUrl(p._imagen1)
+        : (p._imagen1 || '');
+      const name = (p._nombre || 'Producto').substring(0, 28);
+      const price = typeof formatCurrency === 'function'
+        ? formatCurrency(p._precio)
+        : `$${p._precio}`;
+      const safeImg     = thumbImg ? escapeAttr(thumbImg) : 'https://placehold.co/200x200/3b1f5f/white?text=Z%26R';
+      const safeFullImg = fullImg  ? escapeAttr(fullImg)  : safeImg;
+      const safeName  = typeof escapeHtml === 'function' ? escapeHtml(name) : name;
+      const safeId  = escapeAttr(p._id);
+      const allImg  = [p._imagen1, p._imagen2, p._imagen3]
+        .map(u => u ? (typeof optimizeDriveUrl === 'function' ? optimizeDriveUrl(u) : u) : '')
+        .filter(Boolean);
+      const allImgEncoded = escapeAttr(JSON.stringify(allImg));
+      const safeNombre  = escapeAttr(p._nombre  || '');
+      const safePrecio  = escapeAttr(String(p._precio  || 0));
+      const safeCat  = escapeAttr(p._categoria  || '');
+      const safeTalla  = escapeAttr(p._talla  || '');
+      const safeDesc  = escapeAttr(p._descripcion || '');
+      const safeStock  = escapeAttr(String(p._stock ?? -1));
+      const safeBadge  = escapeAttr(p._badge  || '');
+      const safeImg1  = escapeAttr(p._imagen1  || '');
+      const safeImg2  = escapeAttr(p._imagen2  || '');
+      const safeImg3  = escapeAttr(p._imagen3  || '');
+      const safeComunidad = p._comunidad ? '1' : '0';
+      const safeVendNombre = escapeAttr(p._vendedorNombre || '');
+      const safeVendUid  = escapeAttr(p._vendedorUid  || '');
+      const safeVendLogo  = escapeAttr(p._vendedorLogo  || '');
+      const safeVendPlan  = escapeAttr(p._vendedorPlan  || '');
+      const safeDonado  = p._donado ? '1' : '0';
+      const safeBenId  = escapeAttr(p._beneficiarioId || '');
+      return `
+        <button class="im-related-card"
+          data-id="${safeId}"
+          data-img="${safeFullImg}"
+          data-all-images="${allImgEncoded}"
+          data-nombre="${safeNombre}"
+          data-precio="${safePrecio}"
+          data-categoria="${safeCat}"
+          data-talla="${safeTalla}"
+          data-descripcion="${safeDesc}"
+          data-stock="${safeStock}"
+          data-badge="${safeBadge}"
+          data-imagen1="${safeImg1}"
+          data-imagen2="${safeImg2}"
+          data-imagen3="${safeImg3}"
+          data-comunidad="${safeComunidad}"
+          data-vendedor-nombre="${safeVendNombre}"
+          data-vendedor-uid="${safeVendUid}"
+          data-vendedor-logo="${safeVendLogo}"
+          data-vendedor-plan="${safeVendPlan}"
+          data-donado="${safeDonado}"
+          data-ben-id="${safeBenId}"
+          aria-label="Ver ${safeName}">
+          <div class="im-related-img-wrap">
+            <img src="${safeImg}" alt="${safeName}" loading="lazy" />
+          </div>
+          <div class="im-related-info">
+            <span class="im-related-name">${safeName}</span>
+            <span class="im-related-price">${price}</span>
+          </div>
+        </button>`;
+    }).join('')}
+  `;
+  panel.querySelectorAll('.im-related-card').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const img1  = btn.dataset.img;
+      const allImgs = JSON.parse(btn.dataset.allImages || '[]');
+      const pData  = {
+        ID:  btn.dataset.id,
+        Nombre:  btn.dataset.nombre,
+        Precio:  btn.dataset.precio,
+        Categoria:  btn.dataset.categoria,
+        Talla:  btn.dataset.talla  || '',
+        Descripcion: btn.dataset.descripcion || '',
+        Stock:  btn.dataset.stock !== undefined ? Number(btn.dataset.stock) : -1,
+        Badge:  btn.dataset.badge  || '',
+        Imagen1:  btn.dataset.imagen1,
+        Imagen2:  btn.dataset.imagen2,
+        Imagen3:  btn.dataset.imagen3,
+        _comunidad:  btn.dataset.comunidad === '1',
+        _vendedorNombre: btn.dataset.vendedorNombre || '',
+        _vendedorUid: btn.dataset.vendedorUid || '',
+        _vendedorLogo: btn.dataset.vendedorLogo || '',
+        _vendedorPlan: btn.dataset.vendedorPlan || '',
+        _donado: btn.dataset.donado === '1',
+        _beneficiarioId: btn.dataset.benId || '',
+      };
+      _modalImages  = [img1, ...allImgs.filter(u => u && u !== img1)];
+      _modalIndex  = 0;
+      _modalProduct = pData;
+      const modal2 = document.getElementById("image-modal");
+      if (modal2) {
+        _renderModalImage(modal2, 0, 'right');
+        _renderProductInfo(modal2);
+        _renderVendorRow(modal2);
+        _renderMagazinePanel(modal2);
+      }
+    });
+  });
 }
 function _modalNav(dir) {
 if (_modalImages.length < 2) return;
@@ -1161,313 +1160,381 @@ if (overlay) overlay.classList.remove("visible");
 _modalImages = []; _modalIndex = 0; _modalProduct = null;
 }
 function initImageModalControls() {
-const modal = document.getElementById("image-modal");
-if (!modal || modal.dataset.imInit) return;
-modal.dataset.imInit = '1';
-modal.innerHTML = `
-<button class="im-close icon-button" aria-label="Cerrar"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-x"/></svg></button>
-<div class="im-magazine-layout">
-<!-- Hero column -->
-<div class="im-hero-col">
-<div class="im-vendor-row" id="im-vendor-row"></div>
-<button class="im-prev" aria-label="Anterior">‹</button>
-<div class="im-wrapper">
-<img id="image-modal-img" alt="Vista de producto" />
-</div>
-<button class="im-next" aria-label="Siguiente">›</button>
-<div class="im-dots"></div>
-</div>
-<!-- Product details strip -->
-<div class="im-product-info" id="im-product-info"></div>
-<!-- Related panel -->
-<aside class="im-magazine-panel"></aside>
-</div>
-`;
-modal.querySelector('.im-close').addEventListener('click', closeImageModal);
-modal.querySelector('.im-prev').addEventListener('click', () => _modalNav(-1));
-modal.querySelector('.im-next').addEventListener('click', () => _modalNav(1));
-modal.addEventListener('click', e => {
-if (e.target === modal) closeImageModal();
-});
-modal.addEventListener('touchstart', e => { _modalTouchStartX = e.touches[0].clientX; }, { passive: true });
-modal.addEventListener('touchend', e => {
-const dx = e.changedTouches[0].clientX - _modalTouchStartX;
-if (Math.abs(dx) > 40) _modalNav(dx < 0 ? 1 : -1);
-}, { passive: true });
-document.addEventListener('keydown', e => {
-if (!modal.classList.contains('open')) return;
-if (e.key === 'ArrowRight') _modalNav(1);
-if (e.key === 'ArrowLeft')  _modalNav(-1);
-if (e.key === 'Escape')  closeImageModal();
-});
-if (!document.getElementById('im-styles')) {
-const st = document.createElement('style');
-st.id = 'im-styles';
-st.textContent = `
-.image-modal {
-position: fixed; inset: 0;
-background: rgba(0,0,0,.88);
-backdrop-filter: blur(6px);
--webkit-backdrop-filter: blur(6px);
-z-index: 8000;
-display: none;
-align-items: center;
-justify-content: center;
-padding: 16px;
-box-sizing: border-box;
-}
-.image-modal.open { display: flex; }
-.im-close {
-position: fixed; top: 14px; right: 14px; z-index: 10;
-background: rgba(255,255,255,.13); border: none; color: #fff;
-width: 38px; height: 38px; border-radius: 50%; font-size: 16px;
-cursor: pointer; display: flex; align-items: center; justify-content: center;
-transition: background .2s;
-}
-.im-close:hover { background: rgba(255,79,129,.4); }
-.im-vendor-row {
-position: absolute; top: 14px; left: 14px; right: 60px; z-index: 5;
-display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-}
-.im-vendor-pill {
-display: inline-flex; align-items: center; gap: 5px;
-background: rgba(0,0,0,.5); backdrop-filter: blur(6px);
-color: #fff; font-size: 11px; font-weight: 700;
-padding: 5px 10px 5px 5px; border-radius: 20px;
-text-decoration: none; max-width: 160px;
-}
-.im-vendor-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.im-vendor-pill-znr {
-padding: 5px 10px; background: linear-gradient(135deg,#ff4f81,#a855f7);
-}
-.im-donation-badge {
-display: inline-flex; align-items: center; gap: 3px;
-background: linear-gradient(135deg,#f97316,#ef4444);
-color: #fff; font-size: 11px; font-weight: 700;
-padding: 5px 10px; border-radius: 20px; white-space: nowrap;
-}
-.im-ver-beneficiario-btn {
-background: rgba(0,0,0,.5); backdrop-filter: blur(6px);
-border: none; color: #ffd9b3; font-size: 11px; font-weight: 700;
-padding: 5px 10px; border-radius: 20px; cursor: pointer; white-space: nowrap;
-}
-.im-ver-beneficiario-btn:hover { background: rgba(249,115,22,.45); color: #fff; }
-.im-magazine-layout {
-display: flex;
-flex-direction: column;
-align-items: center;
-gap: 0;
-width: min(480px, 96vw);
-max-height: 92dvh;
-background: #0d0d14;
-border-radius: 22px;
-overflow: hidden;
-box-shadow: 0 32px 80px rgba(0,0,0,.75);
-animation: im-fade-in .22s ease;
-}
-@keyframes im-fade-in { from { opacity:0; transform:scale(.96); } to { opacity:1; transform:scale(1); } }
-.im-hero-col {
-position: relative;
-width: 100%;
-flex: 1 1 auto;
-display: flex;
-flex-direction: column;
-align-items: center;
-justify-content: center;
-background: #111118;
-min-height: 0;
-}
-.im-prev, .im-next {
-position: absolute; top: 50%; transform: translateY(-50%);
-background: rgba(0,0,0,.45); border: none; color: #fff;
-width: 36px; height: 36px; border-radius: 50%; font-size: 24px;
-cursor: pointer; display: flex; align-items: center; justify-content: center;
-transition: background .2s; z-index: 4; backdrop-filter: blur(6px);
-}
-.im-prev { left: 10px; } .im-next { right: 10px; }
-.im-prev:hover, .im-next:hover { background: rgba(255,79,129,.55); }
-.im-wrapper {
-width: 100%;
-display: flex;
-align-items: center;
-justify-content: center;
-background: #111118;
-overflow: hidden;
-}
-.im-wrapper img {
-display: block;
-width: 100%;
-max-height: 50dvh;
-object-fit: contain;
-}
-.im-dots {
-position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
-display: flex; gap: 5px; z-index: 3;
-}
-.im-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.35); transition: all .2s; }
-.im-dot.active { background: #ff4f81; width: 16px; border-radius: 3px; }
-.im-product-info {
- width: calc(100% - 24px);
-margin: 0 12px;
-background: #252831;
-border-top: 1px solid rgba(255,255,255,.07);
-border-bottom: 1px solid rgba(255,255,255,.07);
-padding: 12px;
-display: flex;
-flex-direction: column;
-gap: 6px;
-}
-.im-info-top {
-display: flex;
-align-items: baseline;
-justify-content: space-between;
-gap: 10px;
-flex-wrap: wrap;
-}
-.im-info-name {
-font-size: 15px;
-font-weight: 700;
-color: #fff;
-line-height: 1.3;
-flex: 1;
-}
-.im-info-price {
-font-size: 17px;
-font-weight: 800;
-color: #ff4f81;
-white-space: nowrap;
-background: rgba(255,79,129,.12);
-padding: 2px 10px;
-border-radius: 20px;
-}
-.im-info-meta {
-display: flex;
-align-items: center;
-gap: 6px;
-flex-wrap: wrap;
-}
-.im-info-cat {
-background: rgba(255,255,255,.08);
-color: rgba(255,255,255,.7);
-font-size: 11px;
-font-weight: 600;
-padding: 3px 9px;
-border-radius: 20px;
-text-transform: uppercase;
-letter-spacing: .4px;
-}
-.im-info-badge {
-background: linear-gradient(135deg,#ff4f81,#ff7a4f);
-color: #fff;
-font-size: 10px;
-font-weight: 700;
-padding: 3px 9px;
-border-radius: 20px;
-text-transform: uppercase;
-letter-spacing: .4px;
-}
-.im-info-stock {
-font-size: 11px;
-font-weight: 600;
-padding: 3px 9px;
-border-radius: 20px;
-}
-.im-info-stock.ok  { background: rgba(34,197,94,.15); color: #4ade80; }
-.im-info-stock.out { background: rgba(239,68,68,.15);  color: #f87171; }
-.im-info-talla {
-font-size: 12px;
-color: rgba(255,255,255,.65);
-}
-.im-info-talla strong { color: rgba(255,255,255,.9); }
-.im-info-desc {
-font-size: 12px;
-color: rgba(255,255,255,.5);
-margin: 0;
-line-height: 1.45;
-display: -webkit-box;
--webkit-line-clamp: 2;
--webkit-box-orient: vertical;
-overflow: hidden;
-}
+  const modal = document.getElementById("image-modal");
+  if (!modal || modal.dataset.imInit) return;
+  modal.dataset.imInit = '1';
+
+  // --- Variables para el auto-slide ---
+  let _autoSlideTimer = null;
+  const _SLIDE_INTERVAL = 4000; // 4 segundos
+
+  // --- Funciones de control del auto-slide ---
+  function _startAutoSlide() {
+    _stopAutoSlide();
+    // Solo inicia si hay más de 1 imagen (detectado por la cantidad de dots)
+    const dots = modal.querySelectorAll('.im-dot');
+    if (dots.length <= 1) return;
+    
+    _autoSlideTimer = setInterval(() => {
+      // Solo avanza si el modal sigue abierto
+      if (modal.classList.contains('open')) {
+        // Llama a la navegación existente (asumo que _modalNav está definida globalmente)
+        if (typeof _modalNav === 'function') {
+          _modalNav(1);
+        }
+      }
+    }, _SLIDE_INTERVAL);
+  }
+
+  function _stopAutoSlide() {
+    if (_autoSlideTimer) {
+      clearInterval(_autoSlideTimer);
+      _autoSlideTimer = null;
+    }
+  }
+
+  function _resetAutoSlide() {
+    _stopAutoSlide();
+    _startAutoSlide();
+  }
+
+  // --- Inyección del nuevo HTML (con Top Bar) ---
+  modal.innerHTML = `
+    <div class="im-magazine-layout">
+      
+      <!-- NUEVA BARRA SUPERIOR: Vendor Row + Botón Cerrar -->
+      <div class="im-top-bar">
+        <div class="im-vendor-row" id="im-vendor-row"></div>
+        <button class="im-close icon-button" aria-label="Cerrar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-x"/></svg>
+        </button>
+      </div>
+
+      <!-- Columna principal (solo la imagen y navegación) -->
+      <div class="im-hero-col">
+        <button class="im-prev" aria-label="Anterior">‹</button>
+        <div class="im-wrapper">
+          <img id="image-modal-img" alt="Vista de producto" />
+        </div>
+        <button class="im-next" aria-label="Siguiente">›</button>
+        <div class="im-dots"></div>
+      </div>
+
+      <!-- Franja de detalles del producto -->
+      <div class="im-product-info" id="im-product-info"></div>
+
+      <!-- Panel de relacionados -->
+      <aside class="im-magazine-panel"></aside>
+    </div>
+  `;
+
+  // --- Asignación de Eventos ---
+  const closeBtn = modal.querySelector('.im-close');
+  const prevBtn = modal.querySelector('.im-prev');
+  const nextBtn = modal.querySelector('.im-next');
+
+  closeBtn.addEventListener('click', closeImageModal);
+  
+  // Al hacer clic en navegación, reiniciamos el auto-slide
+  prevBtn.addEventListener('click', () => {
+    if (typeof _modalNav === 'function') _modalNav(-1);
+    _resetAutoSlide();
+  });
+  
+  nextBtn.addEventListener('click', () => {
+    if (typeof _modalNav === 'function') _modalNav(1);
+    _resetAutoSlide();
+  });
+
+  // Cerrar al hacer clic en el fondo
+  modal.addEventListener('click', e => {
+    if (e.target === modal) closeImageModal();
+  });
+
+  // Gestos táctiles (Swipe)
+  let _modalTouchStartX = 0;
+  modal.addEventListener('touchstart', e => {
+    _modalTouchStartX = e.touches[0].clientX;
+  }, { passive: true });
+
+  modal.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - _modalTouchStartX;
+    if (Math.abs(dx) > 40) {
+      if (typeof _modalNav === 'function') _modalNav(dx < 0 ? 1 : -1);
+      _resetAutoSlide(); // Reiniciamos al deslizar
+    }
+  }, { passive: true });
+
+  // Teclado
+  document.addEventListener('keydown', e => {
+    if (!modal.classList.contains('open')) return;
+    if (e.key === 'ArrowRight') {
+      if (typeof _modalNav === 'function') _modalNav(1);
+      _resetAutoSlide();
+    }
+    if (e.key === 'ArrowLeft') {
+      if (typeof _modalNav === 'function') _modalNav(-1);
+      _resetAutoSlide();
+    }
+    if (e.key === 'Escape') closeImageModal();
+  });
+
+  // --- Observador para detectar apertura/cierre del modal ---
+  const observer = new MutationObserver(() => {
+    if (modal.classList.contains('open')) {
+      _startAutoSlide(); // Al abrir, arranca el auto-slide
+    } else {
+      _stopAutoSlide(); // Al cerrar, lo detiene
+    }
+  });
+  observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+
+  // --- Estilos CSS Mejorados ---
+  if (!document.getElementById('im-styles')) {
+    const st = document.createElement('style');
+    st.id = 'im-styles';
+    st.textContent = `
+      .image-modal {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,.88);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        z-index: 8000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+        box-sizing: border-box;
+      }
+      .image-modal.open { display: flex; }
+
+      .im-magazine-layout {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        width: min(480px, 96vw);
+        max-height: 92dvh;
+        background: #0d0d14;
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 32px 80px rgba(0,0,0,.75);
+        animation: im-fade-in .22s ease;
+      }
+      @keyframes im-fade-in { from { opacity:0; transform:scale(.96); } to { opacity:1; transform:scale(1); } }
+
+      .im-top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 14px;
+        background: #0d0d14;
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 62px;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+        flex-shrink: 0;
+      }
+
+      .im-vendor-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        flex: 1;
+        min-width: 0;
+      }
+      .im-vendor-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(255,255,255,.08);
+        backdrop-filter: blur(6px);
+        color: #fff;
+        font-size: 14px;   
+        font-weight: 700;
+        padding: 6px 14px 6px 6px;
+        border-radius: 30px;
+        text-decoration: none;
+        max-width: 260px;  
+        transition: background .2s;
+      }
+      .im-vendor-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .im-vendor-pill-znr {
+        padding: 6px 14px; 
+        background: linear-gradient(135deg,#ff4f81,#a855f7);
+      }
+      .im-donation-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        background: linear-gradient(135deg,#f97316,#ef4444);
+        color: #fff;
+        font-size: 13px;   
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 30px;
+        white-space: nowrap;
+      }
+      .im-ver-beneficiario-btn {
+        background: rgba(255,255,255,.08);
+        border: none;
+        color: #ffd9b3;
+        font-size: 13px;   
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 30px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .2s;
+      }
+      .im-ver-beneficiario-btn:hover { background: rgba(249,115,22,.45); color: #fff; }
+
+      .im-close {
+        background: rgba(255,255,255,.13);
+        border: none;
+        color: #fff;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background .2s;
+        flex-shrink: 0;
+      }
+      .im-close:hover { background: rgba(255,79,129,.4); }
+
+      .im-hero-col {
+        position: relative;
+        width: 100%;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #111118;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .im-prev, .im-next {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        background: rgba(0,0,0,.45);
+        border: none; color: #fff;
+        width: 36px; height: 36px;
+        border-radius: 50%; font-size: 24px;
+        cursor: pointer; display: flex;
+        align-items: center; justify-content: center;
+        transition: background .2s; z-index: 4;
+        backdrop-filter: blur(6px);
+      }
+      .im-prev { left: 10px; } .im-next { right: 10px; }
+      .im-prev:hover, .im-next:hover { background: rgba(255,79,129,.55); }
+
+      .im-wrapper {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #111118;
+        overflow: hidden;
+      }
+      .im-wrapper img {
+        display: block;
+        width: 100%;
+        max-height: 50dvh;
+        object-fit: contain;
+      }
+
+      .im-dots {
+        position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+        display: flex; gap: 5px; z-index: 3;
+      }
+      .im-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.35); transition: all .2s; }
+      .im-dot.active { background: #ff4f81; width: 16px; border-radius: 3px; }
+
+      .im-product-info {
+        width: 100%;
+        margin: 0;
+        background: #252831;
+        border-top: 1px solid rgba(255,255,255,.07);
+        border-bottom: 1px solid rgba(255,255,255,.07);
+        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .im-info-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+      .im-info-name { font-size: 15px; font-weight: 700; color: #fff; line-height: 1.3; flex: 1; }
+      .im-info-price { font-size: 17px; font-weight: 800; color: #ff4f81; white-space: nowrap; background: rgba(255,79,129,.12); padding: 2px 10px; border-radius: 20px; }
+      .im-info-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      .im-info-cat { background: rgba(255,255,255,.08); color: rgba(255,255,255,.7); font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: .4px; }
+      .im-info-badge { background: linear-gradient(135deg,#ff4f81,#ff7a4f); color: #fff; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: .4px; }
+      .im-info-stock { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+      .im-info-stock.ok  { background: rgba(34,197,94,.15); color: #4ade80; }
+      .im-info-stock.out { background: rgba(239,68,68,.15);  color: #f87171; }
+      .im-info-talla { font-size: 12px; color: rgba(255,255,255,.65); }
+      .im-info-talla strong { color: rgba(255,255,255,.9); }
+      .im-info-desc { font-size: 12px; color: rgba(255,255,255,.5); margin: 0; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+
 .im-magazine-panel {
-flex: 0 0 auto;
-width: 100%;
-display: flex;
-flex-direction: row;
-gap: 0;
-background: #0d0d14;
-border-top: 1px solid rgba(255,255,255,.07);
-overflow-x: auto;
-scrollbar-width: none;
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  background: #0d0d14;
+  border-top: 1px solid rgba(255,255,255,.07);
+  overflow: hidden;           
+  scrollbar-width: none;
+  justify-content: flex-start;
+  margin: 0;
 }
-.im-magazine-panel::-webkit-scrollbar { display: none; }
-.im-panel-label {
-display: none;
-}
+
 .im-related-card {
-flex: 1 1 0;
-min-width: 0;
-display: flex;
-flex-direction: column;
-background: transparent;
-border: none;
-border-right: 1px solid rgba(255,255,255,.06);
-cursor: pointer;
-padding: 0;
-color: #fff;
-transition: background .18s;
-position: relative;
-overflow: hidden;
+  flex: 0 0 33.333%;         
+  max-width: 33.333%;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(255,255,255,.06);
+  cursor: pointer;
+  padding: 0;
+  color: #fff;
+  transition: background .18s;
+  position: relative;
+  overflow: hidden;
 }
-.im-related-card:last-child { border-right: none; }
-.im-related-card:hover { background: rgba(255,79,129,.08); }
-.im-related-card::after {
-content: '';
-position: absolute; inset: 0;
-border: 2px solid transparent;
-border-radius: 0;
-transition: border-color .18s;
-pointer-events: none;
-}
-.im-related-card:hover::after { border-color: rgba(255,79,129,.4); }
-.im-related-img-wrap {
-width: 100%; aspect-ratio: 1/1;
-overflow: hidden; background: #1a1a28;
-}
-.im-related-img-wrap img {
-width: 100%; height: 100%;
-object-fit: cover;
-transition: transform .3s;
-}
-.im-related-card:hover .im-related-img-wrap img { transform: scale(1.08); }
-.im-related-info {
-padding: 5px 6px 7px;
-display: flex; flex-direction: column; gap: 1px;
-background: rgba(0,0,0,.55);
-}
-.im-related-name {
-font-size: 10px; font-weight: 600; color: rgba(255,255,255,.8);
-line-height: 1.25; overflow: hidden;
-display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-}
-.im-related-price {
-font-size: 12px; font-weight: 800; color: #ff4f81; margin-top: 1px;
-}
-.im-magazine-layout.im-no-panel .im-hero-col { flex: 1 1 auto; }
-.im-magazine-layout.im-no-panel .im-wrapper img { max-height: 82dvh; }
-@keyframes im-slide-in-right  { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
-@keyframes im-slide-in-left  { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:translateX(0)} }
-@keyframes im-slide-out-left  { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(-40px)} }
-@keyframes im-slide-out-right { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(40px)} }
-.im-enter-right { animation: im-slide-in-right  .28s ease forwards; }
-.im-enter-left  { animation: im-slide-in-left  .28s ease forwards; }
-.im-exit-left  { animation: im-slide-out-left  .2s ease forwards; }
-.im-exit-right  { animation: im-slide-out-right .2s ease forwards; }
-@media (min-width: 600px) {
-.im-magazine-layout { width: min(520px, 92vw); }
-.im-wrapper img { max-height: 54dvh; }
-}
-`;
+
+      .im-magazine-panel::-webkit-scrollbar { display: none; }
+  .im-related-card:last-child { border-right: none; }
+      .im-related-card:hover { background: rgba(255,79,129,.08); }
+      .im-related-card::after { content: ''; position: absolute; inset: 0; border: 2px solid transparent; border-radius: 0; transition: border-color .18s; pointer-events: none; }
+      .im-related-card:hover::after { border-color: rgba(255,79,129,.4); }
+      .im-related-img-wrap { width: 100%; aspect-ratio: 1/1; overflow: hidden; background: #1a1a28; }
+      .im-related-img-wrap img { width: 100%; height: 100%; object-fit: contain; transition: transform .3s; }
+      .im-related-card:hover .im-related-img-wrap img { transform: scale(1.08); }
+      .im-related-info { padding: 5px 6px 7px; display: flex; flex-direction: column; gap: 1px; background: rgba(0,0,0,.55); }
+      .im-related-name { font-size: 10px; font-weight: 600; color: rgba(255,255,255,.8); line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+      .im-related-price { font-size: 12px; font-weight: 800; color: #ff4f81; margin-top: 1px; }
+
+      .im-magazine-layout.im-no-panel .im-hero-col { flex: 1 1 auto; }
+      .im-magazine-layout.im-no-panel .im-wrapper img { max-height: 82dvh; }
+
+      @keyframes im-slide-in-right  { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
+      @keyframes im-slide-in-left  { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:translateX(0)} }
+      @keyframes im-slide-out-left  { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(-40px)} }
+      @keyframes im-slide-out-right { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(40px)} }
+      .im-enter-right { animation: im-slide-in-right  .28s ease forwards; }
+      .im-enter-left  { animation: im-slide-in-left  .28s ease forwards; }
+      .im-exit-left  { animation: im-slide-out-left  .2s ease forwards; }
+      .im-exit-right  { animation: im-slide-out-right .2s ease forwards; }
+
+      /* Responsive */
+      @media (min-width: 600px) {
+        .im-magazine-layout { width: min(520px, 92vw); }
+        .im-wrapper img { max-height: 54dvh; }
+      }
+    `;
 document.head.appendChild(st);
 const _btnSvgSt=document.createElement('style');_btnSvgSt.textContent='button svg{vertical-align:middle;margin-right:4px;flex-shrink:0}';document.head.appendChild(_btnSvgSt);
 }

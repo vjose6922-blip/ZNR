@@ -340,7 +340,7 @@ if (catSelect) {
 const categories = new Set();
 allCommunityProducts.forEach(p => { if (p.categoria) categories.add(safeString(p.categoria)); });
 const currentVal = catSelect.value;
-catSelect.innerHTML = '<option value="">Todas las categorías</option>';
+catSelect.innerHTML = '<option value="">Categorías</option>';
 Array.from(categories).sort().forEach(cat => {
 const opt = document.createElement('option');
 opt.value = cat;
@@ -356,7 +356,7 @@ allCommunityProducts.forEach(p => {
 if (p.vendedor_nombre) vendors.set(safeString(p.vendedor_nombre), safeString(p.vendedor_nombre));
 });
 const currentVal = vendorSelect.value;
-vendorSelect.innerHTML = '<option value="">Todos los vendedores</option>';
+vendorSelect.innerHTML = '<option value="">Vendedores</option>';
 Array.from(vendors.keys()).sort().forEach(v => {
 const opt = document.createElement('option');
 opt.value = v;
@@ -594,9 +594,8 @@ product.talla  ? ` Info/Talla: ${esc(safeString(product.talla))}` : '',
 const waLink = vendorTel ? `https://wa.me/52${vendorTel}?text=${encodeURIComponent(waMsg)}` : '#';
 card.innerHTML = `
 <div class="product-slider" style="position:relative;cursor:pointer;">
-<span class="product-badge" style="position:absolute;top:8px;left:8px;font-size:9px;padding:2px 8px;background:var(--color-primary,#3b1f5f);color:#fff;border-radius:20px;font-weight:800;z-index:1;">Comunidad</span>
-${product.vendedor_plan === 'plus' ? '<span style="position:absolute;top:30px;left:8px;font-size:9px;padding:2px 8px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border-radius:20px;font-weight:800;z-index:1;">PRO</span>' : ''}
-${esDonativo ? '<span style="position:absolute;top:' + (product.vendedor_plan === 'plus' ? '52px' : '30px') + ';left:8px;font-size:9px;padding:2px 8px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;border-radius:20px;font-weight:800;z-index:1;">❤️ Donativo</span>' : ''}
+${product.vendedor_plan === 'plus' ? '<span style="position:absolute;top:8px;right:8px;font-size:9px;padding:2px 8px; background: linear-gradient(135deg, #f7c948, #f0962f);color:#fff;border-radius:20px;font-weight:800;z-index:1;">✓✓</span>' : ''}
+${esDonativo ? '<span style="position:absolute;top:' + (product.vendedor_plan === 'plus' ? '8px' : '8px') + ';left:8px;font-size:11px;padding:2px 8px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;border-radius:20px;font-weight:800;z-index:1;">Donativo</span>' : ''}
 ${inspectorMode ? '<span style="position:absolute;top:8px;right:8px;z-index:2;"><button class="btn-inspector-delete" title="Eliminar (Admin)" style="background:var(--color-error,#ef4444);color:#fff;border:none;border-radius:20px;padding:2px 8px;font-size:11px;cursor:pointer;"></button></span>' : ''}
 <img class="product-img-main" src="${esc(imgUrl)}" alt="${esc(safeString(product.nombre))}" loading="lazy"
 style="width:100%;height:100%;object-fit:contain;display:block;background:var(--color-surface-2,#f5f5f8);" onerror="this.onerror=null;this.src='placeholder.svg'">
@@ -611,8 +610,7 @@ ${vendorName ? `<div style="font-size:11px;color:var(--color-text-muted,#888);ma
   ${vendorAvatarHtml}
   <a href="perfil-vendedor.html?vendedor=${esc(product.vendedor_uid)}" style="color:var(--color-text-main);font-weight:600;text-decoration:none;cursor:pointer;hover:underline;">${esc(vendorName)}</a>
 </span>
-${vendorTel ? `<a href="${waLink}" target="_blank" rel="noopener" style="color:#25d366;font-weight:600;text-decoration:none;font-size:11px;">Contactar</a>` : ''}
-${esDonativo && product.beneficiario_id ? `<button class="btn-ver-beneficiario" data-ben-id="${esc(safeString(product.beneficiario_id))}" style="background:none;border:none;padding:0;color:#f97316;font-weight:600;font-size:11px;cursor:pointer;text-decoration:underline;">❤️ Ver beneficiario</button>` : ''}
+${esDonativo && product.beneficiario_id ? `<button class="btn-ver-beneficiario" data-ben-id="${esc(safeString(product.beneficiario_id))}" style="background:none;border:none;padding:0;color:#f97316;font-weight:600;font-size:11px;cursor:pointer;text-decoration:underline;">Ver beneficiario</button>` : ''}
 </div>` : ''}
 ${product.talla ? `<div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">Info: ${esc(safeString(product.talla))}</div>` : ''}
 <div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;">
@@ -951,9 +949,9 @@ window.openBeneficiarioRegister = function() {
   modal.id = 'modal-beneficiario-register';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
   modal.innerHTML = `
-    <div style="background:var(--color-surface,#fff);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:24px 20px 36px;">
+    <div style="background:var(--color-surface,#fff);border-radius:20px 20px 0 0;width:100%; height:90%;overflow-y:auto;padding:24px 20px 36px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <h2 style="margin:0;font-size:1rem;font-weight:800;">❤️ Quiero recibir donaciones</h2>
+        <h2 style="margin:0;font-size:1rem;font-weight:800;">Registrate tu Fundacion</h2>
         <button id="btn-close-ben-reg" style="background:none;border:none;font-size:22px;cursor:pointer;line-height:1;">×</button>
       </div>
       <p style="font-size:.8rem;color:#888;margin:0 0 14px;">Completa tu información. El administrador revisará tu solicitud y te contactará por WhatsApp.</p>
