@@ -1600,6 +1600,8 @@ if (!modal) return;
 document.getElementById('settings-nombre').value      = vendorSession.nombre || '';
 document.getElementById('settings-descripcion').value = vendorSession.descripcion || '';
 document.getElementById('settings-whatsapp').value    = vendorSession.whatsapp || '';
+const horarioInput = document.getElementById('settings-horario');
+if (horarioInput) horarioInput.value = vendorSession.horario || '';
 const catSel = document.getElementById('settings-categoria');
 if (catSel) catSel.value = vendorSession.categoria || '';
 
@@ -1712,6 +1714,7 @@ async function guardarPerfil() {
   const descripcion = document.getElementById('settings-descripcion').value.trim();
   const whatsapp   = document.getElementById('settings-whatsapp').value.trim();
   const categoria  = document.getElementById('settings-categoria').value;
+  const horario    = document.getElementById('settings-horario')?.value.trim() || '';
 
   // 🔽 NUEVO: leer redes sociales
   const facebook  = document.getElementById('settings-facebook').value.trim();
@@ -1735,6 +1738,7 @@ async function guardarPerfil() {
       descripcion,
       whatsapp,
       categoria,
+      horario,
       facebook,    // ← enviar
       twitter,     // ← enviar
       instagram,   // ← enviar
@@ -1752,6 +1756,7 @@ async function guardarPerfil() {
     vendorSession.descripcion = descripcion;
     vendorSession.whatsapp    = whatsapp;
     vendorSession.categoria   = categoria;
+    vendorSession.horario     = horario;
     vendorSession.facebook    = facebook;   // ← guardar en sesión
     vendorSession.twitter     = twitter;
     vendorSession.instagram   = instagram;
