@@ -2819,7 +2819,9 @@ window.renderWishlist = renderWishlist;
 window.addAllWishlistToCart = addAllWishlistToCart;
 window.updateWishlistBadge = updateWishlistBadge;
 (function watchProductCards() {
+if (/\/comunidad\.html/i.test(window.location.pathname)) return;
 function injectWishlistBtn(card) {
+if (/\/comunidad\.html/i.test(window.location.pathname)) return;
 if (card.querySelector('.wishlist-btn')) return;
 const slider = card.querySelector('.product-slider');
 if (!slider) return;

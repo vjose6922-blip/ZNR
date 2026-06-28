@@ -610,7 +610,7 @@ card.innerHTML = `
 <div class="product-slider" style="position:relative;cursor:pointer;">
 ${product.vendedor_plan === 'plus' ? '<span style="position:absolute;top:8px;right:8px;font-size:9px;padding:2px 8px; background: linear-gradient(135deg, #f7c948, #f0962f);color:#fff;border-radius:20px;font-weight:800;z-index:1;">✓✓</span>' : ''}
 ${esDonativo ? '<span style="position:absolute;top:' + (product.vendedor_plan === 'plus' ? '8px' : '8px') + ';left:8px;font-size:11px;padding:2px 8px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;border-radius:20px;font-weight:800;z-index:1;">Donativo</span>' : ''}
-${inspectorMode ? '<span style="position:absolute;top:8px;right:8px;z-index:2;"><button class="btn-inspector-delete" title="Eliminar (Admin)" style="background:var(--color-error,#ef4444);color:#fff;border:none;border-radius:20px;padding:2px 8px;font-size:11px;cursor:pointer;"></button></span>' : ''}
+${inspectorMode ? `<span style="position:absolute;top:8px;right:8px;z-index:2;"><button class="btn-inspector-delete" title="Eliminar (Admin)" aria-label="Eliminar producto" style="background:var(--color-error,#ef4444);color:#fff;border:none;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-trash"/></svg></button></span>` : ''}
 <img class="product-img-main" src="${esc(imgUrl)}" alt="${esc(safeString(product.nombre))}" loading="lazy"
 style="width:100%;height:100%;object-fit:contain;display:block;background:var(--color-surface-2,#f5f5f8);" onerror="this.onerror=null;this.src='placeholder.svg'">
 </div>
