@@ -744,6 +744,7 @@
             const hasStock = stock > 0;
             const talla = p.talla || '';
             const esConfiable = p.confiable === true || p.confiable === 'true';
+            const esDonativo = p.donado === true || p.donado === 'TRUE' || p.donado === 'true';
             const hiddenClass = idx >= PRODUCTS_PAGE_SIZE ? ' profile-product-hidden' : '';
             // Las primeras 6 cargan de inmediato; el resto usa lazy load via data-src
             const imgAttr = idx < 6
@@ -753,12 +754,13 @@
               <div class="profile-product-card${hiddenClass}" data-id="${esc(p.id)}" style="animation-delay:${Math.min(idx % PRODUCTS_PAGE_SIZE, 8) * 0.04}s">
                 ${p.badge ? `<span class="product-badge">${esc(p.badge)}</span>` : ''}
                 ${esConfiable ? `<span class="profile-confiable-badge">✓✓</span>` : ''}
+                ${esDonativo ? `<span class="product-badge" style="background:linear-gradient(135deg,#f97316,#ef4444);">Donativo</span>` : ''}
                 <img ${imgAttr} alt="${esc(p.nombre)}" onerror="this.src='https://placehold.co/200x200/3b1f5f/white?text=Error'">
                 <div class="profile-product-info">
                   <div class="profile-product-name" title="${esc(p.nombre)}">${esc(p.nombre)}</div>
                   <div class="profile-product-price">${formatCurrency(p.precio)}</div>
-                  ${talla ? `<div class="profile-product-talla">Talla: ${esc(talla)}</div>` : ''}
-                  <button class="profile-product-add" data-id="${esc(p.id)}" data-nombre="${esc(p.nombre)}" data-precio="${p.precio}" data-img="${esc(p.imagen1 || '')}" data-talla="${esc(p.talla || '')}" ${!hasStock ? 'disabled' : ''}>
+                  ${talla ? `<div class="profile-product-talla">Info: ${esc(talla)}</div>` : ''}
+                  <button class="profile-product-add" data-id="${esc(p.id)}" data-nombre="${esc(p.nombre)}" data-precio="${p.precio}" data-img="${esc(p.imagen1 || '')}" data-talla="${esc(p.talla || '')}" data-donado="${esDonativo}" data-benid="${esDonativo ? esc(p.beneficiario_id || '') : ''}" ${!hasStock ? 'disabled' : ''}>
                     ${hasStock ? 'Añadir' : 'Sin stock'}
                   </button>
                 </div>
@@ -837,30 +839,44 @@
 
         // Eventos para los botones "Añadir"
         container.querySelectorAll('.profile-product-add:not(:disabled)').forEach(btn => {
-          btn.addEventListener('click', function(e) {
+          btn.addEventListener('click', async function(e) {
             e.stopPropagation();
             const id = this.dataset.id;
             const nombre = this.dataset.nombre;
             const precio = parseFloat(this.dataset.precio);
             const img = this.dataset.img;
             const talla = this.dataset.talla;
+            const esDonado = this.dataset.donado === 'true';
+            const benId = this.dataset.benid || '';
 
-            if (typeof addToCart === 'function') {
-              addToCart({
-                ID: id,
-                Nombre: nombre,
-                Precio: precio,
-                Imagen1: img,
-                Talla: talla,
-                _comunidad: true,
-                _vendedor: v.nombre || '',
-                _vendorTel: waNumber
-              });
-              if (typeof showTemporaryMessage === 'function') {
-              }
-            } else {
+            if (typeof addToCart !== 'function') {
               alert('Función addToCart no disponible. Recarga la página.');
+              return;
             }
+
+            let beneficiario = null;
+            if (esDonado && benId) {
+              try {
+                const benRes = await fetch(`${window.API_URL}?action=obtenerBeneficiario&id=${encodeURIComponent(benId)}`).then(r => r.json());
+                if (benRes.ok && benRes.beneficiario) {
+                  beneficiario = { id: benId, nombre: benRes.beneficiario.nombre || '', cuenta_bancaria: benRes.beneficiario.cuenta_bancaria || '' };
+                }
+              } catch (_) {}
+              if (!beneficiario) beneficiario = { id: benId, nombre: '', cuenta_bancaria: '' };
+            }
+
+            addToCart({
+              ID: id,
+              Nombre: nombre,
+              Precio: precio,
+              Imagen1: img,
+              Talla: talla,
+              _comunidad: true,
+              _vendedor: v.nombre || '',
+              _vendorTel: waNumber,
+              _donacion: esDonado,
+              _beneficiario: beneficiario
+            });
           });
         });
 

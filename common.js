@@ -635,7 +635,7 @@ function addToCart(product) {
 const id = product.ID;
 if (!id) { console.error("Producto sin ID:", product); return; }
 if (!localCart[id]) {
-localCart[id] = { id: id, name: product.Nombre || "Producto", price: Number(product.Precio || 0), quantity: 0, stock: Number(product.Stock || product.stock || 99), Imagen1: product.Imagen1 || "", Talla: product.Talla || "", _comunidad: product._comunidad || false, _vendedor: product._vendedor || "", _vendorTel: product._vendorTel || "" };
+localCart[id] = { id: id, name: product.Nombre || "Producto", price: Number(product.Precio || 0), quantity: 0, stock: Number(product.Stock || product.stock || 99), Imagen1: product.Imagen1 || "", Talla: product.Talla || "", _comunidad: product._comunidad || false, _vendedor: product._vendedor || "", _vendorTel: product._vendorTel || "", _donacion: product._donacion || false, _beneficiario: product._beneficiario || null };
 }
 const maxStock = Number(localCart[id].stock || 99);
 if (localCart[id].quantity >= maxStock) {
@@ -767,10 +767,13 @@ const imgHtml = imgUrl
 <span></span>
 </div>`;
 const tallaBadge = item.Talla
-? `<span class="cart-item-talla">Talla: ${escapeHtml(item.Talla)}</span>`
+? `<span class="cart-item-talla">${item._comunidad ? 'Info' : 'Talla'}: ${escapeHtml(item.Talla)}</span>`
 : '';
 const vendorBadge = item._comunidad && item._vendedor
 ? `<span class="cart-item-vendor"> ${escapeHtml(item._vendedor)}</span>`
+: '';
+const donationBadge = item._donacion
+? `<span style="display:inline-block;background:rgba(249,115,22,.12);color:#f97316;font-size:10.5px;font-weight:700;border-radius:20px;padding:2px 8px;margin:2px 0;">❤️ Donativo${item._beneficiario && item._beneficiario.nombre ? ' · se paga a ' + escapeHtml(item._beneficiario.nombre) : ''}</span>`
 : '';
 row.innerHTML = `
 ${imgHtml}
@@ -778,6 +781,7 @@ ${imgHtml}
 <div class="cart-item-title">${escapeHtml(item.name || `ID ${item.id}`)}</div>
 ${tallaBadge}
 ${vendorBadge}
+${donationBadge}
 <div class="cart-item-meta">${formatCurrency(item.price)} c/u</div>
 <div class="cart-item-actions">
 <button class="qty-btn" data-action="decrement" data-id="${item.id}">−</button>
@@ -934,7 +938,7 @@ stock === 0
 : `<span class="im-info-stock ok"> ${stock} disponibles</span>`;
 const badgeHtml  = badge  ? `<span class="im-info-badge">${escapeHtml(badge)}</span>` : '';
 const catHtml  = categoria ? `<span class="im-info-cat">${escapeHtml(categoria)}</span>` : '';
-const tallaHtml  = talla  ? `<div class="im-info-talla">Talla: <strong>${escapeHtml(talla)}</strong></div>` : '';
+const tallaHtml  = talla  ? `<div class="im-info-talla">${p.vendedor_uid ? 'Info' : 'Talla'}: <strong>${escapeHtml(talla)}</strong></div>` : '';
 const descHtml  = desc  ? `<p class="im-info-desc">${escapeHtml(desc)}</p>` : '';
 el.style.display = '';
 el.innerHTML = `
@@ -1963,6 +1967,20 @@ const firstVendor = vendors[0];
 const remaining  = vendors.length - 1;
 const { tel, nombre, items } = firstVendor;
 const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+
+// Agrupar los artículos donados de este vendedor por beneficiario: ese dinero se paga directo a su cuenta, no al vendedor
+const donationGroups = new Map();
+items.forEach(item => {
+if (item._donacion && item._beneficiario && item._beneficiario.id) {
+const bid = item._beneficiario.id;
+if (!donationGroups.has(bid)) donationGroups.set(bid, { beneficiario: item._beneficiario, items: [], total: 0 });
+const g = donationGroups.get(bid);
+g.items.push(item);
+g.total += item.price * item.quantity;
+}
+});
+const donationList = Array.from(donationGroups.values());
+
 let msg = "* PEDIDO DESDE Z&R COMUNIDAD*\n";
 msg += "\n";
 msg += ` *Cliente:* +52 ${clientPhone}\n`;
@@ -1982,9 +2000,9 @@ items.forEach((item, idx) => {
 const safeName  = String(item.name  || '').replace(/[\r\n]/g, ' ').trim();
 const safeTalla = String(item.Talla || 'No especificada').replace(/[\r\n]/g, ' ').trim().replace(/^talla:\s*/i, '');
 msg += "\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n";
-msg += `\u2502 *${safeName}*\n`;
+msg += `\u2502 *${safeName}*${item._donacion ? ' \u2764\uFE0F Donativo' : ''}\n`;
 msg += "\u251C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\n";
-msg += `\u2502 \uD83D\uDCCF Talla: ${safeTalla}\n`;
+msg += `\u2502 \uD83D\uDCCF Info: ${safeTalla}\n`;
 msg += `\u2502 \uD83D\uDD22 Cantidad: ${item.quantity}\n`;
 msg += `\u2502 \uD83D\uDCB0 Precio: $${item.price.toLocaleString()} c/u\n`;
 msg += `\u2502 \uD83D\uDCB5 Subtotal: $${(item.price * item.quantity).toLocaleString()}\n`;
@@ -1994,10 +2012,19 @@ if (idx < items.length - 1) msg += "\n";
 msg += "\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n";
 msg += `\uD83D\uDCB0 *TOTAL: $${subtotal.toLocaleString()} MXN*\n`;
 msg += "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n";
+if (donationList.length > 0) {
+msg += "\n\u2764\uFE0F *Este pedido incluye producto(s) donado(s).*\n";
+msg += "El pago de esos artículos se transfiere directo al beneficiario, no al vendedor:\n\n";
+donationList.forEach(g => {
+msg += ` *${g.beneficiario.nombre || 'Beneficiario'}* — $${g.total.toLocaleString()} MXN\n`;
+if (g.beneficiario.cuenta_bancaria) msg += ` Cuenta: ${g.beneficiario.cuenta_bancaria}\n`;
+});
+msg += "\n";
+}
 msg += "_Pedido realizado a través de Z&R Comunidad_";
 const destTel = tel ? `52${tel}` : "";
 const waUrl  = destTel ? `https://wa.me/${destTel}?text=${encodeURIComponent(msg)}` : null;
-const didOpen = await _showVendorCheckoutModal({ nombre, subtotal, items, waUrl, remaining });
+const didOpen = await _showVendorCheckoutModal({ nombre, subtotal, items, waUrl, remaining, donationList });
 if (didOpen) {
 items.forEach(i => delete localCart[i.id]);
 saveCartToStorage();
@@ -2006,7 +2033,7 @@ renderCart();
 if (remaining === 0) closeCartDrawer();
 }
 }
-function _showVendorCheckoutModal({ nombre, subtotal, items, waUrl, remaining }) {
+function _showVendorCheckoutModal({ nombre, subtotal, items, waUrl, remaining, donationList = [] }) {
 return new Promise(resolve => {
 const old = document.getElementById('vendor-checkout-modal');
 if (old) old.remove();
@@ -2022,7 +2049,7 @@ display:flex;align-items:flex-end;justify-content:center;
 const itemsHtml = items.map(i => `
 <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)">
 <div style="flex:1;min-width:0">
-<div style="font-size:13px;font-weight:600;color:var(--color-text-primary,#fff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(i.name)}</div>
+<div style="font-size:13px;font-weight:600;color:var(--color-text-primary,#fff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(i.name)}${i._donacion ? ' <span style="color:#f97316;font-weight:700;">❤️ Donativo</span>' : ''}</div>
 <div style="font-size:12px;color:#aaa">${i.Talla ? ' ' + escapeHtml(i.Talla) + ' · ' : ''} ${i.quantity} × ${formatCurrency(i.price)}</div>
 </div>
 <div style="font-size:13px;font-weight:700;color:#ff4f81;white-space:nowrap">${formatCurrency(i.price * i.quantity)}</div>
@@ -2032,6 +2059,27 @@ const remainingNote = remaining > 0
 ? `<p style="margin:14px 0 0;padding:10px 14px;background:rgba(249,115,22,.1);border-radius:10px;font-size:12px;color:#f97316;text-align:center;line-height:1.5">Tienes artículos de <strong>${remaining}</strong> vendedor${remaining > 1 ? 'es' : ''} más en tu carrito.<br>Después de contactar a este, regresa para continuar.
 </p>`
 : '';
+const hasDonations = donationList.length > 0;
+const allDonated = hasDonations && items.every(i => i._donacion);
+const donationHtml = hasDonations ? `
+<div style="background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.25);border-radius:14px;padding:14px;margin-bottom:8px">
+<div style="font-size:12.5px;font-weight:700;color:#f97316;margin-bottom:8px;">❤️ Pago de artículo(s) donado(s)</div>
+<p style="font-size:11.5px;color:#fdba74;margin:0 0 10px;line-height:1.5">Este dinero se transfiere directo al beneficiario, no al vendedor.</p>
+${donationList.map((g, gi) => `
+<div style="background:rgba(0,0,0,.18);border-radius:10px;padding:10px 12px;${gi > 0 ? 'margin-top:8px;' : ''}">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+<span style="font-size:13px;font-weight:700;color:#fff;">${escapeHtml(g.beneficiario.nombre || 'Beneficiario')}</span>
+<span style="font-size:13px;font-weight:800;color:#f97316;white-space:nowrap;">${formatCurrency(g.total)}</span>
+</div>
+${g.beneficiario.cuenta_bancaria ? `
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;background:rgba(255,255,255,.06);border-radius:8px;padding:7px 10px;">
+<span style="font-size:12.5px;color:#fed7aa;letter-spacing:.02em;word-break:break-all;">${escapeHtml(g.beneficiario.cuenta_bancaria)}</span>
+<button class="vcm-copy-cuenta" data-cuenta="${escapeHtml(g.beneficiario.cuenta_bancaria)}" style="flex-shrink:0;background:#f97316;color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;">Copiar</button>
+</div>` : `<div style="font-size:11.5px;color:#fdba74;margin-top:4px;">Sin cuenta registrada — coordina el pago con el vendedor.</div>`}
+</div>
+`).join('')}
+</div>
+` : '';
 modal.innerHTML = `
 <div style="
 background:var(--color-surface,#252831);
@@ -2056,7 +2104,12 @@ ${itemsHtml}
 <span style="font-size:18px;font-weight:800;color:#ff4f81">${formatCurrency(subtotal)}</span>
 </div>
 </div>
-<p style="font-size:12px;color:#888;text-align:center;margin:8px 0 0;line-height:1.5">El vendedor coordinará contigo el método de pago directamente por WhatsApp.
+${donationHtml}
+<p style="font-size:12px;color:#888;text-align:center;margin:8px 0 0;line-height:1.5">${allDonated
+? 'El vendedor solo coordinará contigo la entrega; el pago va directo al beneficiario.'
+: hasDonations
+? 'El vendedor coordinará la entrega y el pago de lo que no es donativo; lo donado se paga directo al beneficiario.'
+: 'El vendedor coordinará contigo el método de pago directamente por WhatsApp.'}
 </p>
 ${remainingNote}
 <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
@@ -2086,6 +2139,16 @@ ${remaining > 0
 </div>
 `;
 document.body.appendChild(modal);
+modal.querySelectorAll('.vcm-copy-cuenta').forEach(btn => {
+btn.addEventListener('click', () => {
+const cuenta = btn.dataset.cuenta || '';
+if (navigator.clipboard && window.isSecureContext) {
+navigator.clipboard.writeText(cuenta).then(() => showTemporaryMessage(' Cuenta copiada', 'success'));
+} else {
+showTemporaryMessage(cuenta, 'info');
+}
+});
+});
 const waBtn = modal.querySelector('#vcm-wa-btn');
 if (waBtn) {
 waBtn.addEventListener('click', () => {
