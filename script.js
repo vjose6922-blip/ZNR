@@ -617,8 +617,23 @@ initialHashHandled = true;
 const hash = window.location.hash;
 if (!hash) return;
 const id = hash.replace("#", "");
+if (id.startsWith("producto-")) {
+const productId = id.replace("producto-", "");
+const idx = filteredProducts.findIndex(p => String(p.ID ?? p.id) === String(productId));
+if (idx !== -1) {
+const targetPage = Math.floor(idx / PAGE_SIZE) + 1;
+if (targetPage !== currentPage) {
+currentPage = targetPage;
+renderProductsPage(true);
+}
+}
+}
+setTimeout(() => {
 const el = document.getElementById(id);
-if (el) setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
+if (!el) return;
+if (typeof window.highlightSharedElement === "function") window.highlightSharedElement(el);
+else el.scrollIntoView({ behavior: "smooth", block: "center" });
+}, 400);
 }
 async function openWhatsAppCheckout() {
 const items = Object.values(localCart);

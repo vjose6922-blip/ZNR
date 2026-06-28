@@ -546,7 +546,7 @@ function createVendorProductCard(product) {
   const { id, nombre, precio, stock, descripcion, talla, categoria, imagen1, imagen2, imagen3, estado } = product;
   const safeNombre = escapeHtml(nombre || "Producto");
   const safeDescripcion = escapeHtml(descripcion || "");
-  const safeTalla = escapeHtml(talla || "Única");
+  const safeTalla = escapeHtml(talla || "Sin especificar");
   const safeCategoria = escapeHtml(categoria || "");
   const stockNum = Number(stock || 0);
   const isOutOfStock = stockNum <= 0;
@@ -639,7 +639,7 @@ function createVendorProductCard(product) {
 
   const sizesEl = document.createElement("div");
   sizesEl.className = "product-sizes";
-  sizesEl.textContent = `Talla: ${safeTalla}`;
+  sizesEl.textContent = safeTalla;
 
   info.appendChild(titleRow);
   info.appendChild(metaRow);

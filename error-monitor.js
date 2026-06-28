@@ -98,16 +98,6 @@ window.addEventListener('unhandledrejection', (e) => {
 
 let _cachedErrorLog = [];
 
-function toggleErrorMonitor() {
-  const body = document.getElementById('em-body');
-  const btn  = document.getElementById('em-toggle-btn');
-  if (!body) return;
-  const open = body.style.display === 'none';
-  body.style.display = open ? 'block' : 'none';
-  btn.textContent = open ? 'Ocultar' : 'Ver';
-  if (open && !_cachedErrorLog.length) loadErrorLog();
-}
-
 async function loadErrorLog() {
   const list = document.getElementById('em-list');
   if (!list) return;

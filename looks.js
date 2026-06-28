@@ -17,6 +17,7 @@ let allProducts = [];
 let productsByCategoryIndex = new Map();
 let looks = [];
 let allLooks = [];
+let initialHashHandledLooks = false;
 let currentLooksPage = 1;
 let looksPerPage = 10;
 let isGeneratingLooks = false;
@@ -814,6 +815,7 @@ title="Cambiar esta prenda"><svg xmlns="http://www.w3.org/2000/svg" width="15" h
 }
 const card = document.createElement("div");
 card.className = "look-card";
+card.id = `look-${look.id}`;
 card.innerHTML = `
 <div class="look-images-container">
 ${imagesHtml || '<div class="look-slot-image empty">Sin imagenes</div>'}
@@ -864,7 +866,7 @@ e.stopPropagation();
 const lookName = look.name || 'Outfit Z&R';
 const lookProducts = Object.values(look.products || {}).filter(Boolean);
 const lines = lookProducts.map(p => `• ${p.name}${p.price ? ' — $' + Number(p.price).toLocaleString() : ''}`).join('\n');
-const url = `${window.location.origin}${window.location.pathname}`;
+const url = `${window.location.origin}${window.location.pathname}#look-${look.id}`;
 const text = `👗 ${lookName}\n${lines}\n¡Míralo en Z&R!`;
 
 if (typeof shareContent === 'function') {
@@ -902,6 +904,33 @@ existingCards.forEach(card => card.remove());
 container.appendChild(fragment);
 renderLooksPagination(totalPages);
 preloadAdjacentPages();
+handleInitialHashLooks();
+}
+function handleInitialHashLooks() {
+if (initialHashHandledLooks) return;
+const hash = window.location.hash;
+if (!hash || !hash.startsWith('#look-')) return;
+initialHashHandledLooks = true;
+const targetId = hash.slice(1);
+const idx = allLooks.findIndex(l => `look-${l.id}` === targetId);
+let needsRerender = false;
+if (idx !== -1) {
+const targetPage = Math.floor(idx / looksPerPage) + 1;
+if (targetPage !== currentLooksPage) {
+currentLooksPage = targetPage;
+needsRerender = true;
+}
+}
+if (needsRerender) {
+renderLooks();
+initLazyImagesAfterRender();
+}
+setTimeout(() => {
+const el = document.getElementById(targetId);
+if (!el) return;
+if (typeof window.highlightSharedElement === 'function') window.highlightSharedElement(el);
+else el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}, 400);
 }
 function renderLooksPagination(totalPages) {
 const container = document.getElementById("looks-container");

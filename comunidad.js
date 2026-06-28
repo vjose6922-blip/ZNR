@@ -80,6 +80,7 @@ let isLoading = false;
 let gridContainer, catSelect, vendorSelect, paginationDiv;
 let debounceTimer = null;
 let inspectorMode = false;
+let initialHashHandledComunidad = false;
 async function initInspectorMode() {
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('inspector') !== '1') return;
@@ -284,6 +285,7 @@ async function loadCommunityProducts() {
     renderPage();
     if (navigator.onLine) fetchAndRender(true);
     isLoading = false;
+    handleInitialHashComunidad();
     return;
   }
 
@@ -318,6 +320,7 @@ async function loadCommunityProducts() {
       if (soloProLabel) soloProLabel.classList.add('active');
     }
     applyFilters();
+    handleInitialHashComunidad();
 
   } catch (err) {
     console.error('Error en loadCommunityProducts:', err);
@@ -418,6 +421,27 @@ initLazyImages();
 console.error('Error en renderProducts:', err);
 gridContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:red;">Error al mostrar productos. Revisa la consola.</div>';
 }
+}
+function handleInitialHashComunidad() {
+if (initialHashHandledComunidad) return;
+const hash = window.location.hash;
+if (!hash || !hash.startsWith('#producto-')) return;
+initialHashHandledComunidad = true;
+const id = hash.replace('#producto-', '');
+const idx = filteredProducts.findIndex(p => String(p.id) === String(id));
+if (idx !== -1) {
+const targetPage = Math.floor(idx / PAGE_SIZE) + 1;
+if (targetPage !== currentPage) {
+currentPage = targetPage;
+renderProducts();
+}
+}
+setTimeout(() => {
+const el = document.getElementById('producto-' + id);
+if (!el) return;
+if (typeof window.highlightSharedElement === 'function') window.highlightSharedElement(el);
+else el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}, 400);
 }
 async function deleteProductInspector(productId, productName, cardElement) {
 const token = sessionStorage.getItem('admin_token') || '';
@@ -567,6 +591,7 @@ const optUrl  = window.optimizeDriveUrl || (u => u);
 const fmtCurr = window.formatCurrency  || (v => '$' + Number(v).toLocaleString('es-MX'));
 const card = document.createElement('div');
 card.className = 'product-card';
+card.id = `producto-${product.id}`;
 card.setAttribute('data-id', product.id);
 const imgUrl  = product.imagen1 ? optUrl(product.imagen1, 400) : 'https://placehold.co/400x400/3b1f5f/white?text=Sin+Imagen';
 const allImages = [product.imagen1, product.imagen2, product.imagen3].filter(Boolean).map(u => optUrl(u, 800));
@@ -581,17 +606,6 @@ const vendorInitials = vendorName ? vendorName.trim().split(/\s+/).map(w => w[0]
 const vendorAvatarHtml = (esVendorPlus && vendorLogo)
   ? `<img src="${esc(vendorLogo)}" alt="${esc(vendorName)}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid #a855f744;" onerror="this.style.display='none'">`
   : `<span style="width:18px;height:18px;border-radius:50%;background:#f3e8ff;color:#7c3aed;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #e9d5ff;">${esc(vendorInitials)}</span>`;
-const waMsg = [
-` *Hola ${esc(vendorName || 'vendedor')}!*`,
-`Vi tu producto en *Z&R Comunidad* y me interesa:`,
-``,
-` *${esc(safeString(product.nombre))}*`,
-product.precio ? ` Precio: ${fmtCurr(product.precio)}` : '',
-product.talla  ? ` Info/Talla: ${esc(safeString(product.talla))}` : '',
-``,
-`Me gustaría saber más detalles y disponibilidad. `,
-].filter(Boolean).join('\n');
-const waLink = vendorTel ? `https://wa.me/52${vendorTel}?text=${encodeURIComponent(waMsg)}` : '#';
 card.innerHTML = `
 <div class="product-slider" style="position:relative;cursor:pointer;">
 ${product.vendedor_plan === 'plus' ? '<span style="position:absolute;top:8px;right:8px;font-size:9px;padding:2px 8px; background: linear-gradient(135deg, #f7c948, #f0962f);color:#fff;border-radius:20px;font-weight:800;z-index:1;">✓✓</span>' : ''}

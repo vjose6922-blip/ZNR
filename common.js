@@ -1430,6 +1430,7 @@ function initImageModalControls() {
 
       .im-wrapper {
         width: 100%;
+        height: 50dvh;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1439,7 +1440,7 @@ function initImageModalControls() {
       .im-wrapper img {
         display: block;
         width: 100%;
-        max-height: 50dvh;
+        height: 100%;
         object-fit: contain;
       }
 
@@ -1518,7 +1519,7 @@ function initImageModalControls() {
       .im-related-price { font-size: 12px; font-weight: 800; color: #ff4f81; margin-top: 1px; }
 
       .im-magazine-layout.im-no-panel .im-hero-col { flex: 1 1 auto; }
-      .im-magazine-layout.im-no-panel .im-wrapper img { max-height: 82dvh; }
+      .im-magazine-layout.im-no-panel .im-wrapper { height: 82dvh; }
 
       @keyframes im-slide-in-right  { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
       @keyframes im-slide-in-left  { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:translateX(0)} }
@@ -1532,7 +1533,7 @@ function initImageModalControls() {
       /* Responsive */
       @media (min-width: 600px) {
         .im-magazine-layout { width: min(520px, 92vw); }
-        .im-wrapper img { max-height: 54dvh; }
+        .im-wrapper { height: 54dvh; }
       }
     `;
 document.head.appendChild(st);
@@ -1541,6 +1542,7 @@ const _btnSvgSt=document.createElement('style');_btnSvgSt.textContent='button sv
 }
 window.shareContent = shareContent;
 window.shareProduct = shareProduct;
+window.highlightSharedElement = highlightSharedElement;
 window.openImageModal  = openImageModal;
 window.applyLayoutGlobal = applyLayoutGlobal;
 window.applyTheme = applyTheme;
@@ -1583,6 +1585,17 @@ function shareProduct(id, nombre, precio) {
     ? `${title} — $${Number(precio).toLocaleString()} MXN\n¡Míralo en Z&R!`
     : `${title}\n¡Míralo en Z&R!`;
   shareContent({ id, title, text });
+}
+
+// Resalta temporalmente un elemento (artículo compartido) cuando se abre desde un link directo.
+// Hace scroll hasta el elemento y le agrega un brillo/pulso de 2 segundos.
+function highlightSharedElement(el, duration = 2000) {
+  if (!el) return;
+  try {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('shared-highlight');
+    setTimeout(() => el.classList.remove('shared-highlight'), duration);
+  } catch (_) {}
 }
 function createImageObserver() {
 if ("IntersectionObserver" in window) {

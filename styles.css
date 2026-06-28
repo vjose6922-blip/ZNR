@@ -441,7 +441,7 @@ body {
 .stock-badge.out-of-stock { background: #ffebee; color: #c62828; }
 .product-description { font-size: 15px; color: var(--color-text-muted); line-height: 1.45; margin: 4px 0; }
 .product-sizes { display: inline-block; background: var(--color-surface-3); padding: 6px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; color: var(--color-text-main); margin: 4px 0; }
-.product-sizes::before { content: "Talla "; font-size: 13px; }
+.product-sizes::before { content: "Info: "; font-size: 13px; }
 .product-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-border-subtle); }
 .product-actions .primary-button { width: 100%; text-align: center; padding: 10px 20px; font-size: 15px; font-weight: 600; }
 .product-actions .primary-button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -3006,3 +3006,14 @@ button svg, a.hero-btn svg, .primary-button svg, .btn-primary svg,
   pointer-events: none;
 }
 button > svg:only-child, .icon-button svg { margin-right: 0; }
+
+/* Resaltado temporal (2s) al abrir un artículo compartido por link directo */
+.shared-highlight {
+  animation: zr-shared-highlight 2s ease;
+}
+@keyframes zr-shared-highlight {
+  0%   { box-shadow: 0 0 0 0 rgba(255,79,129,0); }
+  12%  { box-shadow: 0 0 0 5px rgba(255,79,129,.55); }
+  60%  { box-shadow: 0 0 0 5px rgba(255,79,129,.30); }
+  100% { box-shadow: 0 0 0 0 rgba(255,79,129,0); }
+}

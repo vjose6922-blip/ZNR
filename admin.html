@@ -1348,15 +1348,20 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
 
 <div id="upload-log" style="position:fixed; bottom:10px; right:10px; background:#333; color:#0f0; padding:8px 12px; border-radius:8px; font-size:12px; max-width:300px; z-index:9999; display:none;"></div>
 
- <section class="admin-card">
+ <section class="admin-card" id="admin-create-section">
 
- <div class="admin-card-header">
+ <div class="admin-card-header" style="cursor:pointer;user-select:none" onclick="toggleAdminSection('create-product-body','admin-toggle-create')">
 
  <h2 id="product-form-title">Crear Producto</h2>
 
- <button id="reset-form-btn" class="text-button"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-plus"/></svg> Nuevo</button>
+ <div style="display:flex;align-items:center;gap:8px">
+ <button id="reset-form-btn" class="text-button" onclick="event.stopPropagation()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-plus"/></svg> Nuevo</button>
+ <button class="text-button" id="admin-toggle-create" onclick="event.stopPropagation(); toggleAdminSection('create-product-body','admin-toggle-create')">Ocultar</button>
+ </div>
 
  </div>
+
+ <div id="create-product-body">
 
  <form id="product-form" class="form-vertical">
 
@@ -1564,6 +1569,8 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
 
  </form>
 
+ </div>
+
  </section>
 
  
@@ -1571,17 +1578,20 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
 
  
 
- <section class="admin-card">
+ <section class="admin-card" id="admin-list-section">
 
- <div class="admin-card-header">
+ <div class="admin-card-header" style="cursor:pointer;user-select:none" onclick="toggleAdminSection('list-products-body','admin-toggle-list')">
  <h2>Lista de Productos</h2>
- <div class="admin-view-toggle" id="admin-view-toggle">
+ <div style="display:flex;align-items:center;gap:10px">
+ <div class="admin-view-toggle" id="admin-view-toggle" onclick="event.stopPropagation()">
  <button class="admin-view-btn" id="btn-view-list" title="Vista lista" aria-label="Vista lista"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" aria-hidden="true"><use href="#ic-list"/></svg></button>
  <button class="admin-view-btn" id="btn-view-grid" title="Vista cuadrícula" aria-label="Vista cuadrícula"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" aria-hidden="true"><use href="#ic-grid"/></svg></button>
  </div>
+ <button class="text-button" id="admin-toggle-list" onclick="event.stopPropagation(); toggleAdminSection('list-products-body','admin-toggle-list')">Ocultar</button>
+ </div>
  </div>
 
- 
+ <div id="list-products-body">
 
  <div class="admin-controls">
  <input type="text" id="admin-search-input" class="admin-search" placeholder=" Buscar por nombre o ID..." />
@@ -1624,36 +1634,8 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
 
  <div class="admin-pagination" id="admin-pagination"></div>
 
- </section>
+ </div>
 
- 
- <section class="admin-card" id="admin-error-monitor" style="margin-top:24px">
-  <div class="admin-card-header" style="cursor:pointer;user-select:none" onclick="toggleErrorMonitor()">
-   <h2 style="display:flex;align-items:center;gap:10px">
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" aria-hidden="true"><use href="#ic-error"/></svg>
-    Monitor de errores
-    <span id="em-badge" style="display:none;background:#ef4444;color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700"></span>
-   </h2>
-   <button class="text-button" id="em-toggle-btn">Ver</button>
-  </div>
-  <div id="em-body" style="display:none;padding:16px 20px">
-   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-    <button onclick="loadErrorLog()" style="background:var(--color-surface-3);border:1px solid var(--color-border-subtle);color:var(--color-text-main);padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">
-     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualizar
-    </button>
-    <button onclick="clearErrorLog()" style="background:var(--color-surface-3);border:1px solid var(--color-border-subtle);color:#ef4444;padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">
-     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" aria-hidden="true"><use href="#ic-trash"/></svg> Limpiar log
-    </button>
-    <select id="em-filter" onchange="renderErrorLog()" style="background:var(--color-surface-3);border:1px solid var(--color-border-subtle);color:var(--color-text-main);padding:6px 12px;border-radius:20px;font-size:13px;cursor:pointer">
-     <option value="all">Todos</option>
-     <option value="CRÍTICO">Solo críticos</option>
-     <option value="ERROR">Solo errores</option>
-    </select>
-   </div>
-   <div id="em-list" style="font-size:13px;line-height:1.6">
-    <p style="color:var(--color-text-muted);text-align:center;padding:20px">Presiona "Actualizar" para cargar el log</p>
-   </div>
-  </div>
  </section>
 
  </main>
@@ -1720,13 +1702,18 @@ connect-src 'self' https://script.google.com https://script.googleusercontent.co
  <span class="npi-label">Estadísticas de Vendedores</span>
  </button>
  <button onclick="closeAdminNotifPanel(); openAnalyticsModal();" class="notif-panel-item" style="width:100%;text-align:left;border:1px solid rgba(255,255,255,.06);cursor:pointer;margin-bottom:10px;">
- <span class="npi-icon"></span>
+ <span class="npi-icon">📊</span>
  <span class="npi-label">Gráficas y Estadísticas</span>
  </button>
 
- <button onclick="closeAdminNotifPanel(); openDonacionesStatsModal();" class="notif-panel-item" style="width:100%;text-align:left;border:1px solid rgba(255,255,255,.06);cursor:pointer;margin-bottom:0;">
+ <button onclick="closeAdminNotifPanel(); openDonacionesStatsModal();" class="notif-panel-item" style="width:100%;text-align:left;border:1px solid rgba(255,255,255,.06);cursor:pointer;margin-bottom:10px;">
  <span class="npi-icon">❤️</span>
  <span class="npi-label">Estadísticas de Donaciones</span>
+ </button>
+
+ <button onclick="closeAdminNotifPanel(); openErrorMonitorModal();" class="notif-panel-item" style="width:100%;text-align:left;border:1px solid rgba(255,255,255,.06);cursor:pointer;margin-bottom:10px;">
+ <span class="npi-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" aria-hidden="true"><use href="#ic-error"/></svg></span>
+ <span class="npi-label">Monitor de Errores</span>
  </button>
 
 <button class="notif-panel-item" id="offline-status-btn" style="width:100%;text-align:left;border:1px solid rgba(255,255,255,.06);cursor:pointer;margin-bottom:10px;">
@@ -1823,64 +1810,293 @@ async function openDonacionesStatsModal() {
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
   try {
-    // Cargar vendedores y sus productos donados
-    const [vRes, prodRes, benRes] = await Promise.all([
+    // Cargar vendedores, productos comunidad, beneficiarios y el historial de donaciones
+    const [vRes, prodRes, benRes, donRes] = await Promise.all([
       fetch(api + '?' + new URLSearchParams({ action:'vendedoresAdmin', token })).then(r=>r.json()).catch(()=>({})),
       fetch(api + '?' + new URLSearchParams({ action:'listarComunidad', admin:'true' })).then(r=>r.json()).catch(()=>({})),
-      fetch(api + '?' + new URLSearchParams({ action:'obtenerBeneficiarios', token })).then(r=>r.json()).catch(()=>({}),''),
+      fetch(api + '?' + new URLSearchParams({ action:'obtenerBeneficiarios', token })).then(r=>r.json()).catch(()=>({})),
+      fetch(api + '?' + new URLSearchParams({ action:'obtenerDonaciones', token })).then(r=>r.json()).catch(()=>({})),
     ]);
-    const vendors  = vRes.vendors || [];
-    const products = prodRes.products || [];
-    const bens     = benRes.beneficiarios || [];
+    const vendors    = vRes.vendors || [];
+    const products   = prodRes.products || [];
+    const bens       = benRes.beneficiarios || [];
+    const donaciones = donRes.donaciones || [];
 
     const donados   = products.filter(p => p.donado === true || p.donado === 'TRUE' || p.donado === 'true');
     const sinAsig   = products.filter(p => !p.donado || p.donado === 'FALSE' || p.donado === false);
     const bensAprov = bens.filter(b => b.estado === 'aprobado');
     const bensPend  = bens.filter(b => b.estado === 'pendiente');
 
-    // Group donations by beneficiary
+    const valorTotal = donados.reduce((s, p) => s + (Number(p.precio) || 0), 0);
+    const vendedoresDonadores = new Set(donados.map(p => p.vendedor_uid).filter(Boolean));
+
+    const productMap    = {}; products.forEach(p => { productMap[String(p.id)] = p; });
+    const vendorNameMap = {}; vendors.forEach(v => { vendorNameMap[v.uid] = v.nombre; });
+    const benMap         = {}; bens.forEach(b => { benMap[b.id] = b; });
+
+    // Donaciones agrupadas por beneficiario: cantidad, valor total y vendedores que donaron
     const byBen = {};
     donados.forEach(p => {
-      const bid = p.beneficiario_id || 'Sin asignar';
-      const ben = bensAprov.find(b => b.id === bid);
-      const label = ben ? (ben.nombre + (ben.organizacion ? ' — ' + ben.organizacion : '')) : bid;
-      if (!byBen[label]) byBen[label] = 0;
-      byBen[label]++;
+      const bid = p.beneficiario_id || '__sin__';
+      if (!byBen[bid]) byBen[bid] = { count: 0, valor: 0, vendedores: new Set() };
+      byBen[bid].count++;
+      byBen[bid].valor += Number(p.precio) || 0;
+      if (p.vendedor_nombre) byBen[bid].vendedores.add(p.vendedor_nombre);
     });
 
-    const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    // Ranking de vendedores que más han donado
+    const byVendor = {};
+    donados.forEach(p => {
+      const uid = p.vendedor_uid || '__sin__';
+      if (!byVendor[uid]) byVendor[uid] = { nombre: p.vendedor_nombre || vendorNameMap[uid] || 'Vendedor', count: 0, valor: 0 };
+      byVendor[uid].count++;
+      byVendor[uid].valor += Number(p.precio) || 0;
+    });
+    const topVendedores = Object.values(byVendor).sort((a, b) => b.count - a.count).slice(0, 5);
+
+    // Donaciones más recientes (historial activo, ordenado por fecha de asignación)
+    const recientes = donaciones
+      .filter(d => d.estado === 'activo' && d.fecha_asignacion)
+      .sort((a, b) => new Date(b.fecha_asignacion) - new Date(a.fecha_asignacion))
+      .slice(0, 6);
+
+    const esc      = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fmtMoney = v => '$' + Number(v||0).toLocaleString('es-MX');
+    const fmtFecha = d => { try { return new Date(d).toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' }); } catch(_) { return ''; } };
 
     document.getElementById('don-stats-body').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
         <div style="background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.3);border-radius:14px;padding:14px;text-align:center;">
-          <div style="font-size:1.8rem;font-weight:900;color:#f97316;">${donados.length}</div>
+          <div style="font-size:1.6rem;font-weight:900;color:#f97316;">${donados.length}</div>
           <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Productos donados</div>
         </div>
+        <div style="background:rgba(244,114,182,.12);border:1px solid rgba(244,114,182,.28);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:#f472b6;">${fmtMoney(valorTotal)}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Valor total donado</div>
+        </div>
         <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);border-radius:14px;padding:14px;text-align:center;">
-          <div style="font-size:1.8rem;font-weight:900;color:#22c55e;">${bensAprov.length}</div>
+          <div style="font-size:1.6rem;font-weight:900;color:#22c55e;">${bensAprov.length}</div>
           <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Beneficiarios activos</div>
         </div>
         <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:14px;padding:14px;text-align:center;">
-          <div style="font-size:1.8rem;font-weight:900;color:#ef4444;">${bensPend.length}</div>
+          <div style="font-size:1.6rem;font-weight:900;color:#ef4444;">${bensPend.length}</div>
           <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Beneficiarios pendientes</div>
         </div>
         <div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:14px;padding:14px;text-align:center;">
-          <div style="font-size:1.8rem;font-weight:900;color:#818cf8;">${sinAsig.length}</div>
+          <div style="font-size:1.6rem;font-weight:900;color:#818cf8;">${sinAsig.length}</div>
           <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Productos sin asignar</div>
         </div>
+        <div style="background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.22);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#38bdf8;">${vendedoresDonadores.size}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Vendedores donadores</div>
+        </div>
       </div>
+
       ${Object.keys(byBen).length > 0 ? `
       <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;">Donaciones por beneficiario</p>
-      ${Object.entries(byBen).sort((a,b)=>b[1]-a[1]).map(([label, count]) => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);">
-          <span style="font-size:.85rem;">❤️ ${esc(label)}</span>
-          <span style="background:#f97316;color:#fff;border-radius:20px;padding:2px 10px;font-size:.78rem;font-weight:700;">${count}</span>
-        </div>`).join('')}` : '<p style="color:#aaa;text-align:center;padding:16px 0;">Aún no hay donaciones asignadas.</p>'}
+      ${Object.entries(byBen).sort((a,b)=>b[1].count-a[1].count).map(([bid, info]) => {
+        const ben = benMap[bid];
+        const label = ben ? (ben.nombre + (ben.organizacion ? ' — ' + ben.organizacion : '')) : 'Sin asignar';
+        const vendsLabel = [...info.vendedores].slice(0, 3).join(', ') + (info.vendedores.size > 3 ? '…' : '');
+        return `
+        <div style="padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:.85rem;font-weight:600;">❤️ ${esc(label)}</span>
+            <span style="background:#f97316;color:#fff;border-radius:20px;padding:2px 10px;font-size:.78rem;font-weight:700;">${info.count}</span>
+          </div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:4px;">${fmtMoney(info.valor)} · donado por ${esc(vendsLabel || '—')}</div>
+        </div>`;
+      }).join('')}` : '<p style="color:#aaa;text-align:center;padding:16px 0;">Aún no hay donaciones asignadas.</p>'}
+
+      ${topVendedores.length > 0 ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;">Top vendedores donadores</p>
+      ${topVendedores.map((v, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+          <span style="font-size:.82rem;">${['🥇','🥈','🥉'][i] || '•'} ${esc(v.nombre)}</span>
+          <span style="font-size:.75rem;color:#aaa;">${v.count} prod · ${fmtMoney(v.valor)}</span>
+        </div>`).join('')}` : ''}
+
+      ${recientes.length > 0 ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;">Donaciones recientes</p>
+      ${recientes.map(d => {
+        const prod    = productMap[String(d.producto_id)] || {};
+        const ben     = benMap[d.beneficiario_id] || {};
+        const vNombre = prod.vendedor_nombre || vendorNameMap[d.vendedor_uid] || 'Vendedor';
+        return `
+        <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.78rem;color:#ccc;">
+          <strong style="color:#fff;">${esc(prod.nombre || 'Producto')}</strong><br>
+          ${esc(vNombre)} → ${esc(ben.nombre || 'beneficiario')} · <span style="color:#888;">${fmtFecha(d.fecha_asignacion)}</span>
+        </div>`;
+      }).join('')}` : ''}
     `;
   } catch(e) {
     document.getElementById('don-stats-body').innerHTML = '<p style="color:#ef4444;text-align:center;">Error al cargar estadísticas.</p>';
   }
 }
+
+// ── Gráficas y Estadísticas (simple, basado en getAnalytics) ──────────────
+async function openAnalyticsModal(period) {
+  period = period || 'day';
+  const old = document.getElementById('modal-analytics');
+  if (old) old.remove();
+  const token = sessionStorage.getItem('admin_token') || '';
+  const api   = window.API_URL || '';
+  const periodLabels = { day:'Hoy', week:'Semana', month:'Mes', all:'Todo' };
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-analytics';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `<div style="background:#1a1a2e;border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;padding:0 0 32px;color:#fff;">
+    <div style="position:sticky;top:0;background:#1a1a2e;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:2;">
+      <h2 style="margin:0;font-size:1rem;font-weight:800;">📊 Gráficas y Estadísticas</h2>
+      <button id="btn-close-analytics" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">×</button>
+    </div>
+    <div style="padding:14px 20px 0;display:flex;gap:6px;">
+      ${['day','week','month','all'].map(p => `<button class="an-period-btn" data-period="${p}" style="flex:1;padding:8px 0;border-radius:30px;border:1px solid ${p===period ? 'transparent' : 'rgba(255,255,255,.12)'};background:${p===period ? 'linear-gradient(135deg,#ff4f81,#ff7a4f)' : 'rgba(255,255,255,.05)'};color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;">${periodLabels[p]}</button>`).join('')}
+    </div>
+    <div id="an-body" style="padding:18px 20px;">Cargando…</div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('btn-close-analytics').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  modal.querySelectorAll('.an-period-btn').forEach(btn => {
+    btn.addEventListener('click', () => openAnalyticsModal(btn.dataset.period));
+  });
+
+  const bodyEl = document.getElementById('an-body');
+  try {
+    if (!token) throw new Error('Sin sesión de admin');
+    const res = await fetch(api + '?' + new URLSearchParams({ action:'getAnalytics', token, period })).then(r=>r.json());
+    if (!res.ok) throw new Error(res.error || 'Error del servidor');
+
+    const esc      = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fmtMoney = v => '$' + Number(v||0).toLocaleString('es-MX');
+    const byDay    = res.requestsByDay || [];
+    const topProds = res.topProducts   || [];
+    const recent   = res.recentActivity || [];
+    const maxDay   = Math.max(1, ...byDay.map(d => d.count));
+    const maxProd  = Math.max(1, ...topProds.map(p => p.count));
+
+    bodyEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;">
+        <div style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#818cf8;">${res.totalRequests}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Solicitudes</div>
+        </div>
+        <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.22);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:#22c55e;">${fmtMoney(res.totalRevenue)}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Ingresos confirmados</div>
+        </div>
+        <div style="background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.22);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#38bdf8;">${res.confirmedOrders}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Confirmados</div>
+        </div>
+        <div style="background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.25);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#f97316;">${res.pendingOrders}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Pendientes</div>
+        </div>
+      </div>
+
+      ${byDay.length ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:0 0 12px;">Solicitudes en el período</p>
+      <div style="display:flex;align-items:flex-end;gap:6px;height:90px;margin-bottom:24px;">
+        ${byDay.map(d => `
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%;">
+            <div title="${d.count}" style="width:100%;max-width:30px;background:linear-gradient(180deg,#ff7a4f,#ff4f81);border-radius:6px 6px 2px 2px;height:${Math.max(4, (d.count/maxDay)*64)}px;"></div>
+            <span style="font-size:.62rem;color:#888;">${esc(d.label)}</span>
+          </div>`).join('')}
+      </div>` : '<p style="color:#aaa;text-align:center;padding:10px 0;">Sin solicitudes en este período.</p>'}
+
+      ${topProds.length ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;">Productos más solicitados</p>
+      ${topProds.map(p => `
+        <div style="margin-bottom:9px;">
+          <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:3px;">
+            <span style="color:#eee;">${esc(p.name)}</span><span style="color:#aaa;">${p.count}</span>
+          </div>
+          <div style="background:rgba(255,255,255,.08);border-radius:20px;height:6px;overflow:hidden;">
+            <div style="background:#ff4f81;height:100%;width:${(p.count/maxProd)*100}%;"></div>
+          </div>
+        </div>`).join('')}` : ''}
+
+      ${recent.length ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;">Actividad reciente</p>
+      ${recent.map(a => {
+        const statusColor = a.status === 'confirmed' ? '#22c55e' : (a.status === 'rejected' || a.status === 'cancelled' ? '#ef4444' : '#f97316');
+        const statusLabel = a.status === 'confirmed' ? 'Confirmado' : (a.status === 'rejected' ? 'Rechazado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendiente'));
+        return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.78rem;">
+          <span style="color:#ccc;">${a.items} producto${a.items===1?'':'s'} · ${esc(a.date)}</span>
+          <span style="background:${statusColor};color:#fff;border-radius:20px;padding:2px 9px;font-size:.7rem;font-weight:700;">${statusLabel}</span>
+        </div>`;
+      }).join('')}` : ''}
+    `;
+  } catch(e) {
+    bodyEl.innerHTML = '<p style="color:#ef4444;text-align:center;">Error al cargar estadísticas' + (e.message ? ': ' + esc_(e.message) : '') + '</p>';
+  }
+}
+function esc_(s) { return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ── Monitor de Errores (movido al panel de Notificaciones > Herramientas) ──
+function openErrorMonitorModal() {
+  const old = document.getElementById('modal-error-monitor');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-error-monitor';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `<div style="background:#1a1a2e;border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;padding:0 0 32px;color:#fff;">
+    <div style="position:sticky;top:0;background:#1a1a2e;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <h2 style="margin:0;font-size:1rem;font-weight:800;display:flex;align-items:center;gap:8px;"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" aria-hidden="true"><use href="#ic-error"/></svg> Monitor de Errores <span id="em-badge" style="display:none;background:#ef4444;color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700"></span></h2>
+      <button id="btn-close-error-monitor" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">×</button>
+    </div>
+    <div style="padding:16px 20px;">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button onclick="loadErrorLog()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualizar
+        </button>
+        <button onclick="clearErrorLog()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#ef4444;padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" aria-hidden="true"><use href="#ic-trash"/></svg> Limpiar log
+        </button>
+        <select id="em-filter" onchange="renderErrorLog()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#fff;padding:6px 12px;border-radius:20px;font-size:13px;cursor:pointer">
+          <option value="all">Todos</option>
+          <option value="CRÍTICO">Solo críticos</option>
+          <option value="ERROR">Solo errores</option>
+        </select>
+      </div>
+      <div id="em-list" style="font-size:13px;line-height:1.6">
+        <p style="color:#888;text-align:center;padding:20px">Cargando...</p>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('btn-close-error-monitor').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  if (typeof loadErrorLog === 'function') loadErrorLog();
+}
+
+// ── Secciones desplegables (Crear Producto / Lista de Productos) ──────────
+function toggleAdminSection(bodyId, btnId) {
+  const body = document.getElementById(bodyId);
+  const btn  = document.getElementById(btnId);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if (btn) btn.textContent = isOpen ? 'Ver' : 'Ocultar';
+  try { localStorage.setItem('admin_section_' + bodyId, isOpen ? 'closed' : 'open'); } catch(_) {}
+}
+(function restoreAdminSectionsState() {
+  [['create-product-body','admin-toggle-create'], ['list-products-body','admin-toggle-list']].forEach(([bodyId, btnId]) => {
+    try {
+      if (localStorage.getItem('admin_section_' + bodyId) === 'closed') {
+        const body = document.getElementById(bodyId);
+        const btn  = document.getElementById(btnId);
+        if (body) body.style.display = 'none';
+        if (btn) btn.textContent = 'Ver';
+      }
+    } catch(_) {}
+  });
+})();
 
 function setBadge(id, count) {
   const el = document.getElementById(id);
