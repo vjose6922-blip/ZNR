@@ -1992,7 +1992,7 @@ if (prod.imagen1) {
 
   if (donado) {
     // Solo botón quitar
-    document.getElementById('btn-donar-quitar').addEventListener('click', async () => {
+    document.getElementById('btn-donar-quitar')?.addEventListener('click', async () => {
       const btn = document.getElementById('btn-donar-quitar');
       btn.disabled = true; btn.textContent = 'Quitando…';
       try {
@@ -2040,7 +2040,7 @@ const benData = await window.apiFetch({ action:'obtenerBeneficiariosAprobados' }
 };
     await cargarBeneficiarios();
 
-    document.getElementById('btn-donar-asignar').addEventListener('click', async () => {
+    document.getElementById('btn-donar-asignar')?.addEventListener('click', async () => {
       const benId = document.getElementById('donar-ben-select').value;
       if (!benId) return showMsg('Selecciona un beneficiario.', false);
       const btn = document.getElementById('btn-donar-asignar');

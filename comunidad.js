@@ -490,9 +490,9 @@ const close = () => {
 modal.classList.add('closing');
 setTimeout(() => { if (modal.parentNode) modal.remove(); }, 150);
 };
-modal.querySelector('#report-cancel-btn').addEventListener('click', close);
+modal.querySelector('#report-cancel-btn')?.addEventListener('click', close);
 modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
-modal.querySelector('#report-confirm-btn').addEventListener('click', async () => {
+modal.querySelector('#report-confirm-btn')?.addEventListener('click', async () => {
 const selected = modal.querySelector('input[name="report-reason"]:checked');
 if (!selected) {
 window.showTemporaryMessage(' Selecciona un motivo', 'error');
@@ -606,7 +606,7 @@ ${!hasStock ? '-' : 'Añadir'}
 </div>
 </div>
 `;
-card.querySelector('.product-slider').addEventListener('click', (e) => {
+card.querySelector('.product-slider')?.addEventListener('click', (e) => {
 if (!e.target.closest('button')) {
 if (window.openImageModal) {
 const productData = {
@@ -1003,7 +1003,7 @@ window.openBeneficiarioRegister = function() {
     benUpdatePreview(n, file);
   }
   [1,2,3].forEach(n => {
-    document.getElementById('ben-img-' + n).addEventListener('change', function() {
+    document.getElementById('ben-img-' + n)?.addEventListener('change', function() {
       const files = Array.from(this.files || []);
       if (!files.length) return;
       let slot = n;
@@ -1016,7 +1016,7 @@ window.openBeneficiarioRegister = function() {
   });
 
   // Evento de envío
-  document.getElementById('btn-submit-ben').addEventListener('click', async function(e) {
+  document.getElementById('btn-submit-ben')?.addEventListener('click', async function(e) {
     e.preventDefault();
     const showMsg = (txt, ok) => {
       const el = document.getElementById('ben-reg-msg');
