@@ -567,39 +567,45 @@ return result + string + escaped;
 }
 
 function optimizeDriveUrl(url, size = 400) {
-if (!url) return "";
+  if (!url) return "https://placehold.co/400x400/3b1f5f/white?text=Z%26R";
+  
+  // ✅ Si la URL no es http o data:image, devolver placeholder (evita que se intente cargar un HTML como imagen)
+  if (!url.startsWith('http') && !url.startsWith('data:image')) {
+    return "https://placehold.co/400x400/3b1f5f/white?text=Z%26R";
+  }
 
-const screenWidth = window.innerWidth;
-let actualSize;
-if (screenWidth < 480) {
-actualSize = 300;
-} else if (screenWidth < 768) {
-actualSize = 400;
-} else if (screenWidth < 1200) {
-actualSize = 600;
-} else {
-actualSize = 800;
-}
-if (size && size < actualSize) {
-actualSize = Math.min(size, 800);
+  const screenWidth = window.innerWidth;
+  let actualSize;
+  if (screenWidth < 480) {
+    actualSize = 300;
+  } else if (screenWidth < 768) {
+    actualSize = 400;
+  } else if (screenWidth < 1200) {
+    actualSize = 600;
+  } else {
+    actualSize = 800;
+  }
+  if (size && size < actualSize) {
+    actualSize = Math.min(size, 800);
+  }
+
+  // Si ya viene en formato lh3.googleusercontent.com
+  const lh3Match = url.match(/lh3\.googleusercontent\.com\/d\/([-\w]{25,})/);
+  if (lh3Match) {
+    return `https://lh3.googleusercontent.com/d/${lh3Match[1]}=w${actualSize}-h${actualSize}-rw`;
+  }
+
+  // Cualquier otro link de Drive (ej. /file/d/ o ?id=) → normalizar a lh3
+  const match = url.match(/[-\w]{25,}/);
+  if (match) {
+    const id = match[0];
+    return `https://lh3.googleusercontent.com/d/${id}=w${actualSize}-h${actualSize}-rw`;
+  }
+
+  // Si no se pudo procesar, devolver la URL original (aunque ya validamos al inicio)
+  return url;
 }
 
-// Si ya viene en formato lh3.googleusercontent.com (el que genera fixDriveLink en el backend),
-// solo ajustamos el tamaño manteniendo el mismo dominio — más estable que drive.google.com/thumbnail,
-// que Google ha estado bloqueando/limitando para uso no autenticado (hotlinking).
-const lh3Match = url.match(/lh3\.googleusercontent\.com\/d\/([-\w]{25,})/);
-if (lh3Match) {
-return `https://lh3.googleusercontent.com/d/${lh3Match[1]}=w${actualSize}-h${actualSize}-rw`;
-}
-
-// Cualquier otro link de Drive (ej. /file/d/ o ?id=) → lo normalizamos también a lh3, no a drive.google.com/thumbnail
-const match = url.match(/[-\w]{25,}/);
-if (match) {
-const id = match[0];
-return `https://lh3.googleusercontent.com/d/${id}=w${actualSize}-h${actualSize}-rw`;
-}
-return url;
-}
 function generateRequestId() {
 return 'REQ_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
 }
