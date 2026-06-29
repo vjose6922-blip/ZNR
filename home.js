@@ -758,31 +758,42 @@ showTemporaryMessage(` ${addedCount} productos agregados al carrito`, 'success')
 }
 }
 function initCartAndWishlist() {
-if (typeof loadCartFromStorage === 'function') loadCartFromStorage();
-if (typeof renderCart === 'function') renderCart();
-if (typeof updateSavedPhoneDisplay === 'function') updateSavedPhoneDisplay();
-const cartBtn = document.getElementById('cart-icon-home');
-if (cartBtn) cartBtn.addEventListener('click', () => typeof openCartDrawer === 'function' && openCartDrawer());
-const wishlistBtn = document.getElementById('wishlist-icon-home');
-if (wishlistBtn) wishlistBtn.addEventListener('click', () => typeof openWishlistDrawer === 'function' && openWishlistDrawer());
-const closeCart = document.getElementById('close-cart-btn');
-if (closeCart) closeCart.addEventListener('click', () => typeof closeCartDrawer === 'function' && closeCartDrawer());
-const closeWishlist = document.getElementById('close-wishlist-btn');
-if (closeWishlist) closeWishlist.addEventListener('click', () => typeof closeWishlistDrawer === 'function' && closeWishlistDrawer());
-const overlay = document.getElementById('overlay');
-overlay.addEventListener('click', () => {
-if (typeof closeCartDrawer === 'function') closeCartDrawer();
-if (typeof closeWishlistDrawer === 'function') closeWishlistDrawer();
-const looksDrawer = document.getElementById('wishlist-looks-drawer');
-if (looksDrawer) looksDrawer.classList.remove('open');
-if (typeof closeImageModal === 'function') closeImageModal();
-});
-const requestBtn = document.getElementById('request-purchase-btn');
-if (requestBtn && typeof openWhatsAppCheckout === 'function') requestBtn.addEventListener('click', openWhatsAppCheckout);
-const addAllBtn = document.getElementById('add-all-wishlist-to-cart');
-if (addAllBtn && typeof addAllWishlistToCart === 'function') addAllBtn.addEventListener('click', addAllWishlistToCart);
-const changePhone = document.getElementById('change-phone-btn');
-if (changePhone && typeof changePhoneNumber === 'function') changePhone.addEventListener('click', changePhoneNumber);
+  if (typeof loadCartFromStorage === 'function') loadCartFromStorage();
+  if (typeof renderCart === 'function') renderCart();
+  if (typeof updateSavedPhoneDisplay === 'function') updateSavedPhoneDisplay();
+
+  const cartBtn = document.getElementById('cart-icon-home');
+  if (cartBtn) cartBtn.addEventListener('click', () => typeof openCartDrawer === 'function' && openCartDrawer());
+
+  const wishlistBtn = document.getElementById('wishlist-icon-home');
+  if (wishlistBtn) wishlistBtn.addEventListener('click', () => typeof openWishlistDrawer === 'function' && openWishlistDrawer());
+
+  const closeCart = document.getElementById('close-cart-btn');
+  if (closeCart) closeCart.addEventListener('click', () => typeof closeCartDrawer === 'function' && closeCartDrawer());
+
+  const closeWishlist = document.getElementById('close-wishlist-btn');
+  if (closeWishlist) closeWishlist.addEventListener('click', () => typeof closeWishlistDrawer === 'function' && closeWishlistDrawer());
+
+  // ✅ Corrección: verificar que overlay exista antes de agregar el listener
+  const overlay = document.getElementById('overlay');
+  if (overlay) {
+    overlay.addEventListener('click', () => {
+      if (typeof closeCartDrawer === 'function') closeCartDrawer();
+      if (typeof closeWishlistDrawer === 'function') closeWishlistDrawer();
+      const looksDrawer = document.getElementById('wishlist-looks-drawer');
+      if (looksDrawer) looksDrawer.classList.remove('open');
+      if (typeof closeImageModal === 'function') closeImageModal();
+    });
+  }
+
+  const requestBtn = document.getElementById('request-purchase-btn');
+  if (requestBtn && typeof openWhatsAppCheckout === 'function') requestBtn.addEventListener('click', openWhatsAppCheckout);
+
+  const addAllBtn = document.getElementById('add-all-wishlist-to-cart');
+  if (addAllBtn && typeof addAllWishlistToCart === 'function') addAllBtn.addEventListener('click', addAllWishlistToCart);
+
+  const changePhone = document.getElementById('change-phone-btn');
+  if (changePhone && typeof changePhoneNumber === 'function') changePhone.addEventListener('click', changePhoneNumber);
 }
 function setupEventListeners() {
 window.addEventListener('cartUpdated', () => {
