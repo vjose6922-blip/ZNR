@@ -2077,6 +2077,77 @@ function openErrorMonitorModal() {
   if (typeof loadErrorLog === 'function') loadErrorLog();
 }
 
+// ── Monitor de Errores: funciones de carga y renderizado ──────────────────
+
+window.loadErrorLog = function() {
+  const list = document.getElementById('em-list');
+  if (!list) return;
+  list.innerHTML = '<p style="color:#888;text-align:center;padding:20px">Cargando...</p>';
+  const api = window.API_URL || window.ADMIN_API_URL || '';
+  const token = sessionStorage.getItem('admin_token') || '';
+  if (api && token) {
+    fetch(api + '?' + new URLSearchParams({ action: 'getErrors', token }).toString())
+      .then(r => r.json())
+      .then(data => {
+        const remote = Array.isArray(data.errors) ? data.errors : [];
+        const local  = window.ZRMonitor ? window.ZRMonitor.getErrors() : [];
+        const seen = new Set();
+        window._emErrors = [...remote, ...local]
+          .filter(e => { const k = e.ts + e.message; return seen.has(k) ? false : seen.add(k); })
+          .sort((a, b) => new Date(b.ts) - new Date(a.ts));
+        renderErrorLog();
+      })
+      .catch(() => {
+        window._emErrors = window.ZRMonitor ? window.ZRMonitor.getErrors().slice().reverse() : [];
+        renderErrorLog();
+      });
+  } else {
+    window._emErrors = window.ZRMonitor ? window.ZRMonitor.getErrors().slice().reverse() : [];
+    renderErrorLog();
+  }
+};
+
+window.renderErrorLog = function() {
+  const list = document.getElementById('em-list');
+  if (!list) return;
+  const filter = (document.getElementById('em-filter') || {}).value || 'all';
+  const all    = window._emErrors || [];
+  const errors = filter === 'all' ? all : all.filter(e => e.level === filter);
+  const badge  = document.getElementById('em-badge');
+  if (badge) { badge.textContent = all.length; badge.style.display = all.length ? 'inline' : 'none'; }
+  if (!errors.length) {
+    list.innerHTML = '<p style="color:#888;text-align:center;padding:30px">✅ Sin errores registrados</p>';
+    return;
+  }
+  const color = { 'CRÍTICO':'#ef4444', 'ERROR':'#f97316', 'WARN':'#eab308' };
+  list.innerHTML = errors.map(e => {
+    const fecha = new Date(e.ts).toLocaleString('es-MX', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    const c   = color[e.level] || '#aaa';
+    const src = (e.source || e.fuente || (e.filename||'').split('/').pop() || '?');
+    const msg = (e.message || e.mensaje || '').slice(0, 200);
+    const file = e.filename || e.archivo || '';
+    const line = e.lineno || e.linea || 0;
+    const col  = e.colno  || e.columna || 0;
+    const stk  = e.stack  || '';
+    return `<div style="background:rgba(255,255,255,.04);border-radius:12px;padding:12px 14px;margin-bottom:10px;border-left:3px solid ${c};">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
+        <span style="color:${c};font-weight:700;font-size:11px;">${e.level||'?'} &bull; ${src}</span>
+        <span style="color:#666;font-size:11px;">${fecha}</span>
+      </div>
+      <div style="color:#ddd;font-size:12px;word-break:break-word;">${msg}</div>
+      ${file||line ? `<div style="color:#555;font-size:11px;margin-top:3px;">${file}${line?':'+line+':'+col:''}</div>` : ''}
+      ${stk ? `<details style="margin-top:5px;"><summary style="color:#666;font-size:11px;cursor:pointer;">Stack trace</summary><pre style="color:#888;font-size:10px;margin:4px 0 0;white-space:pre-wrap;word-break:break-all;">${stk}</pre></details>` : ''}
+    </div>`;
+  }).join('');
+};
+
+window.clearErrorLog = function() {
+  if (!confirm('¿Borrar todos los errores del log local?')) return;
+  if (window.ZRMonitor) window.ZRMonitor.clear();
+  window._emErrors = [];
+  renderErrorLog();
+};
+
 // ── Secciones desplegables (Crear Producto / Lista de Productos) ──────────
 function toggleAdminSection(bodyId, btnId) {
   const body = document.getElementById(bodyId);
