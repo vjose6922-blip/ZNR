@@ -1571,128 +1571,135 @@ return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
 function updateVendorAvatar() {
-if (!vendorSession) return;
-const btn = document.getElementById('vendor-avatar-btn');
-const initEl = document.getElementById('vendor-avatar-initials');
-const imgEl  = document.getElementById('vendor-avatar-img');
-if (!btn || !initEl || !imgEl) return;
+  if (!vendorSession) return;
+  const btn = document.getElementById('vendor-avatar-btn');
+  const initEl = document.getElementById('vendor-avatar-initials');
+  const imgEl  = document.getElementById('vendor-avatar-img');
+  if (!btn || !initEl || !imgEl) return;
 
-btn.style.display = 'flex';
-const esPlus = vendorSession.plan === 'plus';
-const logo   = vendorSession.logo;
+  btn.style.display = 'flex';
+  const esPlus = vendorSession.plan === 'plus';
+  const logo   = vendorSession.logo;
 
-if (esPlus && logo) {
-imgEl.src = logo;
-imgEl.style.display = 'block';
-initEl.style.display = 'none';
-} else {
-imgEl.style.display = 'none';
-initEl.style.display = 'flex';
-initEl.textContent = getInitials(vendorSession.nombre);
-}
+  // ✅ Validar que la URL sea válida antes de asignarla
+  const esUrlValida = logo && (logo.startsWith('http') || logo.startsWith('data:image'));
+
+  if (esPlus && esUrlValida) {
+    imgEl.src = logo;
+    imgEl.style.display = 'block';
+    initEl.style.display = 'none';
+  } else {
+    imgEl.style.display = 'none';
+    initEl.style.display = 'flex';
+    initEl.textContent = getInitials(vendorSession.nombre);
+  }
 }
 
 function openSettingsModal() {
-if (!vendorSession) return;
-const modal = document.getElementById('settings-modal');
-if (!modal) return;
+  if (!vendorSession) return;
+  const modal = document.getElementById('settings-modal');
+  if (!modal) return;
 
-document.getElementById('settings-nombre').value      = vendorSession.nombre || '';
-document.getElementById('settings-descripcion').value = vendorSession.descripcion || '';
-document.getElementById('settings-whatsapp').value    = vendorSession.whatsapp || '';
-const horarioInput = document.getElementById('settings-horario');
-if (horarioInput) horarioInput.value = vendorSession.horario || '';
-const catSel = document.getElementById('settings-categoria');
-if (catSel) catSel.value = vendorSession.categoria || '';
+  document.getElementById('settings-nombre').value      = vendorSession.nombre || '';
+  document.getElementById('settings-descripcion').value = vendorSession.descripcion || '';
+  document.getElementById('settings-whatsapp').value    = vendorSession.whatsapp || '';
+  const horarioInput = document.getElementById('settings-horario');
+  if (horarioInput) horarioInput.value = vendorSession.horario || '';
+  const catSel = document.getElementById('settings-categoria');
+  if (catSel) catSel.value = vendorSession.categoria || '';
 
-document.getElementById('settings-pwd-old').value     = '';
-document.getElementById('settings-pwd-new').value     = '';
-document.getElementById('settings-pwd-confirm').value = '';
-document.getElementById('settings-perfil-msg').textContent = '';
-document.getElementById('settings-pwd-msg').textContent    = '';
+  document.getElementById('settings-pwd-old').value     = '';
+  document.getElementById('settings-pwd-new').value     = '';
+  document.getElementById('settings-pwd-confirm').value = '';
+  document.getElementById('settings-perfil-msg').textContent = '';
+  document.getElementById('settings-pwd-msg').textContent    = '';
 
-const esPlus = vendorSession.plan === 'plus';
+  const esPlus = vendorSession.plan === 'plus';
 
-const placeholderEl = document.getElementById('settings-avatar-placeholder');
-const photoEl       = document.getElementById('settings-avatar-photo');
-const changeBtn     = document.getElementById('settings-change-photo-btn');
+  const placeholderEl = document.getElementById('settings-avatar-placeholder');
+  const photoEl       = document.getElementById('settings-avatar-photo');
+  const changeBtn     = document.getElementById('settings-change-photo-btn');
 
-if (esPlus && vendorSession.logo) {
-photoEl.src = vendorSession.logo;
-photoEl.style.display = 'block';
-placeholderEl.style.display = 'none';
-} else {
-placeholderEl.style.display = 'flex';
-placeholderEl.textContent   = getInitials(vendorSession.nombre);
-photoEl.style.display       = 'none';
-}
-if (changeBtn) changeBtn.style.display = esPlus ? 'flex' : 'none';
+  // ✅ Validar que la URL sea válida antes de asignarla
+  const logo = vendorSession.logo;
+  const esUrlValida = logo && (logo.startsWith('http') || logo.startsWith('data:image'));
 
-document.getElementById('settings-header-name').textContent = vendorSession.nombre || '';
-const planEl = document.getElementById('settings-header-plan');
-if (esPlus) {
-const vence = vendorSession.planVence ? new Date(vendorSession.planVence).toLocaleDateString('es-MX', {day:'2-digit',month:'short',year:'numeric'}) : '—';
-planEl.innerHTML = '<span style="background:#a855f7;color:#fff;padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:700;">⭐ Plus</span> <span style="color:#aaa;font-size:.75rem;">· vence ' + vence + '</span>';
-} else {
-planEl.innerHTML = '<span style="background:#e5e7eb;color:#555;padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:600;">Free</span>';
-}
+  if (esPlus && esUrlValida) {
+    photoEl.src = logo;
+    photoEl.style.display = 'block';
+    placeholderEl.style.display = 'none';
+  } else {
+    placeholderEl.style.display = 'flex';
+    placeholderEl.textContent   = getInitials(vendorSession.nombre);
+    photoEl.style.display       = 'none';
+  }
+  if (changeBtn) changeBtn.style.display = esPlus ? 'flex' : 'none';
 
-const planInfoEl = document.getElementById('settings-plan-info');
-if (planInfoEl) {
-if (esPlus) {
-const vence = vendorSession.planVence ? new Date(vendorSession.planVence).toLocaleDateString('es-MX', {day:'2-digit',month:'long',year:'numeric'}) : '—';
-planInfoEl.innerHTML = '<div style="background:#f5f3ff;border-radius:10px;padding:12px 14px;">' +
-'<p style="margin:0;font-weight:700;color:#7c3aed;">⭐ Plan Plus activo</p>' +
-'<p style="margin:4px 0 0;color:#6b7280;font-size:.82rem;">Vence el ' + vence + '</p></div>';
-} else {
-planInfoEl.innerHTML = '<div style="background:#f9f9f9;border-radius:10px;padding:12px 14px;">' +
-'<p style="margin:0;color:#374151;font-size:.85rem;">Estás en el plan <strong>Free</strong>.</p>' +
-'<p style="margin:4px 0 0;font-size:.82rem;color:#6b7280;">Con Plus obtienes foto de perfil, destacado, logo y aprobación instantánea.</p>' +
-'<div id="settings-plus-notif" style="margin-top:10px;"></div></div>';
-setTimeout(() => {
-const area = document.getElementById('settings-plus-notif');
-if (area) {
-area.innerHTML = document.getElementById('vendor-plus-notif-area')?.innerHTML || '';
-}
-}, 50);
-}
-}
+  document.getElementById('settings-header-name').textContent = vendorSession.nombre || '';
+  const planEl = document.getElementById('settings-header-plan');
+  if (esPlus) {
+    const vence = vendorSession.planVence ? new Date(vendorSession.planVence).toLocaleDateString('es-MX', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+    planEl.innerHTML = '<span style="background:#a855f7;color:#fff;padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:700;">⭐ Plus</span> <span style="color:#aaa;font-size:.75rem;">· vence ' + vence + '</span>';
+  } else {
+    planEl.innerHTML = '<span style="background:#e5e7eb;color:#555;padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:600;">Free</span>';
+  }
 
-document.getElementById('si-productos').textContent = vendorSession.productosActuales ?? '—';
-document.getElementById('si-limite').textContent    = vendorSession.limiteProductos ?? '—';
-document.getElementById('si-uid').textContent       = vendorSession.uid || '—';
-const fechaEl = document.getElementById('si-fecha');
-if (fechaEl) {
-fechaEl.textContent = vendorSession.fechaRegistro
-? new Date(vendorSession.fechaRegistro).toLocaleDateString('es-MX', {day:'2-digit',month:'short',year:'numeric'})
-: '—';
-}
+  const planInfoEl = document.getElementById('settings-plan-info');
+  if (planInfoEl) {
+    if (esPlus) {
+      const vence = vendorSession.planVence ? new Date(vendorSession.planVence).toLocaleDateString('es-MX', {day:'2-digit',month:'long',year:'numeric'}) : '—';
+      planInfoEl.innerHTML = '<div style="background:#f5f3ff;border-radius:10px;padding:12px 14px;">' +
+        '<p style="margin:0;font-weight:700;color:#7c3aed;">⭐ Plan Plus activo</p>' +
+        '<p style="margin:4px 0 0;color:#6b7280;font-size:.82rem;">Vence el ' + vence + '</p></div>';
+    } else {
+      planInfoEl.innerHTML = '<div style="background:#f9f9f9;border-radius:10px;padding:12px 14px;">' +
+        '<p style="margin:0;color:#374151;font-size:.85rem;">Estás en el plan <strong>Free</strong>.</p>' +
+        '<p style="margin:4px 0 0;font-size:.82rem;color:#6b7280;">Con Plus obtienes foto de perfil, destacado, logo y aprobación instantánea.</p>' +
+        '<div id="settings-plus-notif" style="margin-top:10px;"></div></div>';
+      setTimeout(() => {
+        const area = document.getElementById('settings-plus-notif');
+        if (area) {
+          area.innerHTML = document.getElementById('vendor-plus-notif-area')?.innerHTML || '';
+        }
+      }, 50);
+    }
+  }
 
-modal.style.display = 'flex';
-document.body.style.overflow = 'hidden';
-if (typeof loadBeneficiarioDonaciones === 'function') loadBeneficiarioDonaciones();
-updateDonacionesBadge();
+  document.getElementById('si-productos').textContent = vendorSession.productosActuales ?? '—';
+  document.getElementById('si-limite').textContent    = vendorSession.limiteProductos ?? '—';
+  document.getElementById('si-uid').textContent       = vendorSession.uid || '—';
+  const fechaEl = document.getElementById('si-fecha');
+  if (fechaEl) {
+    fechaEl.textContent = vendorSession.fechaRegistro
+      ? new Date(vendorSession.fechaRegistro).toLocaleDateString('es-MX', {day:'2-digit',month:'short',year:'numeric'})
+      : '—';
+  }
 
-const photoInput = document.getElementById('settings-photo-input');
-if (photoInput && !photoInput._wiredSettings) {
-photoInput._wiredSettings = true;
-photoInput.addEventListener('change', async (e) => {
-const file = e.target.files && e.target.files[0];
-if (!file) return;
-showLoader('Subiendo foto...');
-try {
-await uploadVendorLogo(file);
-showTemporaryMessage('✅ Foto actualizada', 'success');
-updateVendorAvatar();
-openSettingsModal();
-} catch(err) {
-showTemporaryMessage('⚠️ ' + err.message, 'error');
-} finally {
-hideLoader();
-photoInput.value = '';
-}
-});
-}
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  if (typeof loadBeneficiarioDonaciones === 'function') loadBeneficiarioDonaciones();
+  updateDonacionesBadge();
+
+  const photoInput = document.getElementById('settings-photo-input');
+  if (photoInput && !photoInput._wiredSettings) {
+    photoInput._wiredSettings = true;
+    photoInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      showLoader('Subiendo foto...');
+      try {
+        await uploadVendorLogo(file);
+        showTemporaryMessage('✅ Foto actualizada', 'success');
+        updateVendorAvatar();
+        openSettingsModal();
+      } catch(err) {
+        showTemporaryMessage('⚠️ ' + err.message, 'error');
+      } finally {
+        hideLoader();
+        photoInput.value = '';
+      }
+    });
+  }
 }
 
 function closeSettingsModal() {
