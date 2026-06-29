@@ -191,6 +191,137 @@ function getProductsByCategoryIndexed(category) {
 if (!category || category === '') return allProductsIndexed;
 return productsByCategoryMap?.get(category) || [];
 }
+
+
+
+// ── Filtros globales (categorías y tallas) ──
+window.globalCategories = [];
+window.globalSizes = [];
+const FILTER_OPTIONS_CACHE_KEY = 'zr_filter_options_cache';
+const FILTER_OPTIONS_TTL = 60 * 60 * 1000; // 1 hora
+
+async function fetchFilterOptions(force = false) {
+  // 1. Intentar cargar desde localStorage (para modo offline y velocidad)
+  if (!force) {
+    try {
+      const cached = localStorage.getItem(FILTER_OPTIONS_CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        // Validar que tenga timestamp y no esté expirado
+        if (data.timestamp && (Date.now() - data.timestamp) < FILTER_OPTIONS_TTL) {
+          window.globalCategories = data.categories || [];
+          window.globalSizes = data.sizes || [];
+          // Llenar los selects si ya existen en el DOM
+          populateFilterSelects();
+          return;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2. Si no hay caché o expiró, pedir al backend
+  try {
+    const url = new URL(API_URL);
+    url.searchParams.set('action', 'getFilterOptions');
+    const res = await fetch(url.toString());
+    const data = await res.json();
+    if (data.ok) {
+      window.globalCategories = data.categories || [];
+      window.globalSizes = data.sizes || [];
+      // Guardar en localStorage con timestamp
+      try {
+        localStorage.setItem(FILTER_OPTIONS_CACHE_KEY, JSON.stringify({
+          categories: window.globalCategories,
+          sizes: window.globalSizes,
+          timestamp: Date.now()
+        }));
+      } catch (e) {}
+      populateFilterSelects();
+    } else {
+      console.warn('Error al obtener filtros:', data.error);
+    }
+  } catch (err) {
+    console.warn('Error fetching filter options:', err);
+    // Si falla la red y tenemos caché aunque sea vieja, la usamos
+    try {
+      const cached = localStorage.getItem(FILTER_OPTIONS_CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        window.globalCategories = data.categories || [];
+        window.globalSizes = data.sizes || [];
+        populateFilterSelects();
+      }
+    } catch (_) {}
+  }
+}
+
+function populateFilterSelects() {
+  populateCategoryFilterGlobal();
+  populateSizeFilterGlobal();
+}
+
+function populateCategoryFilterGlobal() {
+  const select = document.getElementById("category-filter");
+  if (!select) return;
+  const currentVal = select.value;
+  // Solo reconstruir si hay datos globales
+  if (window.globalCategories.length === 0) return;
+  
+  select.innerHTML = '<option value="">Categorías</option>';
+  window.globalCategories.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = cat;
+    select.appendChild(opt);
+  });
+  // Restaurar selección si el valor sigue existiendo
+  if (currentVal && window.globalCategories.includes(currentVal)) {
+    select.value = currentVal;
+  } else {
+    select.value = "";
+  }
+}
+
+function populateSizeFilterGlobal() {
+  const select = document.getElementById("size-filter");
+  if (!select) return;
+  const currentVal = select.value;
+  if (window.globalSizes.length === 0) return;
+  
+  select.innerHTML = '<option value="">Tallas</option>';
+  window.globalSizes.forEach(sz => {
+    const opt = document.createElement("option");
+    opt.value = sz;
+    opt.textContent = sz;
+    select.appendChild(opt);
+  });
+  if (currentVal && window.globalSizes.includes(currentVal)) {
+    select.value = currentVal;
+  } else {
+    select.value = "";
+  }
+}
+
+// Exponer funciones al ámbito global
+window.fetchFilterOptions = fetchFilterOptions;
+window.populateFilterSelects = populateFilterSelects;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function clearProductIndex() {
 productsByCategoryMap = null;
 allProductsIndexed = [];
@@ -577,7 +708,7 @@ modal.innerHTML = `
 <ul><li>Confirmar tu identidad en las solicitudes de compra</li><li>Enviarte el link de pago cuando el administrador confirme tu pedido</li><li>Coordinar la entrega en tu dirección y horario indicados</li><li>Comunicarnos contigo sobre el estado de tu compra</li></ul>
 <h3>No compartimos tus datos</h3><p>Tu número, dirección y horario NO serán vendidos, cedidos ni compartidos con terceros. Solo serán visibles para el administrador de Z&R para procesar y entregar tu pedido.</p>
 <h3>⏰ Conservación</h3><p>Tus datos se conservarán únicamente durante el tiempo necesario para cumplir con las finalidades descritas. Puedes eliminarlos en cualquier momento desde el panel de Preferencias.</p>
-<h3>Tus derechos (ARCO)</h3><p>Puedes solicitar la eliminación de tus datos escribiendo a: <strong>contacto@zrtienda.com</strong></p>
+<h3>Tus derechos (ARCO)</h3><p>Puedes solicitar la eliminación de tus datos escribiendo a: <strong>znrcomunity@gmail.com</strong></p>
 <p class="privacy-date">Última actualización: Abril 2026</p>
 </div>
 <div class="privacy-modal-footer">
@@ -2201,55 +2332,89 @@ await fetchProductsAPI(true);
 }
 return allProductsIndexed;
 }
-async function loadProductsUnified({ onProducts, onError, force = false } = {}) {
-const deliver = (products, fromCache) => {
-buildProductIndex(products);
-window.allProducts = products;
-onProducts(products, fromCache);
-};
-if (!force) {
-const cached = getCachedProducts();
-if (cached && cached.length > 0) {
-deliver(cached, true);
-if (navigator.onLine) {
-fetch(API_URL)
-.then(r => { if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-.then(data => {
-const fresh = (data.products || data || []).slice(0, 500);
-if (JSON.stringify(fresh) !== JSON.stringify(cached)) {
-setCachedProducts(fresh);
-deliver(fresh, false);
-}
-})
-.catch(() => {});
-}
-return;
-}
-}
-if (!navigator.onLine) {
-const stale = (() => {
-try {
-const raw = localStorage.getItem(CACHE_KEY);
-return raw ? JSON.parse(raw).data : null;
-} catch { return null; }
-})();
-if (stale && stale.length) { deliver(stale, true); return; }
-if (onError) onError(new Error('offline'));
-return;
-}
-try {
-showLoader('Cargando productos...');
-const res = await fetch(API_URL);
-const data = await res.json();
-const products = (data.products || data || []).slice(0, 500);
-setCachedProducts(products);
-deliver(products, false);
-} catch (err) {
-console.error('loadProductsUnified error:', err);
-if (onError) onError(err);
-} finally {
-hideLoader();
-}
+async function loadProductsUnified({ onProducts, onError, force = false, page = 1, limit = 10, filters = {} } = {}) {
+  // Determinar si esta es una petición con filtros/paginación o una carga simple
+  const hasPagination = page > 1 || limit !== 10 || Object.keys(filters).length > 0;
+
+  // Construir URL con todos los parámetros
+  function buildUrl() {
+    const url = new URL(API_URL);
+    url.searchParams.set('action', 'list');
+    url.searchParams.set('page', page);
+    url.searchParams.set('limit', limit);
+    Object.entries(filters).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+    return url.toString();
+  }
+
+  const deliver = (products, fromCache, meta) => {
+    buildProductIndex(products);
+    window.allProducts = products;
+    onProducts(products, fromCache, meta || null);
+  };
+
+  // Solo usamos caché cuando es la carga inicial sin filtros ni paginación
+  if (!force && !hasPagination) {
+    const cached = getCachedProducts();
+    if (cached && cached.length > 0) {
+      // Fabricar un meta aproximado para la primera carga desde caché
+      const cachedMeta = { page: 1, totalPages: 1, total: cached.length };
+      deliver(cached, true, cachedMeta);
+      // Actualizar en background si hay conexión
+      if (navigator.onLine) {
+        fetch(buildUrl())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(data => {
+            const fresh = data.products || [];
+            const meta = { page: data.page || 1, totalPages: data.totalPages || 1, total: data.total || fresh.length };
+            if (JSON.stringify(fresh) !== JSON.stringify(cached)) {
+              setCachedProducts(fresh);
+              deliver(fresh, false, meta);
+            }
+          })
+          .catch(() => {});
+      }
+      return;
+    }
+  }
+
+  // Sin conexión: intentar datos guardados (solo para carga inicial)
+  if (!navigator.onLine) {
+    const stale = (() => {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        return raw ? JSON.parse(raw).data : null;
+      } catch { return null; }
+    })();
+    if (stale && stale.length) {
+      deliver(stale, true, { page: 1, totalPages: 1, total: stale.length });
+      return;
+    }
+    if (onError) onError(new Error('offline'));
+    return;
+  }
+
+  // Petición real al backend con page/limit/filters
+  try {
+    showLoader('Cargando productos...');
+    const res = await fetch(buildUrl());
+    const data = await res.json();
+    const products = data.products || [];
+    const meta = {
+      page: data.page || page,
+      totalPages: data.totalPages || 1,
+      total: data.total || products.length
+    };
+    // Solo guardamos en caché la primera página sin filtros
+    if (page === 1 && Object.keys(filters).length === 0) {
+      setCachedProducts(products);
+    }
+    deliver(products, false, meta);
+  } catch (err) {
+    console.error('loadProductsUnified error:', err);
+    if (onError) onError(err);
+  } finally {
+    hideLoader();
+  }
 }
 function createConnectionBanner() {
 if (connectionBanner) return;
@@ -2379,11 +2544,9 @@ const wasOnline = isOnline;
 isOnline = navigator.onLine;
 if (wasOnline !== isOnline) {
 if (!isOnline) {
-console.log(' Conexión perdida - Activando modo offline');
 showOfflineBanner();
 window.dispatchEvent(new CustomEvent('connection:offline'));
 } else {
-console.log(' Conexión recuperada');
 showOnlineBanner();
 window.dispatchEvent(new CustomEvent('connection:online'));
 if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
@@ -2399,28 +2562,23 @@ loadProducts();
 }
 }, 3000);
 window.addEventListener('online', () => {
-console.log(' Navegador detectó conexión online');
 isOnline = true;
 });
 window.addEventListener('offline', () => {
-console.log(' Navegador detectó conexión offline');
 isOnline = false;
 showOfflineBanner();
 });
 }
 async function registerServiceWorker() {
 if (!('serviceWorker' in navigator)) {
-console.log(' Service Worker no soportado');
 return false;
 }
 try {
 const registration = await navigator.serviceWorker.register('/ZNR/sw.js', {
 scope: '/ZNR/'
 });
-console.log(' Service Worker registrado:', registration.scope);
 navigator.serviceWorker.addEventListener('message', event => {
 if (event.data.type === 'CONNECTION_STATUS') {
-console.log(' Estado desde SW:', event.data.isOnline);
 }
 });
 return true;
@@ -2447,7 +2605,6 @@ showOfflineBanner();
 return true;
 }
 } catch (err) {
-console.log('Error verificando modo offline:', err);
 }
 if (!navigator.onLine) {
 showOfflineBanner();
@@ -2465,6 +2622,7 @@ isOnline: () => navigator.onLine
 };
 document.addEventListener('DOMContentLoaded', async () => {
 loadCartFromStorage();
+if (typeof updateWishlistBadge === 'function') updateWishlistBadge();
 createImageObserver();
 if (typeof renderCart === 'function') {
 renderCart();
@@ -2534,10 +2692,8 @@ if (typeof renderCart === 'function') renderCart();
 updateCartBadge();
 });
 window.addEventListener('connection:offline', () => {
-console.log(' Evento: Conexión perdida');
 });
 window.addEventListener('connection:online', () => {
-console.log(' Evento: Conexión recuperada');
 if (typeof loadProductsInBackground === 'function') {
 deferTask(() => loadProductsInBackground());
 }
@@ -2619,7 +2775,6 @@ window.loadProductsUnified = loadProductsUnified;
 Object.defineProperty(window, 'allProductsIndexed', { get: () => allProductsIndexed, configurable: true });
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
-console.log(' PWA instalable detectada');
 e.preventDefault();
 deferredPrompt = e;
 setTimeout(() => {
@@ -2655,7 +2810,6 @@ if (!deferredPrompt) return;
 installBtn.style.display = 'none';
 deferredPrompt.prompt();
 const { outcome } = await deferredPrompt.userChoice;
-console.log(`Instalación: ${outcome}`);
 deferredPrompt = null;
 };
 document.body.appendChild(installBtn);
@@ -2667,7 +2821,6 @@ setTimeout(() => installBtn.remove(), 300);
 }, 15000);
 }
 if (window.matchMedia('(display-mode: standalone)').matches) {
-console.log(' Z&R ejecutándose como app instalada');
 document.body.classList.add('pwa-mode');
 }
 const style = document.createElement('style');
@@ -2887,7 +3040,13 @@ function updateWishlistBadge() {
 const count = getWishlist().length;
 const badge = document.getElementById("wishlist-count");
 if (badge) badge.textContent = count;
+const bottomBadge = document.getElementById("bottom-wishlist-count");
+if (bottomBadge) {
+bottomBadge.textContent = count;
+bottomBadge.style.display = count > 0 ? '' : 'none';
 }
+}
+window.addEventListener('wishlistUpdated', updateWishlistBadge);
 window.openWishlistDrawer = openWishlistDrawer;
 window.closeWishlistDrawer = closeWishlistDrawer;
 window.renderWishlist = renderWishlist;
@@ -3157,7 +3316,6 @@ async function clientCancelOrder(requestId) {
 });
 
           const responseText = await res.text();
-          console.log('📨 Respuesta cruda del servidor:', responseText);
 
           let data;
           try {
@@ -3321,7 +3479,7 @@ ${savedAddress?`<button class="up-danger-btn" id="up-delete-address-btn"><svg xm
 <p class="up-privacy-note">Tus datos se guardan únicamente en este dispositivo y se usan solo para agilizar
 el proceso de compra. Puedes eliminarlos en cualquier momento.
 Para solicitar eliminación de datos en nuestros registros escríbenos a
-<strong>contacto@zrtienda.com</strong>
+<strong>znrcomunity@gmail.com</strong>
 </p>
 </section>
 </div>

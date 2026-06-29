@@ -811,44 +811,6 @@ themeBtn.textContent = isDark ? '' : '';
 }
 });
 }
-function updateCartBadge() {
-const cart = JSON.parse(localStorage.getItem('cart') || '{}');
-const count = Object.values(cart).reduce((sum, item) => sum + (item.quantity || 0), 0);
-const cartBtn = document.getElementById('cart-icon-home');
-if (!cartBtn) return;
-let badge = cartBtn.querySelector('.cart-badge');
-if (count > 0) {
-if (!badge) {
-badge = document.createElement('span');
-badge.className = 'cart-badge';
-badge.style.cssText = 'position: absolute; top: -5px; right: -5px; background:var(--color-accent,#ff4f81); color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;';
-cartBtn.style.position = 'relative';
-cartBtn.appendChild(badge);
-}
-badge.textContent = count;
-} else {
-if (badge) badge.remove();
-}
-}
-function updateWishlistBadge() {
-const wishlist = JSON.parse(localStorage.getItem('zr_wishlist') || '[]');
-const count = wishlist.length;
-const wishlistBtn = document.getElementById('wishlist-icon-home');
-if (!wishlistBtn) return;
-let badge = wishlistBtn.querySelector('.wishlist-badge');
-if (count > 0) {
-if (!badge) {
-badge = document.createElement('span');
-badge.className = 'wishlist-badge';
-badge.style.cssText = 'position: absolute; top: -5px; right: -5px; background:var(--color-accent,#ff4f81); color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;';
-wishlistBtn.style.position = 'relative';
-wishlistBtn.appendChild(badge);
-}
-badge.textContent = count;
-} else {
-if (badge) badge.remove();
-}
-}
 document.addEventListener('DOMContentLoaded', async () => {
 await loadProducts();
 initCartAndWishlist();

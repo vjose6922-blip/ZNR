@@ -1,175 +1,258 @@
 (function () {
-'use strict';
+  'use strict';
 
-const EM_KEY       = 'zr_error_queue';
-const EM_MAX_LOCAL = 50;
-const EM_DEBOUNCE  = 3000;
+  const EM_KEY              = 'zr_error_queue';
+  const EM_MAX_LOCAL        = 100;
+  const EM_DEBOUNCE         = 1000;
+  const EM_MAX_SENDS_PER_LOAD = 40; // límite de seguridad: no saturar el backend si hay un loop de errores
 
-let _lastErrors = {};
-let _queue      = [];
+  let _lastErrors = {};
+  let _queue      = [];
+  let _sendsThisLoad = 0;
 
-window.ZRMonitor = {
-  report,
-  flush,
-};
+  // Cargar errores previos al inicio
+  try {
+    const stored = JSON.parse(localStorage.getItem(EM_KEY) || '[]');
+    _queue = stored.slice(0, EM_MAX_LOCAL);
+  } catch (_) {}
 
-function report(level, source, action, message) {
-  const key = `${source}:${action}:${message}`;
-  const now = Date.now();
-
-  if (_lastErrors[key] && now - _lastErrors[key] < EM_DEBOUNCE) return;
-  _lastErrors[key] = now;
-
-  const entry = {
-    ts:      new Date().toISOString(),
-    level,
-    source,
-    action,
-    message: String(message).slice(0, 300),
-    url:     window.location.pathname.split('/').pop(),
-    ua:      navigator.userAgent.slice(0, 80),
+  window.ZRMonitor = {
+    report,
+    flush,
+    getErrors: () => _queue.slice(),
+    clear: () => { _queue = []; persistQueue(); }
   };
 
-  _queue.push(entry);
-  persistQueue();
+  function report(level, source, action, message, extra = {}) {
+    const key = `${source}:${action}:${message}`;
+    const now = Date.now();
 
-  sendEntry(entry);
-}
+    if (_lastErrors[key] && now - _lastErrors[key] < EM_DEBOUNCE) return;
+    _lastErrors[key] = now;
 
-function persistQueue() {
-  try {
-    const stored = loadQueue();
-    const merged = [...stored, ..._queue].slice(-EM_MAX_LOCAL);
-    localStorage.setItem(EM_KEY, JSON.stringify(merged));
-    _queue = [];
-  } catch (_) {}
-}
+    const entry = {
+      ts:      new Date().toISOString(),
+      level,
+      source,
+      action,
+      message: String(message).slice(0, 300),
+      url:     window.location.pathname.split('/').pop(),
+      ua:      navigator.userAgent.slice(0, 80),
+      filename: extra.filename || '',
+      lineno:   extra.lineno   || 0,
+      colno:    extra.colno    || 0,
+      stack:    (extra.stack || '').slice(0, 500),
+    };
 
-function loadQueue() {
-  try { return JSON.parse(localStorage.getItem(EM_KEY) || '[]'); }
-  catch (_) { return []; }
-}
+    _queue.push(entry);
+    if (_queue.length > EM_MAX_LOCAL) _queue.shift();
+    persistQueue();
 
-async function sendEntry(entry) {
-  const api = window.API_URL;
-  if (!api) return;
-  try {
-    const params = new URLSearchParams({
-      action:  'logError',
-      nivel:   entry.level,
-      fuente:  entry.source,
-      accion:  entry.action,
-      mensaje: entry.message,
-      url:     entry.url,
-      ts:      entry.ts,
-    });
-    await fetch(api, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body:    params.toString(),
-    });
-  } catch (_) {
-
+    // Enviar al servidor con los nuevos campos
+    sendEntry(entry);
   }
-}
 
-async function flush() {
-  const queue = loadQueue();
-  if (!queue.length) return;
-  for (const entry of queue) await sendEntry(entry);
-  localStorage.removeItem(EM_KEY);
-}
+  function persistQueue() {
+    try {
+      localStorage.setItem(EM_KEY, JSON.stringify(_queue));
+    } catch (_) {}
+  }
 
-window.addEventListener('load', () => setTimeout(flush, 4000));
+  async function sendEntry(entry) {
+    const api = window.API_URL;
+    if (!api) return;
+    if (_sendsThisLoad >= EM_MAX_SENDS_PER_LOAD) return; // ya está en localStorage, se reintentará en el próximo flush()
+    _sendsThisLoad++;
+    try {
+      const params = new URLSearchParams({
+        action:   'logError',
+        nivel:    entry.level,
+        fuente:   entry.source,
+        accion:   entry.action,
+        mensaje:  entry.message,
+        url:      entry.url,
+        ua:       entry.ua,
+        filename: entry.filename,
+        lineno:   entry.lineno,
+        colno:    entry.colno,
+        stack:    entry.stack,
+        ts:       entry.ts,
+      });
+      await fetch(api, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    params.toString(),
+      });
+    } catch (_) {
+      // Si falla el envío, no importa, ya está en localStorage
+    }
+  }
 
-window.addEventListener('error', (e) => {
+  async function flush() {
+    const queue = _queue.slice();
+    for (const entry of queue) {
+      await sendEntry(entry);
+    }
+  }
 
-  if (!e.message || e.message.includes('ResizeObserver') || e.message.includes('Script error')) return;
-  report('ERROR', e.filename ? e.filename.split('/').pop() : 'global', 'uncaughtError', e.message);
-});
+  // ─── Manejo unificado de eventos (propios + heredados del buffer temprano) ───
 
-window.addEventListener('unhandledrejection', (e) => {
-  const msg = e.reason?.message || String(e.reason).slice(0, 200);
-  if (!msg || msg === 'undefined') return;
-  report('ERROR', 'promise', 'unhandledRejection', msg);
-});
+  function handleScriptError(payload) {
+    // Ignorar ruido conocido: loops del ResizeObserver y errores opacos
+    // de scripts cross-origin sin CORS (no traen información útil)
+    if (!payload.message ||
+        payload.message.includes('ResizeObserver') ||
+        payload.message.includes('Script error')) return;
 
+    const filename = payload.filename || '';
+    report(
+      'ERROR',
+      filename.split('/').pop() || 'global',
+      'uncaughtError',
+      payload.message,
+      { filename, lineno: payload.lineno, colno: payload.colno, stack: payload.stack }
+    );
+  }
+
+  function handleResourceError(payload) {
+    report(
+      'ERROR',
+      (payload.tag || 'recurso').toUpperCase(),
+      'resourceLoadError',
+      payload.message,
+      { filename: payload.url || '' }
+    );
+  }
+
+  function handleRejection(payload) {
+    if (!payload.message || payload.message === 'undefined') return;
+    report(
+      'ERROR',
+      'promise',
+      'unhandledRejection',
+      payload.message,
+      { filename: 'promise', stack: payload.stack }
+    );
+  }
+
+  function handleCSP(payload) {
+    report(
+      'CRÍTICO',
+      'csp',
+      'cspViolation',
+      payload.message,
+      { filename: payload.sourceFile || payload.blockedURI || '', lineno: payload.lineNumber || 0 }
+    );
+  }
+
+  function handleEarlyEvent(type, payload) {
+    switch (type) {
+      case 'script':      return handleScriptError(payload);
+      case 'resource':    return handleResourceError(payload);
+      case 'rejection':   return handleRejection(payload);
+      case 'csp':         return handleCSP(payload);
+    }
+  }
+
+  // ─── 1) Drenar lo que pasó ANTES de que este script cargara ───
+  // (capturado por error-bootstrap.js, que debe cargar primero)
+  if (Array.isArray(window.__zrEarlyErrors) && window.__zrEarlyErrors.length) {
+    window.__zrEarlyErrors.forEach(item => handleEarlyEvent(item.type, item.payload));
+    window.__zrEarlyErrors = [];
+  }
+
+  // ─── 2) A partir de ahora, los eventos van directo a nuestro manejador ───
+  // (sin esto, error-bootstrap.js seguiría solo guardándolos en el buffer)
+  window.__zrEarlyHandler = handleEarlyEvent;
+
+  // Si por algún motivo error-bootstrap.js no se cargó en esta página
+  // (p. ej. una página vieja a la que aún no se le agregó), registramos
+  // los listeners aquí también como respaldo. No genera duplicados
+  // porque solo ocurre cuando el bootstrap nunca corrió.
+  if (!window.__zrBootstrapLoaded) {
+    window.addEventListener('error', (e) => {
+      const isResourceError = !e.message && e.target && e.target !== window;
+      if (isResourceError) {
+        const el = e.target;
+        handleResourceError({ tag: (el.tagName || '?').toLowerCase(), url: el.src || el.href || '', message: `No se pudo cargar <${(el.tagName || '?').toLowerCase()}>: ${el.src || el.href || ''}` });
+      } else {
+        handleScriptError({ message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno, stack: e.error?.stack || '' });
+      }
+    }, true);
+    window.addEventListener('unhandledrejection', (e) => {
+      handleRejection({ message: e.reason?.message || String(e.reason).slice(0, 200), stack: e.reason?.stack || '' });
+    });
+    document.addEventListener('securitypolicyviolation', (e) => {
+      handleCSP({ message: `CSP bloqueó "${e.violatedDirective}": ${e.blockedURI}`, sourceFile: e.sourceFile, lineNumber: e.lineNumber, blockedURI: e.blockedURI });
+    });
+  }
+
+  // ─── Función para mostrar errores en el panel (opcional) ──
+
+  window.showErrorLog = function() {
+    const errors = _queue.slice().reverse();
+    if (!errors.length) {
+      alert('No hay errores registrados.');
+      return;
+    }
+
+    let html = `<div style="font-family:monospace;font-size:13px;max-height:80vh;overflow-y:auto;padding:10px;">`;
+    html += `<h3>📋 Registro de errores (${errors.length})</h3>`;
+    html += `<table style="width:100%;border-collapse:collapse;text-align:left;">`;
+    html += `<tr><th>Fecha</th><th>Nivel</th><th>Fuente</th><th>Acción</th><th>Mensaje</th></tr>`;
+    errors.forEach(e => {
+      const fecha = new Date(e.ts).toLocaleString('es-MX');
+      const color = e.level === 'CRÍTICO' ? '#ef4444' : '#f97316';
+      html += `<tr style="border-bottom:1px solid #eee;">`;
+      html += `<td style="padding:4px 8px;">${fecha}</td>`;
+      html += `<td style="padding:4px 8px;color:${color};font-weight:700;">${e.level}</td>`;
+      html += `<td style="padding:4px 8px;">${e.source || e.filename || '?'}</td>`;
+      html += `<td style="padding:4px 8px;">${e.action || ''}</td>`;
+      html += `<td style="padding:4px 8px;">${e.message}</td>`;
+      html += `</tr>`;
+      if (e.filename || e.lineno) {
+        html += `<tr><td colspan="5" style="padding:0 8px 4px 8px;color:#aaa;font-size:11px;">${e.filename || ''}${e.lineno ? ':' + e.lineno + ':' + e.colno : ''}</td></tr>`;
+      }
+      if (e.stack) {
+        html += `<tr><td colspan="5" style="padding:2px 8px 10px 8px;color:#888;font-size:11px;white-space:pre-wrap;">${e.stack}</td></tr>`;
+      }
+    });
+    html += `</table>`;
+    html += `<div style="margin-top:10px;display:flex;gap:10px;">`;
+    html += `<button onclick="ZRMonitor.clear();alert('Errores borrados');location.reload();" style="padding:6px 14px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;">🗑️ Borrar todos</button>`;
+    html += `<button onclick="document.getElementById('error-log-modal').remove();" style="padding:6px 14px;border:none;border-radius:6px;background:#666;color:#fff;cursor:pointer;">Cerrar</button>`;
+    html += `</div></div>`;
+
+    const modal = document.createElement('div');
+    modal.id = 'error-log-modal';
+    modal.style.cssText = `
+      position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+      z-index:99999; display:flex; align-items:center; justify-content:center;
+      padding:20px;
+    `;
+    modal.innerHTML = `<div style="background:#fff; border-radius:16px; max-width:800px; width:100%; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">${html}</div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  };
+
+  // ─── Asegurar que la cola se envíe aunque el usuario cierre/minimice rápido ──
+
+  function flushOnExit() {
+    if (_queue.length) flush();
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushOnExit();
+  });
+  window.addEventListener('pagehide', flushOnExit);
+
+  // ─── Inicialización ──────────────────────────────────────────
+
+  console.log(`📊 ZRMonitor: ${_queue.length} errores en caché local.`);
+  console.log('💡 Para ver errores guardados, ejecuta: ZRMonitor.getErrors()');
+  console.log('💡 Para mostrar panel: showErrorLog()');
+
+  window.addEventListener('load', () => setTimeout(flush, 3000));
 })();
-
-let _cachedErrorLog = [];
-
-async function loadErrorLog() {
-  const list = document.getElementById('em-list');
-  if (!list) return;
-  list.innerHTML = '<p style="color:var(--color-text-muted);text-align:center;padding:20px">Cargando...</p>';
-
-  const local = (() => { try { return JSON.parse(localStorage.getItem('zr_error_queue') || '[]'); } catch(_){return[];} })();
-
-  try {
-    const api = window.API_URL;
-    if (!api) throw new Error('API no disponible');
-    const params = new URLSearchParams({ action: 'obtenerErrorLog', token: sessionStorage.getItem('admin_token') || '' });
-    const res  = await fetch(api, { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: params.toString() });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Error del servidor');
-
-    _cachedErrorLog = [...(data.errors || []), ...local].sort((a, b) => new Date(b.ts) - new Date(a.ts));
-  } catch (_) {
-
-    _cachedErrorLog = local.sort((a, b) => new Date(b.ts) - new Date(a.ts));
-  }
-
-  renderErrorLog();
-}
-
-function renderErrorLog() {
-  const list   = document.getElementById('em-list');
-  const filter = document.getElementById('em-filter')?.value || 'all';
-  const badge  = document.getElementById('em-badge');
-  if (!list) return;
-
-  const entries = filter === 'all' ? _cachedErrorLog : _cachedErrorLog.filter(e => e.level === filter || e.nivel === filter);
-
-  const critCount = _cachedErrorLog.filter(e => (e.level || e.nivel) === 'CRÍTICO').length;
-  if (badge) { badge.textContent = critCount; badge.style.display = critCount ? 'inline-block' : 'none'; }
-
-  if (!entries.length) {
-    list.innerHTML = '<p style="color:var(--color-text-muted);text-align:center;padding:20px">Sin errores registrados</p>';
-    return;
-  }
-
-  const rows = entries.slice(0, 100).map(e => {
-    const level   = e.level   || e.nivel   || 'ERROR';
-    const source  = e.source  || e.fuente  || '?';
-    const action  = e.action  || e.accion  || '?';
-    const message = e.message || e.mensaje || '?';
-    const ts      = e.ts ? new Date(e.ts).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '';
-    const color   = level === 'CRÍTICO' ? '#ef4444' : '#f97316';
-    const bg      = level === 'CRÍTICO' ? 'rgba(239,68,68,0.08)' : 'rgba(249,115,22,0.06)';
-
-    return `<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:${bg};margin-bottom:8px;border-left:3px solid ${color}">
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
-          <span style="background:${color};color:#fff;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:700">${escapeHtml(level)}</span>
-          <span style="color:var(--color-text-soft);font-size:11px">${ts}</span>
-          <span style="color:var(--color-text-soft);font-size:11px">${escapeHtml(source)} › ${escapeHtml(action)}</span>
-        </div>
-        <div style="color:var(--color-text-main);font-size:13px">${escapeHtml(message)}</div>
-      </div>
-    </div>`;
-  }).join('');
-
-  list.innerHTML = rows + (entries.length > 100 ? `<p style="color:var(--color-text-soft);font-size:12px;text-align:center">Mostrando los últimos 100 de ${entries.length}</p>` : '');
-}
-
-async function clearErrorLog() {
-  if (!confirm('¿Limpiar el log de errores? No se puede deshacer.')) return;
-  localStorage.removeItem('zr_error_queue');
-  _cachedErrorLog = [];
-  try {
-    const api = window.API_URL;
-    const params = new URLSearchParams({ action: 'limpiarErrorLog', token: sessionStorage.getItem('admin_token') || '' });
-    await fetch(api, { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: params.toString() });
-  } catch (_) {}
-  renderErrorLog();
-}

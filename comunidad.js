@@ -36,6 +36,10 @@ function getComunidadCache() {
 }
 
 function invalidateComunidadCache() {
+  currentPage = 1;
+  totalPagesGlobal = 1;
+  allCommunityProducts = [];
+  filteredProducts = [];
   sessionStorage.removeItem(COMUNIDAD_CACHE_KEY);
   localStorage.removeItem(COMUNIDAD_CACHE_KEY);
 }
@@ -72,10 +76,12 @@ if (typeof window.showTemporaryMessage !== 'function') {
 window.showTemporaryMessage = function(msg, type) { console.log(msg); };
 console.warn(' showTemporaryMessage no definida');
 }
-const PAGE_SIZE = 15;
-let allCommunityProducts = [];
-let filteredProducts = [];
-let currentPage = 1;
+const PAGE_SIZE = 15;             // productos por página
+let allCommunityProducts = [];    // productos de la página actual (ya paginados)
+let filteredProducts = [];        // alias de allCommunityProducts para compatibilidad
+let currentPage = 1;              // página actual
+let totalPagesGlobal = 1;         // total de páginas devuelto por el backend
+let currentFilters = {};          // filtros activos (para mantenerlos al cambiar página)
 let isLoading = false;
 let gridContainer, catSelect, vendorSelect, paginationDiv;
 let debounceTimer = null;
@@ -182,154 +188,98 @@ const cards = Array.from({length: count}, () => `
 container.innerHTML = cards;
 }
 
-async function loadCommunityProducts() {
-  if (!window.API_URL) {
-    console.error('API_URL no definida');
-    if (gridContainer) gridContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--color-error,#ef4444);">Error de configuración. Recarga la página.</div>';
-    return;
-  }
-  if (isLoading) return;
+// ── Construye la URL de la API con los parámetros actuales ──────────────────
+function buildComunidadUrl(page, filters) {
+  const u = new URL(window.API_URL);
+  u.searchParams.set('action', 'listarComunidad');
+  u.searchParams.set('page',   String(page));
+  u.searchParams.set('limit',  String(PAGE_SIZE));
+  if (filters.categoria)  u.searchParams.set('categoria',    filters.categoria);
+  if (filters.busqueda)   u.searchParams.set('busqueda',     filters.busqueda);
+  if (filters.vendedor)   u.searchParams.set('vendedor_uid', filters.vendedor);
+  if (filters.soloPro)    u.searchParams.set('soloPro',      'true');
+  if (inspectorMode)      u.searchParams.set('admin',        'true');
+  return u.toString();
+}
+
+// ── Carga y renderiza una página de productos desde el backend ───────────────
+async function loadComunidadPage(page, filters, opts = {}) {
+  if (isLoading && !opts.force) return;
   isLoading = true;
 
-  const cachedProducts = getComunidadCache();
+  const isFirstLoad = !opts.isPageChange;
 
-
-  async function fetchAndRender(fromCache = false) {
-    try {
-      const url = window.API_URL;
-      console.log("🔍 Cargando comunidad desde:", url);
-
-      const getUrl = (() => { const u = new URL(url); u.searchParams.set('action','listarComunidad'); return u.toString(); })();
-
-      // Wrapper: hace el fetch y devuelve null en caso de fallo (nunca rechaza)
-      const tryFetch = (fetchUrl, opts, label) => {
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 10000);
-        return fetch(fetchUrl, { ...opts, signal: controller.signal })
-          .then(r => { clearTimeout(tid); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-          .then(data => ({ data, label }))
-          .catch(err => { clearTimeout(tid); console.warn(`⚠️ ${label} falló:`, err.message); return null; });
-      };
-
-      const postPromise = tryFetch(url,    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'listarComunidad' }) }, 'POST');
-      const getPromise  = tryFetch(getUrl, { method: 'GET',  headers: { 'Accept': 'application/json' } }, 'GET');
-
-      // El primero en resolver con valor no-null gana
-      let result = null;
-      await Promise.all([
-        postPromise.then(r => { if (r && !result) { result = r; console.log(`✅ Comunidad cargada vía ${r.label}`); } }),
-        getPromise.then( r => { if (r && !result) { result = r; console.log(`✅ Comunidad cargada vía ${r.label}`); } }),
-      ]);
-
-      if (!result) {
-        throw new Error('No se pudo conectar con el servidor (POST y GET fallaron)');
-      }
-
-      const data = result.data;
-
-      if (!data.ok && data.ok !== undefined) {
-        throw new Error(data.error || 'Error devuelto por el servidor');
-      }
-
-      const fresh = (data.products || []).filter(p => {
-        const estado = (p.estado || '').toLowerCase().trim();
-        return estado === 'aprobado' || estado === 'approved' || estado === 'activo';
-      });
-
-      if (fromCache && JSON.stringify(fresh) === JSON.stringify(allCommunityProducts)) {
-        console.log("📦 Los datos en caché ya están actualizados");
-        isLoading = false;
-        return;
-      }
-
-      setComunidadCache(fresh);
-      allCommunityProducts = fresh;
-      window.allCommunityProductsIndexed = allCommunityProducts;
-      filteredProducts = [...allCommunityProducts];
-
-      if (!fromCache) currentPage = 1;
-      populateFilters();
-      renderPage();
-      if (typeof window.hideLoader === 'function') window.hideLoader();
-      isLoading = false;
-      return;
-
-    } catch (err) {
-      if (!fromCache) throw err;
-      console.warn('Actualización background comunidad falló:', err);
-      isLoading = false;
-    }
-  }
-
-  if (cachedProducts && cachedProducts.length > 0) {
-    allCommunityProducts = cachedProducts;
-    window.allCommunityProductsIndexed = allCommunityProducts;
-    filteredProducts = [...allCommunityProducts];
-    currentPage = 1;
-    if (typeof window.hideLoader === 'function') window.hideLoader();
-    populateFilters();
-
-    const urlFilters = getFiltersFromURL();
-    if (urlFilters.busqueda) {
-      const searchInput = document.getElementById('comunidad-search');
-      if (searchInput) searchInput.value = urlFilters.busqueda;
-      filteredProducts = filterProducts(cachedProducts, urlFilters);
-    }
-    if (urlFilters.soloPro) {
-      const soloProEl = document.getElementById('comunidad-solo-pro');
-      const soloProLabel = document.getElementById('comunidad-pro-label');
-      if (soloProEl) soloProEl.checked = true;
-      if (soloProLabel) soloProLabel.classList.add('active');
-    }
-
-    renderPage();
-    if (navigator.onLine) fetchAndRender(true);
+  if (!window.API_URL) {
+    if (gridContainer) gridContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--color-error,#ef4444);">Error de configuración. Recarga la página.</div>';
     isLoading = false;
-    handleInitialHashComunidad();
     return;
   }
 
-  if (typeof window.showLoader === 'function') window.showLoader('Cargando comunidad...');
-  if (gridContainer) showSkeletonComunidad(gridContainer, 6);
+  // En la primera carga mostramos caché mientras llega la red
+  if (isFirstLoad && !opts.force) {
+    const cached = getComunidadCache();
+    if (cached && cached.length > 0) {
+      allCommunityProducts = cached;
+      filteredProducts     = [...cached];
+      totalPagesGlobal     = 1; // caché no tiene meta, asumimos 1 página
+      currentPage          = 1;
+      renderProducts();
+      if (typeof window.hideLoader === 'function') window.hideLoader();
+    } else {
+      if (gridContainer) showSkeletonComunidad(gridContainer, 6);
+      if (typeof window.showLoader === 'function') window.showLoader('Cargando comunidad...');
+    }
+  } else if (opts.isPageChange) {
+    if (gridContainer) showSkeletonComunidad(gridContainer, PAGE_SIZE);
+  }
 
   try {
-    await fetchAndRender(false);
-    allCommunityProducts = allCommunityProducts;
-    window.allCommunityProductsIndexed = allCommunityProducts;
-    filteredProducts = [...allCommunityProducts];
-    currentPage = 1;
-    populateFilters();
+    const url = buildComunidadUrl(page, filters);
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(tid);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error del servidor');
 
-    const urlFilters = getFiltersFromURL();
-    if (urlFilters.busqueda) {
-      const searchInput = document.getElementById('comunidad-search');
-      if (searchInput) searchInput.value = urlFilters.busqueda;
+    // Actualizar estado global
+    currentPage      = data.page      || page;
+    totalPagesGlobal = data.totalPages || 1;
+    allCommunityProducts = data.products || [];
+    filteredProducts     = [...allCommunityProducts];
+    window.allCommunityProductsIndexed = allCommunityProducts;
+
+    // Poblar dropdowns de filtros solo en la primera carga (el backend los manda en page=1)
+    if (data.filterOptions) {
+      populateFiltersFromOptions(data.filterOptions);
     }
-    if (urlFilters.categoria && catSelect) {
-      const optionExists = Array.from(catSelect.options).some(opt => opt.value === urlFilters.categoria);
-      if (optionExists) catSelect.value = urlFilters.categoria;
+
+    // Cachear solo la primera página sin filtros (igual que en script.js)
+    if (page === 1 && !filters.categoria && !filters.busqueda && !filters.vendedor && !filters.soloPro) {
+      setComunidadCache(allCommunityProducts);
     }
-    if (urlFilters.vendedor && vendorSelect) {
-      const optionExists = Array.from(vendorSelect.options).some(opt => opt.value === urlFilters.vendedor);
-      if (optionExists) vendorSelect.value = urlFilters.vendedor;
-    }
-    if (urlFilters.soloPro) {
-      const soloProEl = document.getElementById('comunidad-solo-pro');
-      const soloProLabel = document.getElementById('comunidad-pro-label');
-      if (soloProEl) soloProEl.checked = true;
-      if (soloProLabel) soloProLabel.classList.add('active');
-    }
-    applyFilters();
+
+    renderProducts();
     handleInitialHashComunidad();
 
   } catch (err) {
-    console.error('Error en loadCommunityProducts:', err);
-    if(window.ZRMonitor) ZRMonitor.report('CRÍTICO','comunidad.js','loadCommunityProducts', err.message||String(err));
-    if (gridContainer) {
+    console.error('Error loadComunidadPage:', err);
+    if (window.ZRMonitor) ZRMonitor.report('CRÍTICO','comunidad.js','loadComunidadPage', err.message || String(err));
+    // Si falla y hay caché, la usamos como respaldo
+    const cached = getComunidadCache();
+    if (cached && cached.length > 0 && allCommunityProducts.length === 0) {
+      allCommunityProducts = cached;
+      filteredProducts     = [...cached];
+      renderProducts();
+      if (typeof window.showTemporaryMessage === 'function') {
+        window.showTemporaryMessage('⚠️ Mostrando datos guardados — sin conexión', 'info');
+      }
+    } else if (allCommunityProducts.length === 0 && gridContainer) {
       gridContainer.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--color-error,#ef4444);">
         Error al cargar productos de la comunidad.<br>
         <small style="color:var(--color-text-muted,#888);font-size:11px;">${err.message || ''}</small><br>
-        <button onclick="location.reload()" style="margin-top:12px; padding:8px 20px; border-radius:30px; border:none; background:#ff4f81; color:white; cursor:pointer; font-weight:600;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-refresh"/></svg> Reintentar</button>
+        <button onclick="loadComunidadPage(1,{})" style="margin-top:12px; padding:8px 20px; border-radius:30px; border:none; background:#ff4f81; color:white; cursor:pointer; font-weight:600;">🔄 Reintentar</button>
       </div>`;
     }
   } finally {
@@ -338,88 +288,94 @@ async function loadCommunityProducts() {
   }
 }
 
+// Alias para compatibilidad con llamadas existentes (ej: botón reintentar)
+function loadCommunityProducts() {
+  const urlFilters = getFiltersFromURL();
+  // Aplicar filtros URL a los inputs si existen
+  if (urlFilters.busqueda) {
+    const el = document.getElementById('comunidad-search');
+    if (el) el.value = urlFilters.busqueda;
+  }
+  if (urlFilters.soloPro) {
+    const el = document.getElementById('comunidad-solo-pro');
+    const lbl = document.getElementById('comunidad-pro-label');
+    if (el) el.checked = true;
+    if (lbl) lbl.classList.add('active');
+  }
+  currentFilters = urlFilters;
+  return loadComunidadPage(1, urlFilters);
+}
+
+// Pobla los dropdowns con las opciones que devuelve el backend en page=1
+function populateFiltersFromOptions(filterOptions) {
+  if (catSelect && filterOptions.categories) {
+    const currentVal = catSelect.value;
+    catSelect.innerHTML = '<option value="">Categorías</option>';
+    filterOptions.categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat; opt.textContent = cat;
+      catSelect.appendChild(opt);
+    });
+    if (currentVal) catSelect.value = currentVal;
+  }
+  if (vendorSelect && filterOptions.vendors) {
+    const currentVal = vendorSelect.value;
+    vendorSelect.innerHTML = '<option value="">Vendedores</option>';
+    filterOptions.vendors.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      vendorSelect.appendChild(opt);
+    });
+    if (currentVal) vendorSelect.value = currentVal;
+  }
+}
+
+// Alias para cuando el backend no devuelve filterOptions (páginas > 1 o caché)
 function populateFilters() {
-if (catSelect) {
-const categories = new Set();
-allCommunityProducts.forEach(p => { if (p.categoria) categories.add(safeString(p.categoria)); });
-const currentVal = catSelect.value;
-catSelect.innerHTML = '<option value="">Categorías</option>';
-Array.from(categories).sort().forEach(cat => {
-const opt = document.createElement('option');
-opt.value = cat;
-opt.textContent = cat;
-catSelect.appendChild(opt);
-});
-if (currentVal && categories.has(currentVal)) catSelect.value = currentVal;
-else catSelect.value = '';
+  // No-op: los filtros se pueblan desde la respuesta del backend (filterOptions en page=1)
+  // Si no hay datos aún, no hacemos nada para no romper los selects
 }
-if (vendorSelect) {
-const vendors = new Map();
-allCommunityProducts.forEach(p => {
-if (p.vendedor_nombre) vendors.set(safeString(p.vendedor_nombre), safeString(p.vendedor_nombre));
-});
-const currentVal = vendorSelect.value;
-vendorSelect.innerHTML = '<option value="">Vendedores</option>';
-Array.from(vendors.keys()).sort().forEach(v => {
-const opt = document.createElement('option');
-opt.value = v;
-opt.textContent = v;
-vendorSelect.appendChild(opt);
-});
-if (currentVal && vendors.has(currentVal)) vendorSelect.value = currentVal;
-else vendorSelect.value = '';
-}
-}
+
+// Recolecta los filtros de los inputs y dispara una nueva petición al backend (página 1)
 function applyFilters() {
-try {
-const searchTerm = getSearchValue();
-const category = catSelect ? catSelect.value : '';
-const vendor = vendorSelect ? vendorSelect.value : '';
-const soloProEl = document.getElementById('comunidad-solo-pro');
-const soloPro = soloProEl ? soloProEl.checked : false;
-filteredProducts = allCommunityProducts.filter(p => {
-const nombre = safeString(p.nombre);
-const descripcion = safeString(p.descripcion);
-const categoria = safeString(p.categoria);
-const vendedorNombre = safeString(p.vendedor_nombre);
-const matchSearch = !searchTerm ||
-nombre.toLowerCase().includes(searchTerm) ||
-descripcion.toLowerCase().includes(searchTerm);
-const matchCategory = !category || (categoria === category);
-const matchVendor = !vendor || (vendedorNombre === vendor);
-const matchPro = !soloPro || p.vendedor_plan === 'plus';
-return matchSearch && matchCategory && matchVendor && matchPro;
-});
-currentPage = 1;
-renderProducts();
-} catch (err) {
-console.error('Error en applyFilters:', err);
-}
+  try {
+    const busqueda  = getSearchValue();
+    const categoria = catSelect ? catSelect.value : '';
+    const soloProEl = document.getElementById('comunidad-solo-pro');
+    const soloPro   = soloProEl ? soloProEl.checked : false;
+    // vendedor_uid: si hay un select de vendedores por nombre en el futuro, aquí se agrega
+    const filters = { busqueda, categoria, soloPro };
+    // Eliminar vacíos
+    Object.keys(filters).forEach(k => { if (!filters[k]) delete filters[k]; });
+    currentFilters = filters;
+    loadComunidadPage(1, filters, { isPageChange: false });
+    updateURLWithFilters();
+  } catch (err) {
+    console.error('Error en applyFilters:', err);
+  }
 }
 function renderProducts() {
 if (!gridContainer) return;
 try {
-const start = (currentPage - 1) * PAGE_SIZE;
-const pageProducts = filteredProducts.slice(start, start + PAGE_SIZE);
-if (pageProducts.length === 0) {
-gridContainer.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px;">No hay productos que coincidan con los filtros.
-</div>`;
-renderPagination();
-return;
-}
-gridContainer.innerHTML = '';
-pageProducts.forEach(product => {
-const card = createCommunityCard(product);
-if (card) gridContainer.appendChild(card);
-});
-const savedLayout = localStorage.getItem('products_layout') || 'grid';
-if (savedLayout === 'grid') gridContainer.classList.add('layout-grid');
-else gridContainer.classList.remove('layout-grid');
-renderPagination();
-initLazyImages();
+  // Los productos ya vienen paginados desde el backend — renderizamos todo el array
+  if (filteredProducts.length === 0) {
+    gridContainer.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px;">No hay productos que coincidan con los filtros.</div>`;
+    renderPagination();
+    return;
+  }
+  gridContainer.innerHTML = '';
+  filteredProducts.forEach(product => {
+    const card = createCommunityCard(product);
+    if (card) gridContainer.appendChild(card);
+  });
+  const savedLayout = localStorage.getItem('products_layout') || 'grid';
+  if (savedLayout === 'grid') gridContainer.classList.add('layout-grid');
+  else gridContainer.classList.remove('layout-grid');
+  renderPagination();
+  initLazyImages();
 } catch (err) {
-console.error('Error en renderProducts:', err);
-gridContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:red;">Error al mostrar productos. Revisa la consola.</div>';
+  console.error('Error en renderProducts:', err);
+  gridContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:red;">Error al mostrar productos. Revisa la consola.</div>';
 }
 }
 function handleInitialHashComunidad() {
@@ -428,14 +384,9 @@ const hash = window.location.hash;
 if (!hash || !hash.startsWith('#producto-')) return;
 initialHashHandledComunidad = true;
 const id = hash.replace('#producto-', '');
-const idx = filteredProducts.findIndex(p => String(p.id) === String(id));
-if (idx !== -1) {
-const targetPage = Math.floor(idx / PAGE_SIZE) + 1;
-if (targetPage !== currentPage) {
-currentPage = targetPage;
-renderProducts();
-}
-}
+// Con paginación de backend el producto puede estar en cualquier página.
+// Solo hacemos scroll si ya está renderizado en la página actual.
+// (Si no está visible, el usuario puede navegar con los botones de paginación)
 setTimeout(() => {
 const el = document.getElementById('producto-' + id);
 if (!el) return;
@@ -474,10 +425,10 @@ cardElement.style.transition = 'opacity 0.3s, transform 0.3s';
 cardElement.style.opacity = '0';
 cardElement.style.transform = 'scale(0.9)';
 setTimeout(() => cardElement.remove(), 320);
-allCommunityProducts = allCommunityProducts.filter(p =>String(p.id) !== String(productId));
-filteredProducts = filteredProducts.filter(p =>String(p.id) !== String(productId));
 invalidateComunidadCache();
-window.showTemporaryMessage(' Producto eliminado de la comunidad', 'success');
+// Recargar la página actual para reflejar el cambio
+loadComunidadPage(currentPage, currentFilters, { force: true });
+window.showTemporaryMessage('✅ Producto eliminado de la comunidad', 'success');
 } catch (err) {
 console.error('Error eliminando producto:', err);
 window.showTemporaryMessage(' Error al eliminar: ' + err.message, 'error');
@@ -729,32 +680,48 @@ return null;
 }
 }
 function renderPagination() {
-if (!paginationDiv) return;
-const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE);
-paginationDiv.innerHTML = '';
-if (totalPages <= 1) return;
-if (currentPage > 1) {
-const prevBtn = document.createElement('button');
-prevBtn.textContent = '← Anterior';
-prevBtn.onclick = () => { currentPage--; renderProducts(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-paginationDiv.appendChild(prevBtn);
-}
-let startPage = Math.max(1, currentPage - 2);
-let endPage = Math.min(totalPages, startPage + 4);
-if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
-for (let i = startPage; i <= endPage; i++) {
-const pageBtn = document.createElement('button');
-pageBtn.textContent = i;
-if (i === currentPage) pageBtn.classList.add('active-page');
-pageBtn.onclick = (function(p) { return function() { currentPage = p; renderProducts(); window.scrollTo({ top: 0, behavior: 'smooth' }); }; })(i);
-paginationDiv.appendChild(pageBtn);
-}
-if (currentPage < totalPages) {
-const nextBtn = document.createElement('button');
-nextBtn.textContent = 'Siguiente →';
-nextBtn.onclick = () => { currentPage++; renderProducts(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-paginationDiv.appendChild(nextBtn);
-}
+  if (!paginationDiv) return;
+  const totalPages = totalPagesGlobal || 1;
+  paginationDiv.innerHTML = '';
+  if (totalPages <= 1) { paginationDiv.style.display = 'none'; return; }
+  paginationDiv.style.display = 'flex';
+
+  // Botón Anterior
+  if (currentPage > 1) {
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '← Anterior';
+    prevBtn.onclick = () => {
+      loadComunidadPage(currentPage - 1, currentFilters, { isPageChange: true });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    paginationDiv.appendChild(prevBtn);
+  }
+
+  // Números de página (máximo 5 visibles)
+  let startPage = Math.max(1, currentPage - 2);
+  let endPage   = Math.min(totalPages, startPage + 4);
+  if (endPage - startPage < 4 && startPage > 1) startPage = Math.max(1, endPage - 4);
+  for (let i = startPage; i <= endPage; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    if (i === currentPage) btn.classList.add('active-page');
+    btn.onclick = (function(p) { return function() {
+      loadComunidadPage(p, currentFilters, { isPageChange: true });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }; })(i);
+    paginationDiv.appendChild(btn);
+  }
+
+  // Botón Siguiente
+  if (currentPage < totalPages) {
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = 'Siguiente →';
+    nextBtn.onclick = () => {
+      loadComunidadPage(currentPage + 1, currentFilters, { isPageChange: true });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    paginationDiv.appendChild(nextBtn);
+  }
 }
 function initLazyImages() {
 if (!('IntersectionObserver' in window)) return;
