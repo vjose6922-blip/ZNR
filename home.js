@@ -22,6 +22,8 @@ const GENDER_BY_CATEGORY = {
 'Faldas': 'MUJER',
 'Accesorios': 'UNISEX'
 };
+
+  
 const RECENT_KEY = 'zr_recent_products';
 var homeLooks = [];
 function addToRecentProducts(productId) {
