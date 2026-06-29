@@ -1920,7 +1920,10 @@ window.openDonarProductosModal = async function(productoId) {
 
   const donado = prod.donado === true || prod.donado === 'TRUE' || prod.donado === 'true';
   const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const imgUrl = prod.imagen1 ? (optimizeDriveUrl ? optimizeDriveUrl(prod.imagen1, 56) : prod.imagen1) : '';
+  let imgUrl = null;
+if (prod.imagen1) {
+  imgUrl = typeof optimizeDriveUrl === 'function' ? optimizeDriveUrl(prod.imagen1, 56) : prod.imagen1;
+}
 
   const old = document.getElementById('modal-donar-productos');
   if (old) old.remove();
