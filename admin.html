@@ -2091,8 +2091,12 @@ window.loadErrorLog = function() {
     return;
   }
 
-  const url = api + '?' + new URLSearchParams({ action: 'obtenerErrorLog', token });
-  fetch(url)
+  const url = api;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'obtenerErrorLog', token })
+  })
     .then(r => {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -2170,8 +2174,11 @@ window.clearErrorLog = function() {
   const token = sessionStorage.getItem('admin_token') || '';
   // Limpiar en el backend (Apps Script: limpiarErrorLog)
   if (api && token) {
-    fetch(api + '?' + new URLSearchParams({ action: 'limpiarErrorLog', token }).toString())
-      .catch(() => {});
+    fetch(api, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'limpiarErrorLog', token })
+    }).catch(() => {});
   }
   // Limpiar localStorage también
   if (window.ZRMonitor) window.ZRMonitor.clear();
