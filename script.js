@@ -175,7 +175,7 @@ window._pendingBadgeFilter = null;
 if (originalApplyFilters) originalApplyFilters();
 };
 document.addEventListener('DOMContentLoaded', () => {
-setTimeout(applyFiltersFromURL, 200);
+setTimeout(applyFiltersFromURL, 500);
 });
 async function checkOfflineOnStart() {
 if (!navigator.onLine) {
@@ -864,8 +864,11 @@ window.history.replaceState({}, document.title, window.location.pathname);
 }
 }
 document.addEventListener("DOMContentLoaded", () => {
+  // Escalonamos fetchFilterOptions y fetchProducts para no saturar
+  // el límite de ejecuciones concurrentes de Apps Script (que devuelve 404
+  // desde script.googleusercontent.com/macros/echo cuando se satura).
   fetchFilterOptions();
-fetchProducts();
+  setTimeout(() => fetchProducts(), 300);
 startGlobalSliderInterval();
 
       let searchInput = document.getElementById("search-input");
@@ -892,7 +895,7 @@ startGlobalSliderInterval();
       if (genderFilter) {
         const newGenderFilter = genderFilter.cloneNode(true);
         genderFilter.parentNode.replaceChild(newGenderFilter, genderFilter);
-        newGenderFilter.addEventListener("change", () => {
+        newCategoryFilter.addEventListener("change", () => {
   try {
     _suppressFilterEvents = false;
     applyFilters();
