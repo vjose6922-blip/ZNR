@@ -1749,14 +1749,22 @@ async function loadNotifPanelCounts() {
   const api  = window.API_URL || window.ADMIN_API_URL || '';
   try {
     const gasGet = (params) => fetch(api + '?' + new URLSearchParams(params).toString()).then(r=>r.json()).catch(()=>({}));
-    const [nRes, vRes, pRes, rRes, plusRes, benRes] = await Promise.all([
-      gasGet({ action: 'notificationsBatch', page: 1, pageSize: 200, noCache: false }),
-      token ? gasGet({ action: 'vendedoresAdmin', token }) : Promise.resolve({}),
-      token ? gasGet({ action: 'productosPendientes', token }) : Promise.resolve({}),
-      token ? gasGet({ action: 'obtenerReportes', token }) : Promise.resolve({}),
-      token ? gasGet({ action: 'solicitudesPlus', token }) : Promise.resolve({}),
-      token ? gasGet({ action: 'obtenerBeneficiarios', estado: 'pendiente', token }) : Promise.resolve({}),
-    ]);
+    // Escalonamos las peticiones (en vez de Promise.all simultáneo) para no saturar
+    // el límite de ejecuciones concurrentes de Apps Script, que puede devolver 404
+    // intermitentes en script.googleusercontent.com/macros/echo cuando hay demasiadas
+    // peticiones al mismo tiempo (ej: justo después del login).
+    const delay = (ms) => new Promise(r => setTimeout(r, ms));
+    const nRes = await gasGet({ action: 'notificationsBatch', page: 1, pageSize: 200, noCache: false });
+    await delay(150);
+    const vRes = token ? await gasGet({ action: 'vendedoresAdmin', token }) : {};
+    await delay(150);
+    const pRes = token ? await gasGet({ action: 'productosPendientes', token }) : {};
+    await delay(150);
+    const rRes = token ? await gasGet({ action: 'obtenerReportes', token }) : {};
+    await delay(150);
+    const plusRes = token ? await gasGet({ action: 'solicitudesPlus', token }) : {};
+    await delay(150);
+    const benRes = token ? await gasGet({ action: 'obtenerBeneficiarios', estado: 'pendiente', token }) : {};
     const groups = nRes.groups || [];
     const solCount  = groups.filter(g => g.notifications && g.notifications.some(n => n.status === 'pending' && n.hasStock)).length;
     const vendCount = (vRes.vendors||[]).filter(v=>v.estado==='pendiente').length;
