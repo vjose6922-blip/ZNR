@@ -889,8 +889,10 @@ function renderCart() {
 
 const container = document.getElementById("cart-items-container");
 if (!container) {
-console.error(" [RENDER] No existe #cart-items-container");
-return;
+  // Es normal que esto pase en páginas sin carrito (ej: admin.html),
+  // así que no lo tratamos como error real.
+  console.warn(" [RENDER] No existe #cart-items-container (normal si esta página no tiene carrito)");
+  return;
 }
 container.innerHTML = "";
 const items = Object.values(localCart);
