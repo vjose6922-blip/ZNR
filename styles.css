@@ -116,6 +116,33 @@ body {
   padding: 0;
 }
 
+
+
+
+.im-buy-btn {
+  /* Reduce el padding interno (vertical y horizontal) */
+  padding: 0.4rem 0.8rem;  /* antes quizás tenía 1rem 2rem */
+  
+  /* Ajusta el tamaño de la fuente */
+  font-size: 0.9rem;       /* o 14px */
+  
+  /* Si tiene un ancho fijo, cámbialo a auto o min-content */
+  width: auto;             /* o max-content */
+  
+  /* Para que el SVG y el texto queden juntos sin separación extra */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;            /* espacio entre icono y texto, si lo deseas */
+  
+  /* Elimina márgenes extra */
+  margin: 0;
+  
+  /* Si tiene height fijo, quítalo o ponlo en auto */
+  height: auto;
+  
+  /* Opcional: redondea menos las esquinas si quieres */
+  border-radius: 4px;
+}
 .theme-aeromexico {
   min-height: 100vh;
   display: flex;
