@@ -1220,18 +1220,20 @@ function _renderMagazinePanel(modal) {
   const currentCat = current ? (current.Categoria || current.categoria || '') : '';
   let related = [];
   if (current && pool.length) {
-    const sameCat = pool.filter(p =>
+    const otherCat = pool.filter(p =>
       p._id !== currentId &&
-      p._categoria === currentCat &&
+      p._categoria !== currentCat &&
       p._stock > 0
     );
-    related = sameCat.sort(() =>Math.random() - 0.5).slice(0, 3);
+    related = otherCat.sort(() => Math.random() - 0.5).slice(0, 3);
     if (related.length < 3) {
+      // Si no hay suficientes de otras categorías, rellenamos con lo que haya
+      // (incluyendo la misma categoría) para no dejar el panel vacío.
       const others = pool.filter(p =>
         p._id !== currentId &&
-        !related.find(r => r._id === p._id) &&
-        p._stock > 0
-      ).sort(() =>Math.random() - 0.5);
+        p._stock > 0 &&
+        !related.find(r => r._id === p._id)
+      ).sort(() => Math.random() - 0.5);
       related = [...related, ...others].slice(0, 3);
     }
   }
@@ -1679,13 +1681,13 @@ function initImageModalControls() {
       .im-info-desc { font-size: 12px; color: rgba(255,255,255,.5); margin: 0; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       .im-buy-btn {
         display: flex; align-items: center; justify-content: center; gap: 6px;
-        width: 100%;
-        margin-top: 4px;
-        padding: 12px 16px;
-        font-size: 14px; font-weight: 800;
+        width: auto;
+        margin: 4px auto 0;
+        padding: 8px;
+        font-size: 13px; font-weight: 800;
         color: #fff;
         background: linear-gradient(135deg,#ff4f81,#a855f7);
-        border: none; border-radius: 14px;
+        border: none; border-radius: 12px;
         cursor: pointer;
         transition: transform .15s ease, box-shadow .15s ease;
         box-shadow: 0 6px 18px rgba(255,79,129,.25);
