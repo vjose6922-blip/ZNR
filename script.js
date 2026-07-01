@@ -215,6 +215,7 @@ return genderMap[categoriaLower] || null;
 // CATÁLOGO COMPLETO EN CLIENTE — evita pegarle a GAS en cada filtro
 // ============================================================
 let fullCatalogCache = null;            // catálogo completo en memoria
+let catalogFilterOptionsSynced = false; // 🆕 evita re-narrar los selects en cada fetch
 const FULL_CATALOG_KEY = 'zr_full_catalog_v1';
 const FULL_CATALOG_TTL = 5 * 60 * 1000; // 5 minutos
 
@@ -385,6 +386,18 @@ async function fetchProducts(force = false, page = 1, filters = {}) {
 
   try {
     const catalog = await ensureFullCatalog(force);
+
+    // 🆕 En cuanto tenemos el catálogo completo, recalculamos las opciones de
+    // categoría/talla según el género/categoría ya seleccionados (antes de esto,
+    // los selects mostraban la lista global sin filtrar de fetchFilterOptions).
+    if (!catalogFilterOptionsSynced || force) {
+      const gv = document.getElementById("gender-filter")?.value || '';
+      const cv = document.getElementById("category-filter")?.value || '';
+      populateCategoryFilter(gv);
+      populateSizeFilter(gv, document.getElementById("category-filter")?.value || cv);
+      catalogFilterOptionsSynced = true;
+    }
+
     const allFiltered = filterCatalogLocal(catalog, filters);
 
     const total = allFiltered.length;
@@ -406,14 +419,77 @@ async function fetchProducts(force = false, page = 1, filters = {}) {
   }
 }
 
+// Pinta el select de categorías. Si se pasa un género, solo muestra las
+// categorías que existen para ese género (usando el catálogo completo ya
+// descargado en fullCatalogCache). Si el catálogo todavía no está listo,
+// usamos como respaldo la lista global sin filtrar (populateCategoryFilterGlobal,
+// definida en common.js) para no dejar el select vacío mientras carga.
 function populateCategoryFilter(genderFilter) {
-  // Ahora usamos los datos globales (ignoramos el género para el dropdown)
-  populateCategoryFilterGlobal();
+  const select = document.getElementById("category-filter");
+  if (!select) return;
+
+  if (!fullCatalogCache || !fullCatalogCache.length) {
+    populateCategoryFilterGlobal();
+    return;
+  }
+
+  const currentVal = select.value;
+  const set = new Set();
+  fullCatalogCache.forEach(p => {
+    if (genderFilter && getGenderFromCategory(p.Categoria) !== genderFilter) return;
+    if (p.Categoria) set.add(p.Categoria);
+  });
+  const categories = Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+
+  select.innerHTML = '<option value="">Categorías</option>';
+  categories.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = cat;
+    select.appendChild(opt);
+  });
+  select.value = (currentVal && categories.includes(currentVal)) ? currentVal : "";
 }
 
+// Pinta el select de tallas, filtrando por género y/o categoría seleccionados.
+// Mismo respaldo que arriba mientras el catálogo completo no esté listo.
 function populateSizeFilter(genderValue, categoryValue) {
-  // Usamos los datos globales (ignoramos el género/categoría para el dropdown)
-  populateSizeFilterGlobal();
+  const select = document.getElementById("size-filter");
+  if (!select) return;
+
+  if (!fullCatalogCache || !fullCatalogCache.length) {
+    populateSizeFilterGlobal();
+    return;
+  }
+
+  const currentVal = select.value;
+  const set = new Set();
+  fullCatalogCache.forEach(p => {
+    if (genderValue && getGenderFromCategory(p.Categoria) !== genderValue) return;
+    if (categoryValue && (p.Categoria || '') !== categoryValue) return;
+    const talla = (p.Talla || '').trim();
+    if (!talla) return;
+    talla.split(/[,\/]/).map(t => t.trim()).filter(Boolean).forEach(t => set.add(t));
+  });
+
+  const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+  const sizes = Array.from(set).sort((a, b) => {
+    const ai = sizeOrder.indexOf(a.toUpperCase());
+    const bi = sizeOrder.indexOf(b.toUpperCase());
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.localeCompare(b, 'es', { numeric: true });
+  });
+
+  select.innerHTML = '<option value="">Tallas</option>';
+  sizes.forEach(sz => {
+    const opt = document.createElement("option");
+    opt.value = sz;
+    opt.textContent = sz;
+    select.appendChild(opt);
+  });
+  select.value = (currentVal && sizes.includes(currentVal)) ? currentVal : "";
 }
 
 
@@ -472,16 +548,6 @@ chips[Number(idx)].clear();
 }
 });
 });
-}
-
-function populateCategoryFilter(genderFilter) {
-  // Ahora usamos los datos globales (ignoramos el género para el dropdown)
-  populateCategoryFilterGlobal();
-}
-
-function populateSizeFilter(genderValue, categoryValue) {
-  // Usamos los datos globales (ignoramos el género/categoría para el dropdown)
-  populateSizeFilterGlobal();
 }
 
 
@@ -1011,6 +1077,11 @@ startGlobalSliderInterval();
         newGenderFilter.addEventListener("change", () => {
   try {
     _suppressFilterEvents = false;
+    const gender = newGenderFilter.value;
+    // 🆕 al cambiar género, recalculamos qué categorías y tallas existen para ese género
+    populateCategoryFilter(gender);
+    const categoryVal = document.getElementById("category-filter")?.value || '';
+    populateSizeFilter(gender, categoryVal);
     applyFilters();
   } catch (e) {
     _suppressFilterEvents = false;
@@ -1027,7 +1098,8 @@ startGlobalSliderInterval();
   try {
     _suppressFilterEvents = false;
     const gv = document.getElementById("gender-filter")?.value || '';
-    populateSizeFilter(gv, newCategoryFilter.value); // <-- ELIMINA ESTA LÍNEA
+    // 🆕 al cambiar categoría, recalculamos qué tallas existen para género+categoría
+    populateSizeFilter(gv, newCategoryFilter.value);
     _suppressFilterEvents = false;
     applyFilters();
   } catch (e) {
