@@ -190,7 +190,7 @@ sessionStorage.setItem('index_scroll_position', window.scrollY);
 });
 function getGenderFromCategory(categoria) {
 if (!categoria) return null;
-const categoriaLower = categoria.toLowerCase().trim();
+const categoriaLower = String(categoria).toLowerCase().trim();
 const genderMap = {
 "playeras": "HOMBRE",
 "pantalon para caballero": "HOMBRE",
@@ -309,7 +309,7 @@ function filterCatalogLocal(products, filters) {
   }
   if (filters.size) {
     result = result.filter(p => {
-      const talla = (p.Talla || '').trim();
+      const talla = String(p.Talla || '').trim();
       if (!talla) return false;
       return talla.split(/[,\/]/).map(t => t.trim()).includes(filters.size);
     });
@@ -467,7 +467,7 @@ function populateSizeFilter(genderValue, categoryValue) {
   fullCatalogCache.forEach(p => {
     if (genderValue && getGenderFromCategory(p.Categoria) !== genderValue) return;
     if (categoryValue && (p.Categoria || '') !== categoryValue) return;
-    const talla = (p.Talla || '').trim();
+    const talla = String(p.Talla || '').trim();
     if (!talla) return;
     talla.split(/[,\/]/).map(t => t.trim()).filter(Boolean).forEach(t => set.add(t));
   });
