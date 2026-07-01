@@ -489,6 +489,16 @@
  <script src="error-monitor.js" defer></script>
  <script src="cache-manager.js" defer></script>
  <script src="offline-manager.js" defer></script>
+ <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js" defer></script>
+ <script defer>
+   // Search-Only API Key: es segura para exponer en el frontend (solo permite buscar, no editar)
+   if (typeof algoliasearch !== 'undefined') {
+     const client = algoliasearch('TU_APP_ID', 'TU_SEARCH_ONLY_KEY');
+     window.algoliaIndex = client.initIndex('znr_comunidad');
+   } else {
+     console.warn('⚠️ Algolia no cargó, comunidad usará el respaldo de GAS');
+   }
+ </script>
  <script src="comunidad.js" defer></script>
  <script>
  if ('serviceWorker' in navigator) {

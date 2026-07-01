@@ -202,8 +202,8 @@ function buildComunidadUrl(page, filters) {
   return u.toString();
 }
 
-// ── Carga y renderiza una página de productos desde el backend ───────────────
-async function loadComunidadPage(page, filters, opts = {}) {
+// ── Carga y renderiza una página de productos vía GAS (respaldo / modo inspector) ──
+async function loadComunidadPageGAS(page, filters, opts = {}) {
   if (isLoading && !opts.force) return;
   isLoading = true;
 
@@ -264,8 +264,8 @@ async function loadComunidadPage(page, filters, opts = {}) {
     handleInitialHashComunidad();
 
   } catch (err) {
-    console.error('Error loadComunidadPage:', err);
-    if (window.ZRMonitor) ZRMonitor.report('CRÍTICO','comunidad.js','loadComunidadPage', err.message || String(err));
+    console.error('Error loadComunidadPageGAS:', err);
+    if (window.ZRMonitor) ZRMonitor.report('CRÍTICO','comunidad.js','loadComunidadPageGAS', err.message || String(err));
     // Si falla y hay caché, la usamos como respaldo
     const cached = getComunidadCache();
     if (cached && cached.length > 0 && allCommunityProducts.length === 0) {
@@ -286,6 +286,86 @@ async function loadComunidadPage(page, filters, opts = {}) {
     isLoading = false;
     if (typeof window.hideLoader === 'function') window.hideLoader();
   }
+}
+
+// ── Carga y renderiza una página de productos vía Algolia (público, rápido) ──
+async function loadComunidadPageAlgolia(page, filters, opts = {}) {
+  if (isLoading && !opts.force) return;
+  isLoading = true;
+
+  const isFirstLoad = !opts.isPageChange;
+
+  if (isFirstLoad && !opts.force) {
+    const cached = getComunidadCache();
+    if (cached && cached.length > 0) {
+      allCommunityProducts = cached;
+      filteredProducts     = [...cached];
+      totalPagesGlobal     = 1;
+      currentPage          = 1;
+      renderProducts();
+      if (typeof window.hideLoader === 'function') window.hideLoader();
+    } else {
+      if (gridContainer) showSkeletonComunidad(gridContainer, 6);
+      if (typeof window.showLoader === 'function') window.showLoader('Cargando comunidad...');
+    }
+  } else if (opts.isPageChange) {
+    if (gridContainer) showSkeletonComunidad(gridContainer, PAGE_SIZE);
+  }
+
+  try {
+    if (!window.algoliaIndex) throw new Error('Algolia no está configurado');
+
+    const filterParts = [];
+    if (filters.categoria) filterParts.push('categoria:"' + String(filters.categoria).replace(/"/g, '') + '"');
+    if (filters.vendedor)  filterParts.push('vendedor_uid:"' + String(filters.vendedor).replace(/"/g, '') + '"');
+    if (filters.soloPro)   filterParts.push('vendedor_plan:"plus"');
+    const filterString = filterParts.join(' AND ');
+
+    const searchResult = await window.algoliaIndex.search(filters.busqueda || '', {
+      filters: filterString,
+      hitsPerPage: PAGE_SIZE,
+      page: Math.max(0, page - 1), // Algolia pagina desde 0
+      facets: ['categoria', 'vendedor_nombre']
+    });
+
+    currentPage      = page;
+    totalPagesGlobal = searchResult.nbPages || 1;
+    allCommunityProducts = searchResult.hits || [];
+    filteredProducts     = [...allCommunityProducts];
+    window.allCommunityProductsIndexed = allCommunityProducts;
+
+    if (page === 1 && searchResult.facets) {
+      populateFiltersFromOptions({
+        categories: Object.keys(searchResult.facets.categoria || {}).sort(),
+        vendors:    Object.keys(searchResult.facets.vendedor_nombre || {}).sort()
+      });
+    }
+
+    if (page === 1 && !filters.categoria && !filters.busqueda && !filters.vendedor && !filters.soloPro) {
+      setComunidadCache(allCommunityProducts);
+    }
+
+    renderProducts();
+    handleInitialHashComunidad();
+
+  } catch (err) {
+    console.error('Error loadComunidadPageAlgolia:', err);
+    if (window.ZRMonitor) ZRMonitor.report('ERROR','comunidad.js','loadComunidadPageAlgolia', err.message || String(err));
+    // Si Algolia falla por cualquier razón, caemos de vuelta a GAS para no dejar la tienda sin buscador
+    return loadComunidadPageGAS(page, filters, opts);
+  } finally {
+    isLoading = false;
+    if (typeof window.hideLoader === 'function') window.hideLoader();
+  }
+}
+
+// ── Punto de entrada: decide si usar Algolia (público) o GAS (modo inspector/admin) ──
+async function loadComunidadPage(page, filters, opts = {}) {
+  // El modo inspector necesita ver productos pendientes también, que no viven en Algolia
+  if (inspectorMode) {
+    return loadComunidadPageGAS(page, filters, opts);
+  }
+  return loadComunidadPageAlgolia(page, filters, opts);
 }
 
 // Alias para compatibilidad con llamadas existentes (ej: botón reintentar)
