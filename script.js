@@ -254,8 +254,15 @@ async function ensureFullCatalog(force = false) {
     const url = new URL(API_URL);
     url.searchParams.set('action', 'list');
     url.searchParams.set('page', '1');
-    url.searchParams.set('limit', '1000'); // suficiente para todo el catálogo actual
-    const res = await fetch(url.toString());
+    url.searchParams.set('limit', '400'); // suficiente para todo el catálogo actual
+
+    // Reintenta hasta 3 veces si falla la red (Apps Script a veces tarda en
+    // "despertar" o hay hipos de conexión momentáneos que tiran "Failed to fetch").
+    const fetchFn = () => fetch(url.toString());
+    const res = typeof window.fetchWithRetry === 'function'
+      ? await window.fetchWithRetry(fetchFn, 3, [1500, 3000])
+      : await fetchFn();
+
     const data = await res.json();
     const products = data.products || [];
     fullCatalogCache = products;
@@ -274,7 +281,7 @@ function refreshFullCatalogInBackground() {
   const url = new URL(API_URL);
   url.searchParams.set('action', 'list');
   url.searchParams.set('page', '1');
-  url.searchParams.set('limit', '1000');
+  url.searchParams.set('limit', '400');
   fetch(url.toString())
     .then(r => r.json())
     .then(data => {
