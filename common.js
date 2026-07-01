@@ -755,6 +755,8 @@ Talla:  String(item.Talla || '').slice(0, 50),
 _comunidad: item._comunidad || false,
 _vendedor:  String(item._vendedor  || '').slice(0, 100),
 _vendorTel: String(item._vendorTel || '').slice(0, 20),
+_vendorLogo: String(item._vendorLogo || '').slice(0, 500),
+_vendorPlan: String(item._vendorPlan || '').slice(0, 20),
 _donacion: item._donacion === true,
 _beneficiario: (item._beneficiario && typeof item._beneficiario === 'object') ? {
 id:  String(item._beneficiario.id  || '').slice(0, 50),
@@ -784,7 +786,7 @@ function addToCart(product) {
 const id = product.ID;
 if (!id) { console.error("Producto sin ID:", product); return; }
 if (!localCart[id]) {
-localCart[id] = { id: id, name: product.Nombre || "Producto", price: Number(product.Precio || 0), quantity: 0, stock: Number(product.Stock || product.stock || 99), Imagen1: product.Imagen1 || "", Talla: product.Talla || "", _comunidad: product._comunidad || false, _vendedor: product._vendedor || "", _vendorTel: product._vendorTel || "", _donacion: product._donacion || false, _beneficiario: product._beneficiario || null };
+localCart[id] = { id: id, name: product.Nombre || "Producto", price: Number(product.Precio || 0), quantity: 0, stock: Number(product.Stock || product.stock || 99), Imagen1: product.Imagen1 || "", Talla: product.Talla || "", _comunidad: product._comunidad || false, _vendedor: product._vendedor || "", _vendorTel: product._vendorTel || "", _vendorLogo: product._vendorLogo || "", _vendorPlan: product._vendorPlan || "", _donacion: product._donacion || false, _beneficiario: product._beneficiario || null };
 }
 const maxStock = Number(localCart[id].stock || 99);
 if (localCart[id].quantity >= maxStock) {
@@ -1120,6 +1122,25 @@ _handleModalBuyClick(p);
 }
 }
 
+// Dado el id de un beneficiario, trae su nombre y cuenta bancaria desde la API.
+// Se usa en cualquier punto donde se añada al carrito un artículo donado
+// (modal de producto, botón directo en la tarjeta de comunidad, etc.) para
+// que el checkout siempre muestre la cuenta real, sin depender de campos
+// que no vienen incluidos en el producto.
+window.resolveBeneficiario = async function(beneficiarioId) {
+const beneficiario = { id: beneficiarioId || '', nombre: '', cuenta_bancaria: '' };
+if (!beneficiarioId || !window.API_URL) return beneficiario;
+try {
+const res  = await fetch(window.API_URL + '?' + new URLSearchParams({ action: 'obtenerBeneficiario', id: beneficiarioId }));
+const data = await res.json();
+if (data.ok && data.beneficiario) {
+beneficiario.nombre = data.beneficiario.nombre || '';
+beneficiario.cuenta_bancaria = data.beneficiario.cuenta_bancaria || '';
+}
+} catch (err) { /* si falla, se agrega igual y se coordina con el vendedor */ }
+return beneficiario;
+};
+
 async function _handleModalBuyClick(p) {
 if (typeof window.addToCart !== 'function') return;
 const esComunidad = p._comunidad === true;
@@ -1130,28 +1151,15 @@ const talla  = p.Talla  || p.talla  || '';
 const imagen = p.Imagen1 || p.imagen1 || (_modalImages && _modalImages[0]) || '';
 if (esComunidad) {
 const donado = p._donado === true || p.donado === true || p.donado === 'TRUE' || p.donado === 'true';
-let beneficiario = null;
-if (donado) {
 const beneficiarioId = p._beneficiarioId || p.beneficiario_id || '';
-beneficiario = { id: beneficiarioId, nombre: '', cuenta_bancaria: '' };
-// El producto solo trae el id del beneficiario; el nombre y la cuenta
-// bancaria hay que pedirlos aparte (igual que hace "Ver beneficiario").
-if (beneficiarioId && window.API_URL) {
-try {
-const res  = await fetch(window.API_URL + '?' + new URLSearchParams({ action: 'obtenerBeneficiario', id: beneficiarioId }));
-const data = await res.json();
-if (data.ok && data.beneficiario) {
-beneficiario.nombre = data.beneficiario.nombre || '';
-beneficiario.cuenta_bancaria = data.beneficiario.cuenta_bancaria || '';
-}
-} catch (err) { /* si falla la consulta, se agrega igual y se coordina con el vendedor */ }
-}
-}
+const beneficiario = donado ? await window.resolveBeneficiario(beneficiarioId) : null;
 window.addToCart({
 ID: id, Nombre: nombre, Precio: precio, Imagen1: imagen, Talla: talla,
 _comunidad: true,
 _vendedor: p._vendedorNombre || p.vendedor_nombre || '',
 _vendorTel: p._vendedorTel || p.vendedor_tel || '',
+_vendorLogo: p._vendedorLogo || p.vendedor_logo || '',
+_vendorPlan: p._vendedorPlan || p.vendedor_plan || '',
 _donacion: donado,
 _beneficiario: beneficiario
 });
@@ -2193,14 +2201,16 @@ const byVendor = new Map();
 comunidadItems.forEach(item => {
 const tel  = item._vendorTel || "";
 const nombre = item._vendedor  || "Vendedor";
+const logo  = item._vendorLogo || "";
+const plan  = item._vendorPlan || "";
 const key  = tel || nombre;
-if (!byVendor.has(key)) byVendor.set(key, { tel, nombre, items: [] });
+if (!byVendor.has(key)) byVendor.set(key, { tel, nombre, logo, plan, items: [] });
 byVendor.get(key).items.push(item);
 });
 const vendors  = Array.from(byVendor.values());
 const firstVendor = vendors[0];
 const remaining  = vendors.length - 1;
-const { tel, nombre, items } = firstVendor;
+const { tel, nombre, logo, plan, items } = firstVendor;
 const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
 
 // Agrupar los artículos donados de este vendedor por beneficiario: ese dinero se paga directo a su cuenta, no al vendedor
@@ -2259,7 +2269,7 @@ msg += "\n";
 msg += "_Pedido realizado a través de Z&R Comunidad_";
 const destTel = tel ? `52${tel}` : "";
 const waUrl  = destTel ? `https://wa.me/${destTel}?text=${encodeURIComponent(msg)}` : null;
-const didOpen = await _showVendorCheckoutModal({ nombre, subtotal, items, waUrl, remaining, donationList });
+const didOpen = await _showVendorCheckoutModal({ nombre, logo, plan, subtotal, items, waUrl, remaining, donationList });
 if (didOpen) {
 items.forEach(i => delete localCart[i.id]);
 saveCartToStorage();
@@ -2268,7 +2278,7 @@ renderCart();
 if (remaining === 0) closeCartDrawer();
 }
 }
-function _showVendorCheckoutModal({ nombre, subtotal, items, waUrl, remaining, donationList = [] }) {
+function _showVendorCheckoutModal({ nombre, logo, plan, subtotal, items, waUrl, remaining, donationList = [] }) {
 return new Promise(resolve => {
 const old = document.getElementById('vendor-checkout-modal');
 if (old) old.remove();
@@ -2326,7 +2336,9 @@ max-height:85vh;overflow-y:auto;
 ">
 <div style="width:40px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 20px"></div>
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#3b1f5f);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0"></div>
+<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#3b1f5f);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden">${(plan === 'plus' && logo)
+  ? `<img src="${escapeAttr(logo)}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.textContent='${escapeAttr(String(nombre || '').trim().split(/\s+/).map(w => w[0]).slice(0,2).join('').toUpperCase() || '?')}';">`
+  : `<span style="font-size:16px;font-weight:800;color:#fff">${escapeHtml(String(nombre || '').trim().split(/\s+/).map(w => w[0]).slice(0,2).join('').toUpperCase() || '?')}</span>`}</div>
 <div>
 <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Pedido para</div>
 <div style="font-size:17px;font-weight:700;color:var(--color-text-primary,#fff)">${escapeHtml(nombre)}</div>

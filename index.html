@@ -592,7 +592,11 @@
  data-img="${esc(p.imagen1 || '')}"
  data-talla="${esc(p.talla || '')}"
  data-vendedor="${esc(p.vendedor_nombre || '')}"
- data-vendortel="${esc(p.vendedor_tel || '')}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-plus"/></svg> Agregar</button>
+ data-vendortel="${esc(p.vendedor_tel || '')}"
+ data-vendorlogo="${esc(p.vendedor_logo || '')}"
+ data-vendorplan="${esc(p.vendedor_plan || '')}"
+ data-donacion="${p.donado === true || p.donado === 'TRUE' || p.donado === 'true'}"
+ data-benid="${esc(String(p.beneficiario_id || ''))}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-plus"/></svg> Agregar</button>
  </div>
  </div>`;
 
@@ -614,19 +618,33 @@
  Imagen2:  p.imagen2  || '',
  Imagen3:  p.imagen3  || '',
  _comunidad: true,
+ _vendedorNombre: p.vendedor_nombre || '',
+ _vendedorUid: p.vendedor_uid || '',
+ _vendedorTel: p.vendedor_tel || '',
+ _vendedorLogo: p.vendedor_logo || '',
+ _vendedorPlan: p.vendedor_plan || '',
+ _donado: p.donado === true || p.donado === 'TRUE' || p.donado === 'true',
+ _beneficiarioId: p.beneficiario_id || '',
  };
  openImageModal(img, p.id, allImages, productData);
  }
  });
  }
 
- card.querySelector('.home-com-add-btn')?.addEventListener('click', (e) => {
+ card.querySelector('.home-com-add-btn')?.addEventListener('click', async (e) => {
  e.stopPropagation();
  if (typeof addToCart === 'function') {
+ const btn = e.currentTarget;
+ const esDon = btn.dataset.donacion === 'true';
+ const beneficiario = esDon && typeof window.resolveBeneficiario === 'function'
+ ? await window.resolveBeneficiario(btn.dataset.benid || '')
+ : (esDon ? { id: btn.dataset.benid || '', nombre: '', cuenta_bancaria: '' } : null);
  addToCart({
  ID: p.id, Nombre: p.nombre, Precio: Number(p.precio),
  Imagen1: p.imagen1, Talla: p.talla,
- _comunidad: true, _vendedor: p.vendedor_nombre, _vendorTel: p.vendedor_tel
+ _comunidad: true, _vendedor: p.vendedor_nombre, _vendorTel: p.vendedor_tel,
+ _vendorLogo: p.vendedor_logo || '', _vendorPlan: p.vendedor_plan || '',
+ _donacion: esDon, _beneficiario: beneficiario
  });
  if (typeof showTemporaryMessage === 'function')
  showTemporaryMessage(' ' + p.nombre + ' agregado', 'success');

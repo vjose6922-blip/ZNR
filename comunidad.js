@@ -718,10 +718,10 @@ data-img="${esc(safeString(product.imagen1 || ''))}"
 data-talla="${esc(safeString(product.talla || ''))}"
 data-vendedor="${esc(vendorName)}"
 data-vendortel="${esc(vendorTel)}"
+data-vendorlogo="${esc(vendorLogo)}"
+data-vendorplan="${esc(safeString(product.vendedor_plan || ''))}"
 data-donacion="${esDonativo}"
-data-benid="${esDonativo && product.beneficiario_id ? esc(safeString(product.beneficiario_id)) : ''}"
-data-bennombre="${esDonativo && product._ben_nombre ? esc(safeString(product._ben_nombre)) : ''}"
-data-bencuenta="${esDonativo && product._ben_cuenta ? esc(safeString(product._ben_cuenta)) : ''}">
+data-benid="${esDonativo && product.beneficiario_id ? esc(safeString(product.beneficiario_id)) : ''}">
 ${!hasStock ? '-' : 'Añadir'}
 </button>
 <button class="btn-report" title="Reportar" style="background:var(--color-surface-3);border:none;border-radius:30px;padding:8px 8px;cursor:pointer;color:var(--color-text-muted);display:flex;align-items:center;"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-flag"/></svg></button>
@@ -747,6 +747,7 @@ Imagen3:  product.imagen3  || '',
 _comunidad:  true,
 _vendedorNombre: vendorName || '',
 _vendedorUid: product.vendedor_uid || '',
+_vendedorTel: vendorTel || '',
 _vendedorLogo: vendorLogo || '',
 _vendedorPlan: product.vendedor_plan || '',
 _donado: esDonativo,
@@ -758,19 +759,20 @@ window.openImageModal(imgUrl, product.id, allImages, productData);
 });
 const addBtn = card.querySelector('.comunidad-add-btn');
 if (addBtn && hasStock && window.addToCart) {
-addBtn.addEventListener('click', (e) => {
+addBtn.addEventListener('click', async (e) => {
 e.stopPropagation();
+const esDon = addBtn.dataset.donacion === 'true';
+const beneficiario = esDon && typeof window.resolveBeneficiario === 'function'
+? await window.resolveBeneficiario(addBtn.dataset.benid || '')
+: (esDon ? { id: addBtn.dataset.benid || '', nombre: '', cuenta_bancaria: '' } : null);
 window.addToCart({
 ID: addBtn.dataset.id, Nombre: addBtn.dataset.nombre,
 Precio: Number(addBtn.dataset.precio), Imagen1: addBtn.dataset.img,
 Talla: addBtn.dataset.talla, _comunidad: true,
 _vendedor: addBtn.dataset.vendedor, _vendorTel: addBtn.dataset.vendortel,
-_donacion: addBtn.dataset.donacion === 'true',
-_beneficiario: addBtn.dataset.donacion === 'true' ? {
-  id: addBtn.dataset.benid || '',
-  nombre: addBtn.dataset.bennombre || '',
-  cuenta_bancaria: addBtn.dataset.bencuenta || ''
-} : null
+_vendorLogo: addBtn.dataset.vendorlogo, _vendorPlan: addBtn.dataset.vendorplan,
+_donacion: esDon,
+_beneficiario: beneficiario
 });
 if (window.showTemporaryMessage) window.showTemporaryMessage(` ${addBtn.dataset.nombre} agregado`, 'success');
 });
