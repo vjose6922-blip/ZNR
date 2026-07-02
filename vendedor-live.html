@@ -176,7 +176,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, query, limitToLast, update } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaOe_lxLdQtTFCtw2BDR8KZRSafEMkkes",
@@ -504,6 +504,18 @@ function renderEnded() {
   });
 }
 
+function marcarVendido(liveId, key, msg) {
+  if (msg.vendido) {
+    if (confirm(`¿Quitar el marcado de vendido a "${msg.text}" de ${msg.author}?`)) {
+      update(ref(db, `chats/${liveId}/messages/${key}`), { vendido: false });
+    }
+    return;
+  }
+  if (confirm(`¿Marcar "${msg.text}" de ${msg.author} (${msg.telefono || 'sin teléfono'}) como vendido?`)) {
+    update(ref(db, `chats/${liveId}/messages/${key}`), { vendido: true });
+  }
+}
+
 // ── Chat con Firebase Realtime Database ──
 function setupChat(liveId, myName, isVendor) {
   const messagesEl = document.getElementById('chat-messages');
@@ -514,14 +526,25 @@ function setupChat(liveId, myName, isVendor) {
   chatUnsub = onValue(chatRef, (snapshot) => {
     const data = snapshot.val();
     if (!data) { messagesEl.innerHTML = '<div class="chat-empty">Aún no hay mensajes.</div>'; return; }
-    const msgs = Object.values(data).sort((a, b) => (a.ts || 0) - (b.ts || 0));
-    messagesEl.innerHTML = msgs.map(m => `
-      <div class="chat-msg ${m.author === myName ? 'mine' : ''}">
+    const entries = Object.entries(data).sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
+    messagesEl.innerHTML = entries.map(([key, m]) => `
+      <div class="chat-msg ${m.author === myName ? 'mine' : ''}" data-key="${esc(key)}" style="${!m.isVendor ? 'cursor:pointer;' : ''}">
         <span class="author">${esc(m.author)}${m.isVendor ? ' 🛍️' : ''}:</span>
         <span class="text">${esc(m.text)}</span>
+        ${m.telefono ? `<span style="color:var(--color-text-soft);font-size:11px;"> · ${esc(m.telefono)}</span>` : ''}
+        ${m.vendido ? '<span class="vendido-tag" style="display:inline-block;margin-left:6px;font-size:10px;font-weight:700;background:rgba(74,222,128,.15);color:#4ade80;padding:2px 7px;border-radius:999px;">✅ Vendido</span>' : ''}
       </div>
     `).join('');
     messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    if (isVendor) {
+      messagesEl.querySelectorAll('.chat-msg[data-key]').forEach(el => {
+        const key = el.dataset.key;
+        const msg = data[key];
+        if (msg.isVendor) return;
+        el.addEventListener('click', () => marcarVendido(liveId, key, msg));
+      });
+    }
   });
 
   function send() {

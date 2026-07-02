@@ -378,6 +378,9 @@ if (panelDiv) panelDiv.style.display = 'block';
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) logoutBtn.style.display = 'flex';
 
+const liveBtn = document.getElementById('live-btn');
+if (liveBtn) liveBtn.style.display = (vendorSession && vendorSession.plan === 'plus') ? 'flex' : 'none';
+
 const nameHeader = document.getElementById('vendor-name-header');
 if (nameHeader && vendorSession) {
 nameHeader.textContent = vendorSession.nombre;

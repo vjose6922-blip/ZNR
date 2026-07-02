@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co;
+  connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.firebaseio.com wss://*.firebaseio.com;
+  font-src 'self';
+  frame-src https://www.youtube-nocookie.com;
+  frame-ancestors 'none';
+  object-src 'none';
+  base-uri 'self';
+  worker-src 'self' blob:;
+">
+<script src="error-bootstrap.js"></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>En vivo — Z&R</title>
+<link rel="manifest" href="/ZNR/manifest.json">
+<meta name="theme-color" content="#1e2128">
+<link rel="preload" href="styles.css" as="style">
+<link rel="stylesheet" href="styles.css">
+<script src="api-config.js"></script>
+<style>
+  .live-wrap { max-width: 640px; margin: 0 auto; padding: 0 0 100px; }
+
+  .video-box { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+  .video-box iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  .live-info { padding: 14px 16px; border-bottom: 1px solid var(--color-border-subtle); }
+  .live-info h1 { margin: 0 0 4px; font-size: 16px; color: var(--color-text-primary); }
+  .live-info .vendor { font-size: 13px; color: var(--color-text-soft); }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: var(--radius-pill);
+    font-size: 11px; font-weight: 700; letter-spacing: .03em; margin-bottom: 8px;
+  }
+  .status-badge.live { background: rgba(239,68,68,.15); color: #f87171; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #f87171; animation: pulse-dot 1.4s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+  .producto-actual {
+    display: flex; gap: 12px; align-items: center;
+    background: var(--color-surface); margin: 12px 16px;
+    border-radius: var(--radius-lg); padding: 12px;
+    border: 1px solid var(--color-accent-solid);
+  }
+  .producto-actual img { width: 56px; height: 56px; border-radius: var(--radius-md); object-fit: cover; flex-shrink: 0; }
+  .producto-actual .info { flex: 1; min-width: 0; }
+  .producto-actual .info .nombre { font-size: 14px; font-weight: 700; color: var(--color-text-primary); margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .producto-actual .info .precio { font-size: 15px; font-weight: 800; color: var(--color-accent); margin: 0; }
+  .btn-apartar {
+    background: var(--gradient-accent); color: #fff; border: none;
+    border-radius: var(--radius-pill); padding: 9px 14px; font-size: 12px;
+    font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+
+  .chat-section { padding: 0 16px; }
+  .chat-panel {
+    background: var(--color-surface-2); border-radius: var(--radius-md);
+    height: 320px; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { font-size: 13px; line-height: 1.4; }
+  .chat-msg .author { font-weight: 700; color: var(--color-accent); margin-right: 6px; }
+  .chat-msg .text { color: var(--color-text-primary); }
+  .chat-msg.mine .author { color: var(--color-primary); }
+  .chat-msg .vendido-tag {
+    display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700;
+    background: rgba(74,222,128,.15); color: #4ade80; padding: 2px 7px; border-radius: var(--radius-pill);
+  }
+  .chat-empty { text-align: center; color: var(--color-text-soft); font-size: 12px; margin-top: auto; margin-bottom: auto; }
+  .chat-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--color-border-subtle); }
+  .chat-input-row input {
+    flex: 1; background: var(--color-surface); border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-pill); padding: 9px 14px; color: var(--color-text-primary); font-size: 13px;
+  }
+  .chat-input-row button {
+    background: var(--gradient-accent); border: none; color: #fff;
+    border-radius: 50%; width: 38px; height: 38px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+
+  .center-card { max-width: 480px; margin: 60px auto; padding: 0 20px; text-align: center; }
+  .center-card .icon { font-size: 44px; margin-bottom: 12px; }
+  .center-card h2 { color: var(--color-text-primary); margin: 0 0 8px; }
+  .center-card p { color: var(--color-text-soft); font-size: 14px; line-height: 1.5; }
+
+  .identity-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: flex; align-items: flex-end; z-index: var(--z-modal, 300);
+  }
+  .identity-sheet {
+    background: var(--color-surface); border-radius: 20px 20px 0 0;
+    padding: 20px; width: 100%; box-sizing: border-box;
+  }
+  .identity-sheet h2 { margin: 0 0 6px; color: var(--color-text-primary); font-size: 17px; }
+  .identity-sheet p { margin: 0 0 16px; font-size: 13px; color: var(--color-text-soft); }
+  .identity-sheet input {
+    width: 100%; box-sizing: border-box; margin-bottom: 10px;
+    padding: 12px 14px; border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-2); color: var(--color-text-primary); font-size: 14px;
+  }
+  .identity-sheet button {
+    width: 100%; border: none; border-radius: var(--radius-pill);
+    padding: 13px; font-size: 14px; font-weight: 700; cursor: pointer;
+    background: var(--gradient-accent); color: #fff;
+  }
+  .loading-spinner {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 3px solid var(--color-border-subtle); border-top-color: var(--color-accent-solid);
+    animation: spin 0.8s linear infinite; margin: 40px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-left">
+    <a href="lives.html" class="logo-touch-area" style="text-decoration:none;">
+      <span class="logo-mark">←</span>
+    </a>
+    <div class="header-text">
+      <h1 class="app-title">En vivo</h1>
+    </div>
+  </div>
+</header>
+
+<main class="live-wrap" id="live-wrap">
+  <div class="loading-spinner"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAaOe_lxLdQtTFCtw2BDR8KZRSafEMkkes",
+  authDomain: "znr-live.firebaseapp.com",
+  databaseURL: "https://znr-live-default-rtdb.firebaseio.com",
+  projectId: "znr-live",
+  storageBucket: "znr-live.firebasestorage.app",
+  messagingSenderId: "1038143238323",
+  appId: "1:1038143238323:web:5171b9dd8823628086c0c6"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+
+async function apiFetch(data, method = 'GET') {
+  const API_BASE = window.API_URL;
+  const params = new URLSearchParams();
+  Object.entries(data || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) params.append(k, v);
+  });
+  const res = method === 'GET'
+    ? await fetch(`${API_BASE}?${params.toString()}`, { method: 'GET' })
+    : await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+  return JSON.parse(await res.text());
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+const wrap = document.getElementById('live-wrap');
+const params = new URLSearchParams(location.search);
+const liveId = params.get('id');
+let sesion = null;
+let productosMap = {};
+let identity = null;
+let pollTimer = null;
+
+function renderNoId() {
+  wrap.innerHTML = `
+    <div class="center-card">
+      <div class="icon">🔗</div>
+      <h2>Link inválido</h2>
+      <p>Este link de transmisión no es válido. Pide al vendedor que te comparta el link de nuevo.</p>
+    </div>`;
+}
+
+function renderNotFound() {
+  wrap.innerHTML = `
+    <div class="center-card">
+      <div class="icon">😕</div>
+      <h2>Transmisión no encontrada</h2>
+      <p>Puede que haya terminado o el link esté incompleto.</p>
+    </div>`;
+}
+
+function renderEnded() {
+  wrap.innerHTML = `
+    <div class="center-card">
+      <div class="icon">✅</div>
+      <h2>Esta transmisión ya terminó</h2>
+      <p>Gracias por acompañar a ${esc(sesion.vendedor_nombre)}. Si apartaste algo, el vendedor se pondrá en contacto contigo.</p>
+    </div>`;
+}
+
+function renderScheduledWait() {
+  wrap.innerHTML = `
+    <div class="center-card">
+      <div class="icon">⏳</div>
+      <h2>${esc(sesion.titulo)}</h2>
+      <p>${esc(sesion.vendedor_nombre)} todavía no inicia su transmisión. Vuelve a entrar en unos minutos.</p>
+    </div>`;
+}
+
+// ── Identidad del comprador (nombre + teléfono, se guarda local) ──
+function getIdentity() {
+  try {
+    const raw = localStorage.getItem('znr_chat_identity');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+function askIdentity(onDone) {
+  const overlay = document.createElement('div');
+  overlay.className = 'identity-overlay';
+  overlay.innerHTML = `
+    <div class="identity-sheet">
+      <h2>Únete al chat</h2>
+      <p>Para comentar y apartar productos, dinos quién eres. El vendedor usará esto para contactarte.</p>
+      <input type="text" id="idn-nombre" placeholder="Tu nombre" maxlength="40">
+      <input type="tel" id="idn-tel" placeholder="Tu teléfono (10 dígitos)" maxlength="10">
+      <button id="idn-btn">Entrar al chat</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('idn-btn').addEventListener('click', () => {
+    const nombre = document.getElementById('idn-nombre').value.trim();
+    const tel = document.getElementById('idn-tel').value.replace(/\D/g, '');
+    if (!nombre || tel.length !== 10) {
+      alert('Escribe tu nombre y un teléfono válido de 10 dígitos.');
+      return;
+    }
+    identity = { nombre, telefono: tel };
+    localStorage.setItem('znr_chat_identity', JSON.stringify(identity));
+    document.body.removeChild(overlay);
+    onDone();
+  });
+}
+
+function renderLive() {
+  const shareUrl = location.href;
+  wrap.innerHTML = `
+    <div class="video-box">
+      <iframe src="https://www.youtube-nocookie.com/embed/${esc(sesion.youtube_id)}?autoplay=1"
+        allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>
+    </div>
+    <div class="live-info">
+      <span class="status-badge live"><span class="status-dot"></span> EN VIVO</span>
+      <h1>${esc(sesion.titulo)}</h1>
+      <p class="vendor">Por ${esc(sesion.vendedor_nombre)}</p>
+    </div>
+    <div id="producto-slot"></div>
+    <div class="chat-section">
+      <div class="chat-panel">
+        <div class="chat-messages" id="chat-messages"><div class="chat-empty">Sé el primero en comentar 👋</div></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Escribe un comentario…" maxlength="300">
+          <button id="chat-send">➤</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  renderProductoActual();
+  setupChat();
+
+  document.getElementById('chat-send').addEventListener('click', enviarMensaje);
+  document.getElementById('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') enviarMensaje(); });
+}
+
+function renderProductoActual() {
+  const slot = document.getElementById('producto-slot');
+  if (!slot) return;
+  const p = productosMap[sesion.producto_actual_id];
+  if (!p) { slot.innerHTML = ''; return; }
+  const palabra = (p.nombre || '').trim().split(/\s+/)[0].toUpperCase();
+  slot.innerHTML = `
+    <div class="producto-actual">
+      <img src="${esc(p.imagen1 || 'https://placehold.co/100x100')}" alt="${esc(p.nombre)}">
+      <div class="info">
+        <p class="nombre">${esc(p.nombre)}</p>
+        <p class="precio">$${Number(p.precio || 0).toLocaleString()}</p>
+      </div>
+      <button class="btn-apartar" id="btn-apartar">🙋 Comentar "${esc(palabra)}"</button>
+    </div>`;
+  document.getElementById('btn-apartar').addEventListener('click', () => {
+    const input = document.getElementById('chat-input');
+    input.value = palabra;
+    input.focus();
+  });
+}
+
+function enviarMensaje() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !identity) return;
+  push(ref(db, `chats/${liveId}/messages`), {
+    author: identity.nombre,
+    telefono: identity.telefono,
+    text, isVendor: false, ts: Date.now(),
+    producto_id: sesion.producto_actual_id || ''
+  });
+  input.value = '';
+}
+
+function setupChat() {
+  const messagesEl = document.getElementById('chat-messages');
+  onValue(ref(db, `chats/${liveId}/messages`), (snapshot) => {
+    const data = snapshot.val();
+    if (!data) { messagesEl.innerHTML = '<div class="chat-empty">Sé el primero en comentar 👋</div>'; return; }
+    const msgs = Object.values(data).sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-100);
+    messagesEl.innerHTML = msgs.map(m => `
+      <div class="chat-msg ${identity && m.author === identity.nombre ? 'mine' : ''}">
+        <span class="author">${esc(m.author)}${m.isVendor ? ' 🛍️' : ''}:</span>
+        <span class="text">${esc(m.text)}</span>
+        ${m.vendido ? '<span class="vendido-tag">✅ Vendido</span>' : ''}
+      </div>
+    `).join('');
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
+}
+
+// ── Polling ligero para detectar cambios de estado / producto actual ──
+function startPolling() {
+  pollTimer = setInterval(async () => {
+    try {
+      const resp = await apiFetch({ action: 'obtenerSesionLivePorId', id: liveId });
+      if (!resp.ok) return;
+      const nueva = resp.sesion;
+      if (nueva.estado === 'terminado') {
+        clearInterval(pollTimer);
+        sesion = nueva;
+        renderEnded();
+        return;
+      }
+      if (nueva.producto_actual_id !== sesion.producto_actual_id) {
+        sesion.producto_actual_id = nueva.producto_actual_id;
+        renderProductoActual();
+      }
+    } catch (e) { /* silencioso, reintenta en el siguiente ciclo */ }
+  }, 6000);
+}
+
+async function cargarProductos(idsStr) {
+  const ids = (idsStr || '').split(',').filter(Boolean);
+  productosMap = {};
+  await Promise.all(ids.map(async (id) => {
+    try {
+      // reutiliza listarComunidad filtrando por vendedor, o si prefieres,
+      // aquí podríamos tener un endpoint obtenerProductoComunidad(id) — por ahora
+      // se resuelve al cargar la sesión completa vía obtenerSesionLivePorId + productos embebidos.
+    } catch (e) {}
+  }));
+}
+
+async function init() {
+  if (!liveId) { renderNoId(); return; }
+
+  identity = getIdentity();
+
+  try {
+    const resp = await apiFetch({ action: 'obtenerSesionLivePorId', id: liveId });
+    if (!resp.ok) { renderNotFound(); return; }
+    sesion = resp.sesion;
+
+    // Cargar detalle de productos de este vendedor (para nombre/imagen/precio)
+    const prodResp = await apiFetch({ action: 'listarComunidad', vendedor_uid: sesion.vendedor_id, limit: 50 });
+    if (prodResp.ok && prodResp.products) {
+      prodResp.products.forEach(p => { productosMap[p.id] = p; });
+    }
+
+    if (sesion.estado === 'terminado') { renderEnded(); return; }
+    if (sesion.estado === 'programado') { renderScheduledWait(); return; }
+
+    renderLive();
+    startPolling();
+
+    if (!identity) {
+      askIdentity(() => {});
+    }
+  } catch (err) {
+    renderNotFound();
+  }
+}
+
+init();
+</script>
+</body>
+</html>

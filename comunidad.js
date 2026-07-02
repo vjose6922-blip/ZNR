@@ -1022,6 +1022,36 @@ await initInspectorMode();
 bindFilterChangeEvents();
 initCartAndUI();
 loadCommunityProducts();
+checkLiveBanner();
+}
+
+async function checkLiveBanner() {
+  const slot = document.getElementById('live-banner-slot');
+  if (!slot) return;
+  try {
+    const res = await fetch(window.API_URL + '?' + new URLSearchParams({ action: 'obtenerLivesActivos' }));
+    const data = await res.json();
+    if (!data.ok || !data.lives || data.lives.length === 0) { slot.innerHTML = ''; return; }
+
+    const n = data.lives.length;
+    const nombres = data.lives.slice(0, 2).map(l => l.vendedor_nombre).join(', ');
+    slot.innerHTML = `
+      <a href="lives.html" style="text-decoration:none; display:block; margin:0 0 4px;
+        background:linear-gradient(135deg, rgba(239,68,68,.16), rgba(244,114,182,.10));
+        border:1px solid rgba(239,68,68,.35); border-radius:14px; padding:12px 16px;
+        display:flex; align-items:center; gap:10px;">
+        <span style="width:9px; height:9px; border-radius:50%; background:#ef4444; flex-shrink:0;
+          animation: znr-live-pulse 1.4s infinite;"></span>
+        <span style="flex:1; color:var(--color-text-primary,#dde1e8); font-size:13px; font-weight:600;">
+          🔴 En vivo ahora: ${nombres}${n > 2 ? ` y ${n - 2} más` : ''}
+        </span>
+        <span style="color:var(--color-accent,#f472b6); font-size:12px; font-weight:700;">Ver →</span>
+      </a>
+      <style>@keyframes znr-live-pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }</style>
+    `;
+  } catch (err) {
+    slot.innerHTML = '';
+  }
 }
 if (document.readyState === 'loading') {
 document.addEventListener('DOMContentLoaded', initComunidad);
