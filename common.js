@@ -2199,6 +2199,68 @@ showTemporaryMessage(" Error al enviar la solicitud Z&R", "error");
 hideLoader();
 }
 }
+function startSilentPolling(requestId, clientPhone) {
+let interval = setInterval(async () => {
+try {
+const response = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${requestId}`);
+const data = await response.json();
+if (data.ok && data.status === 'approved' && data.paymentLink) {
+clearInterval(interval);
+if (typeof loadOrders === 'function' && typeof saveOrders === 'function') {
+const orders = loadOrders();
+const idx = orders.findIndex(o => o.requestId === requestId);
+if (idx !== -1) { orders[idx].status = 'confirmado'; saveOrders(orders); }
+}
+const itemsFromRequest = data.items || Object.values(localCart);
+let message = " *¡PEDIDO CONFIRMADO!*\n";
+message += "\n\n";
+message += ` *Total a pagar:* $${(data.totalAmount || 0).toLocaleString()} MXN\n\n`;
+message += "* Tu pedido:*\n";
+itemsFromRequest.forEach((item, idx) => {
+message += `${idx+1}. *${item.name || item.Nombre}*\n`;
+message += `  Talla: ${item.Talla || item.talla || "N/A"} |  ${item.quantity || item.cantidad || 1} x $${(item.price || item.Precio || 0).toLocaleString()}\n`;
+});
+message += "\n";
+message += "\n";
+message += "* OPCIONES DE PAGO:*\n\n";
+message += ` *Link de pago seguro* (válido 30 min):\n${data.paymentLink}\n\n`;
+message += " *Transferencia directa:*\n";
+message += "Banco: BBVA\n";
+message += "Cuenta: **** **** **** 1234\n";
+message += "CLABE: 0123 4567 8901 2345 67\n\n";
+message += "\n";
+message += "* INFORMACIÓN DE ENTREGA:*\n";
+const hasShippingItems = itemsFromRequest.some(i => hasFreeShipping(i.price || i.Precio || 0));
+if (hasShippingItems) {
+message += " Tienes productos que califican para envío\n";
+message += " Las entregas pueden ser a domicilio o punto intermedio\n";
+message += "⏰ Los tiempos varían según la distancia\n\n";
+} else {
+message += " Los productos seleccionados no califican para envío\n";
+message += " Acuerda la recolección o punto de entrega\n\n";
+}
+message += "\n";
+message += " *Importante:*\n";
+message += "• Envía tu comprobante de pago por este chat\n";
+message += "• Tu pedido se enviará al confirmar el pago\n";
+message += "• Cualquier duda, responde a este mensaje\n\n";
+message += "¡Gracias por tu compra! ";
+let cleanPhone = String(clientPhone).replace(/[^0-9]/g, '');
+if (cleanPhone.length === 10) cleanPhone = "52" + cleanPhone;
+const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+window.open(whatsappUrl, '_blank');
+localStorage.removeItem('pending_purchase_' + requestId);
+showTemporaryMessage(" ¡Pago confirmado! Revisa WhatsApp para tu link de pago.", "success");
+}
+} catch (err) {
+console.error("Error en polling:", err);
+}
+}, 5000);
+setTimeout(() => {
+clearInterval(interval);
+localStorage.removeItem('pending_purchase_' + requestId);
+}, 600000);
+}
 async function _checkoutComunidad(comunidadItems) {
 let clientPhone = localStorage.getItem("client_phone") || "";
 if (!clientPhone) {
