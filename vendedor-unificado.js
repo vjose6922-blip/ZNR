@@ -414,6 +414,81 @@ alert('No se pudo copiar. Comparte este enlace:\n' + shareUrl);
 
 loadMyProducts();
 renderVendorPlanPanel();
+loadVendorSaleNotifications();
+if (!window._vsnPollingStarted) {
+window._vsnPollingStarted = true;
+setInterval(loadVendorSaleNotifications, 45000);
+}
+}
+
+// ── Notificaciones de venta pendientes (Comunidad) ──────────────────────
+// Aparecen justo debajo del panel de "productos usados" + filtro de estado,
+// solo cuando el vendedor tiene ventas por confirmar.
+async function loadVendorSaleNotifications() {
+if (!vendorSession || !vendorSession.uid) return;
+try {
+const data = await apiCall({ action: 'listarNotificacionesVentaComunidad', vendor_uid: vendorSession.uid });
+if (!data || !data.ok) return;
+renderVendorSaleNotifications(data.notificaciones || []);
+} catch (e) {
+console.error('No se pudieron cargar las notificaciones de venta:', e);
+}
+}
+
+function renderVendorSaleNotifications(list) {
+const panel = document.getElementById('vendor-plan-panel');
+if (!panel) return;
+let container = document.getElementById('vendor-sale-notifications');
+if (!list || !list.length) {
+if (container) container.remove();
+return;
+}
+if (!container) {
+container = document.createElement('div');
+container.id = 'vendor-sale-notifications';
+panel.insertAdjacentElement('afterend', container);
+}
+const esc2 = window.escapeHtml || (s => String(s == null ? '' : s));
+container.innerHTML = list.map(n => `
+<div class="vsn-card" data-req="${esc2(n.requestId)}" style="background:#fff8e1;border:1.5px solid #f5cf6b;border-radius:14px;padding:12px 14px;margin-top:10px;">
+<div style="font-size:13px;font-weight:700;color:#92702a;margin-bottom:6px;"> Tienes una venta por confirmar</div>
+${(n.items || []).map(it => `
+<div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:#5c4a1f;padding:2px 0;">
+<span>${esc2(it.nombre)}${it.talla ? ' · ' + esc2(it.talla) : ''} × ${esc2(it.cantidad)}</span>
+<span>$${Number(it.precio || 0).toLocaleString()}</span>
+</div>
+`).join('')}
+${n.clientPhone ? `<div style="font-size:12px;color:#8a7238;margin-top:4px;">Cliente: +52 ${esc2(n.clientPhone)}</div>` : ''}
+<div style="display:flex;gap:8px;margin-top:10px;">
+<button class="vsn-confirm-btn" style="flex:1;padding:8px;border:none;border-radius:10px;background:#16a34a;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;">Confirmar venta</button>
+<button class="vsn-nostock-btn" style="flex:1;padding:8px;border:none;border-radius:10px;background:#fff;border:1.5px solid #dc2626;color:#dc2626;font-size:12.5px;font-weight:700;cursor:pointer;">Sin stock</button>
+</div>
+</div>
+`).join('');
+container.querySelectorAll('.vsn-confirm-btn').forEach(btn => {
+btn.addEventListener('click', () => resolveVendorSaleNotification(btn.closest('.vsn-card').dataset.req, 'confirmar', btn));
+});
+container.querySelectorAll('.vsn-nostock-btn').forEach(btn => {
+btn.addEventListener('click', () => resolveVendorSaleNotification(btn.closest('.vsn-card').dataset.req, 'sin_stock', btn));
+});
+}
+
+async function resolveVendorSaleNotification(requestId, accion, btn) {
+if (btn) btn.disabled = true;
+try {
+const data = await apiCall({ action: 'resolverNotificacionVentaComunidad', vendor_uid: vendorSession.uid, requestId, accion });
+if (data && data.ok) {
+window.showTemporaryMessage?.(accion === 'confirmar' ? ' Venta confirmada, stock actualizado' : 'Marcado sin stock', 'success');
+loadVendorSaleNotifications();
+loadMyProducts(); // refresca el stock visible de sus productos
+} else {
+window.showTemporaryMessage?.(data?.error || 'No se pudo procesar', 'error');
+if (btn) btn.disabled = false;
+}
+} catch (e) {
+window.showTemporaryMessage?.(' Error de red', 'error');
+if (btn) btn.disabled = false;
+}
 }
 
 function renderVendorPlanPanel() {

@@ -720,6 +720,7 @@ data-vendedor="${esc(vendorName)}"
 data-vendortel="${esc(vendorTel)}"
 data-vendorlogo="${esc(vendorLogo)}"
 data-vendorplan="${esc(safeString(product.vendedor_plan || ''))}"
+data-vendoruid="${esc(safeString(product.vendedor_uid || ''))}"
 data-donacion="${esDonativo}"
 data-benid="${esDonativo && product.beneficiario_id ? esc(safeString(product.beneficiario_id)) : ''}">
 ${!hasStock ? '-' : 'Añadir'}
@@ -771,6 +772,7 @@ Precio: Number(addBtn.dataset.precio), Imagen1: addBtn.dataset.img,
 Talla: addBtn.dataset.talla, _comunidad: true,
 _vendedor: addBtn.dataset.vendedor, _vendorTel: addBtn.dataset.vendortel,
 _vendorLogo: addBtn.dataset.vendorlogo, _vendorPlan: addBtn.dataset.vendorplan,
+_vendorUid: addBtn.dataset.vendoruid,
 _donacion: esDon,
 _beneficiario: beneficiario
 });

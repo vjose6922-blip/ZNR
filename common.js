@@ -757,6 +757,7 @@ _vendedor:  String(item._vendedor  || '').slice(0, 100),
 _vendorTel: String(item._vendorTel || '').slice(0, 20),
 _vendorLogo: String(item._vendorLogo || '').slice(0, 500),
 _vendorPlan: String(item._vendorPlan || '').slice(0, 20),
+_vendorUid: String(item._vendorUid || '').slice(0, 100),
 _donacion: item._donacion === true,
 _beneficiario: (item._beneficiario && typeof item._beneficiario === 'object') ? {
 id:  String(item._beneficiario.id  || '').slice(0, 50),
@@ -786,7 +787,7 @@ function addToCart(product) {
 const id = product.ID;
 if (!id) { console.error("Producto sin ID:", product); return; }
 if (!localCart[id]) {
-localCart[id] = { id: id, name: product.Nombre || "Producto", price: Number(product.Precio || 0), quantity: 0, stock: Number(product.Stock || product.stock || 99), Imagen1: product.Imagen1 || "", Talla: product.Talla || "", _comunidad: product._comunidad || false, _vendedor: product._vendedor || "", _vendorTel: product._vendorTel || "", _vendorLogo: product._vendorLogo || "", _vendorPlan: product._vendorPlan || "", _donacion: product._donacion || false, _beneficiario: product._beneficiario || null };
+localCart[id] = { id: id, name: product.Nombre || "Producto", price: Number(product.Precio || 0), quantity: 0, stock: Number(product.Stock || product.stock || 99), Imagen1: product.Imagen1 || "", Talla: product.Talla || "", _comunidad: product._comunidad || false, _vendedor: product._vendedor || "", _vendorTel: product._vendorTel || "", _vendorLogo: product._vendorLogo || "", _vendorPlan: product._vendorPlan || "", _vendorUid: product._vendorUid || "", _donacion: product._donacion || false, _beneficiario: product._beneficiario || null };
 }
 const maxStock = Number(localCart[id].stock || 99);
 if (localCart[id].quantity >= maxStock) {
@@ -1160,6 +1161,7 @@ _vendedor: p._vendedorNombre || p.vendedor_nombre || '',
 _vendorTel: p._vendedorTel || p.vendedor_tel || '',
 _vendorLogo: p._vendedorLogo || p.vendedor_logo || '',
 _vendorPlan: p._vendedorPlan || p.vendedor_plan || '',
+_vendorUid: p._vendedorUid || p.vendedor_uid || '',
 _donacion: donado,
 _beneficiario: beneficiario
 });
@@ -2203,14 +2205,15 @@ const tel  = item._vendorTel || "";
 const nombre = item._vendedor  || "Vendedor";
 const logo  = item._vendorLogo || "";
 const plan  = item._vendorPlan || "";
+const vendorUid = item._vendorUid || "";
 const key  = tel || nombre;
-if (!byVendor.has(key)) byVendor.set(key, { tel, nombre, logo, plan, items: [] });
+if (!byVendor.has(key)) byVendor.set(key, { tel, nombre, logo, plan, vendorUid, items: [] });
 byVendor.get(key).items.push(item);
 });
 const vendors  = Array.from(byVendor.values());
 const firstVendor = vendors[0];
 const remaining  = vendors.length - 1;
-const { tel, nombre, logo, plan, items } = firstVendor;
+const { tel, nombre, logo, plan, vendorUid, items } = firstVendor;
 const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
 
 // Agrupar los artículos donados de este vendedor por beneficiario: ese dinero se paga directo a su cuenta, no al vendedor
@@ -2271,6 +2274,24 @@ const destTel = tel ? `52${tel}` : "";
 const waUrl  = destTel ? `https://wa.me/${destTel}?text=${encodeURIComponent(msg)}` : null;
 const didOpen = await _showVendorCheckoutModal({ nombre, logo, plan, subtotal, items, waUrl, remaining, donationList });
 if (didOpen) {
+// Avisamos al vendedor para que confirme la venta y se descuente el stock.
+// No bloquea el flujo: si falla, la compra sigue igual.
+if (vendorUid && window.API_URL) {
+const notifItems = items.map(i => ({
+productId: i.id, nombre: i.name, cantidad: i.quantity,
+talla: i.Talla || '', precio: i.price || 0, imagen: i.Imagen1 || ''
+}));
+fetch(window.API_URL, {
+method: "POST",
+body: JSON.stringify({
+action: "crearNotificacionVentaComunidad",
+vendor_uid: vendorUid,
+requestId: generateRequestId(),
+clientPhone: localStorage.getItem("client_phone") || "",
+items: notifItems
+})
+}).catch(err => console.error("No se pudo notificar al vendedor:", err));
+}
 items.forEach(i => delete localCart[i.id]);
 saveCartToStorage();
 updateCartBadge();
