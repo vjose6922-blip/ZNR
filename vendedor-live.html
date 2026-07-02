@@ -176,7 +176,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, query, limitToLast, update } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, query, limitToLast, update, get } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaOe_lxLdQtTFCtw2BDR8KZRSafEMkkes",
@@ -480,6 +480,34 @@ function renderLive() {
 
   document.getElementById('btn-finalizar').addEventListener('click', async () => {
     if (!confirm('¿Finalizar la transmisión en vivo?')) return;
+
+    try {
+      const snap = await get(ref(db, `chats/${currentSesion.id}/messages`));
+      const data = snap.val() || {};
+      const ventas = Object.values(data)
+        .filter(m => m.vendido && !m.isVendor)
+        .map(m => ({
+          productId: m.producto_id || '',
+          comprador_nombre: m.author || '',
+          comprador_telefono: m.telefono || ''
+        }));
+
+      if (ventas.length > 0) {
+        const resp = await apiFetch({
+          action: 'cerrarVentasLive',
+          vendorToken: vendorSession.token,
+          ventas: JSON.stringify(ventas)
+        });
+        if (resp.ok) {
+          alert(`✅ ${resp.added} venta(s) de ${resp.compradores} comprador(es) enviadas a tus notificaciones para confirmar.`);
+        } else {
+          alert('No se pudieron registrar las ventas: ' + (resp.error || 'error desconocido') + '. Puedes revisarlas manualmente en el chat.');
+        }
+      }
+    } catch (err) {
+      alert('No se pudieron leer los "vendidos" del chat. Puedes revisarlos manualmente si hace falta.');
+    }
+
     await apiFetch({ action: 'actualizarEstadoLive', vendorToken: vendorSession.token, id: currentSesion.id, estado: 'terminado' });
     if (chatUnsub) chatUnsub();
     renderEnded();
