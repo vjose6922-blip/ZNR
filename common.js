@@ -1784,6 +1784,33 @@ function initImageModalControls() {
         .im-magazine-layout { width: min(520px, 92vw); }
         .im-wrapper { height: 54dvh; }
       }
+
+      /* ── Tema claro ─────────────────────────────────────────── */
+      [data-theme="light"] .im-magazine-layout { background: #ffffff; box-shadow: 0 32px 80px rgba(0,0,0,.25); }
+      [data-theme="light"] .im-top-bar { background: #ffffff; border-bottom-color: rgba(0,0,0,.08); }
+      [data-theme="light"] .im-vendor-pill { background: rgba(0,0,0,.06); color: #222; }
+      [data-theme="light"] .im-ver-beneficiario-btn { background: rgba(0,0,0,.06); color: #b45309; }
+      [data-theme="light"] .im-ver-beneficiario-btn:hover { background: rgba(249,115,22,.15); color: #9a3412; }
+      [data-theme="light"] .im-close { background: rgba(0,0,0,.07); color: #333; }
+      [data-theme="light"] .im-close:hover { background: rgba(255,79,129,.15); color: #e11d6a; }
+      [data-theme="light"] .im-hero-col,
+      [data-theme="light"] .im-wrapper { background: #f2f3f6; }
+      [data-theme="light"] .im-dot { background: rgba(0,0,0,.18); }
+      [data-theme="light"] .im-prev, [data-theme="light"] .im-next { background: rgba(255,255,255,.75); color: #333; }
+      [data-theme="light"] .im-prev:hover, [data-theme="light"] .im-next:hover { background: rgba(255,79,129,.5); color: #fff; }
+      [data-theme="light"] .im-product-info { background: #ffffff; border-top-color: rgba(0,0,0,.08); border-bottom-color: rgba(0,0,0,.08); }
+      [data-theme="light"] .im-info-name { color: #111318; }
+      [data-theme="light"] .im-info-cat { background: rgba(0,0,0,.06); color: #555; }
+      [data-theme="light"] .im-info-talla { color: #666; }
+      [data-theme="light"] .im-info-talla strong { color: #222; }
+      [data-theme="light"] .im-info-desc { color: #777; }
+      [data-theme="light"] .im-buy-btn:disabled { background: rgba(0,0,0,.07); color: rgba(0,0,0,.35); }
+      [data-theme="light"] .im-magazine-panel { background: #ffffff; border-top-color: rgba(0,0,0,.08); }
+      [data-theme="light"] .im-related-card { color: #111318; border-right-color: rgba(0,0,0,.08); }
+      [data-theme="light"] .im-related-card:hover { background: rgba(255,79,129,.06); }
+      [data-theme="light"] .im-related-img-wrap { background: #eef0f4; }
+      [data-theme="light"] .im-related-info { background: rgba(255,255,255,.92); }
+      [data-theme="light"] .im-related-name { color: #333; }
     `;
 document.head.appendChild(st);
 const _btnSvgSt=document.createElement('style');_btnSvgSt.textContent='button svg{vertical-align:middle;margin-right:4px;flex-shrink:0}';document.head.appendChild(_btnSvgSt);
