@@ -2275,7 +2275,16 @@ items.forEach(i => delete localCart[i.id]);
 saveCartToStorage();
 updateCartBadge();
 renderCart();
-if (remaining === 0) closeCartDrawer();
+if (remaining === 0) {
+closeCartDrawer();
+} else {
+// Sigue automáticamente con el siguiente vendedor, igual que se hace
+// entre Z&R y Comunidad, en vez de dejarlo esperando a un segundo clic.
+const nextItems = Object.values(localCart).filter(i => i._comunidad);
+if (nextItems.length > 0) {
+await _checkoutComunidad(nextItems);
+}
+}
 }
 }
 function _showVendorCheckoutModal({ nombre, logo, plan, subtotal, items, waUrl, remaining, donationList = [] }) {
