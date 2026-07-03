@@ -311,7 +311,7 @@ function enviarMensaje() {
     author: identity.nombre,
     telefono: identity.telefono,
     text, isVendor: false, ts: Date.now(),
-    producto_id: sesion.producto_actual_id || ''
+    producto_id: String(sesion.producto_actual_id || '')
   }).catch(err => {
     alert('No se pudo enviar tu comentario: ' + err.message);
     input.value = text;
@@ -364,7 +364,7 @@ async function cargarProductos(idsStr) {
   await Promise.all(ids.map(async (id) => {
     try {
       // reutiliza listarComunidad filtrando por vendedor, o si prefieres,
-      // aquí podríamos tener un endpoint obtenerProductoComunidad(id) — por aho
+      // aquí podríamos tener un endpoint obtenerProductoComunidad(id) — por ahora
       // se resuelve al cargar la sesión completa vía obtenerSesionLivePorId + productos embebidos.
     } catch (e) {}
   }));
