@@ -405,7 +405,7 @@ async function init() {
     if (!resp.ok) { renderNotFound(); return; }
     sesion = resp.sesion;
 
-    // Cargar detalle de productos de este vendedor (para nombre/imagen/precio)
+    // Cargar detalle de productos de este vendedor (para nombre/imagen/
     const prodResp = await apiFetch({ action: 'listarComunidad', vendedor_uid: sesion.vendedor_id, limit: 50 });
     if (prodResp.ok && prodResp.products) {
       prodResp.products.forEach(p => { productosMap[p.id] = p; });
