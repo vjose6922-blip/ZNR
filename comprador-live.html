@@ -229,7 +229,6 @@ function renderScheduledWait() {
     </div>`;
 }
 
-// ── Identidad del comprador (nombre + teléfono, se guarda local) ──
 function getIdentity() {
   try {
     const raw = localStorage.getItem('znr_chat_identity');
@@ -405,7 +404,6 @@ function setupChat() {
   });
 }
 
-// ── Polling ligero para detectar cambios de estado / producto actual ──
 function startPolling() {
   pollTimer = setInterval(async () => {
     try {
@@ -422,7 +420,7 @@ function startPolling() {
         sesion.producto_actual_id = nueva.producto_actual_id;
         renderProductoActual();
       }
-    } catch (e) { /* silencioso, reintenta en el siguiente ciclo */ }
+    } catch (e) { 
   }, 6000);
 }
 
@@ -431,9 +429,6 @@ async function cargarProductos(idsStr) {
   productosMap = {};
   await Promise.all(ids.map(async (id) => {
     try {
-      // reutiliza listarComunidad filtrando por vendedor, o si prefieres,
-      // aquí podríamos tener un endpoint obtenerProductoComunidad(id) — por ahora
-      // se resuelve al cargar la sesión completa vía obtenerSesionLivePorId + productos embebidos.
     } catch (e) {}
   }));
 }
@@ -448,7 +443,6 @@ async function init() {
     if (!resp.ok) { renderNotFound(); return; }
     sesion = resp.sesion;
 
-    // Cargar detalle de productos de este vendedor (para nombre/imagen/precio)
     const prodResp = await apiFetch({ action: 'listarComunidad', vendedor_uid: sesion.vendedor_id, limit: 50 });
     if (prodResp.ok && prodResp.products) {
       prodResp.products.forEach(p => { productosMap[p.id] = p; });
