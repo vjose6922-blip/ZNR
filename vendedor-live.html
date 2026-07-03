@@ -672,15 +672,20 @@ function setupChat(liveId, myName, isVendor) {
         el.addEventListener('click', () => marcarVendido(liveId, key, msg));
       });
     }
+  }, (err) => {
+    messagesEl.innerHTML = `<div class="chat-empty">No se pudo cargar el chat: ${esc(err.message)}</div>`;
   });
 
   function send() {
     const text = inputEl.value.trim();
     if (!text) return;
+    inputEl.value = '';
     push(ref(db, `chats/${liveId}/messages`), {
       author: myName, text, isVendor, ts: Date.now()
+    }).catch(err => {
+      alert('No se pudo enviar el mensaje: ' + err.message);
+      inputEl.value = text;
     });
-    inputEl.value = '';
   }
   sendBtn.addEventListener('click', send);
   inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });

@@ -305,13 +305,16 @@ function enviarMensaje() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   if (!text || !identity) return;
+  input.value = '';
   push(ref(db, `chats/${liveId}/messages`), {
     author: identity.nombre,
     telefono: identity.telefono,
     text, isVendor: false, ts: Date.now(),
     producto_id: sesion.producto_actual_id || ''
+  }).catch(err => {
+    alert('No se pudo enviar tu comentario: ' + err.message);
+    input.value = text;
   });
-  input.value = '';
 }
 
 function setupChat() {
@@ -328,6 +331,8 @@ function setupChat() {
       </div>
     `).join('');
     messagesEl.scrollTop = messagesEl.scrollHeight;
+  }, (err) => {
+    messagesEl.innerHTML = `<div class="chat-empty">No se pudo cargar el chat: ${esc(err.message)}</div>`;
   });
 }
 
