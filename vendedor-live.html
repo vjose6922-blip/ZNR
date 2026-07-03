@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+  script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.youtube.com;
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co;
   connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.firebaseio.com wss://*.firebaseio.com;
   font-src 'self';
-  frame-src 'none';
+  frame-src https://www.youtube-nocookie.com;
   frame-ancestors 'none';
   object-src 'none';
   base-uri 'self';
@@ -55,6 +55,22 @@
   .field-group textarea { resize: vertical; min-height: 70px; }
   .field-group input:focus, .field-group textarea:focus {
     outline: none; border-color: var(--color-primary);
+  }
+
+  .tipo-options { display: flex; flex-direction: column; gap: 8px; }
+  .tipo-option {
+    display: flex; align-items: flex-start; gap: 10px;
+    border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+    padding: 12px 14px; cursor: pointer; background: var(--color-surface-2);
+  }
+  .tipo-option.selected { border-color: var(--color-accent-solid); background: rgba(var(--color-accent-rgb, 236,72,153), .08); }
+  .tipo-option input { width: auto; margin-top: 3px; flex-shrink: 0; }
+  .tipo-option .tipo-text strong { display: block; font-size: 13px; color: var(--color-text-primary); margin-bottom: 2px; }
+  .tipo-option .tipo-text span { display: block; font-size: 12px; color: var(--color-text-soft); line-height: 1.4; }
+  .tipo-option .badge-recomendado {
+    display: inline-block; font-size: 10px; font-weight: 700; color: #4ade80;
+    background: rgba(74,222,128,.15); padding: 2px 7px; border-radius: var(--radius-pill);
+    margin-left: 6px; vertical-align: middle;
   }
 
   .product-grid {
@@ -107,6 +123,21 @@
     animation: pulse-dot 1.4s infinite;
   }
   @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+  .video-box {
+    position: relative; width: 100%; aspect-ratio: 16/9; background: #000;
+    border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 12px;
+  }
+  .video-box iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .sound-overlay {
+    position: absolute; inset: 0; z-index: 5; border: none; cursor: pointer;
+    background: rgba(0,0,0,.4); color: #fff; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .sync-note {
+    font-size: 11px; color: var(--color-text-soft); text-align: center;
+    margin: -6px 0 14px;
+  }
 
   .share-box {
     display: flex; gap: 8px; align-items: center;
@@ -224,6 +255,7 @@ let currentSesion = null;
 let selectedProductIds = new Set();
 let allProducts = [];
 let chatUnsub = null;
+let tipoSeleccionado = 'grabado'; // 'grabado' es el default/recomendado
 
 function esc(s) {
   const d = document.createElement('div');
@@ -233,6 +265,91 @@ function esc(s) {
 
 function getComprobadorUrl(id) {
   return `${location.origin}${location.pathname.replace('vendedor-live.html','comprador-live.html')}?id=${id}`;
+}
+
+// ── Reproductor sincronizado (video grabado que se comporta como en vivo) ──
+// Todos los que ven la transmisión (compradores + tú aquí) quedan anclados
+// al mismo segundo del video según el reloj real, no según cuándo cada quien
+// le dio play. Así nadie ve "desde cero" un producto que ya se mostró/vendió.
+let ytPlayer = null;
+let ytSyncInterval = null;
+let ytApiPromise = null;
+
+function loadYouTubeAPI() {
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve) => {
+    if (window.YT && window.YT.Player) { resolve(window.YT); return; }
+    const prevCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof prevCallback === 'function') prevCallback();
+      resolve(window.YT);
+    };
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+  });
+  return ytApiPromise;
+}
+
+function resincronizarVideo(fechaInicioMs) {
+  if (!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
+  let duracion;
+  try { duracion = ytPlayer.getDuration(); } catch (e) { return; }
+  if (!duracion) return;
+  let elapsed = (Date.now() - fechaInicioMs) / 1000;
+  if (elapsed < 0) elapsed = 0;
+  elapsed = elapsed % duracion; // si el video ya terminó, lo hace loop
+  let actual = 0;
+  try { actual = ytPlayer.getCurrentTime(); } catch (e) {}
+  if (Math.abs(actual - elapsed) > 3) {
+    try { ytPlayer.seekTo(elapsed, true); } catch (e) {}
+  }
+  try { ytPlayer.playVideo(); } catch (e) {}
+}
+
+async function iniciarPlayerSincronizado(containerId, youtubeId, fechaInicioMs) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const origin = encodeURIComponent(location.origin);
+  container.innerHTML = `
+    <iframe id="${containerId}-iframe"
+      src="https://www.youtube-nocookie.com/embed/${esc(youtubeId)}?enablejsapi=1&autoplay=1&mute=1&controls=0&disablekb=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&origin=${origin}"
+      allow="autoplay; encrypted-media" allowfullscreen title="Video de la transmisión"></iframe>
+    <button class="sound-overlay" id="${containerId}-sound">🔊 Toca para activar el sonido</button>
+  `;
+  const YT = await loadYouTubeAPI();
+  ytPlayer = new YT.Player(containerId + '-iframe', {
+    events: {
+      onReady: () => {
+        resincronizarVideo(fechaInicioMs);
+        if (ytSyncInterval) clearInterval(ytSyncInterval);
+        ytSyncInterval = setInterval(() => resincronizarVideo(fechaInicioMs), 5000);
+      },
+      onStateChange: (e) => {
+        if (e.data === YT.PlayerState.ENDED) resincronizarVideo(fechaInicioMs);
+      }
+    }
+  });
+  const soundBtn = document.getElementById(containerId + '-sound');
+  if (soundBtn) {
+    soundBtn.addEventListener('click', () => {
+      if (ytPlayer && ytPlayer.unMute) {
+        ytPlayer.unMute();
+        ytPlayer.setVolume(100);
+      }
+      soundBtn.remove();
+    });
+  }
+}
+
+function detenerPlayerSincronizado() {
+  if (ytSyncInterval) { clearInterval(ytSyncInterval); ytSyncInterval = null; }
+  if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+    try { ytPlayer.destroy(); } catch (e) {}
+  }
+  ytPlayer = null;
 }
 
 // ── Estados de render ──
@@ -262,12 +379,34 @@ function renderNoPlus() {
 }
 
 async function renderCreateForm() {
+  detenerPlayerSincronizado();
   subtitle.textContent = 'Nueva transmisión';
+  tipoSeleccionado = 'grabado';
 
   wrap.innerHTML = `
     <div class="live-card">
       <h2>Configura tu transmisión</h2>
-      <p class="hint">Transmite desde la app de YouTube (modo "No listado") y pega aquí el link. Tus compradores la verán directo dentro de Z&R.</p>
+      <p class="hint">Muestra tus productos a tus compradores en tiempo real, con chat en vivo para que aparten lo que les guste.</p>
+
+      <div class="field-group">
+        <label>¿Cómo vas a transmitir?</label>
+        <div class="tipo-options">
+          <label class="tipo-option selected" id="tipo-grabado-label">
+            <input type="radio" name="tipo" value="grabado" checked>
+            <span class="tipo-text">
+              <strong>🎥 Video grabado <span class="badge-recomendado">Recomendado</span></strong>
+              <span>Graba un video mostrando tus productos, súbelo a YouTube (puede ser "No listado") y pega el link. Z&R lo muestra a tus compradores sincronizado, como si fuera en vivo — no necesitas transmitir en tiempo real ni tener suscriptores.</span>
+            </span>
+          </label>
+          <label class="tipo-option" id="tipo-vivo-label">
+            <input type="radio" name="tipo" value="vivo">
+            <span class="tipo-text">
+              <strong>🔴 Transmisión en vivo real</strong>
+              <span>Transmite en vivo desde la app de YouTube y pega aquí el link. Nota: YouTube pide mínimo 50 suscriptores para poder transmitir en vivo desde el celular.</span>
+            </span>
+          </label>
+        </div>
+      </div>
 
       <div class="field-group">
         <label>Título</label>
@@ -278,8 +417,8 @@ async function renderCreateForm() {
         <textarea id="f-desc" maxlength="200" placeholder="¿Qué vas a mostrar hoy?"></textarea>
       </div>
       <div class="field-group">
-        <label>Link de YouTube Live</label>
-        <input type="text" id="f-youtube" placeholder="https://youtube.com/live/...">
+        <label>Link de YouTube</label>
+        <input type="text" id="f-youtube" placeholder="https://youtube.com/watch?v=... o /live/...">
         <div class="error-msg" id="f-youtube-error" style="display:none;"></div>
       </div>
       <div class="field-group">
@@ -292,6 +431,14 @@ async function renderCreateForm() {
       <button class="btn-live primary" id="btn-crear-sesion">Crear transmisión</button>
       <div class="error-msg" id="f-general-error" style="display:none;"></div>
     </div>`;
+
+  document.querySelectorAll('input[name="tipo"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      tipoSeleccionado = radio.value;
+      document.getElementById('tipo-grabado-label').classList.toggle('selected', tipoSeleccionado === 'grabado');
+      document.getElementById('tipo-vivo-label').classList.toggle('selected', tipoSeleccionado === 'vivo');
+    });
+  });
 
   document.getElementById('btn-crear-sesion').addEventListener('click', crearSesion);
   loadProductGrid();
@@ -355,7 +502,7 @@ async function crearSesion() {
   genError.style.display = 'none';
 
   if (!titulo) { genError.textContent = 'Ponle un título a tu transmisión.'; genError.style.display = 'block'; return; }
-  if (!youtube) { ytError.textContent = 'Pega el link de tu YouTube Live.'; ytError.style.display = 'block'; return; }
+  if (!youtube) { ytError.textContent = 'Pega el link de tu video de YouTube.'; ytError.style.display = 'block'; return; }
 
   btn.disabled = true;
   btn.textContent = 'Creando…';
@@ -366,6 +513,7 @@ async function crearSesion() {
       vendorToken: vendorSession.token,
       titulo, descripcion: desc,
       youtube_link: youtube,
+      tipo: tipoSeleccionado,
       productos_ids: Array.from(selectedProductIds).join(';')
     });
 
@@ -387,8 +535,10 @@ async function crearSesion() {
 }
 
 function renderScheduled() {
+  detenerPlayerSincronizado();
   subtitle.textContent = 'Lista para iniciar';
   const shareUrl = getComprobadorUrl(currentSesion.id);
+  const esGrabado = currentSesion.tipo !== 'vivo';
   wrap.innerHTML = `
     <div class="live-card">
       <span class="status-badge scheduled">📅 PROGRAMADO</span>
@@ -401,7 +551,9 @@ function renderScheduled() {
         <button id="btn-copy">Copiar</button>
       </div>
 
-      <p class="hint">Cuando estés listo: abre YouTube, empieza tu transmisión en vivo, y regresa aquí a tocar "Iniciar".</p>
+      <p class="hint">${esGrabado
+        ? 'Comparte el link con tus compradores y cuando estés lista toca "Iniciar" — desde ahí todos verán tu video sincronizado.'
+        : 'Cuando estés lista: abre YouTube, empieza tu transmisión en vivo, y regresa aquí a tocar "Iniciar".'}</p>
 
       <button class="btn-live primary" id="btn-iniciar">🔴 Iniciar transmisión</button>
       <div style="height:8px;"></div>
@@ -422,6 +574,7 @@ function renderScheduled() {
       const resp = await apiFetch({ action: 'actualizarEstadoLive', vendorToken: vendorSession.token, id: currentSesion.id, estado: 'en_vivo' });
       if (resp.ok) {
         currentSesion.estado = 'en_vivo';
+        currentSesion.fecha_inicio = resp.fecha_inicio || new Date().toISOString();
         if (!allProducts.length) await fetchAllProducts();
         renderLive();
       } else {
@@ -486,6 +639,7 @@ function renderLiveFallback() {
 
 function renderLiveFull() {
   const shareUrl = getComprobadorUrl(currentSesion.id);
+  const esGrabado = currentSesion.tipo !== 'vivo';
   let misProductos = [];
   try {
     misProductos = String(currentSesion.productos_ids || '').split(';').filter(Boolean)
@@ -499,6 +653,11 @@ function renderLiveFull() {
     <div class="live-card">
       <span class="status-badge live"><span class="status-dot"></span> EN VIVO</span>
       <h2 style="margin-top:12px;">${esc(currentSesion.titulo)}</h2>
+
+      ${esGrabado ? `
+        <div class="video-box" id="vendor-video-slot"></div>
+        <p class="sync-note">Esto es exactamente lo que están viendo tus compradores en este momento.</p>
+      ` : ''}
 
       <div class="share-box">
         <input type="text" readonly value="${esc(shareUrl)}" id="share-url">
@@ -561,6 +720,13 @@ IDs cargados: ${esc(allProducts.map(p => p.id).join(', '))}</div>`
   });
 
   setupChat(currentSesion.id, vendorSession.nombre, true);
+
+  if (esGrabado && currentSesion.youtube_id && currentSesion.fecha_inicio) {
+    const fechaInicioMs = new Date(currentSesion.fecha_inicio).getTime();
+    if (!isNaN(fechaInicioMs)) {
+      iniciarPlayerSincronizado('vendor-video-slot', currentSesion.youtube_id, fechaInicioMs);
+    }
+  }
 }
 
 // ── Cierre de transmisión: registra ventas, genera la página de
@@ -568,6 +734,7 @@ IDs cargados: ${esc(allProducts.map(p => p.id).join(', '))}</div>`
 // en este navegador para poder volver a abrirla después. ──
 async function finalizarTransmision(finBtn) {
   if (finBtn) { finBtn.disabled = true; finBtn.textContent = 'Finalizando…'; }
+  detenerPlayerSincronizado();
 
   let entregaUrl = null;
 
@@ -675,6 +842,7 @@ function crearPaginaEntregas(ventas) {
 }
 
 function renderEnded(entregaUrl) {
+  detenerPlayerSincronizado();
   subtitle.textContent = 'Finalizada';
   wrap.innerHTML = `
     <div class="live-card center-text">
