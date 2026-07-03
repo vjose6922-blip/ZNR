@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -101,11 +100,18 @@
   }
   .identity-sheet h2 { margin: 0 0 6px; color: var(--color-text-primary); font-size: 17px; }
   .identity-sheet p { margin: 0 0 16px; font-size: 13px; color: var(--color-text-soft); }
-  .identity-sheet input {
+  .identity-sheet input, .identity-sheet textarea {
     width: 100%; box-sizing: border-box; margin-bottom: 10px;
     padding: 12px 14px; border-radius: var(--radius-md);
     border: 1px solid var(--color-border-subtle);
     background: var(--color-surface-2); color: var(--color-text-primary); font-size: 14px;
+    font-family: inherit;
+  }
+  .identity-sheet textarea { resize: vertical; min-height: 60px; }
+  .identity-sheet label {
+    display: block; font-size: 11px; font-weight: 600;
+    color: var(--color-text-soft); text-transform: uppercase;
+    letter-spacing: .05em; margin: 0 0 6px;
   }
   .identity-sheet button {
     width: 100%; border: none; border-radius: var(--radius-pill);
@@ -224,25 +230,42 @@ function getIdentity() {
 }
 
 function askIdentity(onDone) {
+  const prev = identity || {};
   const overlay = document.createElement('div');
   overlay.className = 'identity-overlay';
   overlay.innerHTML = `
     <div class="identity-sheet">
       <h2>Únete al chat</h2>
-      <p>Para comentar y apartar productos, dinos quién eres. El vendedor usará esto para contactarte.</p>
-      <input type="text" id="idn-nombre" placeholder="Tu nombre" maxlength="40">
-      <input type="tel" id="idn-tel" placeholder="Tu teléfono (10 dígitos)" maxlength="10">
+      <p>Para comentar y apartar productos, dinos quién eres y dónde entregarte. El vendedor usará esto para contactarte y coordinar la entrega.</p>
+      <label for="idn-nombre">Tu nombre</label>
+      <input type="text" id="idn-nombre" placeholder="Nombre y apellido" maxlength="40" value="${esc(prev.nombre || '')}">
+      <label for="idn-tel">Tu teléfono</label>
+      <input type="tel" id="idn-tel" placeholder="10 dígitos" maxlength="10" value="${esc(prev.telefono || '')}">
+      <label for="idn-dir">Dirección de entrega</label>
+      <textarea id="idn-dir" placeholder="Calle, número, colonia, referencias…" maxlength="200">${esc(prev.direccion || '')}</textarea>
+      <label for="idn-horario">Horario para entrega</label>
+      <input type="text" id="idn-horario" placeholder="Ej. Tardes después de 5pm, fines de semana…" maxlength="80" value="${esc(prev.horario || '')}">
       <button id="idn-btn">Entrar al chat</button>
     </div>`;
   document.body.appendChild(overlay);
   document.getElementById('idn-btn').addEventListener('click', () => {
     const nombre = document.getElementById('idn-nombre').value.trim();
     const tel = document.getElementById('idn-tel').value.replace(/\D/g, '');
+    const direccion = document.getElementById('idn-dir').value.trim();
+    const horario = document.getElementById('idn-horario').value.trim();
     if (!nombre || tel.length !== 10) {
       alert('Escribe tu nombre y un teléfono válido de 10 dígitos.');
       return;
     }
-    identity = { nombre, telefono: tel };
+    if (!direccion) {
+      alert('Escribe la dirección donde quieres recibir tu pedido.');
+      return;
+    }
+    if (!horario) {
+      alert('Dinos en qué horario podemos entregarte.');
+      return;
+    }
+    identity = { nombre, telefono: tel, direccion, horario };
     localStorage.setItem('znr_chat_identity', JSON.stringify(identity));
     document.body.removeChild(overlay);
     onDone();
@@ -310,6 +333,8 @@ function enviarMensaje() {
   push(ref(db, `chats/${liveId}/messages`), {
     author: identity.nombre,
     telefono: identity.telefono,
+    direccion: identity.direccion || '',
+    horario: identity.horario || '',
     text, isVendor: false, ts: Date.now(),
     producto_id: String(sesion.producto_actual_id || '')
   }).catch(err => {
@@ -392,7 +417,7 @@ async function init() {
     renderLive();
     startPolling();
 
-    if (!identity) {
+    if (!identity || !identity.direccion || !identity.horario) {
       askIdentity(() => {});
     }
   } catch (err) {
