@@ -253,8 +253,8 @@ function askIdentity(onDone) {
       <input type="tel" id="idn-tel" placeholder="10 dígitos" maxlength="10" value="${esc(prev.telefono || '')}">
       <label for="idn-dir">Dirección de entrega</label>
       <textarea id="idn-dir" placeholder="Calle, número, colonia, referencias… (o usa tu ubicación abajo)" maxlength="200">${esc(prev.direccion || '')}</textarea>
-      <button type="button" class="btn-gps" id="idn-gps-btn">📍 Usar mi ubicación actual</button>
-      <p class="gps-status ${gpsCoords ? 'ok' : ''}" id="idn-gps-status">${gpsCoords ? '✅ Ya tenemos tu ubicación guardada.' : ''}</p>
+      <button type="button" class="btn-gps" id="idn-gps-btn"> Usar mi ubicación actual</button>
+      <p class="gps-status ${gpsCoords ? 'ok' : ''}" id="idn-gps-status">${gpsCoords ? ' Ya tenemos tu ubicación guardada.' : ''}</p>
       <label for="idn-horario">Horario para entrega</label>
       <input type="text" id="idn-horario" placeholder="Ej. Tardes después de 5pm, fines de semana…" maxlength="80" value="${esc(prev.horario || '')}">
       <button id="idn-btn">Entrar al chat</button>
@@ -273,7 +273,7 @@ function askIdentity(onDone) {
     navigator.geolocation.getCurrentPosition((pos) => {
       gpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       statusEl.className = 'gps-status ok';
-      statusEl.textContent = '✅ Ubicación capturada. El vendedor podrá verla en el mapa.';
+      statusEl.textContent = ' Ubicación capturada. El vendedor podrá verla en el mapa.';
     }, (err) => {
       gpsCoords = null;
       statusEl.className = 'gps-status error';
