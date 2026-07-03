@@ -210,6 +210,13 @@ async function apiFetch(data, method = 'POST') {
   return JSON.parse(await res.text());
 }
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+  ]);
+}
+
 const wrap = document.getElementById('live-wrap');
 const subtitle = document.getElementById('header-subtitle');
 let vendorSession = null;
@@ -472,7 +479,11 @@ function renderLiveFallback() {
   });
   document.getElementById('btn-finalizar').addEventListener('click', async () => {
     if (!confirm('¿Finalizar la transmisión en vivo?')) return;
-    await apiFetch({ action: 'actualizarEstadoLive', vendorToken: vendorSession.token, id: currentSesion.id, estado: 'terminado' });
+    try {
+      await withTimeout(apiFetch({ action: 'actualizarEstadoLive', vendorToken: vendorSession.token, id: currentSesion.id, estado: 'terminado' }), 8000);
+    } catch (err) {
+      // seguimos aunque no se confirme, para no dejar al vendedor atorado
+    }
     if (chatUnsub) chatUnsub();
     renderEnded();
   });
@@ -483,7 +494,7 @@ function renderLiveFull() {
   const shareUrl = getComprobadorUrl(currentSesion.id);
   let misProductos = [];
   try {
-    misProductos = (currentSesion.productos_ids || '').split(',').filter(Boolean)
+    misProductos = String(currentSesion.productos_ids || '').split(',').filter(Boolean)
       .map(id => allProducts.find(p => String(p.id) === String(id)))
       .filter(Boolean);
   } catch (e) {
@@ -510,7 +521,12 @@ function renderLiveFull() {
             <img src="${esc(p.imagen1 || 'https://placehold.co/200x200')}" alt="${esc(p.nombre)}" loading="lazy">
             <div class="chip-name">${esc(p.nombre)}</div>
           </div>
-        `).join('') : '<div class="chat-empty">No seleccionaste productos al crear la transmisión.</div>'}
+        `).join('') : (String(currentSesion.productos_ids || '').trim()
+            ? `<div class="chat-empty" style="text-align:left; font-size:11px; font-family:monospace; white-space:pre-wrap;">⚠️ Diagnóstico: guardaste productos pero no coinciden con tu catálogo cargado.
+productos_ids guardado: "${esc(String(currentSesion.productos_ids))}"
+productos cargados (allProducts): ${allProducts.length}
+IDs cargados: ${esc(allProducts.map(p => p.id).join(', '))}</div>`
+            : '<div class="chat-empty">No seleccionaste productos al crear la transmisión.</div>')}
       </div>
     </div>
 
@@ -547,9 +563,12 @@ function renderLiveFull() {
 
   document.getElementById('btn-finalizar').addEventListener('click', async () => {
     if (!confirm('¿Finalizar la transmisión en vivo?')) return;
+    const finBtn = document.getElementById('btn-finalizar');
+    finBtn.disabled = true;
+    finBtn.textContent = 'Finalizando…';
 
     try {
-      const snap = await get(ref(db, `chats/${currentSesion.id}/messages`));
+      const snap = await withTimeout(get(ref(db, `chats/${currentSesion.id}/messages`)), 5000);
       const data = snap.val() || {};
       const ventas = Object.values(data)
         .filter(m => m.vendido && !m.isVendor)
@@ -560,11 +579,11 @@ function renderLiveFull() {
         }));
 
       if (ventas.length > 0) {
-        const resp = await apiFetch({
+        const resp = await withTimeout(apiFetch({
           action: 'cerrarVentasLive',
           vendorToken: vendorSession.token,
           ventas: JSON.stringify(ventas)
-        });
+        }), 8000);
         if (resp.ok) {
           alert(`✅ ${resp.added} venta(s) de ${resp.compradores} comprador(es) enviadas a tus notificaciones para confirmar.`);
         } else {
@@ -572,10 +591,15 @@ function renderLiveFull() {
         }
       }
     } catch (err) {
-      alert('No se pudieron leer los "vendidos" del chat. Puedes revisarlos manualmente si hace falta.');
+      alert('No se pudieron leer los "vendidos" del chat (puede ser tu conexión). Se va a cerrar de todos modos — revísalos manualmente si hace falta.');
     }
 
-    await apiFetch({ action: 'actualizarEstadoLive', vendorToken: vendorSession.token, id: currentSesion.id, estado: 'terminado' });
+    try {
+      await withTimeout(apiFetch({ action: 'actualizarEstadoLive', vendorToken: vendorSession.token, id: currentSesion.id, estado: 'terminado' }), 8000);
+    } catch (err) {
+      // aunque no se confirme con el servidor, seguimos para no dejar al vendedor atorado
+    }
+
     if (chatUnsub) chatUnsub();
     renderEnded();
   });
