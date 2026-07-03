@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+  script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.youtube.com;
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co;
   connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.firebaseio.com wss://*.firebaseio.com;
@@ -29,6 +29,11 @@
 
   .video-box { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
   .video-box iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .sound-overlay {
+    position: absolute; inset: 0; z-index: 5; border: none; cursor: pointer;
+    background: rgba(0,0,0,.4); color: #fff; font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
 
   .live-info { padding: 14px 16px; border-bottom: 1px solid var(--color-border-subtle); }
   .live-info h1 { margin: 0 0 4px; font-size: 16px; color: var(--color-text-primary); }
@@ -193,6 +198,91 @@ let productosMap = {};
 let identity = null;
 let pollTimer = null;
 
+// ── Reproductor sincronizado (video grabado que se comporta como en vivo) ──
+// Todos los compradores quedan anclados al mismo segundo del video según
+// el reloj real (fecha_inicio de la sesión), no según cuándo cada quien
+// entró a la página. Así nadie ve "desde cero" un producto ya mostrado.
+let ytPlayer = null;
+let ytSyncInterval = null;
+let ytApiPromise = null;
+
+function loadYouTubeAPI() {
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve) => {
+    if (window.YT && window.YT.Player) { resolve(window.YT); return; }
+    const prevCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof prevCallback === 'function') prevCallback();
+      resolve(window.YT);
+    };
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+  });
+  return ytApiPromise;
+}
+
+function resincronizarVideo(fechaInicioMs) {
+  if (!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
+  let duracion;
+  try { duracion = ytPlayer.getDuration(); } catch (e) { return; }
+  if (!duracion) return;
+  let elapsed = (Date.now() - fechaInicioMs) / 1000;
+  if (elapsed < 0) elapsed = 0;
+  elapsed = elapsed % duracion; // si el video ya terminó, lo hace loop
+  let actual = 0;
+  try { actual = ytPlayer.getCurrentTime(); } catch (e) {}
+  if (Math.abs(actual - elapsed) > 3) {
+    try { ytPlayer.seekTo(elapsed, true); } catch (e) {}
+  }
+  try { ytPlayer.playVideo(); } catch (e) {}
+}
+
+async function iniciarPlayerSincronizado(containerId, youtubeId, fechaInicioMs) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const origin = encodeURIComponent(location.origin);
+  container.innerHTML = `
+    <iframe id="${containerId}-iframe"
+      src="https://www.youtube-nocookie.com/embed/${esc(youtubeId)}?enablejsapi=1&autoplay=1&mute=1&controls=0&disablekb=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&origin=${origin}"
+      allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>
+    <button class="sound-overlay" id="${containerId}-sound">🔊 Toca para activar el sonido</button>
+  `;
+  const YT = await loadYouTubeAPI();
+  ytPlayer = new YT.Player(containerId + '-iframe', {
+    events: {
+      onReady: () => {
+        resincronizarVideo(fechaInicioMs);
+        if (ytSyncInterval) clearInterval(ytSyncInterval);
+        ytSyncInterval = setInterval(() => resincronizarVideo(fechaInicioMs), 5000);
+      },
+      onStateChange: (e) => {
+        if (e.data === YT.PlayerState.ENDED) resincronizarVideo(fechaInicioMs);
+      }
+    }
+  });
+  const soundBtn = document.getElementById(containerId + '-sound');
+  if (soundBtn) {
+    soundBtn.addEventListener('click', () => {
+      if (ytPlayer && ytPlayer.unMute) {
+        ytPlayer.unMute();
+        ytPlayer.setVolume(100);
+      }
+      soundBtn.remove();
+    });
+  }
+}
+
+function detenerPlayerSincronizado() {
+  if (ytSyncInterval) { clearInterval(ytSyncInterval); ytSyncInterval = null; }
+  if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+    try { ytPlayer.destroy(); } catch (e) {}
+  }
+  ytPlayer = null;
+}
+
 function renderNoId() {
   wrap.innerHTML = `
     <div class="center-card">
@@ -212,6 +302,7 @@ function renderNotFound() {
 }
 
 function renderEnded() {
+  detenerPlayerSincronizado();
   wrap.innerHTML = `
     <div class="center-card">
       <div class="icon">✅</div>
@@ -312,10 +403,11 @@ function askIdentity(onDone) {
 
 function renderLive() {
   const shareUrl = location.href;
+  const esGrabado = sesion.tipo !== 'vivo';
   wrap.innerHTML = `
-    <div class="video-box">
-      <iframe src="https://www.youtube-nocookie.com/embed/${esc(sesion.youtube_id)}?autoplay=1"
-        allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>
+    <div class="video-box" id="video-slot">
+      ${esGrabado ? '' : `<iframe src="https://www.youtube-nocookie.com/embed/${esc(sesion.youtube_id)}?autoplay=1"
+        allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>`}
     </div>
     <div class="live-info">
       <span class="status-badge live"><span class="status-dot"></span> EN VIVO</span>
@@ -339,6 +431,13 @@ function renderLive() {
 
   document.getElementById('chat-send').addEventListener('click', enviarMensaje);
   document.getElementById('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') enviarMensaje(); });
+
+  if (esGrabado && sesion.youtube_id && sesion.fecha_inicio) {
+    const fechaInicioMs = new Date(sesion.fecha_inicio).getTime();
+    if (!isNaN(fechaInicioMs)) {
+      iniciarPlayerSincronizado('video-slot', sesion.youtube_id, fechaInicioMs);
+    }
+  }
 }
 
 function renderProductoActual() {
@@ -426,18 +525,6 @@ function startPolling() {
   }, 6000);
 }
 
-async function cargarProductos(idsStr) {
-  const ids = (idsStr || '').split(',').filter(Boolean);
-  productosMap = {};
-  await Promise.all(ids.map(async (id) => {
-    try {
-      // reutiliza listarComunidad filtrando por vendedor, o si prefieres,
-      // aquí podríamos tener un endpoint obtenerProductoComunidad(id) — por ahora
-      // se resuelve al cargar la sesión completa vía obtenerSesionLivePorId + productos embebidos.hhhhhhhh
-    } catch (e) {}
-  }));
-}
-
 async function init() {
   if (!liveId) { renderNoId(); return; }
 
@@ -448,7 +535,7 @@ async function init() {
     if (!resp.ok) { renderNotFound(); return; }
     sesion = resp.sesion;
 
-    // Cargar detalle de productos de este vendedor (para nombre/imagen/precio)
+    // Cargar detalle de productos de este vendedor (para nombre/imagen/precio)0000
     const prodResp = await apiFetch({ action: 'listarComunidad', vendedor_uid: sesion.vendedor_id, limit: 50 });
     if (prodResp.ok && prodResp.products) {
       prodResp.products.forEach(p => { productosMap[p.id] = p; });
