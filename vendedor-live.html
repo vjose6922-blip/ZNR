@@ -222,6 +222,63 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .error-msg { color: var(--color-error); font-size: 13px; margin-top: 8px; }
+
+  /* ── Layout fijo durante la transmisión: video+info arriba,
+     chat abajo, todo visible sin necesidad de hacer scroll ── */
+  body.live-active {
+    height: 100vh; height: 100dvh; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  body.live-active .app-header { flex-shrink: 0; }
+  body.live-active .live-wrap {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    padding: 0; overflow: hidden;
+  }
+
+  .live-top-fixed { flex-shrink: 0; }
+  .live-top-fixed .video-box { border-radius: 0; margin-bottom: 0; }
+  .live-middle-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; }
+  .live-bottom-fixed { flex-shrink: 0; padding: 0 12px 10px; }
+  .live-bottom-fixed .chat-panel { height: 30vh; min-height: 180px; max-height: 300px; }
+
+  .live-info-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .live-info-text { flex: 1; min-width: 0; }
+  .li-title-line { display: flex; align-items: center; gap: 6px; }
+  .li-title-line .status-dot { flex-shrink: 0; }
+  .li-title {
+    font-size: 13px; font-weight: 700; color: var(--color-text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .li-sub-line { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+  .li-desc {
+    font-size: 11px; color: var(--color-text-soft); flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .li-views {
+    font-size: 11px; font-weight: 700; color: var(--color-text-soft);
+    white-space: nowrap; flex-shrink: 0; background: none; border: none; cursor: pointer;
+    padding: 0;
+  }
+  .btn-copy-icon {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid var(--color-border-subtle); background: var(--color-surface-2);
+    color: var(--color-text-primary); font-size: 14px; cursor: pointer;
+  }
+
+  .chat-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; font-size: 12px; font-weight: 700; color: var(--color-text-primary);
+    border-bottom: 1px solid var(--color-border-subtle); flex-shrink: 0;
+  }
+  .btn-finalizar-mini {
+    background: rgba(239,68,68,.15); color: #f87171; border: none;
+    border-radius: var(--radius-pill); padding: 5px 12px; font-size: 11px;
+    font-weight: 700; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -431,6 +488,7 @@ function detenerPlayerSincronizado() {
 // ── Estados de render ──
 
 function renderNoSession() {
+  document.body.classList.remove('live-active');
   wrap.innerHTML = `
     <div class="live-card center-text">
       <div class="upsell-icon">🔒</div>
@@ -443,6 +501,7 @@ function renderNoSession() {
 }
 
 function renderNoPlus() {
+  document.body.classList.remove('live-active');
   wrap.innerHTML = `
     <div class="live-card center-text">
       <div class="upsell-icon">✨</div>
@@ -456,6 +515,7 @@ function renderNoPlus() {
 
 async function renderCreateForm() {
   detenerPlayerSincronizado();
+  document.body.classList.remove('live-active');
   subtitle.textContent = 'Nueva transmisión';
   tipoSeleccionado = 'grabado';
 
@@ -622,6 +682,7 @@ async function crearSesion() {
 
 function renderScheduled() {
   detenerPlayerSincronizado();
+  document.body.classList.remove('live-active');
   subtitle.textContent = 'Lista para iniciar';
   const shareUrl = getComprobadorUrl(currentSesion.id);
   const esGrabado = currentSesion.tipo !== 'vivo';
@@ -691,20 +752,37 @@ function renderLive() {
 }
 
 function renderLiveFallback() {
+  document.body.classList.add('live-active');
   const shareUrl = getComprobadorUrl(currentSesion.id);
   wrap.innerHTML = `
-    <div class="live-card">
-      <span class="status-badge live"><span class="status-dot"></span> EN VIVO</span>
-      <button class="viewer-badge" id="btn-viewers">👀 <span id="viewer-count">0</span> viendo</button>
-      <h2 style="margin-top:12px;">${esc(currentSesion.titulo || '')}</h2>
-      <div class="share-box">
-        <input type="text" readonly value="${esc(shareUrl)}" id="share-url">
-        <button id="btn-copy">Copiar</button>
+    <div class="live-top-fixed">
+      <div class="live-info-row">
+        <div class="live-info-text">
+          <div class="li-title-line">
+            <span class="status-dot"></span>
+            <strong class="li-title">${esc(currentSesion.titulo || '')}</strong>
+          </div>
+          <div class="li-sub-line">
+            <span class="li-desc">${esc(currentSesion.descripcion || 'Transmisión en vivo')}</span>
+            <button class="li-views" id="btn-viewers">👀 <span id="viewer-count">0</span></button>
+          </div>
+        </div>
+        <button id="btn-copy" class="btn-copy-icon" title="Copiar link para compradores">🔗</button>
       </div>
     </div>
-    <div class="live-card">
-      <h2>Chat</h2>
+
+    <div class="live-middle-scroll">
+      <div class="live-card center-text" style="margin-bottom:0;">
+        <p class="hint" style="margin:0;">No pudimos cargar la vista previa del video, pero el chat y las ventas siguen funcionando normal.</p>
+      </div>
+    </div>
+
+    <div class="live-bottom-fixed">
       <div class="chat-panel">
+        <div class="chat-panel-header">
+          <span>Chat</span>
+          <button id="btn-finalizar" class="btn-finalizar-mini">⏹️ Finalizar</button>
+        </div>
         <div class="chat-messages" id="chat-messages"><div class="chat-empty">Aún no hay mensajes.</div></div>
         <div class="chat-input-row">
           <input type="text" id="chat-input" placeholder="Responde a tus compradores…" maxlength="300">
@@ -712,10 +790,12 @@ function renderLiveFallback() {
         </div>
       </div>
     </div>
-    <button class="btn-live danger" id="btn-finalizar">Finalizar transmisión</button>
   `;
   document.getElementById('btn-copy').addEventListener('click', () => {
     navigator.clipboard.writeText(shareUrl).catch(() => {});
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = '✅';
+    setTimeout(() => { btn.textContent = '🔗'; }, 1500);
   });
   document.getElementById('btn-viewers').addEventListener('click', mostrarEspectadores);
   document.getElementById('btn-finalizar').addEventListener('click', () => {
@@ -727,6 +807,7 @@ function renderLiveFallback() {
 }
 
 function renderLiveFull() {
+  document.body.classList.add('live-active');
   const shareUrl = getComprobadorUrl(currentSesion.id);
   const esGrabado = currentSesion.tipo !== 'vivo';
   let misProductos = [];
@@ -738,44 +819,54 @@ function renderLiveFull() {
     misProductos = [];
   }
 
+  const descLinea = currentSesion.descripcion
+    ? currentSesion.descripcion
+    : (esGrabado ? 'Video sincronizado con tus compradores' : 'Transmisión en vivo');
+
   wrap.innerHTML = `
-    <div class="live-card">
-      <span class="status-badge live"><span class="status-dot"></span> EN VIVO</span>
-      <button class="viewer-badge" id="btn-viewers">👀 <span id="viewer-count">0</span> viendo</button>
-      <h2 style="margin-top:12px;">${esc(currentSesion.titulo)}</h2>
-
-      ${esGrabado ? `
-        <div class="video-box" id="vendor-video-slot"></div>
-        <p class="sync-note">Esto es exactamente lo que están viendo tus compradores en este momento.</p>
-      ` : ''}
-
-      <div class="share-box">
-        <input type="text" readonly value="${esc(shareUrl)}" id="share-url">
-        <button id="btn-copy">Copiar</button>
+    <div class="live-top-fixed">
+      ${esGrabado ? `<div class="video-box" id="vendor-video-slot"></div>` : ''}
+      <div class="live-info-row">
+        <div class="live-info-text">
+          <div class="li-title-line">
+            <span class="status-dot"></span>
+            <strong class="li-title">${esc(currentSesion.titulo || '')}</strong>
+          </div>
+          <div class="li-sub-line">
+            <span class="li-desc">${esc(descLinea)}</span>
+            <button class="li-views" id="btn-viewers">👀 <span id="viewer-count">0</span></button>
+          </div>
+        </div>
+        <button id="btn-copy" class="btn-copy-icon" title="Copiar link para compradores">🔗</button>
       </div>
     </div>
 
-    <div class="live-card">
-      <h2>Producto que estás mostrando</h2>
-      <p class="hint">Tócalo para que tus compradores lo vean destacado con botón de compra.</p>
-      <div class="product-grid" id="live-product-grid">
-        ${misProductos.length ? misProductos.map(p => `
-          <div class="product-chip ${String(p.id) === String(currentSesion.producto_actual_id) ? 'selected' : ''}" data-id="${esc(p.id)}">
-            <img src="${esc(p.imagen1 || 'https://placehold.co/200x200')}" alt="${esc(p.nombre)}" loading="lazy">
-            <div class="chip-name">${esc(p.nombre)}</div>
-          </div>
-        `).join('') : (String(currentSesion.productos_ids || '').trim()
-            ? `<div class="chat-empty" style="text-align:left; font-size:11px; font-family:monospace; white-space:pre-wrap;">⚠️ Diagnóstico: guardaste productos pero no coinciden con tu catálogo cargado.
+    <div class="live-middle-scroll">
+      <div class="live-card" style="margin-bottom:0;">
+        <h2>Producto que estás mostrando</h2>
+        <p class="hint">Tócalo para que tus compradores lo vean destacado con botón de compra.</p>
+        <div class="product-grid" id="live-product-grid">
+          ${misProductos.length ? misProductos.map(p => `
+            <div class="product-chip ${String(p.id) === String(currentSesion.producto_actual_id) ? 'selected' : ''}" data-id="${esc(p.id)}">
+              <img src="${esc(p.imagen1 || 'https://placehold.co/200x200')}" alt="${esc(p.nombre)}" loading="lazy">
+              <div class="chip-name">${esc(p.nombre)}</div>
+            </div>
+          `).join('') : (String(currentSesion.productos_ids || '').trim()
+              ? `<div class="chat-empty" style="text-align:left; font-size:11px; font-family:monospace; white-space:pre-wrap;">⚠️ Diagnóstico: guardaste productos pero no coinciden con tu catálogo cargado.
 productos_ids guardado: "${esc(String(currentSesion.productos_ids))}"
 productos cargados (allProducts): ${allProducts.length}
 IDs cargados: ${esc(allProducts.map(p => p.id).join(', '))}</div>`
-            : '<div class="chat-empty">No seleccionaste productos al crear la transmisión.</div>')}
+              : '<div class="chat-empty">No seleccionaste productos al crear la transmisión.</div>')}
+        </div>
       </div>
     </div>
 
-    <div class="live-card">
-      <h2>Chat</h2>
+    <div class="live-bottom-fixed">
       <div class="chat-panel">
+        <div class="chat-panel-header">
+          <span>Chat</span>
+          <button id="btn-finalizar" class="btn-finalizar-mini">⏹️ Finalizar</button>
+        </div>
         <div class="chat-messages" id="chat-messages"><div class="chat-empty">Aún no hay mensajes.</div></div>
         <div class="chat-input-row">
           <input type="text" id="chat-input" placeholder="Responde a tus compradores…" maxlength="300">
@@ -783,15 +874,13 @@ IDs cargados: ${esc(allProducts.map(p => p.id).join(', '))}</div>`
         </div>
       </div>
     </div>
-
-    <button class="btn-live danger" id="btn-finalizar">Finalizar transmisión</button>
   `;
 
   document.getElementById('btn-copy').addEventListener('click', () => {
     navigator.clipboard.writeText(shareUrl).catch(() => {});
     const btn = document.getElementById('btn-copy');
-    btn.textContent = '¡Copiado!';
-    setTimeout(() => { btn.textContent = 'Copiar'; }, 1500);
+    btn.textContent = '✅';
+    setTimeout(() => { btn.textContent = '🔗'; }, 1500);
   });
 
   document.getElementById('btn-viewers').addEventListener('click', mostrarEspectadores);
@@ -928,6 +1017,7 @@ async function crearPaginaEntregas(ventas) {
 
 function renderEnded(entregaUrl) {
   detenerPlayerSincronizado();
+  document.body.classList.remove('live-active');
   subtitle.textContent = 'Finalizada';
   wrap.innerHTML = `
     <div class="live-card center-text">
