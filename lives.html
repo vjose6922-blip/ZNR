@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -112,6 +113,13 @@ async function contarEspectadores(liveId) {
   } catch (e) { return 0; }
 }
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(0), ms))
+  ]);
+}
+
 (function() {
   'use strict';
 
@@ -165,8 +173,17 @@ async function contarEspectadores(liveId) {
     try {
       const resp = await apiFetch({ action: 'obtenerLivesActivos' });
       if (resp.ok && resp.lives && resp.lives.length > 0) {
-        const counts = await Promise.all(resp.lives.map(l => contarEspectadores(l.id)));
-        resp.lives.forEach((l, i) => { l.espectadores = counts[i]; });
+        try {
+          const counts = await withTimeout(
+            Promise.all(resp.lives.map(l => contarEspectadores(l.id))),
+            3000
+          );
+          if (Array.isArray(counts)) {
+            resp.lives.forEach((l, i) => { l.espectadores = counts[i] || 0; });
+          }
+        } catch (e) {
+          // si falla el contador, seguimos mostrando la lista sin él
+        }
         renderLives(resp.lives);
       } else {
         subtitle.textContent = 'Vendedores transmitiendo';
