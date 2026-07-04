@@ -27,12 +27,18 @@
 <style>
   .live-wrap { max-width: 640px; margin: 0 auto; padding: 0 0 100px; }
 
-  .video-box { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+  .video-box {
+    position: sticky; top: 0; z-index: 20;
+    width: 100%; aspect-ratio: 16/9; background: #000;
+  }
   .video-box iframe { width: 100%; height: 100%; border: 0; display: block; }
   .sound-overlay {
     position: absolute; inset: 0; z-index: 5; border: none; cursor: pointer;
     background: rgba(0,0,0,.4); color: #fff; font-size: 14px; font-weight: 700;
     display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .video-tap-blocker {
+    position: absolute; inset: 0; z-index: 5; background: transparent;
   }
 
   .live-info { padding: 14px 16px; border-bottom: 1px solid var(--color-border-subtle); }
@@ -219,10 +225,11 @@ let presenceCountUnsub = null;
 
 // ── Reproductor sincronizado (video grabado que se comporta como en vivo) ──
 // Todos los compradores quedan anclados al mismo segundo del video según
-// el reloj real (fecha_inicio de la sesión), no según cuándo cada quien000000
+// el reloj real (fecha_inicio de la sesión), no según cuándo cada quien
 // entró a la página. Así nadie ve "desde cero" un producto ya mostrado.
 let ytPlayer = null;
 let ytSyncInterval = null;
+let ytMuteCheckInterval = null;
 let ytApiPromise = null;
 
 function loadYouTubeAPI() {
@@ -276,6 +283,16 @@ async function iniciarPlayerSincronizado(containerId, youtubeId, fechaInicioMs) 
         resincronizarVideo(fechaInicioMs);
         if (ytSyncInterval) clearInterval(ytSyncInterval);
         ytSyncInterval = setInterval(() => resincronizarVideo(fechaInicioMs), 5000);
+
+        // Por si el video se desmutea por algún medio que no sea
+        // nuestro propio botón (por ejemplo alguna política del
+        // navegador), igual bloqueamos los toques sobre el video.
+        if (ytMuteCheckInterval) clearInterval(ytMuteCheckInterval);
+        ytMuteCheckInterval = setInterval(() => {
+          if (ytPlayer && typeof ytPlayer.isMuted === 'function' && !ytPlayer.isMuted()) {
+            bloquearInteraccionVideo(containerId);
+          }
+        }, 1000);
       },
       onStateChange: (e) => {
         if (e.data === YT.PlayerState.ENDED) resincronizarVideo(fechaInicioMs);
@@ -289,13 +306,32 @@ async function iniciarPlayerSincronizado(containerId, youtubeId, fechaInicioMs) 
         ytPlayer.unMute();
         ytPlayer.setVolume(100);
       }
-      soundBtn.remove();
+      bloquearInteraccionVideo(containerId);
     });
+  }
+}
+
+// Quita el aviso de "toca para activar el sonido" (si sigue ahí) y
+// lo reemplaza por un overlay transparente que sigue cubriendo el
+// video — así nadie puede pausarlo ni tocar controles nativos de
+// YouTube, esté o no silenciado.
+function bloquearInteraccionVideo(containerId) {
+  if (ytMuteCheckInterval) { clearInterval(ytMuteCheckInterval); ytMuteCheckInterval = null; }
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const soundBtn = document.getElementById(containerId + '-sound');
+  if (soundBtn) soundBtn.remove();
+  if (!document.getElementById(containerId + '-blocker')) {
+    const blocker = document.createElement('div');
+    blocker.id = containerId + '-blocker';
+    blocker.className = 'video-tap-blocker';
+    container.appendChild(blocker);
   }
 }
 
 function detenerPlayerSincronizado() {
   if (ytSyncInterval) { clearInterval(ytSyncInterval); ytSyncInterval = null; }
+  if (ytMuteCheckInterval) { clearInterval(ytMuteCheckInterval); ytMuteCheckInterval = null; }
   if (ytPlayer && typeof ytPlayer.destroy === 'function') {
     try { ytPlayer.destroy(); } catch (e) {}
   }
@@ -624,7 +660,7 @@ function setupChat() {
   });
 }
 
-// ── Polling ligero para detectar cambios de estado / producto actual ──
+// ── Polling000000000
 function startPolling() {
   pollTimer = setInterval(async () => {
     try {
@@ -659,7 +695,7 @@ async function init() {
     btnReportar.style.display = 'flex';
     btnReportar.addEventListener('click', mostrarReporte);
 
-    // Cargar detalle de productos de este vendedor (para nombre/imagen/prnn
+    // Cargar detalle de productos de este vendedor (para nombre/imagen/precio)0000
     const prodResp = await apiFetch({ action: 'listarComunidad', vendedor_uid: sesion.vendedor_id, limit: 50 });
     if (prodResp.ok && prodResp.products) {
       prodResp.products.forEach(p => { productosMap[p.id] = p; });
