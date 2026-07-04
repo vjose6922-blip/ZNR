@@ -4182,10 +4182,19 @@ window.uploadImagesInQueue = async function(files, startSlot = 1, uploadFn, onPr
     }
 };
 
-// Función de subida genérica (debe ser sobrescrita por admin y vendedor)
 window.uploadSingleImage = async function(file, slotIndex) {
     throw new Error('uploadSingleImage no está implementada. Debes asignarla en admin o vendedor.');
 };
+
+if ('serviceWorker' in navigator) {
+    let znrSwRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (znrSwRefreshing) return;
+        znrSwRefreshing = true;
+        try { showTemporaryMessage('Actualizando a la última versión…', 'info'); } catch {}
+        setTimeout(() => window.location.reload(), 800);
+    });
+}
 
 
 
