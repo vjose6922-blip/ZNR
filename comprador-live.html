@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -660,7 +661,7 @@ function setupChat() {
   });
 }
 
-// ── Polling000000000
+// ── Polling ligero para detectar cambios de estado / producto actual ──
 function startPolling() {
   pollTimer = setInterval(async () => {
     try {
@@ -695,7 +696,7 @@ async function init() {
     btnReportar.style.display = 'flex';
     btnReportar.addEventListener('click', mostrarReporte);
 
-    // Cargar detalle de productos de este vendedor (para nombre/imagen/precio)0000
+    // Cargar detalle de productos de este 2900
     const prodResp = await apiFetch({ action: 'listarComunidad', vendedor_uid: sesion.vendedor_id, limit: 50 });
     if (prodResp.ok && prodResp.products) {
       prodResp.products.forEach(p => { productosMap[p.id] = p; });
