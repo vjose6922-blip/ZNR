@@ -130,6 +130,31 @@
   .center-card h2 { color: var(--color-text-primary); margin: 0 0 8px; }
   .center-card p { color: var(--color-text-soft); font-size: 14px; line-height: 1.5; }
 
+  /* ── Video vertical: frame más grande + chat flotando encima ── */
+  .video-box.vertical {
+    aspect-ratio: 9/16; width: auto; max-width: 100%; max-height: 82vh;
+    margin: 0 auto; position: sticky; top: 0; z-index: 20; background: #000;
+  }
+  .chat-panel.overlay-chat {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 8;
+    max-height: 46%; height: auto; border-radius: 0; background: none;
+    display: flex; flex-direction: column;
+  }
+  .chat-panel.overlay-chat::before {
+    content: ''; position: absolute; inset: 0; z-index: -1;
+    background: linear-gradient(to top, rgba(0,0,0,.8) 35%, rgba(0,0,0,0) 100%);
+  }
+  .chat-panel.overlay-chat .chat-messages { padding: 10px 12px 4px; }
+  .chat-panel.overlay-chat .chat-msg .author { color: #f9a8d4; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+  .chat-panel.overlay-chat .chat-msg .text { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+  .chat-panel.overlay-chat .chat-empty { color: rgba(255,255,255,.8); text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+  .chat-panel.overlay-chat .chat-input-row { border-top: none; padding: 6px 10px 10px; }
+  .chat-panel.overlay-chat .chat-input-row input {
+    background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.25); color: #fff;
+  }
+  .chat-panel.overlay-chat .chat-input-row input::placeholder { color: rgba(255,255,255,.75); }
+  .chat-panel.overlay-chat .chat-input-row button { background: rgba(255,255,255,.28); }
+
   .identity-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.7);
     display: flex; align-items: flex-end; z-index: var(--z-modal, 300);
@@ -577,10 +602,20 @@ function renderLive() {
   document.body.classList.add('live-active');
   const shareUrl = location.href;
   const esGrabado = sesion.tipo !== 'vivo';
+  const esVertical = sesion.orientacion === 'vertical';
+
+  const chatMarkup = `
+    <div class="chat-messages" id="chat-messages"><div class="chat-empty">Sé el primero en comentar 👋</div></div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Escribe un comentario…" maxlength="300">
+      <button id="chat-send">➤</button>
+    </div>`;
+
   wrap.innerHTML = `
-    <div class="video-box" id="video-slot">
+    <div class="video-box ${esVertical ? 'vertical' : ''}" id="video-slot">
       ${esGrabado ? '' : `<iframe src="https://www.youtube-nocookie.com/embed/${esc(sesion.youtube_id)}?autoplay=1"
         allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>`}
+      ${esVertical ? `<div class="chat-panel overlay-chat">${chatMarkup}</div>` : ''}
     </div>
     <div class="live-info">
       <span class="status-badge live"><span class="status-dot"></span> EN VIVO</span>
@@ -589,15 +624,10 @@ function renderLive() {
       <p class="vendor">Por ${esc(sesion.vendedor_nombre)}</p>
     </div>
     <div id="producto-slot"></div>
+    ${esVertical ? '' : `
     <div class="chat-section">
-      <div class="chat-panel">
-        <div class="chat-messages" id="chat-messages"><div class="chat-empty">Sé el primero en comentar 👋</div></div>
-        <div class="chat-input-row">
-          <input type="text" id="chat-input" placeholder="Escribe un comentario…" maxlength="300">
-          <button id="chat-send">➤</button>
-        </div>
-      </div>
-    </div>
+      <div class="chat-panel">${chatMarkup}</div>
+    </div>`}
   `;
 
   renderProductoActual();
