@@ -31,6 +31,7 @@
     _lastErrors[key] = now;
 
     const entry = {
+      id:      `${now}_${Math.random().toString(36).slice(2, 8)}`,
       ts:      new Date().toISOString(),
       level,
       source,
@@ -49,7 +50,17 @@
     persistQueue();
 
     // Enviar al servidor con los nuevos campos
-    sendEntry(entry);
+    sendEntry(entry).then(ok => {
+      if (ok) removeFromQueue(entry.id);
+    });
+  }
+
+  function removeFromQueue(id) {
+    const idx = _queue.findIndex(e => e.id === id);
+    if (idx !== -1) {
+      _queue.splice(idx, 1);
+      persistQueue();
+    }
   }
 
   function persistQueue() {
@@ -60,8 +71,8 @@
 
   async function sendEntry(entry) {
     const api = window.API_URL;
-    if (!api) return;
-    if (_sendsThisLoad >= EM_MAX_SENDS_PER_LOAD) return; // ya está en localStorage, se reintentará en el próximo flush()
+    if (!api) return false;
+    if (_sendsThisLoad >= EM_MAX_SENDS_PER_LOAD) return false; // ya está en localStorage, se reintentará en el próximo flush()
     _sendsThisLoad++;
     try {
       const params = new URLSearchParams({
@@ -78,20 +89,23 @@
         stack:    entry.stack,
         ts:       entry.ts,
       });
-      await fetch(api, {
+      const res = await fetch(api, {
         method:  'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body:    params.toString(),
       });
+      return !!(res && res.ok);
     } catch (_) {
-      // Si falla el envío, no importa, ya está en localStorage
+      // Si falla el envío, no importa, ya está en localStorage y se reintentará luego
+      return false;
     }
   }
 
   async function flush() {
     const queue = _queue.slice();
     for (const entry of queue) {
-      await sendEntry(entry);
+      const ok = await sendEntry(entry);
+      if (ok) removeFromQueue(entry.id);
     }
   }
 
