@@ -381,6 +381,9 @@ if (logoutBtn) logoutBtn.style.display = 'flex';
 const liveBtn = document.getElementById('live-btn');
 if (liveBtn) liveBtn.style.display = (vendorSession && vendorSession.plan === 'plus') ? 'flex' : 'none';
 
+const verEntregasBtn = document.getElementById('btn-ver-entregas-panel');
+if (verEntregasBtn) verEntregasBtn.style.display = (vendorSession && vendorSession.plan === 'plus') ? 'flex' : 'none';
+
 const nameHeader = document.getElementById('vendor-name-header');
 if (nameHeader && vendorSession) {
 nameHeader.textContent = vendorSession.nombre;
@@ -2217,6 +2220,64 @@ window.openGestionarDonacionesModal = async function() {
 };
 
 
+
+// ── Modal: entregas de mis transmisiones en vivo ─────────────
+window.openEntregasLiveModal = async function() {
+  const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  const old = document.getElementById('modal-entregas-live');
+  if (old) old.remove();
+  const modal = document.createElement('div');
+  modal.id = 'modal-entregas-live';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;padding:0 0 32px;">
+      <div style="position:sticky;top:0;background:#fff;z-index:1;padding:16px 20px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
+        <h2 style="margin:0;font-size:1rem;font-weight:800;">📦 Entregas de tus transmisiones</h2>
+        <button id="btn-close-entregas-live" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1;">×</button>
+      </div>
+      <div id="entregas-live-lista" style="padding:32px 20px;text-align:center;color:#aaa;">Cargando…</div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('btn-close-entregas-live').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  const lista = document.getElementById('entregas-live-lista');
+  if (!vendorSession) { lista.textContent = 'Inicia sesión para ver tus entregas.'; return; }
+
+  try {
+    const resp = await apiFetch({ action: 'obtenerMisEntregasLive', vendorToken: vendorSession.token }, 'GET');
+    if (!resp.ok) { lista.textContent = 'Error: ' + (resp.error || 'no se pudo cargar'); return; }
+
+    const lives = resp.lives || [];
+    if (lives.length === 0) {
+      lista.innerHTML = '<p style="color:#aaa;text-align:center;padding:12px 0;">Aún no has cerrado ninguna transmisión con ventas.<br><small>Al finalizar un live con productos vendidos, aparecerá aquí.</small></p>';
+      return;
+    }
+
+    lista.style.padding = '14px 20px 0';
+    lista.style.textAlign = '';
+    lista.innerHTML = lives.map(l => {
+      const total = l.grupos.length;
+      const entregados = l.grupos.filter(g => g.estado === 'entregado').length;
+      const url = `entregas-live.html?id=${encodeURIComponent(l.liveId)}`;
+      const pct = total ? Math.round((entregados / total) * 100) : 0;
+      return `<div style="padding:12px 0;border-bottom:1px solid #f5f5f5;">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
+          <strong style="font-size:.87rem;">${esc(l.liveTitulo || 'Transmisión')}</strong>
+          <span style="font-size:.7rem;color:#aaa;white-space:nowrap;">${new Date(l.fecha).toLocaleDateString('es-MX')}</span>
+        </div>
+        <div style="font-size:.78rem;color:#888;margin:4px 0 8px;">${entregados}/${total} entregado(s) · ${pct}%</div>
+        <a href="${esc(url)}" target="_blank" rel="noopener"
+          style="display:inline-block;padding:8px 14px;border-radius:8px;background:#fff7ed;border:1.5px solid #fb923c;color:#c2410c;font-size:.8rem;font-weight:700;text-decoration:none;">
+          Ver / actualizar entregas →
+        </a>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    lista.textContent = 'Error de conexión al cargar tus entregas.';
+  }
+};
 
 // ── Panel de donaciones recibidas (si el vendedor es beneficiario) ──
 async function loadBeneficiarioDonaciones() {

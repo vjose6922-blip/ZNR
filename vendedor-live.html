@@ -842,7 +842,7 @@ async function finalizarTransmision(finBtn) {
       } else {
         alert('No se pudieron registrar las ventas: ' + (resp.error || 'error desconocido') + '. Puedes revisarlas manualmente en el chat.');
       }
-      entregaUrl = crearPaginaEntregas(ventas);
+      entregaUrl = await crearPaginaEntregas(ventas);
     }
   } catch (err) {
     alert('No se pudieron leer los "vendidos" del chat (puede ser tu conexión). Se va a cerrar de todos modos — revísalos manualmente si hace falta.');
@@ -859,11 +859,12 @@ async function finalizarTransmision(finBtn) {
   renderEnded(entregaUrl);
 }
 
-// ── Arma el paquete de entrega (agrupado por comprador) y lo
-// codifica entero en la URL de entregas-live.html: esa página no
-// llama a ningún backend, así que se puede compartir con el
-// repartidor sin exponer tu API ni guardar nada en tu base de datos.
-function crearPaginaEntregas(ventas) {
+// ── Arma el paquete de entrega (agrupado por comprador) y lo guarda
+// en el backend (hoja Entregas_Live). El link que se comparte solo
+// lleva el id del live — la página de entregas lo consulta al vuelo,
+// así que sirve desde cualquier dispositivo (vendedor o repartidor)
+// y el estado ENTREGADO/PENDIENTE queda guardado, no solo local. ──
+async function crearPaginaEntregas(ventas) {
   try {
     const grupos = {};
     ventas.forEach(v => {
@@ -887,33 +888,23 @@ function crearPaginaEntregas(ventas) {
       grupos[key].total += precio;
     });
 
-    const entrega = {
-      entregaId: 'ENT_' + Date.now(),
+    const gruposArr = Object.values(grupos);
+    if (!gruposArr.length) return null;
+
+    const resp = await withTimeout(apiFetch({
+      action: 'guardarEntregasLive',
+      vendorToken: vendorSession.token,
+      liveId: currentSesion.id,
       liveTitulo: currentSesion.titulo || '',
-      vendedorNombre: vendorSession.nombre || '',
-      fecha: new Date().toISOString(),
-      grupos: Object.values(grupos)
-    };
+      grupos: JSON.stringify(gruposArr)
+    }), 8000);
 
-    const json = JSON.stringify(entrega);
-    const encoded = btoa(unescape(encodeURIComponent(json)));
-    const url = `${location.origin}${location.pathname.replace('vendedor-live.html', 'entregas-live.html')}?data=${encoded}`;
+    if (!resp.ok) {
+      console.error('guardarEntregasLive falló:', resp.error);
+      return null;
+    }
 
-    try {
-      const raw = localStorage.getItem('znr_entregas_historial');
-      const lista = raw ? JSON.parse(raw) : [];
-      lista.unshift({
-        id: entrega.entregaId,
-        liveTitulo: entrega.liveTitulo,
-        fecha: entrega.fecha,
-        compradores: entrega.grupos.length,
-        total: entrega.grupos.reduce((s, g) => s + g.total, 0),
-        url
-      });
-      localStorage.setItem('znr_entregas_historial', JSON.stringify(lista.slice(0, 30)));
-    } catch (e) { /* el historial local es solo una comodidad, no es crítico */ }
-
-    return url;
+    return `${location.origin}${location.pathname.replace('vendedor-live.html', 'entregas-live.html')}?id=${encodeURIComponent(currentSesion.id)}`;
   } catch (err) {
     console.error('crearPaginaEntregas falló:', err);
     return null;

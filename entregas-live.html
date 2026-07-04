@@ -7,7 +7,7 @@
   script-src 'self' 'unsafe-inline';
   style-src 'self' 'unsafe-inline';
   img-src 'self' data:;
-  connect-src 'none';
+  connect-src 'self' https://script.google.com https://script.googleusercontent.com;
   font-src 'self';
   frame-src 'none';
   frame-ancestors 'none';
@@ -19,12 +19,11 @@
 <meta name="theme-color" content="#1e2128">
 <link rel="preload" href="styles.css" as="style">
 <link rel="stylesheet" href="styles.css">
+<script src="api-config.js"></script>
 <style>
   .entregas-wrap { max-width: 640px; margin: 0 auto; padding: 16px; padding-bottom: 80px; }
 
-  .resumen-bar {
-    display: flex; gap: 10px; margin-bottom: 16px;
-  }
+  .resumen-bar { display: flex; gap: 10px; margin-bottom: 16px; }
   .resumen-chip {
     flex: 1; text-align: center; padding: 10px 8px;
     border-radius: var(--radius-md); background: var(--color-surface);
@@ -34,6 +33,13 @@
   .resumen-chip .lbl { font-size: 11px; color: var(--color-text-soft); text-transform: uppercase; letter-spacing: .04em; }
   .resumen-chip.ok .num { color: #4ade80; }
   .resumen-chip.pend .num { color: #fbbf24; }
+
+  .btn-refrescar {
+    display: block; width: 100%; text-align: center; margin-bottom: 14px;
+    background: var(--color-surface-2); color: var(--color-text-primary);
+    border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+    padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
 
   .entrega-card {
     background: var(--color-surface); border: 1px solid var(--color-border-subtle);
@@ -74,6 +80,7 @@
     flex: 1; border: none; border-radius: var(--radius-pill);
     padding: 11px; font-size: 13px; font-weight: 700; cursor: pointer;
   }
+  .estado-actions button:disabled { opacity: .5; cursor: default; }
   .btn-entregado { background: rgba(74,222,128,.15); color: #4ade80; }
   .btn-entregado.active { background: #4ade80; color: #0a2e1a; }
   .btn-pendiente { background: rgba(251,191,36,.15); color: #fbbf24; }
@@ -83,6 +90,13 @@
   .center-card .icon { font-size: 44px; margin-bottom: 12px; }
   .center-card h2 { color: var(--color-text-primary); margin: 0 0 8px; }
   .center-card p { color: var(--color-text-soft); font-size: 14px; line-height: 1.5; }
+
+  .loading-spinner {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 3px solid var(--color-border-subtle); border-top-color: var(--color-accent-solid);
+    animation: spin 0.8s linear infinite; margin: 60px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .local-note {
     font-size: 11px; color: var(--color-text-soft); text-align: center;
@@ -101,11 +115,30 @@
   </div>
 </header>
 
-<main class="entregas-wrap" id="entregas-wrap"></main>
+<main class="entregas-wrap" id="entregas-wrap"><div class="loading-spinner"></div></main>
 
 <script>
 (function() {
   'use strict';
+
+  async function apiFetch(data, method = 'GET') {
+    const API_BASE = window.API_URL;
+    const params = new URLSearchParams();
+    Object.entries(data || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) params.append(k, v);
+    });
+    let res;
+    if (method === 'GET') {
+      res = await fetch(`${API_BASE}?${params.toString()}`, { method: 'GET' });
+    } else {
+      res = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      });
+    }
+    return JSON.parse(await res.text());
+  }
 
   function esc(s) {
     const d = document.createElement('div');
@@ -116,28 +149,19 @@
   const wrap = document.getElementById('entregas-wrap');
   const headerTitle = document.getElementById('header-title');
   const headerSubtitle = document.getElementById('header-subtitle');
+  const params = new URLSearchParams(location.search);
+  const liveId = params.get('id');
 
-  function renderInvalido() {
+  let entrega = null;
+
+  function renderInvalido(msg) {
     headerSubtitle.textContent = 'Enlace inválido';
     wrap.innerHTML = `
       <div class="center-card">
         <div class="icon">🔗</div>
-        <h2>Este enlace no tiene información</h2>
-        <p>Pide al vendedor que te comparta el link completo de entregas, generado justo al finalizar su transmisión en vivo.</p>
+        <h2>No pudimos cargar esta entrega</h2>
+        <p>${esc(msg || 'Pide al vendedor que te comparta el link de nuevo.')}</p>
       </div>`;
-  }
-
-  function estadoKey(entregaId, compradorKey) {
-    return `znr_entrega_estado_${entregaId}_${compradorKey}`;
-  }
-
-  function getEstado(entregaId, compradorKey) {
-    try { return localStorage.getItem(estadoKey(entregaId, compradorKey)) || 'pendiente'; }
-    catch (e) { return 'pendiente'; }
-  }
-
-  function setEstado(entregaId, compradorKey, estado) {
-    try { localStorage.setItem(estadoKey(entregaId, compradorKey), estado); } catch (e) {}
   }
 
   function mapsUrl(g) {
@@ -150,10 +174,11 @@
     return null;
   }
 
-  function renderResumen(entrega) {
+  function renderResumen() {
     const total = entrega.grupos.length;
-    const entregados = entrega.grupos.filter(g => getEstado(entrega.entregaId, g.key) === 'entregado').length;
+    const entregados = entrega.grupos.filter(g => g.estado === 'entregado').length;
     return `
+      <button class="btn-refrescar" id="btn-refrescar">🔄 Actualizar</button>
       <div class="resumen-bar">
         <div class="resumen-chip"><span class="num">${total}</span><span class="lbl">Total</span></div>
         <div class="resumen-chip ok"><span class="num">${entregados}</span><span class="lbl">Entregados</span></div>
@@ -161,22 +186,22 @@
       </div>`;
   }
 
-  function renderGrupo(entrega, g) {
-    const estado = getEstado(entrega.entregaId, g.key);
+  function renderGrupo(g) {
+    const estado = g.estado === 'entregado' ? 'entregado' : 'pendiente';
     const url = mapsUrl(g);
     return `
-      <div class="entrega-card ${estado === 'entregado' ? 'is-entregado' : ''}" data-key="${esc(g.key)}">
+      <div class="entrega-card ${estado === 'entregado' ? 'is-entregado' : ''}" data-key="${esc(g.compradorKey)}">
         <div class="top-row">
           <div>
-            <h2>${esc(g.nombre)}</h2>
-            ${g.telefono ? `<a class="tel-link" href="tel:${esc(g.telefono)}">📞 ${esc(g.telefono)}</a>` : ''}
+            <h2>${esc(g.compradorNombre)}</h2>
+            ${g.compradorTelefono ? `<a class="tel-link" href="tel:${esc(g.compradorTelefono)}">📞 ${esc(g.compradorTelefono)}</a>` : ''}
           </div>
           <span class="estado-pill ${estado}">${estado === 'entregado' ? '✅ ENTREGADO' : '⏳ PENDIENTE'}</span>
         </div>
-        ${g.direccion ? `<p class="entrega-detail"><b>Dirección:</b> ${esc(g.direccion)}</p>` : ''}
-        ${g.horario ? `<p class="entrega-detail"><b>Horario:</b> ${esc(g.horario)}</p>` : ''}
+        ${g.compradorDireccion ? `<p class="entrega-detail"><b>Dirección:</b> ${esc(g.compradorDireccion)}</p>` : ''}
+        ${g.compradorHorario ? `<p class="entrega-detail"><b>Horario:</b> ${esc(g.compradorHorario)}</p>` : ''}
         <div class="items-list">
-          ${g.items.map(it => `<div class="item-row"><span>${esc(it.nombre)}</span><span>$${Number(it.precio || 0).toLocaleString()}</span></div>`).join('')}
+          ${(g.items || []).map(it => `<div class="item-row"><span>${esc(it.nombre)}</span><span>$${Number(it.precio || 0).toLocaleString()}</span></div>`).join('')}
           <div class="total-row"><span>Total</span><span>$${Number(g.total || 0).toLocaleString()}</span></div>
         </div>
         ${url ? `<a class="btn-maps" href="${esc(url)}" target="_blank" rel="noopener">🗺️ Ver ubicación en Maps</a>` : ''}
@@ -187,76 +212,61 @@
       </div>`;
   }
 
-  function render(entrega) {
+  function render() {
     headerTitle.textContent = entrega.liveTitulo ? `Entregas — ${entrega.liveTitulo}` : 'Entregas';
     headerSubtitle.textContent = entrega.vendedorNombre ? `De ${entrega.vendedorNombre}` : 'Coordinación de entregas';
 
-    if (!entrega.grupos || entrega.grupos.length === 0) {
-      wrap.innerHTML = `
-        <div class="center-card">
-          <div class="icon">📦</div>
-          <h2>No hay entregas registradas</h2>
-          <p>No se marcó ningún producto como vendido en esta transmisión.</p>
-        </div>`;
-      return;
-    }
+    wrap.innerHTML = renderResumen() +
+      entrega.grupos.map(g => renderGrupo(g)).join('') +
+      `<p class="local-note">El estado se guarda en línea: lo que marques aquí lo va a ver el vendedor desde su panel.</p>`;
 
-    wrap.innerHTML = renderResumen(entrega) +
-      entrega.grupos.map(g => renderGrupo(entrega, g)).join('') +
-      `<p class="local-note">Los estados de "Entregado / Pendiente" se guardan solo en este dispositivo.<br>No se sincronizan con tu cuenta ni con tu inventario.</p>`;
+    document.getElementById('btn-refrescar').addEventListener('click', cargar);
 
     wrap.querySelectorAll('.entrega-card').forEach(card => {
       const key = card.dataset.key;
       card.querySelectorAll('.estado-actions button').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const nuevoEstado = btn.dataset.action;
-          setEstado(entrega.entregaId, key, nuevoEstado);
-          wrap.innerHTML = renderResumen(entrega) +
-            entrega.grupos.map(g => renderGrupo(entrega, g)).join('') +
-            `<p class="local-note">Los estados de "Entregado / Pendiente" se guardan solo en este dispositivo.<br>No se sincronizan con tu cuenta ni con tu inventario.</p>`;
-          bindEvents(entrega);
-        });
+        btn.addEventListener('click', () => toggleEstado(key, btn.dataset.action));
       });
     });
   }
 
-  function bindEvents(entrega) {
-    wrap.querySelectorAll('.entrega-card').forEach(card => {
-      const key = card.dataset.key;
-      card.querySelectorAll('.estado-actions button').forEach(btn => {
-        btn.addEventListener('click', () => {
-          setEstado(entrega.entregaId, key, btn.dataset.action);
-          render(entrega);
-        });
-      });
-    });
-  }
+  async function toggleEstado(key, nuevoEstado) {
+    const grupo = entrega.grupos.find(g => String(g.compradorKey) === String(key));
+    if (!grupo || grupo.estado === nuevoEstado) return;
 
-  function init() {
-    const params = new URLSearchParams(location.search);
-    const encoded = params.get('data');
-    if (!encoded) { renderInvalido(); return; }
+    const estadoAnterior = grupo.estado;
+    grupo.estado = nuevoEstado; // optimista
+    render();
 
-    let entrega;
     try {
-      const json = decodeURIComponent(escape(atob(encoded)));
-      entrega = JSON.parse(json);
-    } catch (e) {
-      renderInvalido();
-      return;
+      const resp = await apiFetch({
+        action: 'actualizarEstadoEntrega',
+        liveId,
+        compradorKey: key,
+        estado: nuevoEstado
+      }, 'POST');
+      if (!resp.ok) throw new Error(resp.error || 'No se pudo guardar');
+    } catch (err) {
+      grupo.estado = estadoAnterior; // revertir si falló
+      render();
+      alert('No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.');
     }
-
-    if (!entrega || !Array.isArray(entrega.grupos)) { renderInvalido(); return; }
-    // Compatibilidad: si algún grupo llegó sin "key" (paquetes viejos), le
-    // asignamos una key estable a partir del teléfono o el nombre.
-    entrega.grupos.forEach((g, i) => {
-      if (!g.key) g.key = g.telefono || ('grp_' + i);
-    });
-
-    render(entrega);
   }
 
-  init();
+  async function cargar() {
+    if (!liveId) { renderInvalido('Este link no trae identificador de transmisión.'); return; }
+    wrap.innerHTML = '<div class="loading-spinner"></div>';
+    try {
+      const resp = await apiFetch({ action: 'obtenerEntregasLive', liveId });
+      if (!resp.ok) { renderInvalido(resp.error); return; }
+      entrega = resp;
+      render();
+    } catch (err) {
+      renderInvalido('Hubo un problema de conexión.');
+    }
+  }
+
+  cargar();
 })();
 </script>
 </body>
