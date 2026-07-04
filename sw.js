@@ -75,7 +75,7 @@ self.addEventListener('activate', event => {
 function getCacheStrategy(request) {
   const url = new URL(request.url);
   if (request.method === 'POST') return 'NETWORK_ONLY';
-  // Imágenes de productos en Google CDN → CACHE_FIRST (cachear agresivamente)000000000
+  // Imágenes de productos en Google CDN → CACHE_FIamente)000000000
   if (IMAGE_CDN_HOSTS.some(h => url.hostname.includes(h))) return 'CACHE_FIRST';
   if (IMAGE_EXTENSIONS.some(ext => url.pathname.toLowerCase().endsWith(ext))) return 'CACHE_FIRST';
   if (url.hostname.includes('wttr.in') || url.hostname.includes('openweathermap.org')) return 'NETWORK_ONLY';
