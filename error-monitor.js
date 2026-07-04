@@ -4,7 +4,7 @@
   const EM_KEY              = 'zr_error_queue';
   const EM_MAX_LOCAL        = 100;
   const EM_DEBOUNCE         = 1000;
-  const EM_MAX_SENDS_PER_LOAD = 40; // límite de seguridad: no saturar el backend si hay un loop de errores
+  const EM_MAX_SENDS_PER_LOAD = 40; // 100
 
   let _lastErrors = {};
   let _queue      = [];
