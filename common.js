@@ -2273,6 +2273,43 @@ showTemporaryMessage(" Error al enviar la solicitud Z&R", "error");
 hideLoader();
 }
 }
+// Polling silencioso post-checkout: avisa al cliente en cuanto el admin
+// confirme o cancele su pedido, sin que tenga que abrir "Mis pedidos".
+function startSilentPolling(requestId, clientPhone) {
+  const POLL_INTERVAL_MS = 30000; // cada 30s
+  const MAX_POLLS = 40;           // ~20 minutos, luego se detiene solo
+  let polls = 0;
+
+  const timer = setInterval(async () => {
+    polls++;
+    if (polls > MAX_POLLS) { clearInterval(timer); return; }
+
+    try {
+      const res  = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${encodeURIComponent(requestId)}`);
+      const data = await res.json();
+      if (!data.ok) return;
+
+      const map = { pending: 'pendiente', approved: 'confirmado', cancelled: 'cancelled', rejected: 'rejected' };
+      const status = map[data.status] || data.status;
+      if (status === 'pendiente' || status === 'pending') return; // aún sin cambios
+
+      clearInterval(timer);
+
+      try {
+        const orders = loadOrders();
+        const idx = orders.findIndex(o => o.requestId === requestId);
+        if (idx !== -1) { orders[idx].status = status; saveOrders(orders); }
+      } catch {}
+
+      if (status === 'confirmado') {
+        showTemporaryMessage(' ¡Tu pedido fue confirmado! Revisa WhatsApp para el link de pago.', 'success');
+      } else if (status === 'cancelled' || status === 'rejected') {
+        showTemporaryMessage(' Tu pedido fue cancelado. Contacta al vendedor si tienes dudas.', 'error');
+      }
+    } catch {}
+  }, POLL_INTERVAL_MS);
+}
+
 async function _checkoutComunidad(comunidadItems) {
 let clientPhone = localStorage.getItem("client_phone") || "";
 if (!clientPhone) {
@@ -4182,10 +4219,15 @@ window.uploadImagesInQueue = async function(files, startSlot = 1, uploadFn, onPr
     }
 };
 
+// Función de subida genérica (debe ser sobrescrita por admin y vendedor)
 window.uploadSingleImage = async function(file, slotIndex) {
     throw new Error('uploadSingleImage no está implementada. Debes asignarla en admin o vendedor.');
 };
 
+// ── Detección de Service Worker actualizado ──
+// Evita que el usuario quede ejecutando un HTML/JS viejo cacheado
+// (STALE_WHILE_REVALIDATE sirve la versión en caché primero).
+// Cuando el SW nuevo toma control, se avisa y se recarga una sola vez.
 if ('serviceWorker' in navigator) {
     let znrSwRefreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
