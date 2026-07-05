@@ -3,7 +3,7 @@
 'use strict';
 
 // ──────────────────────────────────────────────
-// vendorSession expuesto en window para acceso global000
+// v0000
 // ──────────────────────────────────────────────
 let vendorSession = null;
 Object.defineProperty(window, 'vendorSession', {
