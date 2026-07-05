@@ -131,30 +131,43 @@
   .center-card h2 { color: var(--color-text-primary); margin: 0 0 8px; }
   .center-card p { color: var(--color-text-soft); font-size: 14px; line-height: 1.5; }
 
-  /* ── Video vertical: frame más grande + chat flotando encima ── */
+  /* ── Video vertical: ocupa el 82% de la pantalla; el resto es
+     una franja con info + un "mini chat" que se puede expandir
+     hacia arriba, sobreponiéndose al video, para leer más ── */
   .video-box.vertical {
-    aspect-ratio: 9/16; width: auto; max-width: 100%; max-height: 82vh;
-    margin: 0 auto; position: sticky; top: 0; z-index: 20; background: #000;
+    position: sticky; top: 0; z-index: 20; background: #000;
+    width: 100%; height: 82vh; aspect-ratio: unset;
   }
-  .chat-panel.overlay-chat {
-    position: absolute; left: 0; right: 0; bottom: 0; z-index: 8;
-    max-height: 46%; height: auto; border-radius: 0; background: none;
+  .vertical-bottom {
     display: flex; flex-direction: column;
+    height: 18vh; min-height: 150px;
   }
-  .chat-panel.overlay-chat::before {
-    content: ''; position: absolute; inset: 0; z-index: -1;
-    background: linear-gradient(to top, rgba(0,0,0,.8) 35%, rgba(0,0,0,0) 100%);
+  .live-info-compact {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    padding: 6px 14px; border-bottom: 1px solid var(--color-border-subtle);
   }
-  .chat-panel.overlay-chat .chat-messages { padding: 10px 12px 4px; }
-  .chat-panel.overlay-chat .chat-msg .author { color: #f9a8d4; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
-  .chat-panel.overlay-chat .chat-msg .text { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
-  .chat-panel.overlay-chat .chat-empty { color: rgba(255,255,255,.8); text-shadow: 0 1px 3px rgba(0,0,0,.9); }
-  .chat-panel.overlay-chat .chat-input-row { border-top: none; padding: 6px 10px 10px; }
-  .chat-panel.overlay-chat .chat-input-row input {
-    background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.25); color: #fff;
+  .live-info-compact .status-dot { flex-shrink: 0; }
+  .live-info-compact strong {
+    font-size: 12px; color: var(--color-text-primary); flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .chat-panel.overlay-chat .chat-input-row input::placeholder { color: rgba(255,255,255,.75); }
-  .chat-panel.overlay-chat .chat-input-row button { background: rgba(255,255,255,.28); }
+  .live-info-compact .viewer-badge { margin: 0; flex-shrink: 0; }
+
+  .chat-panel.mini-chat {
+    flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column;
+    border-radius: 0; transition: none;
+  }
+  .chat-expand-handle {
+    flex-shrink: 0; width: 100%; border: none; cursor: pointer;
+    background: var(--color-surface-2); color: var(--color-text-soft);
+    font-size: 11px; font-weight: 700; padding: 5px;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .chat-panel.mini-chat.expanded {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    max-width: 640px; margin: 0 auto; height: 62vh;
+    border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.5);
+  }
 
   .identity-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.7);
@@ -612,26 +625,49 @@ function renderLive() {
       <button id="chat-send">➤</button>
     </div>`;
 
-  wrap.innerHTML = `
-    <div class="video-box ${esVertical ? 'vertical' : ''}">
-      <div class="video-slot-inner" id="video-slot">
-        ${esGrabado ? '' : `<iframe src="https://www.youtube-nocookie.com/embed/${esc(sesion.youtube_id)}?autoplay=1"
-          allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>`}
+  const videoMarkup = `
+    <div class="video-slot-inner" id="video-slot">
+      ${esGrabado ? '' : `<iframe src="https://www.youtube-nocookie.com/embed/${esc(sesion.youtube_id)}?autoplay=1"
+        allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>`}
+    </div>`;
+
+  if (esVertical) {
+    wrap.innerHTML = `
+      <div class="video-box vertical">${videoMarkup}</div>
+      <div class="vertical-bottom">
+        <div class="live-info-compact">
+          <span class="status-dot"></span>
+          <strong>${esc(sesion.titulo)}</strong>
+          <span class="viewer-badge">👀 <span id="viewer-count">0</span></span>
+        </div>
+        <div class="chat-panel mini-chat" id="mini-chat-panel">
+          <button class="chat-expand-handle" id="chat-expand-toggle">▲ Ver chat completo</button>
+          ${chatMarkup}
+        </div>
       </div>
-      ${esVertical ? `<div class="chat-panel overlay-chat">${chatMarkup}</div>` : ''}
-    </div>
-    <div class="live-info">
-      <span class="status-badge live"><span class="status-dot"></span> EN VIVO</span>
-      <span class="viewer-badge">👀 <span id="viewer-count">0</span></span>
-      <h1>${esc(sesion.titulo)}</h1>
-      <p class="vendor">Por ${esc(sesion.vendedor_nombre)}</p>
-    </div>
-    <div id="producto-slot"></div>
-    ${esVertical ? '' : `
-    <div class="chat-section">
-      <div class="chat-panel">${chatMarkup}</div>
-    </div>`}
-  `;
+      <div id="producto-slot"></div>
+    `;
+    document.getElementById('chat-expand-toggle').addEventListener('click', () => {
+      const panel = document.getElementById('mini-chat-panel');
+      const btn = document.getElementById('chat-expand-toggle');
+      const expandido = panel.classList.toggle('expanded');
+      btn.textContent = expandido ? '▼ Minimizar chat' : '▲ Ver chat completo';
+    });
+  } else {
+    wrap.innerHTML = `
+      <div class="video-box">${videoMarkup}</div>
+      <div class="live-info">
+        <span class="status-badge live"><span class="status-dot"></span> EN VIVO</span>
+        <span class="viewer-badge">👀 <span id="viewer-count">0</span></span>
+        <h1>${esc(sesion.titulo)}</h1>
+        <p class="vendor">Por ${esc(sesion.vendedor_nombre)}</p>
+      </div>
+      <div id="producto-slot"></div>
+      <div class="chat-section">
+        <div class="chat-panel">${chatMarkup}</div>
+      </div>
+    `;
+  }
 
   renderProductoActual();
   setupChat();
@@ -748,7 +784,7 @@ async function init() {
     btnReportar.style.display = 'flex';
     btnReportar.addEventListener('click', mostrarReporte);
 
-    // Cargar detalle de productos de este vendedor (para nombre/89ecio)0000
+    // Cargar detalle de productos de este vendedor (para nombre/imagen/65500
     const prodResp = await apiFetch({ action: 'listarComunidad', vendedor_uid: sesion.vendedor_id, limit: 50 });
     if (prodResp.ok && prodResp.products) {
       prodResp.products.forEach(p => { productosMap[p.id] = p; });
