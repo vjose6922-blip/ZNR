@@ -28,8 +28,6 @@
 <style>
   .live-wrap { max-width: 640px; margin: 0 auto; padding: 0 0 100px; }
 
-  /* ── Video 999900000
-     pegado desde el 0000000*/
   body.live-active {
     height: 100vh; height: 100dvh; overflow: hidden;
     display: flex; flex-direction: column;
@@ -128,9 +126,7 @@
   .center-card h2 { color: var(--color-text-primary); margin: 0 0 8px; }
   .center-card p { color: var(--color-text-soft); font-size: 14px; line-height: 1.5; }
 
-  /* ── Video vertical: ocupa el 82% de la pantalla; el resto es
-     una franja con000000 expandir
-     hacia arriba, sobreponiéndose al video, para leer más ── */
+  
   .video-box.vertical {
     position: sticky; top: 0; z-index: 20; background: #000;
     width: 100%; height: 62vh; aspect-ratio: unset;
@@ -391,7 +387,7 @@ function detenerPlayerSincronizado() {
 
 // ── Presencia (contador de espectadores en vivo) ──
 // Cada pestaña se registra bajo un id de sesión propio en
-// presencia/{liveId}/{viewerId}. onDisconnect() lo limpia solo si
+// presencia/{liveId}/{viewerId}. onDisconnect() lo limpia solo si0000000
 // se cierra la pestaña o se pierde la conexión.
 function getViewerId() {
   try {
