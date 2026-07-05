@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -237,9 +238,18 @@
   .error-msg { color: var(--color-error); font-size: 13px; margin-top: 8px; }
 
   /* ── Layout fijo durante la transmisión: video+info arriba,
-     chat abajo, todo visible sin necesidad de hacer scroll ── */
+     chat abajo, todo visible sin necesidad de hacer scroll ──
+     Usamos --app-vh (calculado en JS con window.innerHeight /
+     visualViewport) en vez de 100vh/100dvh, porque en varios
+     navegadores de Android (Samsung Internet, WebViews viejos)
+     100vh/100dvh miden más alto que lo realmente visible cuando
+     la barra de direcciones está presente, y como el body tiene
+     overflow:hidden, el contenido de abajo (botón de enviar,
+     última fila de productos) queda fuera de la vista sin poder
+     hacer scroll para alcanzarlo. ── */
   body.live-active {
-    height: 100vh; height: 100dvh; overflow: hidden;
+    height: 100vh; height: 100dvh; height: var(--app-vh, 100dvh);
+    overflow: hidden;
     display: flex; flex-direction: column;
   }
   body.live-active .app-header { flex-shrink: 0; }
@@ -327,6 +337,26 @@
   <div class="loading-spinner"></div>
 </main>
 
+<script>
+  // Alto real de la pantalla visible (evita el bug de 100vh/100dvh en
+  // navegadores Android que no lo calculan bien con la barra de
+  // direcciones/gestos presente). Se usa como var(--app-vh) en el CSS
+  // de body.live-active.
+  (function () {
+    function setAppVh() {
+      const h = (window.visualViewport && window.visualViewport.height)
+        ? window.visualViewport.height
+        : window.innerHeight;
+      document.documentElement.style.setProperty('--app-vh', h + 'px');
+    }
+    setAppVh();
+    window.addEventListener('resize', setAppVh);
+    window.addEventListener('orientationchange', setAppVh);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', setAppVh);
+    }
+  })();
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getDatabase, ref, push, onValue, query, limitToLast, update, get } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
@@ -1223,4 +1253,3 @@ init();
 </script>
 </body>
 </html>
-
