@@ -1953,6 +1953,86 @@ window.eliminarMiCuenta = async function() {
   }
 };
 
+window.verMisEstadisticas = async function() {
+  if (!vendorSession || !vendorSession.token) return;
+
+  let modal = document.getElementById('mis-stats-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'mis-stats-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:20px;padding:24px;max-width:420px;width:90%;max-height:82vh;overflow-y:auto;position:relative;">
+        <button id="mis-stats-close" style="position:absolute;top:14px;right:14px;background:#f0f0f5;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;color:#666;">✕</button>
+        <h3 style="margin:0 0 16px;font-size:1.1rem;">📊 Mis estadísticas</h3>
+        <div id="mis-stats-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <p style="grid-column:span 2;text-align:center;color:#aaa;">Cargando...</p>
+        </div>
+        <div id="mis-stats-rating"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#mis-stats-close').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  }
+  modal.style.display = 'flex';
+
+  const grid = document.getElementById('mis-stats-grid');
+  const ratingSlot = document.getElementById('mis-stats-rating');
+  grid.innerHTML = '<p style="grid-column:span 2;text-align:center;color:#aaa;">Cargando...</p>';
+  ratingSlot.innerHTML = '';
+
+  try {
+    const url = `${window.API_URL}?${new URLSearchParams({
+      action: 'listarComunidad',
+      vendedor_uid: vendorSession.uid,
+      vendorToken: vendorSession.token,
+      limit: '200', page: '1'
+    })}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error al cargar');
+    const all = data.products || [];
+    const aprobados  = all.filter(p => p.estado === 'aprobado').length;
+    const pendientes = all.filter(p => p.estado === 'pendiente').length;
+    const stock = all.reduce((s, p) => s + (Number(p.stock) || 0), 0);
+
+    grid.innerHTML = `
+      <div style="background:#f0fff4;border-radius:14px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#2e7d32;">${all.length}</div>
+        <div style="font-size:11px;color:#555;">Productos</div>
+      </div>
+      <div style="background:#f5f3ff;border-radius:14px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#7c3aed;">${stock}</div>
+        <div style="font-size:11px;color:#555;">Stock total</div>
+      </div>
+      <div style="background:#eef2ff;border-radius:14px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#4338ca;">${aprobados}</div>
+        <div style="font-size:11px;color:#555;">Aprobados</div>
+      </div>
+      <div style="background:#fff8e1;border-radius:14px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#f57f17;">${pendientes}</div>
+        <div style="font-size:11px;color:#555;">Pendientes</div>
+      </div>`;
+  } catch (err) {
+    grid.innerHTML = `<p style="grid-column:span 2;color:#ef4444;text-align:center;">Error: ${err.message}</p>`;
+  }
+
+  try {
+    const rUrl = `${window.API_URL}?${new URLSearchParams({ action: 'obtenerCalificacionesVendedor', vendedor_uid: vendorSession.uid })}`;
+    const rRes = await fetch(rUrl);
+    const rData = await rRes.json();
+    if (rData.ok && rData.total > 0) {
+      ratingSlot.innerHTML = `
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:800;color:#b45309;">⭐ ${rData.promedio}</div>
+          <div style="font-size:11px;color:#92400e;">${rData.total} calificación${rData.total === 1 ? '' : 'es'} de compradores</div>
+        </div>`;
+    } else {
+      ratingSlot.innerHTML = `<p style="text-align:center;font-size:12px;color:#aaa;">Aún no tienes calificaciones</p>`;
+    }
+  } catch (e) { /* silencioso */ }
+};
+
 async function loadPlusSolicitudVendedor() {
 const area = document.getElementById('vendor-plus-notif-area');
 if (!area || !vendorSession) return;

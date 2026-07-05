@@ -623,6 +623,18 @@
 
       const PRODUCTS_PAGE_SIZE = 12;
 
+      async function cargarCalificacionVendedor(uid) {
+        const slot = document.getElementById('profile-rating-slot');
+        if (!slot || !uid || !window.API_URL) return;
+        try {
+          const res = await fetch(`${window.API_URL}?${new URLSearchParams({ action: 'obtenerCalificacionesVendedor', vendedor_uid: uid })}`);
+          const data = await res.json();
+          if (data.ok && data.total > 0) {
+            slot.innerHTML = `<span style="color:#f59e0b;">⭐ ${data.promedio}</span> · ${data.total} calificación${data.total === 1 ? '' : 'es'}`;
+          }
+        } catch (e) { /* silencioso */ }
+      }
+
       function renderProfile(data) {
         const container = document.getElementById('profile-container');
         if (!container) return;
@@ -737,6 +749,7 @@
               <h1 class="profile-name">${esc(v.nombre || 'Vendedor')}</h1>
               ${planBadgeHtml}
             </div>
+            <div id="profile-rating-slot" style="margin:2px 0 6px;font-size:13px;color:#888;"></div>
             ${v.categoria ? `<div class="profile-category-chip">${esc(v.categoria)}</div>` : ''}
             ${v.descripcion ? `<p class="profile-description">${esc(v.descripcion)}</p>` : ''}
 
@@ -758,6 +771,8 @@
             </div>
           </div>
         `;
+
+        cargarCalificacionVendedor(v.uid);
 
        
 

@@ -1023,6 +1023,7 @@ bindFilterChangeEvents();
 initCartAndUI();
 loadCommunityProducts();
 checkLiveBanner();
+checkPendingRatings();
 }
 
 async function checkLiveBanner() {
@@ -1052,6 +1053,85 @@ async function checkLiveBanner() {
   } catch (err) {
     slot.innerHTML = '';
   }
+}
+
+// ── Sistema de calificaciones: revisa si el comprador tiene compras
+// confirmadas (stock ya descontado por el vendedor) que aún no calificó,
+// y le muestra un modal para calificar el producto.
+async function checkPendingRatings() {
+  const phone = (localStorage.getItem('client_phone') || '').replace(/\D/g, '');
+  if (!phone) return;
+  try {
+    const res = await fetch(window.API_URL + '?' + new URLSearchParams({ action: 'obtenerCalificacionesPendientes', clientPhone: phone }));
+    const data = await res.json();
+    if (data.ok && data.pendientes && data.pendientes.length > 0) {
+      mostrarModalCalificar(data.pendientes[0], phone);
+    }
+  } catch (err) {
+    console.warn('Error revisando calificaciones pendientes:', err);
+  }
+}
+
+function mostrarModalCalificar(item, phone) {
+  const old = document.getElementById('modal-calificar');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-calificar';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:var(--color-surface,#fff);border-radius:20px;padding:24px;max-width:380px;width:100%;text-align:center;">
+      <img src="${item.imagen || ''}" onerror="this.style.display='none'" style="width:80px;height:80px;object-fit:contain;border-radius:12px;background:#f5f5f8;margin:0 auto 12px;">
+      <h3 style="margin:0 0 4px;font-size:1rem;">¿Cómo estuvo tu compra?</h3>
+      <p style="margin:0 0 16px;font-size:13px;color:#888;">${(item.nombre || 'tu producto')}</p>
+      <div id="calif-stars" style="font-size:32px;letter-spacing:6px;margin-bottom:14px;cursor:pointer;">★★★★★</div>
+      <textarea id="calif-comentario" placeholder="Cuéntanos algo (opcional)" maxlength="300"
+        style="width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:10px;padding:10px;font-size:13px;margin-bottom:14px;resize:none;min-height:60px;"></textarea>
+      <div style="display:flex;gap:10px;">
+        <button id="calif-omitir" style="flex:1;padding:11px;border-radius:10px;border:1.5px solid #ddd;background:#fff;color:#888;font-weight:700;cursor:pointer;">Ahora no</button>
+        <button id="calif-enviar" style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#ff4f81,#ff7a4f);color:#fff;font-weight:700;cursor:pointer;">Enviar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  let calificacionSeleccionada = 5;
+  const starsEl = modal.querySelector('#calif-stars');
+  const pintarEstrellas = (n) => {
+    starsEl.innerHTML = '★★★★★'.split('').map((s, i) => `<span style="color:${i < n ? '#f59e0b' : '#ddd'}">★</span>`).join('');
+  };
+  pintarEstrellas(5);
+  starsEl.querySelectorAll('span').forEach((span, idx) => {
+    span.addEventListener('click', () => { calificacionSeleccionada = idx + 1; pintarEstrellas(calificacionSeleccionada); });
+  });
+
+  const close = () => { if (modal.parentNode) modal.remove(); };
+  modal.querySelector('#calif-omitir').addEventListener('click', close);
+  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+  modal.querySelector('#calif-enviar').addEventListener('click', async () => {
+    const comentario = modal.querySelector('#calif-comentario').value.trim();
+    try {
+      const params = new URLSearchParams({
+        action: 'calificarProducto',
+        productId: String(item.productId),
+        clientPhone: phone,
+        calificacion: String(calificacionSeleccionada),
+        comentario: comentario,
+        requestId: item.requestId || ''
+      });
+      const res = await fetch(window.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'No se pudo enviar la calificación');
+      if (typeof window.showTemporaryMessage === 'function') window.showTemporaryMessage('⭐ ¡Gracias por tu calificación!', 'success');
+      close();
+    } catch (err) {
+      if (typeof window.showTemporaryMessage === 'function') window.showTemporaryMessage('❌ ' + err.message, 'error');
+    }
+  });
 }
 if (document.readyState === 'loading') {
 document.addEventListener('DOMContentLoaded', initComunidad);
