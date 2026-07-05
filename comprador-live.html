@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -32,10 +31,14 @@
      "pega" arriba usando JS (position:fixed + un ancla que reserva su
      espacio), no CSS sticky — así funciona aunque algún estilo global
      de styles.css (p.ej. overflow-x:hidden en html/body) rompa el
-     sticky nativo, que es justo lo que estaba pasando. */
-  .video-anchor { position: relative; width: 100%; }
-  .video-box { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; z-index: 20; }
-  .video-box.vertical { height: 56vh; max-height: 520px; aspect-ratio: unset; }
+     sticky nativo, que es justo lo que estaba pasando.
+     IMPORTANTE: el video vive con position:absolute DENTRO del ancla
+     (nunca contribuye al alto del ancla por flujo normal). El ancla
+     tiene su propio alto (CSS de respaldo + congelado por JS), así
+     que nunca se colapsa cuando el video pasa a fixed. */
+  .video-anchor { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+  .video-anchor.vertical { height: 56vh; max-height: 520px; aspect-ratio: unset; }
+  .video-box { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; z-index: 20; }
   .video-box.stuck {
     position: fixed; top: 0; left: 0; right: 0; margin: 0 auto;
     max-width: 640px; z-index: 20;
@@ -244,6 +247,7 @@ let presenceRef = null;
 let presenceCountUnsub = null;
 let stickyObserver = null;
 let stickySentinel = null;
+let stickyResizeHandler = null;
 
 // ── Reproductor sincronizado (video grabado que se comporta como en vivo) ──
 let ytPlayer = null;
@@ -344,21 +348,42 @@ function detenerStickyVideo() {
   if (stickyObserver) { stickyObserver.disconnect(); stickyObserver = null; }
   if (stickySentinel && stickySentinel.parentNode) { stickySentinel.parentNode.removeChild(stickySentinel); }
   stickySentinel = null;
+  if (stickyResizeHandler) { window.removeEventListener('resize', stickyResizeHandler); stickyResizeHandler = null; }
 }
 
 // El video se "pega" arriba con JS en vez de confiar en CSS
 // position:sticky. Si algún estilo global (por ejemplo
 // overflow-x:hidden en html/body) rompe el sticky nativo, esto sigue
 // funcionando: un sentinel de 0px justo antes del video se observa
-// con IntersectionObserver; cuando sale del viewport por arriba,
-// el video pasa a position:fixed (clase .stuck) y el ancla (que ya
-// tiene una altura fija en CSS) sigue reservando su espacio, así que
-// nada más se mueve ni salta.
+// con IntersectionObserver; cuando sale del viewport por arriba, el
+// video pasa a position:fixed (clase .stuck).
+//
+// CLAVE: el ancla (.video-anchor) congela su altura real por JS
+// (medida antes de que el video se vuelva fixed) y se la pasa también
+// al propio video. Así, cuando el video sale del flujo normal al
+// volverse fixed, el ancla NUNCA se colapsa a 0 — sigue reservando
+// exactamente el mismo espacio, así que nada salta ni se regresa.
 function setupStickyVideo() {
   detenerStickyVideo();
   const anchor = document.getElementById('video-anchor');
   const videoBox = document.getElementById('video-box-el');
   if (!anchor || !videoBox) return;
+
+  const congelarAltura = () => {
+    if (videoBox.classList.contains('stuck')) return; // ya está fija, no recalcular a ciegas
+    anchor.style.height = '';
+    videoBox.style.height = '';
+    const h = anchor.getBoundingClientRect().height;
+    if (h > 0) {
+      anchor.style.height = h + 'px';
+      videoBox.style.height = h + 'px';
+    }
+  };
+
+  requestAnimationFrame(congelarAltura);
+
+  stickyResizeHandler = () => requestAnimationFrame(congelarAltura);
+  window.addEventListener('resize', stickyResizeHandler);
 
   stickySentinel = document.createElement('div');
   stickySentinel.style.cssText = 'position:relative; height:0; width:100%;';
@@ -620,8 +645,8 @@ function renderLive() {
     // (título, producto, chat) es contenido normal que se desplaza
     // por debajo. Nada se sobrepone al video.
     wrap.innerHTML = `
-      <div class="video-anchor" id="video-anchor">
-        <div class="video-box vertical" id="video-box-el">${videoMarkup}</div>
+      <div class="video-anchor vertical" id="video-anchor">
+        <div class="video-box" id="video-box-el">${videoMarkup}</div>
       </div>
       <div class="live-info-compact">
         <span class="status-dot"></span>
