@@ -1,3 +1,4 @@
+
 (function() {
 const COMUNIDAD_CACHE_KEY = 'zr_comunidad_data';
 const COMUNIDAD_CACHE_TTL_SESSION = 5 * 60 * 1000;
@@ -1062,10 +1063,20 @@ async function checkPendingRatings() {
   const phone = (localStorage.getItem('client_phone') || '').replace(/\D/g, '');
   if (!phone) return;
   try {
-    const res = await fetch(window.API_URL + '?' + new URLSearchParams({ action: 'obtenerCalificacionesPendientes', clientPhone: phone }));
+    // 🆕 Respaldo local: productos que este teléfono ya calificó en este navegador,
+    // por si el backend tarda en reflejarlo o el fetch falla por alguna razón.
+    let yaCalificadosLocal = [];
+    try { yaCalificadosLocal = JSON.parse(localStorage.getItem('rated_products_' + phone) || '[]'); } catch (e) {}
+
+    // 🆕 cache:'no-store' + timestamp para evitar que quede una respuesta vieja cacheada
+    const res = await fetch(
+      window.API_URL + '?' + new URLSearchParams({ action: 'obtenerCalificacionesPendientes', clientPhone: phone, _t: Date.now() }),
+      { cache: 'no-store' }
+    );
     const data = await res.json();
     if (data.ok && data.pendientes && data.pendientes.length > 0) {
-      mostrarModalCalificar(data.pendientes[0], phone);
+      const siguiente = data.pendientes.find(p => !yaCalificadosLocal.includes(String(p.productId)));
+      if (siguiente) mostrarModalCalificar(siguiente, phone);
     }
   } catch (err) {
     console.warn('Error revisando calificaciones pendientes:', err);
@@ -1084,7 +1095,7 @@ function mostrarModalCalificar(item, phone) {
       <img src="${item.imagen || ''}" onerror="this.style.display='none'" style="width:80px;height:80px;object-fit:contain;border-radius:12px;background:#f5f5f8;margin:0 auto 12px;">
       <h3 style="margin:0 0 4px;font-size:1rem;">¿Cómo estuvo tu compra?</h3>
       <p style="margin:0 0 16px;font-size:13px;color:#888;">${(item.nombre || 'tu producto')}</p>
-      <div id="calif-stars" style="font-size:32px;letter-spacing:6px;margin-bottom:14px;cursor:pointer;">★★★★★</div>
+      <div id="calif-stars" style="font-size:32px;letter-spacing:6px;margin-bottom:14px;cursor:pointer;"></div>
       <textarea id="calif-comentario" placeholder="Cuéntanos algo (opcional)" maxlength="300"
         style="width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:10px;padding:10px;font-size:13px;margin-bottom:14px;resize:none;min-height:60px;"></textarea>
       <div style="display:flex;gap:10px;">
@@ -1094,14 +1105,28 @@ function mostrarModalCalificar(item, phone) {
     </div>`;
   document.body.appendChild(modal);
 
+  // 🆕 FIX: se crean los 5 <span> UNA sola vez y solo se les cambia el color
+  // en cada clic — antes se reemplazaba todo el innerHTML, lo que destruía
+  // los listeners después del primer clic y no dejaba cambiar la selección.
   let calificacionSeleccionada = 5;
   const starsEl = modal.querySelector('#calif-stars');
+  const spans = [];
+  for (let i = 0; i < 5; i++) {
+    const span = document.createElement('span');
+    span.textContent = '★';
+    span.dataset.value = String(i + 1);
+    spans.push(span);
+    starsEl.appendChild(span);
+  }
   const pintarEstrellas = (n) => {
-    starsEl.innerHTML = '★★★★★'.split('').map((s, i) => `<span style="color:${i < n ? '#f59e0b' : '#ddd'}">★</span>`).join('');
+    spans.forEach((s, i) => { s.style.color = i < n ? '#f59e0b' : '#ddd'; });
   };
-  pintarEstrellas(5);
-  starsEl.querySelectorAll('span').forEach((span, idx) => {
-    span.addEventListener('click', () => { calificacionSeleccionada = idx + 1; pintarEstrellas(calificacionSeleccionada); });
+  pintarEstrellas(calificacionSeleccionada);
+  starsEl.addEventListener('click', (e) => {
+    const span = e.target.closest('span[data-value]');
+    if (!span) return;
+    calificacionSeleccionada = Number(span.dataset.value);
+    pintarEstrellas(calificacionSeleccionada);
   });
 
   const close = () => { if (modal.parentNode) modal.remove(); };
@@ -1126,6 +1151,18 @@ function mostrarModalCalificar(item, phone) {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'No se pudo enviar la calificación');
+
+      // 🆕 Marca localmente este producto como ya calificado por este teléfono,
+      // así nunca vuelve a pedir calificarlo en este navegador aunque el
+      // backend tarde en reflejarlo.
+      try {
+        const ya = JSON.parse(localStorage.getItem('rated_products_' + phone) || '[]');
+        if (!ya.includes(String(item.productId))) {
+          ya.push(String(item.productId));
+          localStorage.setItem('rated_products_' + phone, JSON.stringify(ya));
+        }
+      } catch (e) {}
+
       if (typeof window.showTemporaryMessage === 'function') window.showTemporaryMessage('⭐ ¡Gracias por tu calificación!', 'success');
       close();
     } catch (err) {
