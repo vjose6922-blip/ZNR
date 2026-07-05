@@ -82,7 +82,7 @@ let allCommunityProducts = [];    // productos de
 let filteredProducts = [];        // alias de allComm000
 let currentPage = 1;              // página actual
 let totalPagesGlobal = 1;         // total de páginas devuelto por el backend
-let currentFilters = {};          // filtros activos (para mantenerlos al cambiar página)
+let currentFilters = {};          // filtros activos (para mantenerlos al cambia00000
 let isLoading = false;
 let gridContainer, catSelect, vendorSelect, paginationDiv;
 let hasLoadedOnce = false; // true solo tras la primera carga real de la página (no en cada cambio de filtro)
