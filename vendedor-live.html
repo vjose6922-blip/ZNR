@@ -217,8 +217,8 @@
   .chat-empty { text-align: center; color: var(--color-text-soft); font-size: 12px; margin-top: auto; margin-bottom: auto; }
   .chat-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--color-border-subtle); flex-shrink: 0; }
   .chat-input-row input {
-    flex: 1; background: var(--color-surface); border: 1px solid var(--color-border-subtle);
-    border-radius: var(--radius-pill); padding: 9px 14px; color: var(--color-text-primary); font-size: 13px;
+    flex: 1; min-width: 0; background: var(--color-surface); border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-pill); padding: 9px 12px; color: var(--color-text-primary); font-size: 13px;
   }
   .chat-input-row button {
     background: var(--gradient-accent); border: none; color: #fff;
@@ -240,7 +240,10 @@
   /* ── Layout fijo durante la transmisión: video+info arriba,
      chat abajo, todo visible sin necesidad de hacer scroll ──
      Usamos --app-vh (calculado en JS con window.innerHeight /
-     visualViewport) en 0000
+     visualViewport) en vez de 100vh/100dvh, porque en varios
+     navegadores de Android (Samsung Internet, WebViews viejos)
+     100vh/100dvh miden más alto que lo realmente visible cuando
+     la barra de direcciones está presente, y como el body tiene
      overflow:hidden, el contenido de abajo (botón de enviar,
      última fila de productos) queda fuera de la vista sin poder
      hacer scroll para alcanzarlo. ── */
@@ -269,7 +272,10 @@
   }
   .live-products-col h2 { font-size: 13px; margin: 0 0 4px; }
   .live-products-col .hint { font-size: 11px; margin: 0 0 8px; }
-  .live-products-col .product-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .live-products-col .product-grid {
+    grid-template-columns: repeat(2, 1fr); gap: 6px;
+    max-height: none; overflow-y: visible;
+  }
   .live-chat-col {
     flex: 1 1 44%; min-width: 0; min-height: 0; display: flex; flex-direction: column;
     border-left: 1px solid var(--color-border-subtle);
@@ -874,8 +880,8 @@ function renderLiveFallback() {
         </div>
         <div class="chat-messages" id="chat-messages"><div class="chat-empty">Aún no hay mensajes.</div></div>
         <div class="chat-input-row">
-          <input type="text" id="chat-input" placeholder="PRUEBA1 - Responde a tus compradores…" maxlength="300">
-          <button id="chat-send" style="background:red !important;border:3px solid yellow !important;">➤</button>
+          <input type="text" id="chat-input" placeholder="Responde a tus compradores…" maxlength="300">
+          <button id="chat-send">➤</button>
         </div>
       </div>
     </div>
@@ -957,8 +963,8 @@ IDs cargados: ${esc(allProducts.map(p => p.id).join(', '))}</div>`
           </div>
           <div class="chat-messages" id="chat-messages"><div class="chat-empty">Aún no hay mensajes.</div></div>
           <div class="chat-input-row">
-            <input type="text" id="chat-input" placeholder="PRUEBA1 - Responde…" maxlength="300">
-            <button id="chat-send" style="background:red !important;border:3px solid yellow !important;">➤</button>
+            <input type="text" id="chat-input" placeholder="Responde…" maxlength="300">
+            <button id="chat-send">➤</button>
           </div>
         </div>
       </div>
@@ -1055,8 +1061,7 @@ async function finalizarTransmision(finBtn) {
 
 // ── Arma el paquete de entrega (agrupado por comprador) y lo guarda
 // en el backend (hoja Entregas_Live). El link que se comparte solo
-// lleva el id del live — la página de entregas lo consulta al vuelo,
-// así que sirve desde cualquier dispositivo (vendedor o repartidor)
+// lleva el id del 00000
 // y el estado ENTREGADO/PENDIENTE queda guardado, no solo local. ──
 async function crearPaginaEntregas(ventas) {
   try {
