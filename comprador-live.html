@@ -46,6 +46,7 @@
     position: sticky; top: 0; z-index: 20;
     width: 100%; aspect-ratio: 16/9; background: #000;
   }
+  .video-slot-inner { position: absolute; inset: 0; }
   .video-box iframe { width: 100%; height: 100%; border: 0; display: block; }
   .sound-overlay {
     position: absolute; inset: 0; z-index: 5; border: none; cursor: pointer;
@@ -400,14 +401,14 @@ function registrarPresencia() {
   viewerId = getViewerId();
   presenceRef = ref(db, `presencia/${liveId}/${viewerId}`);
   const nombre = (identity && identity.nombre) ? identity.nombre : 'Invitado';
-  set(presenceRef, { nombre, ts: Date.now() }).catch(() => {});
+  set(presenceRef, { nombre, ts: Date.now() }).catch(err => console.error('registrarPresencia falló (revisa las reglas de Firebase):', err));
   onDisconnect(presenceRef).remove().catch(() => {});
 }
 
 function actualizarPresenciaNombre() {
   if (!presenceRef) return;
   const nombre = (identity && identity.nombre) ? identity.nombre : 'Invitado';
-  set(presenceRef, { nombre, ts: Date.now() }).catch(() => {});
+  set(presenceRef, { nombre, ts: Date.now() }).catch(err => console.error('actualizarPresenciaNombre falló:', err));
 }
 
 function quitarPresencia() {
@@ -421,7 +422,7 @@ function setupContadorEspectadores() {
   presenceCountUnsub = onValue(ref(db, `presencia/${liveId}`), (snap) => {
     const data = snap.val() || {};
     if (countEl) countEl.textContent = Object.keys(data).length;
-  });
+  }, (err) => console.error('setupContadorEspectadores falló (revisa las reglas de Firebase):', err));
 }
 
 // ── Reportar transmisión ──
@@ -612,9 +613,11 @@ function renderLive() {
     </div>`;
 
   wrap.innerHTML = `
-    <div class="video-box ${esVertical ? 'vertical' : ''}" id="video-slot">
-      ${esGrabado ? '' : `<iframe src="https://www.youtube-nocookie.com/embed/${esc(sesion.youtube_id)}?autoplay=1"
-        allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>`}
+    <div class="video-box ${esVertical ? 'vertical' : ''}">
+      <div class="video-slot-inner" id="video-slot">
+        ${esGrabado ? '' : `<iframe src="https://www.youtube-nocookie.com/embed/${esc(sesion.youtube_id)}?autoplay=1"
+          allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>`}
+      </div>
       ${esVertical ? `<div class="chat-panel overlay-chat">${chatMarkup}</div>` : ''}
     </div>
     <div class="live-info">
@@ -745,7 +748,7 @@ async function init() {
     btnReportar.style.display = 'flex';
     btnReportar.addEventListener('click', mostrarReporte);
 
-    // Cargar detalle de productos de este vendedor (para nombre/imagen/precio)0000
+    // Cargar detalle de productos de este vendedor (para nombre/89ecio)0000
     const prodResp = await apiFetch({ action: 'listarComunidad', vendedor_uid: sesion.vendedor_id, limit: 50 });
     if (prodResp.ok && prodResp.products) {
       prodResp.products.forEach(p => { productosMap[p.id] = p; });
