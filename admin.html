@@ -1,0 +1,2580 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+ <meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="
+ default-src 'self';
+ script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+ style-src 'self' 'unsafe-inline';
+ img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com;
+ connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in https://www.gstatic.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://firebase.googleapis.com https://znr-live-default-rtdb.firebaseio.com https://nominatim.openstreetmap.org;
+ font-src 'self';
+ frame-src 'none';
+ frame-ancestors 'none';
+ object-src 'none';
+ base-uri 'self';
+ worker-src 'self' blob:;
+ child-src 'self' blob:;
+">
+ <script src="error-bootstrap.js"></script>
+
+ <title>Panel Administrador - Z&R</title>
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <link rel="preconnect" href="https://script.google.com" crossorigin>
+ <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+ <link rel="dns-prefetch" href="https://script.google.com">
+ <link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
+ <link rel="preload" href="styles.css" as="style">
+ <link rel="stylesheet" href="styles.css" />
+<link rel="manifest" href="/ZNR/manifest.json">
+<meta name="theme-color" content="#3b1f5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Z&R">
+<link rel="apple-touch-icon" href="/ZNR/logo.svg">
+<meta name="mobile-web-app-capable" content="yes">
+ <style>
+ * {
+ box-sizing: border-box;
+ }
+  .admin-header {
+ background: rgba(5, 3, 10, 0.95) !important;
+ backdrop-filter: blur(18px) !important;
+ border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+
+ }
+
+.app-header {
+
+ flex-wrap: nowrap;  
+
+}
+
+.header-left {
+
+ flex-shrink: 1;  
+
+ min-width: 0;  
+
+}
+
+.header-right {
+
+ flex-shrink: 0;  
+
+ flex-wrap: nowrap;  
+
+}
+
+ 
+
+ .admin-header .app-title,
+
+ .admin-header .app-subtitle {
+
+ color: white !important;
+
+ }
+
+ 
+
+ .admin-main {
+
+ background: linear-gradient(180deg, #0b0714 0%, #1a1528 100%);
+
+ min-height: calc(100vh - 64px);
+
+ padding: 12px;
+
+ width: 100%;
+
+ }
+
+ 
+
+ @media (min-width: 768px) {
+
+ .admin-main {
+
+ max-width: 1200px;
+
+ margin: 0 auto;
+
+ padding: 20px;
+
+ }
+
+ }
+
+ 
+
+ .admin-card {
+
+ background: rgba(255, 255, 255, 0.98);
+
+ border-radius: 16px;
+
+ box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+ margin-bottom: 16px;
+
+ overflow: hidden;
+
+ width: 100%;
+
+ }
+
+ 
+
+ .admin-card-header {
+
+ padding: 14px 16px;
+
+ background: linear-gradient(135deg, #3b1f5f, #5a3b8a);
+
+ color: white !important;
+
+ display: flex;
+
+ justify-content: space-between;
+
+ align-items: center;
+
+ flex-wrap: wrap;
+
+ gap: 8px;
+
+ }
+
+ 
+
+ .admin-card-header h2 {
+
+ color: white !important;
+
+ font-size: 18px;
+
+ margin: 0;
+
+ }
+
+ 
+
+ .admin-card-header .text-button {
+
+ color: white !important;
+
+ background: rgba(255,255,255,0.2);
+
+ padding: 6px 12px;
+
+ border-radius: 20px;
+
+ font-size: 12px;
+
+ border: none;
+
+ cursor: pointer;
+
+ }
+
+ 
+
+ .admin-stats-grid {
+
+ display: grid;
+
+ grid-template-columns: repeat(3, 1fr);
+
+ gap: 8px;
+
+ margin-bottom: 16px;
+
+ width: 100%;
+
+ }
+
+ 
+
+ .admin-stat-card {
+
+ background: linear-gradient(135deg, #3b1f5f, #5a3b8a);
+
+ border-radius: 12px;
+
+ padding: 10px 4px;
+
+ text-align: center;
+
+ color: white !important;
+
+ width: 100%;
+
+ min-width: 0; 
+
+ }
+
+ 
+
+ .admin-stat-card * {
+
+ color: white !important;
+
+ }
+
+ 
+
+ .admin-stat-value {
+
+ font-size: 18px;
+
+ font-weight: 800;
+
+ display: block;
+
+ margin-bottom: 4px;
+
+ color: white !important;
+
+ white-space: nowrap;
+
+ overflow: hidden;
+
+ text-overflow: ellipsis;
+
+ }
+
+ 
+
+ .admin-stat-label {
+
+ font-size: 9px;
+
+ opacity: 0.9;
+
+ text-transform: uppercase;
+
+ letter-spacing: 0.3px;
+
+ color: white !important;
+
+ display: block;
+
+ white-space: nowrap;
+
+ overflow: hidden;
+
+ text-overflow: ellipsis;
+
+ }
+
+ 
+
+ @media (min-width: 480px) {
+
+ .admin-stats-grid {
+
+ gap: 12px;
+
+ margin-bottom: 20px;
+
+ }
+
+ 
+
+ .admin-stat-card {
+
+ padding: 12px 8px;
+
+ }
+
+ 
+
+ .admin-stat-value {
+
+ font-size: 22px;
+
+ }
+
+ 
+
+ .admin-stat-label {
+
+ font-size: 10px;
+
+ }
+
+ }
+
+ 
+
+ @media (min-width: 768px) {
+
+ .admin-stats-grid {
+
+ gap: 16px;
+
+ margin-bottom: 24px;
+
+ }
+
+ 
+
+ .admin-stat-card {
+
+ padding: 20px;
+
+ }
+
+ 
+
+ .admin-stat-value {
+
+ font-size: 28px;
+
+ margin-bottom: 8px;
+
+ }
+
+ 
+
+ .admin-stat-label {
+
+ font-size: 12px;
+
+ }
+
+ }
+
+ 
+
+ .admin-section {
+ margin-bottom: 20px;
+ }
+
+ .admin-section-header {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ gap: 10px;
+ margin-bottom: 10px;
+ padding: 0 2px;
+ }
+
+ .admin-section-header h2 {
+ margin: 0;
+ font-size: 15px;
+ font-weight: 800;
+ color: #fff;
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ }
+
+ .admin-section-header .ash-icon {
+ display: inline-flex;
+ color: #ff4f81;
+ }
+
+ .admin-cards-grid {
+ display: grid;
+ grid-template-columns: repeat(3, 1fr);
+ gap: 10px;
+ }
+
+ .admin-cards-grid.admin-cards-grid-compact {
+ grid-template-columns: repeat(auto-fill, minmax(190px, 240px));
+ }
+
+ @media (max-width: 640px) {
+ .admin-cards-grid {
+ grid-template-columns: repeat(2, 1fr);
+ }
+ }
+
+ @media (max-width: 420px) {
+ .admin-cards-grid,
+ .admin-cards-grid.admin-cards-grid-compact {
+ grid-template-columns: 1fr;
+ }
+ }
+
+ .admin-mini-card {
+ background: rgba(255, 255, 255, 0.98);
+ border-radius: 14px;
+ padding: 14px 12px;
+ display: flex;
+ flex-direction: column;
+ gap: 6px;
+ text-decoration: none;
+ color: #2a2140;
+ cursor: pointer;
+ border: none;
+ box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+ transition: transform 0.15s ease, box-shadow 0.15s ease;
+ position: relative;
+ min-height: 78px;
+ font-family: inherit;
+ text-align: left;
+ }
+
+ .admin-mini-card:hover {
+ transform: translateY(-2px);
+ box-shadow: 0 6px 18px rgba(0,0,0,0.22);
+ }
+
+ .admin-mini-card .amc-icon {
+ font-size: 18px;
+ line-height: 1;
+ color: #7a4fc9;
+ }
+
+ .admin-mini-card .amc-label {
+ font-size: 12px;
+ font-weight: 700;
+ line-height: 1.25;
+ padding-right: 30px;
+ }
+
+ .admin-mini-card .amc-badge {
+ position: absolute;
+ top: 10px;
+ right: 10px;
+ background: #ff4f81;
+ color: #fff;
+ border-radius: 50px;
+ min-width: 20px;
+ height: 20px;
+ padding: 0 6px;
+ font-size: 11px;
+ font-weight: 800;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ }
+
+ .admin-mini-card .amc-badge.zero {
+ background: rgba(0,0,0,0.08);
+ color: #999;
+ }
+
+ .admin-cta-bar {
+ display: block;
+ margin-top: 10px;
+ padding: 12px;
+ background: linear-gradient(135deg, #ff4f81, #ff7a4f);
+ color: #fff;
+ font-weight: 700;
+ font-size: 13px;
+ border-radius: 12px;
+ text-align: center;
+ text-decoration: none;
+ }
+
+ /* Tiles expandibles: Crear Producto / Lista de Productos.
+    Colapsados: tarjeta compacta dentro del grid.
+    Expandidos: ocupan todo el ancho disponible. */
+ .grid-tile {
+ transition: grid-column 0.15s ease;
+ }
+
+ .grid-tile.expanded {
+ grid-column: 1 / -1;
+ }
+
+ .grid-tile .tile-header {
+ cursor: pointer;
+ }
+
+ .grid-tile:not(.expanded) .admin-card-header.tile-header {
+ flex-direction: column;
+ align-items: flex-start;
+ justify-content: center;
+ text-align: left;
+ gap: 4px;
+ min-height: 96px;
+ padding: 16px 14px;
+ }
+
+ .grid-tile:not(.expanded) .tile-header .tile-actions {
+ display: none;
+ }
+
+ .grid-tile.expanded .tile-icon,
+ .grid-tile.expanded .tile-subtitle {
+ display: none;
+ }
+
+ .grid-tile.expanded .admin-card-header.tile-header {
+ flex-direction: row;
+ align-items: center;
+ justify-content: space-between;
+ text-align: left;
+ }
+
+ .tile-icon {
+ font-size: 22px;
+ line-height: 1;
+ }
+
+ .tile-title {
+ font-size: 14px !important;
+ margin: 0 !important;
+ }
+
+ .tile-subtitle {
+ font-size: 11px;
+ font-weight: 500;
+ opacity: 0.85;
+ }
+
+ .tile-actions {
+ display: flex;
+ align-items: center;
+ gap: 10px;
+ }
+
+ .tile-chevron {
+ display: inline-block;
+ font-size: 16px;
+ line-height: 1;
+ transition: transform 0.2s ease;
+ }
+
+ .grid-tile.expanded .tile-chevron {
+ transform: rotate(180deg);
+ }
+
+ #notif-badge {
+ min-width: 18px;
+ height: 18px;
+ padding: 0 5px;
+ border-radius: 50px;
+ background: rgba(255,255,255,0.18);
+ color: rgba(255,255,255,0.6);
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ font-size: 11px;
+ font-weight: 800;
+ transition: background 0.4s ease, color 0.3s ease;
+ flex-shrink: 0;
+ }
+
+ #notif-badge.has-notifs {
+ background: #ff4f81;
+ color: #fff;
+ box-shadow: 0 0 0 0 rgba(255,79,129,0.7);
+ animation: notif-pulse 1.8s ease-in-out infinite;
+ }
+
+ @keyframes notif-pulse {
+ 0%  { box-shadow: 0 0 0 0 rgba(255,79,129,0.7); }
+ 70% { box-shadow: 0 0 0 7px rgba(255,79,129,0); }
+ 100%{ box-shadow: 0 0 0 0 rgba(255,79,129,0); }
+ }
+
+ 
+
+ .form-vertical {
+
+ display: flex;
+
+ flex-direction: column;
+
+ gap: 12px;
+
+ padding: 16px;
+
+ width: 100%;
+
+ }
+
+ 
+
+ .form-row {
+
+ display: flex;
+
+ flex-direction: column;
+
+ gap: 6px;
+
+ width: 100%;
+
+ }
+
+ 
+
+ .form-row label {
+
+ font-weight: 600;
+
+ font-size: 13px;
+
+ color: #3b1f5f;
+
+ }
+
+ 
+
+ .form-row input,
+
+ .form-row select,
+
+ .form-row textarea {
+
+ padding: 10px 12px;
+
+ border: 2px solid #e0e0e0;
+
+ border-radius: 12px;
+
+ font-size: 14px;
+
+ transition: all 0.2s;
+
+ width: 100%;
+
+ box-sizing: border-box;
+
+ }
+
+ 
+
+ .form-row input:focus,
+
+ .form-row select:focus,
+
+ .form-row textarea:focus {
+
+ outline: none;
+
+ border-color: #ff4f81;
+
+ box-shadow: 0 0 0 3px rgba(255, 79, 129, 0.1);
+
+ }
+
+ 
+
+ @media (min-width: 768px) {
+
+ .form-vertical {
+
+ display: grid;
+
+ grid-template-columns: repeat(2, 1fr);
+
+ gap: 16px;
+
+ padding: 24px;
+
+ }
+
+ 
+
+ .form-row-full {
+
+ grid-column: span 2;
+
+ }
+
+ }
+
+ 
+
+ .image-upload-area {
+
+ display: flex;
+
+ flex-direction: column;
+
+ gap: 8px;
+
+ }
+
+ 
+
+ .image-preview-container {
+
+ display: flex;
+
+ gap: 8px;
+
+ align-items: center;
+
+ flex-wrap: wrap;
+
+ }
+
+ 
+
+ .image-preview {
+
+ max-width: 50px;
+
+ max-height: 50px;
+
+ border-radius: 8px;
+
+ border: 2px solid #e0e0e0;
+
+ object-fit: cover;
+
+ }
+
+ 
+
+ @media (min-width: 768px) {
+
+ .image-preview {
+
+ max-width: 80px;
+
+ max-height: 80px;
+
+ }
+
+ }
+
+ 
+
+ .image-url-input {
+
+ flex: 1;
+
+ padding: 8px 10px;
+
+ border: 2px solid #e0e0e0;
+
+ border-radius: 10px;
+
+ font-size: 11px;
+
+ background: #f5f5f8;
+
+ }
+
+ 
+
+ .progress-bar {
+
+ height: 3px;
+
+ background: #e0e0e0;
+
+ border-radius: 3px;
+
+ margin-top: 6px;
+
+ overflow: hidden;
+
+ }
+
+ 
+
+ .upload-progress {
+
+ width: 0%;
+
+ height: 100%;
+
+ background: linear-gradient(90deg, #ff4f81, #ff7a4f);
+
+ transition: width 0.3s;
+
+ }
+
+ 
+
+ .primary-button {
+
+ background: linear-gradient(135deg, #ff4f81, #ff7a4f);
+
+ border: none;
+
+ border-radius: 50px;
+
+ padding: 12px 20px;
+
+ color: white;
+
+ font-weight: 600;
+
+ font-size: 14px;
+
+ cursor: pointer;
+
+ transition: all 0.2s;
+
+ width: 100%;
+
+ }
+
+ 
+
+ .primary-button:hover {
+
+ transform: translateY(-2px);
+
+ box-shadow: 0 6px 20px rgba(255, 79, 129, 0.4);
+
+ }
+
+ 
+
+ .admin-controls {
+
+ display: flex;
+
+ flex-direction: column;
+
+ gap: 10px;
+
+ padding: 16px;
+
+ }
+
+ 
+
+ @media (min-width: 768px) {
+
+ .admin-controls {
+
+ flex-direction: row;
+
+ padding: 20px;
+
+ }
+
+ }
+
+ 
+
+ .admin-search, .admin-filter-select {
+ padding: 10px 12px;
+ background: white;
+ border: 2px solid #e0e0e0;
+ border-radius: 12px;
+ font-size: 14px;
+ width: 100%;
+ }
+
+ 
+
+ @media (min-width: 768px) {
+ .admin-search {
+ flex: 1;
+ }
+
+ 
+
+ .admin-filter-select {
+ width: auto;
+ }
+ }
+
+ 
+
+ .admin-products-header {
+
+ display: none;
+
+ }
+
+ 
+
+ .admin-product-row {
+
+ display: flex;
+
+ flex-wrap: wrap;
+
+ gap: 6px;
+
+ padding: 10px 12px;
+
+ background: white;
+
+ border-bottom: 1px solid #e0e0e0;
+
+ align-items: center;
+
+ }
+
+ 
+
+ .admin-product-id {
+
+ font-family: monospace;
+
+ font-size: 10px;
+
+ background: #f0f0f0;
+
+ padding: 2px 8px;
+
+ border-radius: 20px;
+
+ color: #666;
+
+ }
+
+ 
+
+ .admin-product-name {
+
+ flex: 1;
+
+ font-size: 13px;
+
+ font-weight: 500;
+
+ color: #333;
+
+ }
+
+ 
+
+ .admin-product-price {
+
+ font-size: 13px;
+
+ font-weight: 700;
+
+ color: #ff4f81;
+
+ }
+
+ 
+
+ .admin-product-stock {
+
+ font-size: 11px;
+
+ padding: 2px 8px;
+
+ border-radius: 20px;
+
+ }
+
+ 
+
+ .admin-product-stock.in-stock {
+
+ background: #e8f5e9;
+
+ color: #2e7d32;
+
+ }
+
+ 
+
+ .admin-product-stock.low-stock {
+
+ background: #fff3e0;
+
+ color: #f97316;
+
+ }
+
+ 
+
+ .admin-product-stock.out-stock {
+
+ background: #ffebee;
+
+ color: #c62828;
+
+ }
+
+ 
+
+ .admin-product-actions {
+
+ display: flex;
+
+ gap: 8px;
+
+ width: 100%;
+
+ margin-top: 6px;
+
+ }
+
+ 
+
+ .admin-product-actions button {
+
+ flex: 1;
+
+ padding: 6px 12px;
+
+ font-size: 12px;
+
+ border: none;
+
+ border-radius: 8px;
+
+ cursor: pointer;
+
+ }
+
+ 
+
+ .admin-product-actions button:first-child {
+
+ background: #e8e8ff;
+
+ color: #3b1f5f;
+
+ }
+
+ 
+
+ .admin-product-actions button:first-child:hover {
+
+ background: #3b1f5f;
+
+ color: white;
+
+ }
+
+ 
+
+ .admin-product-actions button:last-child {
+
+ background: #ffe8e8;
+
+ color: #d32f2f;
+
+ }
+
+ 
+
+ .admin-product-actions button:last-child:hover {
+
+ background: #d32f2f;
+
+ color: white;
+
+ }
+
+ 
+
+ @media (min-width: 768px) {
+
+ .admin-products-header {
+
+ display: grid;
+
+ grid-template-columns: 80px 1fr 100px 100px 120px;
+
+ gap: 12px;
+
+ padding: 12px 16px;
+
+ background: linear-gradient(135deg, #3b1f5f, #5a3b8a);
+
+ border-radius: 12px;
+
+ font-weight: 600;
+
+ font-size: 13px;
+
+ color: white !important;
+
+ margin-bottom: 12px;
+
+ }
+
+ 
+
+ .admin-product-row {
+
+ display: grid;
+
+ grid-template-columns: 80px 1fr 100px 100px 120px;
+
+ gap: 12px;
+
+ padding: 12px 16px;
+
+ }
+
+ 
+
+ .admin-product-id {
+
+ background: none;
+
+ padding: 0;
+
+ font-size: 12px;
+
+ }
+
+ 
+
+ .admin-product-actions {
+
+ width: auto;
+
+ margin-top: 0;
+
+ }
+
+ }
+
+ 
+
+ .admin-pagination {
+
+ display: flex;
+
+ justify-content: center;
+
+ gap: 6px;
+
+ padding: 16px;
+
+ flex-wrap: wrap;
+
+ }
+
+ 
+
+ .admin-pagination button {
+
+ padding: 6px 12px;
+
+ border: 2px solid #e0e0e0;
+
+ background: white;
+
+ border-radius: 8px;
+
+ cursor: pointer;
+
+ font-size: 12px;
+
+ }
+
+ 
+
+ .admin-pagination button:hover {
+
+ background: #3b1f5f;
+
+ color: white;
+
+ border-color: #3b1f5f;
+
+ }
+
+ 
+
+ .admin-pagination button.active-page {
+
+ background: #ff4f81;
+
+ color: white;
+
+ border-color: #ff4f81;
+
+ }
+
+ 
+
+ .global-loader {
+
+ position: fixed;
+
+ top: 0;
+
+ left: 0;
+
+ width: 100%;
+
+ height: 100%;
+
+ background: rgba(0,0,0,0.8);
+
+ display: flex;
+
+ flex-direction: column;
+
+ justify-content: center;
+
+ align-items: center;
+
+ z-index: 9999;
+
+ }
+
+ 
+
+ .global-loader.hidden {
+
+ display: none;
+
+ }
+
+ 
+
+ .loader-spinner {
+
+ width: 40px;
+
+ height: 40px;
+
+ border: 4px solid #f3f3f3;
+
+ border-top: 4px solid #ff4f81;
+
+ border-radius: 50%;
+
+ animation: spin 1s linear infinite;
+
+ }
+
+ 
+
+ @keyframes spin {
+
+ 0% { transform: rotate(0deg); }
+
+ 100% { transform: rotate(360deg); }
+
+ }
+
+ 
+
+ .loader-text {
+
+ color: white;
+
+ margin-top: 12px;
+
+ font-size: 14px;
+
+ }
+
+ 
+
+ .header-right {
+
+ display: flex;
+
+ gap: 8px;
+
+ align-items: center;
+
+ }
+
+ 
+
+ .icon-button {
+
+ background: rgba(255,255,255,0.1);
+
+ border: none;
+
+ padding: 8px 12px;
+
+ border-radius: 30px;
+
+ color: white;
+
+ cursor: pointer;
+
+ font-size: 16px;
+
+ }
+
+ 
+
+ .header-left {
+
+ display: flex;
+
+ align-items: center;
+
+ gap: 10px;
+
+ }
+
+ 
+
+ .logo-touch-area {
+
+ width: 40px;
+
+ height: 40px;
+
+ background: linear-gradient(135deg, #ff4f81, #3b1f5f);
+
+ border-radius: 12px;
+
+ display: flex;
+
+ align-items: center;
+
+ justify-content: center;
+
+ font-weight: bold;
+
+ color: white;
+
+ }
+
+ 
+
+ .app-title {
+
+ margin: 0;
+
+ font-size: 18px;
+
+ color: white;
+
+ }
+
+ 
+
+ .app-subtitle {
+
+ margin: 0;
+
+ font-size: 12px;
+
+ color: rgba(255,255,255,0.7);
+
+ }
+
+</style>
+
+ 
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+
+<body class="admin-body">
+
+ <div id="global-loader" class="global-loader hidden">
+
+ <div class="loader-spinner"></div>
+
+ <div class="loader-text">Cargando...</div>
+
+ </div>
+
+ <header class="app-header admin-header">
+
+ <div class="header-left">
+
+ <div class="logo-touch-area">
+
+ <span class="logo-mark">Z&R</span>
+
+ </div>
+
+ <div class="header-text">
+
+ <h1 class="app-title">Admin</h1>
+
+ <p class="app-subtitle">Gestión</p>
+
+ </div>
+
+ </div>
+
+ <div class="header-right">
+
+ <a href="index.html" class="icon-button" style="text-decoration: none; display: inline-flex; align-items: center;" title="Inicio"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-home"/></svg></a>
+
+ 
+
+ <button class="icon-button" id="admin-refresh-btn" style="background: rgba(255,255,255,0.1);" title="Actualizar lista de productos"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
+ <button class="icon-button" id="admin-logout-btn" style="background: rgba(255,255,255,0.1);" title="Cerrar sesión"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" aria-hidden="true"><use href="#ic-logout"/></svg></button>
+
+ </div>
+
+ </header>
+
+ <main class="admin-main" id="admin-login-view">
+
+ <div class="admin-card" style="max-width: 400px; margin: 40px auto;">
+
+ <div class="admin-card-header" style="text-align: center;">
+
+ <h2>Administrador</h2>
+
+ <p style="color: rgba(255,255,255,0.8); margin-top: 8px;">Ingresa tus credenciales para continuar</p>
+
+ </div>
+
+ <form id="admin-login-form" class="form-vertical">
+
+ <div class="form-row">
+
+ <label>Contraseña</label>
+
+ <input type="password" id="admin-password" required placeholder="Ingresa tu contraseña" />
+
+ </div>
+
+ <div class="form-row">
+
+ <label>Token</label>
+
+ <input type="password" id="admin-token" required placeholder="Ingresa tu token" />
+
+ </div>
+
+ <button type="submit" class="primary-button full-width" style="margin-top: 10px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-logout"/></svg> Ingresar</button>
+
+ </form>
+
+ </div>
+
+ </main>
+
+ <main class="admin-main" id="admin-panel-view" hidden>
+
+ <div class="admin-stats-grid">
+
+ <div class="admin-stat-card">
+
+ <span class="admin-stat-value" id="stat-total-products">0</span>
+
+ <span class="admin-stat-label">Total</span>
+
+ </div>
+
+ <div class="admin-stat-card">
+
+ <span class="admin-stat-value" id="stat-total-stock">$0</span>
+
+ <span class="admin-stat-label">Valor </span>
+
+ </div>
+
+ <div class="admin-stat-card">
+
+ <span class="admin-stat-value" id="stat-out-of-stock">0</span>
+
+ <span class="admin-stat-label">Sin Stock</span>
+
+ </div>
+
+ </div>
+
+ <section class="admin-section" id="admin-notif-section">
+ <div class="admin-section-header">
+ <h2><span class="ash-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true"><use href="#ic-bell"/></svg></span> Notificaciones <span id="notif-badge">0</span></h2>
+ </div>
+ <div class="admin-cards-grid">
+ <a href="notificaciones.html" class="admin-mini-card" id="npi-solicitudes">
+ <span class="amc-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-cart"/></svg></span>
+ <span class="amc-label">Solicitudes</span>
+ <span class="amc-badge" id="notif-panel-solicitudes-count">—</span>
+ </a>
+ <a href="notificaciones.html#vendors" class="admin-mini-card" id="npi-vendors">
+ <span class="amc-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-vendor"/></svg></span>
+ <span class="amc-label">Vendedores Comunidad</span>
+ <span class="amc-badge" id="notif-panel-vendors-count">—</span>
+ </a>
+ <a href="notificaciones.html#pending" class="admin-mini-card" id="npi-pending">
+ <span class="amc-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-community"/></svg></span>
+ <span class="amc-label">Productos pendientes</span>
+ <span class="amc-badge" id="notif-panel-pending-count">—</span>
+ </a>
+ <a href="notificaciones.html#reportes" class="admin-mini-card" id="npi-reportes">
+ <span class="amc-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-flag"/></svg></span>
+ <span class="amc-label">Reportes de comunidad</span>
+ <span class="amc-badge" id="notif-panel-reportes-count">—</span>
+ </a>
+ <a href="notificaciones.html#plus" class="admin-mini-card" id="npi-plus">
+ <span class="amc-icon">⭐</span>
+ <span class="amc-label">Solicitudes Plan Plus</span>
+ <span class="amc-badge" id="notif-panel-plus-count">—</span>
+ </a>
+ <a href="notificaciones.html#beneficiarios" class="admin-mini-card" id="npi-beneficiarios">
+ <span class="amc-icon">❤️</span>
+ <span class="amc-label">Beneficiarios pendientes</span>
+ <span class="amc-badge" id="notif-panel-beneficiarios-count">—</span>
+ </a>
+ </div>
+ <a href="notificaciones.html" class="admin-cta-bar">Ver todas las notificaciones →</a>
+ </section>
+
+ <section class="admin-section" id="admin-tools-section">
+ <div class="admin-section-header">
+ <h2><span class="ash-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true"><use href="#ic-settings"/></svg></span> Herramientas</h2>
+ </div>
+ <div class="admin-cards-grid">
+ <button type="button" class="admin-mini-card" onclick="openInspectorMode()">
+ <span class="amc-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-community"/></svg></span>
+ <span class="amc-label">Modo Inspector (Comunidad)</span>
+ </button>
+ <button type="button" class="admin-mini-card" onclick="openVendorStatsGlobal()">
+ <span class="amc-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-stats"/></svg></span>
+ <span class="amc-label">Estadísticas de Vendedores</span>
+ </button>
+ <button type="button" class="admin-mini-card" onclick="openAnalyticsModal()">
+ <span class="amc-icon">📊</span>
+ <span class="amc-label">Gráficas y Estadísticas</span>
+ </button>
+ <button type="button" class="admin-mini-card" onclick="openDonacionesStatsModal()">
+ <span class="amc-icon">❤️</span>
+ <span class="amc-label">Estadísticas de Donaciones</span>
+ </button>
+ <button type="button" class="admin-mini-card" onclick="openErrorMonitorModal()">
+ <span class="amc-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-error"/></svg></span>
+ <span class="amc-label">Monitor de Errores</span>
+ </button>
+ <button type="button" class="admin-mini-card" id="offline-status-btn">
+ <span class="amc-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-refresh"/></svg></span>
+ <span class="amc-label">Pendientes por cargar</span>
+ </button>
+ </div>
+ </section>
+
+<div id="upload-log" style="position:fixed; bottom:10px; right:10px; background:#333; color:#0f0; padding:8px 12px; border-radius:8px; font-size:12px; max-width:300px; z-index:9999; display:none;"></div>
+
+ <section class="admin-section" id="admin-create-outer">
+ <div class="admin-section-header">
+ <h2><span class="ash-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true"><use href="#ic-plus"/></svg></span> Crear Producto</h2>
+ </div>
+ <div class="admin-cards-grid admin-cards-grid-compact">
+ <div class="admin-card grid-tile" id="admin-create-section">
+
+ <div class="admin-card-header tile-header" onclick="toggleGridTile('admin-create-section','create-product-body')">
+
+ <span class="tile-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-plus"/></svg></span>
+ <h2 id="product-form-title" class="tile-title">Crear Producto</h2>
+ <span class="tile-subtitle">Agregar nuevo artículo al catálogo</span>
+
+ <div class="tile-actions">
+ <button id="reset-form-btn" class="text-button" onclick="event.stopPropagation()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-plus"/></svg> Nuevo</button>
+ <span class="tile-chevron">⌄</span>
+ </div>
+
+ </div>
+
+ <div id="create-product-body" style="display:none;">
+
+ <form id="product-form" class="form-vertical">
+
+ <input type="hidden" id="product-id" name="id" />
+
+ 
+
+ <div class="form-row">
+
+ <label>Nombre del producto *</label>
+
+ <input type="text" id="product-name" name="Nombre" required placeholder="Ej: Camisa de manga larga" />
+
+ </div>
+
+ 
+
+ <div class="form-row">
+
+ <label>Precio (MXN) *</label>
+
+ <input type="number" id="product-price" name="Precio" min="0" step="0.01" required placeholder="0.00" />
+
+ </div>
+
+ 
+
+ <div class="form-row">
+
+ <label>Stock disponible *</label>
+
+ <input type="number" id="product-stock" name="Stock" min="0" required placeholder="0" />
+
+ </div>
+
+ 
+
+ <div class="form-row">
+
+ <label>Descripción</label>
+
+ <textarea id="product-description" name="Descripcion" rows="3" placeholder="Descripción del producto..."></textarea>
+
+ </div>
+
+ 
+
+ <div class="form-row">
+
+ <label>Talla</label>
+
+ <input type="text" id="product-sizes" name="Talla" placeholder="Ej: S, M, L o 28,30,32" />
+
+ </div>
+
+ 
+
+ <div class="form-row">
+
+ <label>Categoría</label>
+
+ <select id="product-category" name="Categoria">
+
+ <option value="">Seleccionar categoría</option>
+
+ <option value="Accesorios">Accesorios</option>
+
+ <option value="Playeras">Playeras</option>
+
+ <option value="Blusas">Blusas</option>
+
+ <option value="Pantalon para Dama">Pantalon para Dama</option>
+
+ <option value="Pantalon para Caballero">Pantalon para Caballero</option>
+
+ <option value="Short para Dama">Short para Dama</option>
+
+ <option value="Short para Caballero">Short para Caballero</option>
+
+ <option value="Vestidos">Vestidos</option>
+
+ <option value="Faldas">Faldas</option>
+
+ <option value="Calzado para Dama">Calzado para Dama</option>
+
+ <option value="Calzado para Caballero">Calzado para Caballero</option>
+
+ <option value="Sueter para Caballero">Sueter para Caballero</option>
+
+ <option value="Sueter para Dama">Sueter para Dama</option>
+
+ <option value="Chamarra para Dama">Chamarra para Dama</option>
+
+ <option value="Chamarra para Caballero">Chamarra para Caballero</option>
+
+ </select>
+
+ </div>
+
+ 
+
+ <div class="form-row">
+
+ <label>Badge</label>
+
+ <select id="product-badge" name="Badge">
+
+ <option value="Nuevo">Nuevo</option>
+
+ <option value="Popular">Popular</option>
+
+ <option value="Oferta">Oferta</option>
+
+ </select>
+
+ </div>
+
+ 
+
+ <div class="form-row">
+
+ <label>Imagen 1</label>
+
+ <div class="image-upload-area">
+
+<input type="file" id="image-upload-1" accept="image/*" multiple>
+
+ <div class="image-preview-container">
+
+ <img id="preview-image-upload-1" class="image-preview" style="display: none;">
+
+ <input type="text" id="product-image1" name="Imagen1" class="image-url-input" placeholder="URL de la imagen" readonly>
+
+ </div>
+
+ <div class="progress-bar">
+
+ <div id="progress-image-upload-1" class="upload-progress"></div>
+
+ </div>
+
+ </div>
+
+ </div>
+
+ 
+
+ <div class="form-row">
+
+ <label>Imagen 2</label>
+
+ <div class="image-upload-area">
+
+<input type="file" id="image-upload-2" accept="image/*" multiple>
+
+ <div class="image-preview-container">
+
+ <img id="preview-image-upload-2" class="image-preview" style="display: none;">
+
+ <input type="text" id="product-image2" name="Imagen2" class="image-url-input" placeholder="URL de la imagen" readonly>
+
+ </div>
+
+ <div class="progress-bar">
+
+ <div id="progress-image-upload-2" class="upload-progress"></div>
+
+ </div>
+
+ </div>
+
+ </div>
+
+ 
+
+ <div class="form-row">
+
+ <label>Imagen 3</label>
+
+ <div class="image-upload-area">
+
+<input type="file" id="image-upload-3" accept="image/*" multiple>
+
+ <div class="image-preview-container">
+
+ <img id="preview-image-upload-3" class="image-preview" style="display: none;">
+
+ <input type="text" id="product-image3" name="Imagen3" class="image-url-input" placeholder="URL de la imagen" readonly>
+
+ </div>
+
+ <div class="progress-bar">
+
+ <div id="progress-image-upload-3" class="upload-progress"></div>
+
+ </div>
+
+ </div>
+
+ </div>
+
+ 
+
+ <button type="submit" class="primary-button full-width" style="margin-top: 10px; padding: 14px;"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Guardar Producto</button>
+
+ </form>
+
+ </div>
+
+ </div>
+
+ </div>
+
+ </section>
+
+ <section class="admin-section" id="admin-list-outer">
+ <div class="admin-section-header">
+ <h2><span class="ash-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true"><use href="#ic-catalog"/></svg></span> Lista de Productos</h2>
+ </div>
+ <div class="admin-cards-grid admin-cards-grid-compact">
+ <div class="admin-card grid-tile" id="admin-list-section">
+
+ <div class="admin-card-header tile-header" onclick="toggleGridTile('admin-list-section','list-products-body')">
+ <span class="tile-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-catalog"/></svg></span>
+ <h2 class="tile-title">Lista de Productos</h2>
+ <span class="tile-subtitle" id="tile-product-count">0 productos</span>
+ <div class="tile-actions">
+ <div class="admin-view-toggle" id="admin-view-toggle" onclick="event.stopPropagation()">
+ <button class="admin-view-btn" id="btn-view-list" title="Vista lista" aria-label="Vista lista"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" aria-hidden="true"><use href="#ic-list"/></svg></button>
+ <button class="admin-view-btn" id="btn-view-grid" title="Vista cuadrícula" aria-label="Vista cuadrícula"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" aria-hidden="true"><use href="#ic-grid"/></svg></button>
+ </div>
+ <span class="tile-chevron">⌄</span>
+ </div>
+ </div>
+
+ <div id="list-products-body" style="display:none;">
+
+ <div class="admin-controls">
+ <input type="text" id="admin-search-input" class="admin-search" placeholder=" Buscar por nombre o ID..." />
+ <select id="admin-category-filter" class="admin-filter-select">
+ <option value="">Todas las categorías</option>
+ </select>
+ <select id="admin-stock-filter" class="admin-filter-select">
+ <option value="">Todos los stocks</option>
+ <option value="low">Stock bajo (≤5)</option>
+ <option value="out">Sin stock</option>
+ <option value="in">Con stock</option>
+ </select>
+ </div>
+
+ 
+
+ <div class="admin-products-header">
+
+ <span>ID</span>
+
+ <span>Nombre</span>
+
+ <span>Precio</span>
+
+ <span>Stock</span>
+
+ <span>Acciones</span>
+
+ </div>
+
+ 
+
+ <div class="admin-products-list" id="admin-products-list">
+
+ <div style="text-align: center; padding: 40px; color: #999;">Cargando productos...</div>
+
+ </div>
+
+ 
+
+ <div class="admin-pagination" id="admin-pagination"></div>
+
+ </div>
+
+ </div>
+
+ </div>
+
+ </section>
+
+ </main>
+
+ 
+<style>
+.npi-badge{background:#ff4f81;color:#fff;border-radius:50px;padding:2px 10px;font-size:12px;font-weight:800;min-width:24px;text-align:center;}
+.npi-badge.zero{background:rgba(255,255,255,.12);color:#888;}
+</style>
+<script>
+async function loadNotifPanelCounts() {
+  const token = sessionStorage.getItem('admin_token') || '';
+  const api  = window.API_URL || window.ADMIN_API_URL || '';
+  try {
+    const gasGet = (params) => fetch(api + '?' + new URLSearchParams(params).toString()).then(r=>r.json()).catch(()=>({}));
+    // Escalonamos las peticiones (en vez de Promise.all simultáneo) para no saturar
+    // el límite de ejecuciones concurrentes de Apps Script, que puede devolver 404
+    // intermitentes en script.googleusercontent.com/macros/echo cuando hay demasiadas
+    // peticiones al mismo tiempo (ej: justo después del login).
+    const delay = (ms) => new Promise(r => setTimeout(r, ms));
+    const nRes = await gasGet({ action: 'notificationsBatch', page: 1, pageSize: 200, noCache: false });
+    await delay(150);
+    const vRes = token ? await gasGet({ action: 'vendedoresAdmin', token }) : {};
+    await delay(150);
+    const pRes = token ? await gasGet({ action: 'productosPendientes', token }) : {};
+    await delay(150);
+    const rRes = token ? await gasGet({ action: 'obtenerReportes', token }) : {};
+    await delay(150);
+    const plusRes = token ? await gasGet({ action: 'solicitudesPlus', token }) : {};
+    await delay(150);
+    const benRes = token ? await gasGet({ action: 'obtenerBeneficiarios', estado: 'pendiente', token }) : {};
+    const groups = nRes.groups || [];
+    const solCount  = groups.filter(g => g.notifications && g.notifications.some(n => n.status === 'pending' && n.hasStock)).length;
+    const vendCount = (vRes.vendors||[]).filter(v=>v.estado==='pendiente').length;
+    const pendCount = (pRes.products||[]).length;
+    const repCount  = (rRes.reportes||[]).length;
+    const plusCount = (plusRes.solicitudes||[]).length;
+    const benCount  = (benRes.beneficiarios||[]).length;
+    setBadge('notif-panel-solicitudes-count', solCount);
+    setBadge('notif-panel-vendors-count',  vendCount);
+    setBadge('notif-panel-pending-count',  pendCount);
+    setBadge('notif-panel-reportes-count', repCount);
+    setBadge('notif-panel-plus-count',     plusCount);
+    setBadge('notif-panel-beneficiarios-count', benCount);
+    const totalCount = solCount + vendCount + pendCount + repCount + plusCount + benCount;
+    const mainBadge = document.getElementById('notif-badge');
+    if (mainBadge) {
+      mainBadge.textContent = totalCount > 0 ? totalCount : '0';
+      if (totalCount > 0) {
+        mainBadge.classList.add('has-notifs');
+        mainBadge.title = totalCount + ' notificaciones pendientes';
+      } else {
+        mainBadge.classList.remove('has-notifs');
+        mainBadge.title = '';
+      }
+    }
+    if (typeof window._updateNotifTabBadge === 'function') {
+      window._updateNotifTabBadge('solicitudes', solCount);
+      window._updateNotifTabBadge('vendors', vendCount);
+      window._updateNotifTabBadge('pending', pendCount);
+      window._updateNotifTabBadge('reportes', repCount);
+    }
+  } catch(e) { console.warn('loadNotifPanelCounts error:', e); }
+}
+async function openDonacionesStatsModal() {
+  const old = document.getElementById('modal-donaciones-stats');
+  if (old) old.remove();
+  const token = sessionStorage.getItem('admin_token') || '';
+  const api   = window.API_URL || '';
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-donaciones-stats';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `<div style="background:#1a1a2e;border-radius:20px 20px 0 0;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;padding:0 0 32px;color:#fff;">
+    <div style="position:sticky;top:0;background:#1a1a2e;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;">
+      <h2 style="margin:0;font-size:1rem;font-weight:800;">❤️ Estadísticas de Donaciones</h2>
+      <button id="btn-close-don-stats" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">×</button>
+    </div>
+    <div id="don-stats-body" style="padding:20px;">Cargando…</div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('btn-close-don-stats').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  try {
+    // Cargar vendedores, productos comunidad, beneficiarios y el historial de donaciones
+    const [vRes, prodRes, benRes, donRes] = await Promise.all([
+      fetch(api + '?' + new URLSearchParams({ action:'vendedoresAdmin', token })).then(r=>r.json()).catch(()=>({})),
+      fetch(api + '?' + new URLSearchParams({ action:'listarComunidad', admin:'true' })).then(r=>r.json()).catch(()=>({})),
+      fetch(api + '?' + new URLSearchParams({ action:'obtenerBeneficiarios', token })).then(r=>r.json()).catch(()=>({})),
+      fetch(api + '?' + new URLSearchParams({ action:'obtenerDonaciones', token })).then(r=>r.json()).catch(()=>({})),
+    ]);
+    const vendors    = vRes.vendors || [];
+    const products   = prodRes.products || [];
+    const bens       = benRes.beneficiarios || [];
+    const donaciones = donRes.donaciones || [];
+
+    const donados   = products.filter(p => p.donado === true || p.donado === 'TRUE' || p.donado === 'true');
+    const sinAsig   = products.filter(p => !p.donado || p.donado === 'FALSE' || p.donado === false);
+    const bensAprov = bens.filter(b => b.estado === 'aprobado');
+    const bensPend  = bens.filter(b => b.estado === 'pendiente');
+
+    const valorTotal = donados.reduce((s, p) => s + (Number(p.precio) || 0), 0);
+    const vendedoresDonadores = new Set(donados.map(p => p.vendedor_uid).filter(Boolean));
+
+    const productMap    = {}; products.forEach(p => { productMap[String(p.id)] = p; });
+    const vendorNameMap = {}; vendors.forEach(v => { vendorNameMap[v.uid] = v.nombre; });
+    const benMap         = {}; bens.forEach(b => { benMap[b.id] = b; });
+
+    // Donaciones agrupadas por beneficiario: cantidad, valor total y vendedores que donaron
+    const byBen = {};
+    donados.forEach(p => {
+      const bid = p.beneficiario_id || '__sin__';
+      if (!byBen[bid]) byBen[bid] = { count: 0, valor: 0, vendedores: new Set() };
+      byBen[bid].count++;
+      byBen[bid].valor += Number(p.precio) || 0;
+      if (p.vendedor_nombre) byBen[bid].vendedores.add(p.vendedor_nombre);
+    });
+
+    // Ranking de vendedores que más han donado
+    const byVendor = {};
+    donados.forEach(p => {
+      const uid = p.vendedor_uid || '__sin__';
+      if (!byVendor[uid]) byVendor[uid] = { nombre: p.vendedor_nombre || vendorNameMap[uid] || 'Vendedor', count: 0, valor: 0 };
+      byVendor[uid].count++;
+      byVendor[uid].valor += Number(p.precio) || 0;
+    });
+    const topVendedores = Object.values(byVendor).sort((a, b) => b.count - a.count).slice(0, 5);
+
+    // Donaciones más recientes (historial activo, ordenado por fecha de asignación)
+    const recientes = donaciones
+      .filter(d => d.estado === 'activo' && d.fecha_asignacion)
+      .sort((a, b) => new Date(b.fecha_asignacion) - new Date(a.fecha_asignacion))
+      .slice(0, 6);
+
+    const esc      = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fmtMoney = v => '$' + Number(v||0).toLocaleString('es-MX');
+    const fmtFecha = d => { try { return new Date(d).toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' }); } catch(_) { return ''; } };
+
+    document.getElementById('don-stats-body').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+        <div style="background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.3);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#f97316;">${donados.length}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Productos donados</div>
+        </div>
+        <div style="background:rgba(244,114,182,.12);border:1px solid rgba(244,114,182,.28);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:#f472b6;">${fmtMoney(valorTotal)}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Valor total donado</div>
+        </div>
+        <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#22c55e;">${bensAprov.length}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Beneficiarios activos</div>
+        </div>
+        <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#ef4444;">${bensPend.length}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Beneficiarios pendientes</div>
+        </div>
+        <div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#818cf8;">${sinAsig.length}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Productos sin asignar</div>
+        </div>
+        <div style="background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.22);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#38bdf8;">${vendedoresDonadores.size}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Vendedores donadores</div>
+        </div>
+      </div>
+
+      ${Object.keys(byBen).length > 0 ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;">Donaciones por beneficiario</p>
+      ${Object.entries(byBen).sort((a,b)=>b[1].count-a[1].count).map(([bid, info]) => {
+        const ben = benMap[bid];
+        const label = ben ? (ben.nombre + (ben.organizacion ? ' — ' + ben.organizacion : '')) : 'Sin asignar';
+        const vendsLabel = [...info.vendedores].slice(0, 3).join(', ') + (info.vendedores.size > 3 ? '…' : '');
+        return `
+        <div style="padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:.85rem;font-weight:600;">❤️ ${esc(label)}</span>
+            <span style="background:#f97316;color:#fff;border-radius:20px;padding:2px 10px;font-size:.78rem;font-weight:700;">${info.count}</span>
+          </div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:4px;">${fmtMoney(info.valor)} · donado por ${esc(vendsLabel || '—')}</div>
+        </div>`;
+      }).join('')}` : '<p style="color:#aaa;text-align:center;padding:16px 0;">Aún no hay donaciones asignadas.</p>'}
+
+      ${topVendedores.length > 0 ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;">Top vendedores donadores</p>
+      ${topVendedores.map((v, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+          <span style="font-size:.82rem;">${['🥇','🥈','🥉'][i] || '•'} ${esc(v.nombre)}</span>
+          <span style="font-size:.75rem;color:#aaa;">${v.count} prod · ${fmtMoney(v.valor)}</span>
+        </div>`).join('')}` : ''}
+
+      ${recientes.length > 0 ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;">Donaciones recientes</p>
+      ${recientes.map(d => {
+        const prod    = productMap[String(d.producto_id)] || {};
+        const ben     = benMap[d.beneficiario_id] || {};
+        const vNombre = prod.vendedor_nombre || vendorNameMap[d.vendedor_uid] || 'Vendedor';
+        return `
+        <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.78rem;color:#ccc;">
+          <strong style="color:#fff;">${esc(prod.nombre || 'Producto')}</strong><br>
+          ${esc(vNombre)} → ${esc(ben.nombre || 'beneficiario')} · <span style="color:#888;">${fmtFecha(d.fecha_asignacion)}</span>
+        </div>`;
+      }).join('')}` : ''}
+    `;
+  } catch(e) {
+    document.getElementById('don-stats-body').innerHTML = '<p style="color:#ef4444;text-align:center;">Error al cargar estadísticas.</p>';
+  }
+}
+
+// ── Gráficas y Estadísticas (simple, basado en getAnalytics) ──────────────
+async function openAnalyticsModal(period) {
+  period = period || 'day';
+  const old = document.getElementById('modal-analytics');
+  if (old) old.remove();
+  const token = sessionStorage.getItem('admin_token') || '';
+  const api   = window.API_URL || '';
+  const periodLabels = { day:'Hoy', week:'Semana', month:'Mes', all:'Todo' };
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-analytics';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `<div style="background:#1a1a2e;border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;padding:0 0 32px;color:#fff;">
+    <div style="position:sticky;top:0;background:#1a1a2e;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:2;">
+      <h2 style="margin:0;font-size:1rem;font-weight:800;">📊 Gráficas y Estadísticas</h2>
+      <button id="btn-close-analytics" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">×</button>
+    </div>
+    <div style="padding:14px 20px 0;display:flex;gap:6px;">
+      ${['day','week','month','all'].map(p => `<button class="an-period-btn" data-period="${p}" style="flex:1;padding:8px 0;border-radius:30px;border:1px solid ${p===period ? 'transparent' : 'rgba(255,255,255,.12)'};background:${p===period ? 'linear-gradient(135deg,#ff4f81,#ff7a4f)' : 'rgba(255,255,255,.05)'};color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;">${periodLabels[p]}</button>`).join('')}
+    </div>
+    <div id="an-body" style="padding:18px 20px;">Cargando…</div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('btn-close-analytics').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  modal.querySelectorAll('.an-period-btn').forEach(btn => {
+    btn.addEventListener('click', () => openAnalyticsModal(btn.dataset.period));
+  });
+
+  const bodyEl = document.getElementById('an-body');
+  try {
+    if (!token) throw new Error('Sin sesión de admin');
+    const res = await fetch(api + '?' + new URLSearchParams({ action:'getAnalytics', token, period })).then(r=>r.json());
+    if (!res.ok) throw new Error(res.error || 'Error del servidor');
+
+    const esc      = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fmtMoney = v => '$' + Number(v||0).toLocaleString('es-MX');
+    const byDay    = res.requestsByDay || [];
+    const topProds = res.topProducts   || [];
+    const recent   = res.recentActivity || [];
+    const maxDay   = Math.max(1, ...byDay.map(d => d.count));
+    const maxProd  = Math.max(1, ...topProds.map(p => p.count));
+
+    bodyEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;">
+        <div style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#818cf8;">${res.totalRequests}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Solicitudes</div>
+        </div>
+        <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.22);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:#22c55e;">${fmtMoney(res.totalRevenue)}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Ingresos confirmados</div>
+        </div>
+        <div style="background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.22);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#38bdf8;">${res.confirmedOrders}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Confirmados</div>
+        </div>
+        <div style="background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.25);border-radius:14px;padding:14px;text-align:center;">
+          <div style="font-size:1.6rem;font-weight:900;color:#f97316;">${res.pendingOrders}</div>
+          <div style="font-size:.72rem;color:#aaa;margin-top:2px;">Pendientes</div>
+        </div>
+      </div>
+
+      ${byDay.length ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:0 0 12px;">Solicitudes en el período</p>
+      <div style="display:flex;align-items:flex-end;gap:6px;height:90px;margin-bottom:24px;">
+        ${byDay.map(d => `
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%;">
+            <div title="${d.count}" style="width:100%;max-width:30px;background:linear-gradient(180deg,#ff7a4f,#ff4f81);border-radius:6px 6px 2px 2px;height:${Math.max(4, (d.count/maxDay)*64)}px;"></div>
+            <span style="font-size:.62rem;color:#888;">${esc(d.label)}</span>
+          </div>`).join('')}
+      </div>` : '<p style="color:#aaa;text-align:center;padding:10px 0;">Sin solicitudes en este período.</p>'}
+
+      ${topProds.length ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;">Productos más solicitados</p>
+      ${topProds.map(p => `
+        <div style="margin-bottom:9px;">
+          <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:3px;">
+            <span style="color:#eee;">${esc(p.name)}</span><span style="color:#aaa;">${p.count}</span>
+          </div>
+          <div style="background:rgba(255,255,255,.08);border-radius:20px;height:6px;overflow:hidden;">
+            <div style="background:#ff4f81;height:100%;width:${(p.count/maxProd)*100}%;"></div>
+          </div>
+        </div>`).join('')}` : ''}
+
+      ${recent.length ? `
+      <p style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;">Actividad reciente</p>
+      ${recent.map(a => {
+        const statusColor = a.status === 'confirmed' ? '#22c55e' : (a.status === 'rejected' || a.status === 'cancelled' ? '#ef4444' : '#f97316');
+        const statusLabel = a.status === 'confirmed' ? 'Confirmado' : (a.status === 'rejected' ? 'Rechazado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendiente'));
+        return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.78rem;">
+          <span style="color:#ccc;">${a.items} producto${a.items===1?'':'s'} · ${esc(a.date)}</span>
+          <span style="background:${statusColor};color:#fff;border-radius:20px;padding:2px 9px;font-size:.7rem;font-weight:700;">${statusLabel}</span>
+        </div>`;
+      }).join('')}` : ''}
+    `;
+  } catch(e) {
+    bodyEl.innerHTML = '<p style="color:#ef4444;text-align:center;">Error al cargar estadísticas' + (e.message ? ': ' + esc_(e.message) : '') + '</p>';
+  }
+}
+function esc_(s) { return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ── Monitor de Errores (movido al panel de Notificaciones > Herramientas) ──
+function openErrorMonitorModal() {
+  const old = document.getElementById('modal-error-monitor');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-error-monitor';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `<div style="background:#1a1a2e;border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;padding:0 0 32px;color:#fff;">
+    <div style="position:sticky;top:0;background:#1a1a2e;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <h2 style="margin:0;font-size:1rem;font-weight:800;display:flex;align-items:center;gap:8px;"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" aria-hidden="true"><use href="#ic-error"/></svg> Monitor de Errores <span id="em-badge" style="display:none;background:#ef4444;color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700"></span></h2>
+      <button id="btn-close-error-monitor" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">×</button>
+    </div>
+    <div style="padding:16px 20px;">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button onclick="loadErrorLog()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualizar
+        </button>
+        <button onclick="clearErrorLog()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#ef4444;padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" aria-hidden="true"><use href="#ic-trash"/></svg> Limpiar log
+        </button>
+        <select id="em-filter" onchange="renderErrorLog()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#fff;padding:6px 12px;border-radius:20px;font-size:13px;cursor:pointer">
+          <option value="all">Todos</option>
+          <option value="CRÍTICO">Solo críticos</option>
+          <option value="ERROR">Solo errores</option>
+        </select>
+      </div>
+      <div id="em-list" style="font-size:13px;line-height:1.6">
+        <p style="color:#888;text-align:center;padding:20px">Cargando...</p>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('btn-close-error-monitor').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  if (typeof loadErrorLog === 'function') loadErrorLog();
+}
+
+// ── Monitor de Errores: funciones de carga y renderizado ──────────────────
+
+window.loadErrorLog = function() {
+  const list = document.getElementById('em-list');
+  if (!list) return;
+  list.innerHTML = '<p style="color:#888;text-align:center;padding:20px">⏳ Cargando errores...</p>';
+  const api   = window.API_URL || '';
+  const token = sessionStorage.getItem('admin_token') || '';
+
+  if (!api || !token) {
+    list.innerHTML = '<p style="color:#f97316;text-align:center;padding:20px">⚠️ Sin sesión activa o sin API_URL. Inicia sesión de nuevo.</p>';
+    return;
+  }
+
+  const url = api;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ action: 'obtenerErrorLog', token }).toString()
+  })
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(data => {
+      if (!data.ok && data.error) {
+        // Backend respondió con error (ej: token inválido)
+        list.innerHTML = `<p style="color:#ef4444;text-align:center;padding:20px">❌ ${data.error}</p>`;
+        return;
+      }
+      // Normalizar campos en español del Apps Script → formato interno
+      const remote = (Array.isArray(data.errors) ? data.errors : []).map(e => ({
+        ts:       e.ts        || e.Timestamp || new Date().toISOString(),
+        level:    e.nivel     || e.Nivel     || e.level    || 'ERROR',
+        source:   e.fuente    || e.Fuente    || e.source   || '',
+        action:   e.accion    || e.Accion    || e.action   || '',
+        message:  e.mensaje   || e.Mensaje   || e.message  || '',
+        url:      e.url       || e.URL       || '',
+        filename: e.archivo   || e.Archivo   || e.filename || '',
+        lineno:   e.linea     || e.Linea     || e.lineno   || 0,
+        colno:    e.columna   || e.Columna   || e.colno    || 0,
+        stack:    e.stack     || e.Stack     || '',
+      }));
+      // Combinar con errores locales del localStorage si los hay
+      const local = (window.ZRMonitor ? window.ZRMonitor.getErrors() : []);
+      const seen  = new Set();
+      window._emErrors = [...remote, ...local]
+        .filter(e => { const k = (e.ts||'') + (e.message||''); return seen.has(k) ? false : seen.add(k); })
+        .sort((a, b) => new Date(b.ts) - new Date(a.ts));
+      renderErrorLog();
+    })
+    .catch(err => {
+      console.error('[Monitor] Error al obtener errores:', err);
+      list.innerHTML = `<p style="color:#ef4444;text-align:center;padding:20px">❌ Error de red: ${err.message}.<br><span style="color:#888;font-size:11px;">Revisa la consola para más detalles.</span></p>`;
+    });
+};
+
+window.renderErrorLog = function() {
+  const list = document.getElementById('em-list');
+  if (!list) return;
+  const filter = (document.getElementById('em-filter') || {}).value || 'all';
+  const all    = window._emErrors || [];
+  const errors = filter === 'all' ? all : all.filter(e => (e.level||'') === filter);
+  const badge  = document.getElementById('em-badge');
+  if (badge) { badge.textContent = all.length; badge.style.display = all.length ? 'inline' : 'none'; }
+  if (!errors.length) {
+    list.innerHTML = '<p style="color:#888;text-align:center;padding:30px">✅ Sin errores registrados</p>';
+    return;
+  }
+  const colorMap = { 'CRÍTICO':'#ef4444', 'ERROR':'#f97316', 'WARN':'#eab308' };
+  list.innerHTML = errors.map(e => {
+    const fecha = e.ts ? new Date(e.ts).toLocaleString('es-MX', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '–';
+    const c     = colorMap[e.level] || '#aaa';
+    const src   = e.source || (e.filename||'').split('/').pop() || '?';
+    const msg   = (e.message || '').slice(0, 200);
+    const file  = e.filename || '';
+    const line  = e.lineno || 0;
+    const col   = e.colno  || 0;
+    const stk   = e.stack  || '';
+    return `<div style="background:rgba(255,255,255,.04);border-radius:12px;padding:12px 14px;margin-bottom:10px;border-left:3px solid ${c};">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
+        <span style="color:${c};font-weight:700;font-size:11px;">${e.level||'?'} &bull; ${src}</span>
+        <span style="color:#666;font-size:11px;">${fecha}</span>
+      </div>
+      <div style="color:#ddd;font-size:12px;word-break:break-word;">${msg}</div>
+      ${file||line ? `<div style="color:#555;font-size:11px;margin-top:3px;">${file}${line?':'+line+':'+col:''}</div>` : ''}
+      ${stk ? `<details style="margin-top:5px;"><summary style="color:#666;font-size:11px;cursor:pointer;">Stack trace</summary><pre style="color:#888;font-size:10px;margin:4px 0 0;white-space:pre-wrap;word-break:break-all;">${stk}</pre></details>` : ''}
+    </div>`;
+  }).join('');
+};
+
+window.clearErrorLog = function() {
+  if (!confirm('¿Borrar todos los errores del log?')) return;
+  const api   = window.API_URL || window.ADMIN_API_URL || '';
+  const token = sessionStorage.getItem('admin_token') || '';
+  // Limpiar en el backend (Apps Script: limpiarErrorLog)
+  if (api && token) {
+    fetch(api, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'limpiarErrorLog', token }).toString()
+    }).catch(() => {});
+  }
+  // Limpiar localStorage también
+  if (window.ZRMonitor) window.ZRMonitor.clear();
+  window._emErrors = [];
+  renderErrorLog();
+};
+
+// ── Tiles desplegables en grid (Crear Producto / Lista de Productos) ──────────
+// Colapsados ocupan solo su columna en el grid; al expandirse toman el ancho completo.
+function toggleGridTile(tileId, bodyId) {
+  const tile = document.getElementById(tileId);
+  const body = document.getElementById(bodyId);
+  if (!tile || !body) return;
+  const isExpanded = tile.classList.contains('expanded');
+  if (isExpanded) {
+    tile.classList.remove('expanded');
+    body.style.display = 'none';
+    try { localStorage.setItem('admin_section_' + bodyId, 'closed'); } catch(_) {}
+  } else {
+    tile.classList.add('expanded');
+    body.style.display = '';
+    try { localStorage.setItem('admin_section_' + bodyId, 'open'); } catch(_) {}
+  }
+}
+function expandGridTile(tileId, bodyId) {
+  const tile = document.getElementById(tileId);
+  const body = document.getElementById(bodyId);
+  if (!tile || !body) return;
+  tile.classList.add('expanded');
+  body.style.display = '';
+  try { localStorage.setItem('admin_section_' + bodyId, 'open'); } catch(_) {}
+}
+window.toggleGridTile = toggleGridTile;
+window.expandGridTile = expandGridTile;
+(function restoreAdminSectionsState() {
+  [['admin-create-section','create-product-body'], ['admin-list-section','list-products-body']].forEach(([tileId, bodyId]) => {
+    try {
+      if (localStorage.getItem('admin_section_' + bodyId) === 'open') {
+        expandGridTile(tileId, bodyId);
+      }
+    } catch(_) {}
+  });
+})();
+
+function setBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = count;
+  el.classList.toggle('zero', count === 0);
+}
+
+function openInspectorMode() {
+  const token = sessionStorage.getItem('admin_token') || '';
+  if (!token) { if (window.showTemporaryMessage) window.showTemporaryMessage('Sin sesión de admin', 'error'); return; }
+  const url = 'comunidad.html?inspector=1&token=' + encodeURIComponent(token);
+  window.open(url, '_blank');
+}
+
+window.openVendorStatsGlobal = async function() {
+  const token = sessionStorage.getItem('admin_token') || '';
+  const api  = window.API_URL || window.ADMIN_API_URL || '';
+  let modal = document.getElementById('global-vendor-stats-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'global-vendor-stats-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(5px);z-index:19999;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:22px;padding:28px;max-width:500px;width:93%;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 24px 64px rgba(0,0,0,.3);">
+        <button onclick="document.getElementById('global-vendor-stats-modal').style.display='none'" style="position:absolute;top:14px;right:14px;background:#f0f0f5;border:none;width:36px;height:36px;border-radius:50%;font-size:17px;cursor:pointer;color:#666;">✕</button>
+        <h3 style="margin:0 0 18px;font-size:19px;">📊 Estadísticas de Vendedores</h3>
+        <div id="gvs-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;"></div>
+        <div id="gvs-list"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target===modal) modal.style.display='none'; });
+  }
+  modal.style.display = 'flex';
+  document.getElementById('gvs-summary').innerHTML = '<p style="color:#aaa;grid-column:span 3;text-align:center;">Cargando...</p>';
+  document.getElementById('gvs-list').innerHTML = '';
+  try {
+    const [vRes, pRes] = await Promise.all([
+      fetch(api + '?' + new URLSearchParams({ action: "vendedoresAdmin", token: token }).toString()).then(r=>r.json()).catch(()=>({})),
+      fetch(api + '?' + new URLSearchParams({ action: "listarComunidad", token: token }).toString()).then(r=>r.json()).catch(()=>({}))
+    ]);
+    const vendors  = vRes.vendors  || [];
+    const products = pRes.products || pRes.pendientes || [];
+    const activos  = vendors.filter(v=>v.estado==='activo').length;
+    const pendientes = vendors.filter(v=>v.estado==='pendiente').length;
+    const suspendidos= vendors.filter(v=>v.estado==='suspendido'||v.estado==='rechazado').length;
+    document.getElementById('gvs-summary').innerHTML = `
+      <div style="background:#f0fff4;border-radius:14px;padding:14px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:#2e7d32;">${activos}</div>
+        <div style="font-size:11px;color:#555;text-transform:uppercase;">Activos</div>
+      </div>
+      <div style="background:#fff8e1;border-radius:14px;padding:14px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:#f57f17;">${pendientes}</div>
+        <div style="font-size:11px;color:#555;text-transform:uppercase;">Pendientes</div>
+      </div>
+      <div style="background:#ffebee;border-radius:14px;padding:14px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:#c62828;">${suspendidos}</div>
+        <div style="font-size:11px;color:#555;text-transform:uppercase;">Suspendidos</div>
+      </div>`;
+    const listEl = document.getElementById('gvs-list');
+    if (!vendors.length) { listEl.innerHTML = '<p style="color:#aaa;text-align:center;">Sin vendedores</p>'; return; }
+    listEl.innerHTML = vendors.map(v => {
+      const myProds = products.filter(p=>p.vendedor_uid===v.uid);
+      const aprobados = myProds.filter(p=>p.estado==='aprobado').length;
+      const pendProd  = myProds.filter(p=>p.estado==='pendiente').length;
+      const stock = myProds.reduce((s,p)=>s+(Number(p.stock)||0),0);
+      const esPlus    = v.plan === 'plus';
+      const limite    = v.limite != null ? v.limite : (esPlus ? 200 : 2);
+      const actuales  = v.productosActuales != null ? v.productosActuales : myProds.length;
+      const diasRestantes = v.planVence ? Math.ceil((new Date(v.planVence) - new Date()) / 86400000) : null;
+      const planBadge = esPlus
+        ? `<span style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;">PLUS</span>`
+        : `<span style="background:#eee;color:#999;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;">FREE</span>`;
+      const venceTxt = (esPlus && diasRestantes != null)
+        ? `<div style="font-size:10px;color:${diasRestantes<=7?'#c62828':'#888'};margin-top:2px;">vence en ${diasRestantes}d</div>`
+        : '';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f5;flex-wrap:wrap;" data-uid="${v.uid}" data-nombre="${escapeHtml(v.nombre||'')}" data-plan="${v.plan||'free'}">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14px;">${escapeHtml(v.nombre||'—')}${planBadge}</div>
+          <div style="font-size:12px;color:#888;"> ${escapeHtml(v.telefono||'—')} · <span style="color:${v.estado==='activo'?'#2e7d32':'#f57f17'}">${escapeHtml(v.estado)}</span></div>
+          ${venceTxt}
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:13px;font-weight:600;"> ${actuales}/${limite} productos</div>
+          <div style="font-size:11px;color:#888;"> ${aprobados} aprobados · ⏳ ${pendProd} pend. · Stock: ${stock}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="btn-toggle-plan" data-uid="${v.uid}" data-plan="${v.plan||'free'}" data-nombre="${escapeHtml(v.nombre||'')}" style="background:${esPlus?'#f3e8ff':'#ede9fe'};color:#7c3aed;border:none;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">${esPlus?'Quitar Plus':'Activar Plus'}</button>
+          ${v.estado==='activo' && typeof AdminComunidad!=='undefined' ? `<button onclick="AdminComunidad.suspenderVendedor('${v.uid}','${escapeHtml(v.nombre)}')" class="btn-suspend" style="background:var(--color-surface-3);border:1px solid var(--color-border-subtle);color:var(--color-text-muted);border-radius:10px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;">⏸</button>` : ''}
+          <button onclick="window.eliminarCuentaVendedorAdmin('${v.uid}','${escapeHtml(v.nombre)}')" class="btn-delete-account" title="Eliminar cuenta por completo" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    listEl.querySelectorAll('.btn-toggle-plan').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const uid = this.dataset.uid;
+        const nombre = this.dataset.nombre;
+        const currentPlan = this.dataset.plan;
+        window.togglePlanVendedor(uid, nombre, currentPlan);
+      });
+    });
+  } catch(e) {
+    document.getElementById('gvs-summary').innerHTML = `<p style="color:#ef4444;grid-column:span 3;">Error: ${escapeHtml(e.message)}</p>`;
+  }
+};
+
+window.togglePlanVendedor = async function(uid, nombre, currentPlan) {
+  const token = sessionStorage.getItem('admin_token') || '';
+  const api   = window.API_URL || window.ADMIN_API_URL || '';
+
+  if (!api) {
+    if (window.showTemporaryMessage) window.showTemporaryMessage('API no disponible', 'error');
+    return;
+  }
+  if (!token) {
+    if (window.showTemporaryMessage) window.showTemporaryMessage('Token no encontrado. Re-inicia sesión.', 'error');
+    return;
+  }
+
+  const nuevoPlan = currentPlan === 'plus' ? 'free' : 'plus';
+  let dias = 20;
+
+  if (nuevoPlan === 'plus') {
+
+  } else {
+
+    if (!confirm(`¿Quitar el plan Plus a "${nombre}"? Se ocultarán productos si excede el límite.`)) {
+      return;
+    }
+  }
+
+  try {
+    if (window.showLoader) window.showLoader('Actualizando plan...');
+    const params = new URLSearchParams();
+    params.append('action', 'marcarVendedorPlan');
+    params.append('uid', uid);
+    params.append('plan', nuevoPlan);
+    params.append('dias', String(dias));
+    params.append('token', token);
+
+    const res = await fetch(api, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error del servidor');
+
+    const mensaje = nuevoPlan === 'plus'
+      ? `✅ Plan Plus activado por ${dias} días para ${nombre}`
+      : `✅ Plan Plus removido de ${nombre}`;
+
+    if (window.showTemporaryMessage) window.showTemporaryMessage(mensaje, 'success');
+    else alert(mensaje);
+
+    window.openVendorStatsGlobal();
+
+  } catch (err) {
+    if (window.showTemporaryMessage) window.showTemporaryMessage('❌ ' + err.message, 'error');
+    else alert('Error: ' + err.message);
+  } finally {
+    if (window.hideLoader) window.hideLoader();
+  }
+};
+
+window.eliminarCuentaVendedorAdmin = async function(uid, nombre) {
+  const token = sessionStorage.getItem('admin_token') || '';
+  const api   = window.API_URL || window.ADMIN_API_URL || '';
+
+  if (!api)   { if (window.showTemporaryMessage) window.showTemporaryMessage('API no disponible', 'error'); return; }
+  if (!token) { if (window.showTemporaryMessage) window.showTemporaryMessage('Token no encontrado. Re-inicia sesión.', 'error'); return; }
+
+  if (!confirm(`⚠️ Esto borrará TODO de "${nombre}": productos, imágenes, sesiones en vivo, entregas y su cuenta. Es irreversible. ¿Continuar?`)) return;
+  if (!confirm(`🚨 Última confirmación: se eliminará por completo a "${nombre}" y no podrás recuperar sus datos. ¿Eliminar definitivamente?`)) return;
+
+  try {
+    if (window.showLoader) window.showLoader('Eliminando cuenta...');
+    const params = new URLSearchParams();
+    params.append('action', 'eliminarCuentaVendedor');
+    params.append('uid', uid);
+    params.append('token', token);
+
+    const res = await fetch(api, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error del servidor');
+
+    const mensaje = `🗑️ Cuenta de "${nombre}" eliminada por completo`;
+    if (window.showTemporaryMessage) window.showTemporaryMessage(mensaje, 'success');
+    else alert(mensaje);
+
+    window.openVendorStatsGlobal();
+    if (typeof AdminComunidad !== 'undefined' && AdminComunidad.loadVendors) AdminComunidad.loadVendors();
+    if (typeof window.refreshAllAdminBadges === 'function') window.refreshAllAdminBadges();
+
+  } catch (err) {
+    if (window.showTemporaryMessage) window.showTemporaryMessage('❌ ' + err.message, 'error');
+    else alert('Error: ' + err.message);
+  } finally {
+    if (window.hideLoader) window.hideLoader();
+  }
+};
+</script>
+ <script src="api-config.js"></script>
+ <script src="common.js" defer></script>
+<script src="cache-manager.js" defer></script>
+<script src="offline-manager.js" defer></script>
+<script src="admin.js" defer></script>  
+ <script src="error-monitor.js" defer></script>
+
+ <script>
+
+ if ('serviceWorker' in navigator) {
+
+ window.addEventListener('load', () => {
+
+ navigator.serviceWorker.register('./sw.js')
+
+ .then(registration => console.log(' SW registrado:', registration.scope))
+
+ .catch(error => console.log(' Error SW:', error));
+
+ });
+
+ }
+
+ </script>
+
+</body>
+</html>

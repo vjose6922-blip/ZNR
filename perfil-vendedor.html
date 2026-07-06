@@ -1,0 +1,1170 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="
+ default-src 'self';
+ script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+ style-src 'self' 'unsafe-inline';
+ img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com;
+ connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in https://www.gstatic.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://firebase.googleapis.com https://znr-live-default-rtdb.firebaseio.com https://nominatim.openstreetmap.org;
+ font-src 'self';
+ frame-src 'none';
+ frame-ancestors 'none';
+ object-src 'none';
+ base-uri 'self';
+ worker-src 'self' blob:;
+ child-src 'self' blob:;
+">
+ <script src="error-bootstrap.js"></script>
+
+  <title>Perfil de Vendedor - Z&R</title>
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+  <link rel="dns-prefetch" href="https://lh3.googleusercontent.com">
+  <link rel="preload" href="styles.css" as="style">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e2128">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Z&R">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
+  <style>
+    /* E0000 */
+    :root {
+      --profile-header-height: 150px;
+      --avatar-size: 100px;
+      --avatar-overlap: 32px;
+    }
+    .profile-page {
+      background: var(--page-bg-linear);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+    /* Wrap sin overflow:hidden: el avatar y el chip "volver" viven aquí,
+       así nunca se recortan aunque se monten sobre el borde del header. */
+    .profile-header-wrap {
+      position: relative;
+    }
+    .profile-header {
+      position: relative;
+      height: var(--profile-header-height);
+      background: linear-gradient(135deg, #3b1f5f, #7c3aed);
+      overflow: hidden;
+      border-radius: 0 0 28px 28px;
+    }
+.profile-header::after {
+  content: "Z&R";
+  position: absolute;
+  bottom: 20px;
+  right: 30px;
+  font-size: 60px;
+  font-weight: 900;
+  color: rgba(255,255,255,0.08);
+  letter-spacing: 10px;
+  pointer-events: none;
+}
+    .profile-avatar {
+      position: absolute;
+      bottom: calc(-1 * var(--avatar-overlap));
+      left: 20px;
+      width: var(--avatar-size);
+      height: var(--avatar-size);
+      border-radius: 50%;
+      border: 4px solid var(--color-surface, #fff);
+      background: var(--color-surface-2);
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 2;
+    }
+    .profile-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .profile-avatar .initials {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #ff4f81, #ff7a4f);
+    }
+    .profile-info {
+      padding: calc(var(--avatar-overlap) + 16px) 20px 20px;
+      position: relative;
+    }
+    .profile-name-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .profile-name {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0;
+      color: var(--color-text-main);
+    }
+    .profile-plan-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 11px;
+      border-radius: 30px;
+      background: linear-gradient(135deg, #f7c948, #f0962f);
+      color: #3a2400;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      box-shadow: 0 2px 8px rgba(240,150,47,0.35);
+      white-space: nowrap;
+    }
+    .profile-category-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 13px;
+      border-radius: 30px;
+      background: var(--color-surface-3);
+      color: var(--color-text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .profile-description {
+      font-size: 14px;
+      color: var(--color-text-muted);
+      line-height: 1.6;
+      margin: 12px 0;
+      max-width: 600px;
+    }
+    .profile-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 16px 0 20px;
+      font-size: 13px;
+      color: var(--color-text-soft);
+    }
+    .profile-meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 30px;
+      background: var(--color-surface-3);
+      color: var(--color-text-main);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.2s, color 0.2s;
+    }
+    a.profile-meta-item:hover {
+      background: var(--color-accent-soft);
+      color: var(--color-accent);
+    }
+    .profile-meta-item.is-static {
+      color: var(--color-text-soft);
+      cursor: default;
+    }
+    .profile-meta-item svg {
+      width: 15px;
+      height: 15px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      flex-shrink: 0;
+    }
+    /* ── Secciones tipo pestañas en fila (Información / Contacto / Redes) ── */
+    .profile-accordion {
+      margin: 18px 0 24px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--color-border-subtle);
+      background: var(--color-surface);
+    }
+    .acc-tabs {
+      display: flex;
+    }
+    .acc-tab-btn {
+      flex: 1;
+      min-width: 0;
+      padding: 14px 8px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-text-muted);
+      font-family: inherit;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .acc-tab-btn + .acc-tab-btn {
+      border-left: 1px solid var(--color-border-subtle);
+    }
+    .acc-tab-btn.is-active {
+      color: var(--color-accent-solid, #ff4f81);
+      border-bottom-color: var(--color-accent-solid, #ff4f81);
+      background: var(--color-accent-soft, rgba(255,79,129,0.08));
+    }
+    .acc-panels {
+      border-top: 1px solid var(--color-border-subtle);
+    }
+    .acc-panel {
+      display: none;
+      padding: 16px 18px 20px;
+    }
+    .acc-panel.is-active {
+      display: block;
+    }
+    .acc-body-row {
+      font-size: 13px;
+      color: var(--color-text-soft);
+      margin-bottom: 8px;
+    }
+    .acc-panel .profile-category-chip,
+    .acc-panel .profile-description {
+      margin: 0 0 10px;
+    }
+    .acc-panel .profile-meta,
+    .acc-panel .profile-social {
+      margin: 0;
+    }
+    .acc-empty {
+      padding: 2px 0;
+      color: var(--color-text-soft);
+      font-size: 13px;
+    }
+    @media (max-width: 380px) {
+      .acc-tab-btn { font-size: 12px; padding: 12px 4px; }
+    }
+    .profile-social {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 16px 0 24px;
+    }
+    .profile-social a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 30px;
+      background: var(--color-surface-3);
+      color: var(--color-text-main);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .profile-social a:hover {
+      background: var(--color-accent-soft);
+      color: var(--color-accent);
+    }
+    .profile-social a svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .profile-wa-fab {
+      position: fixed;
+      right: 16px;
+      bottom: 86px;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 20px;
+      border-radius: 30px;
+      background: #25D366;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      text-decoration: none;
+      box-shadow: 0 8px 24px rgba(37,211,102,0.45);
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+    }
+    .profile-wa-fab.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .profile-wa-fab svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+      flex-shrink: 0;
+    }
+    @media (max-width: 480px) {
+      .profile-wa-fab span { display: none; }
+      .profile-wa-fab { padding: 14px; border-radius: 50%; }
+    }
+
+    .profile-products {
+      margin-top: 28px;
+    }
+    .profile-products h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--color-text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .profile-products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+    }
+    .profile-product-card {
+      position: relative;
+      background: var(--color-surface);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow-soft);
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: 1px solid var(--color-border-subtle);
+      opacity: 0;
+      transform: translateY(20px);
+      animation: card-in 0.35s ease forwards;
+    }
+    .profile-confiable-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px 8px;
+      border-radius: 30px;
+      background: linear-gradient(135deg, #f7c948, #f0962f);
+      color: #3a2400;
+
+      font-size: 10px;
+      font-weight: 700;
+      z-index: 2;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .profile-confiable-badge svg {
+      width: 10px;
+      height: 10px;
+      fill: currentColor;
+    }
+    .profile-product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    .profile-product-card img {
+      width: 100%;
+      aspect-ratio: 1/1;
+      object-fit: contain;
+      background: var(--color-surface-2);
+      padding: 6px;
+    }
+    .profile-product-info {
+      padding: 10px 12px 14px;
+    }
+    .profile-product-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .profile-product-price {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-accent-solid);
+      margin-top: 4px;
+    }
+    .profile-product-talla {
+      font-size: 11px;
+      color: var(--color-text-soft);
+      margin-top: 2px;
+    }
+    .profile-product-add {
+      width: 100%;
+      padding: 6px;
+      border: none;
+      border-radius: 30px;
+      background: var(--color-accent-solid);
+      color: #fff;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+    .profile-product-add:hover {
+      background: #ff6b8a;
+    }
+    .profile-product-add:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .empty-products {
+      text-align: center;
+      padding: 40px;
+      color: var(--color-text-muted);
+      grid-column: 1 / -1;
+    }
+
+    .profile-load-more-wrap {
+      text-align: center;
+      margin-top: 18px;
+    }
+    .profile-load-more-wrap .primary-button {
+      padding: 10px 28px;
+      font-size: 13px;
+    }
+    .profile-product-hidden {
+      display: none;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 30px;
+      background: var(--color-surface-3);
+      color: var(--color-text-main);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      transition: background 0.2s;
+    }
+    .back-link:hover {
+      background: var(--color-surface-2);
+    }
+
+    /* ── Skeleton ── */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position:  400px 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg,
+        var(--color-surface-2) 25%,
+        var(--color-surface-3) 50%,
+        var(--color-surface-2) 75%
+      );
+      background-size: 800px 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 8px;
+    }
+    .profile-skeleton-wrap { padding: 0 0 40px; }
+    .profile-skeleton-header { height: 120px; border-radius: 0; }
+    .profile-skeleton-body { padding: 16px 20px 0; }
+    .profile-skeleton-avatar {
+      width: var(--avatar-size, 90px);
+      height: var(--avatar-size, 90px);
+      border-radius: 50%;
+      margin-top: calc(var(--avatar-overlap, 32px) * -1);
+      margin-bottom: 12px;
+    }
+    .profile-skeleton-name   { height: 22px; width: 55%; margin-bottom: 10px; }
+    .profile-skeleton-cat    { height: 16px; width: 35%; margin-bottom: 14px; border-radius: 30px; }
+    .profile-skeleton-desc   { height: 14px; width: 90%; margin-bottom: 6px; }
+    .profile-skeleton-desc2  { height: 14px; width: 70%; margin-bottom: 20px; }
+    .profile-skeleton-btn    { height: 42px; width: 200px; border-radius: 40px; margin-bottom: 24px; }
+    .profile-skeleton-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .profile-skeleton-card { border-radius: 16px; overflow: hidden; background: var(--color-surface); }
+    .profile-skeleton-card-img  { height: 150px; }
+    .profile-skeleton-card-body { padding: 10px 12px 14px; }
+    .profile-skeleton-card-name { height: 13px; width: 80%; margin-bottom: 8px; border-radius: 4px; }
+    .profile-skeleton-card-price{ height: 15px; width: 50%; margin-bottom: 10px; border-radius: 4px; }
+    .profile-skeleton-card-btn  { height: 28px; border-radius: 30px; }
+    @media (max-width: 480px) {
+      .profile-skeleton-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    }
+
+    @media (max-width: 480px) {
+      :root {
+        --avatar-size: 80px;
+        --avatar-overlap: 26px;
+      }
+      .profile-avatar {
+        left: 16px;
+      }
+      .profile-name {
+        font-size: 20px;
+      }
+      .profile-products-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body class="theme-aeromexico profile-page">
+
+  <div id="global-loader" class="global-loader hidden">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Cargando perfil...</div>
+  </div>
+
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-touch-area">
+        <span class="logo-mark">Z&R</span>
+      </div>
+      <div class="header-text">
+        <h1 class="app-title">Perfil</h1>
+        <p class="app-subtitle" id="profile-subtitle">Vendedor</p>
+      </div>
+    </div>
+    
+  </header>
+
+  <main class="profile-container" id="profile-container">
+    <!-- El contenido se inyectará aquí con JavaScript -->
+    <div style="text-align:center; padding:60px 20px; color: var(--color-text-muted);">
+      <div class="loader-spinner" style="margin:0 auto 20px;"></div>
+      <p>Cargando perfil...</p>
+    </div>
+  </main>
+
+
+
+
+
+<nav class="bottom-nav">
+   <button class="bottom-nav-item active" data-page="comunidad" id="nav-comunidad">
+    <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-community"/></svg></span>
+    <span>Comunidad</span>
+  </button>
+
+  <button class="bottom-nav-item" data-page="vendedor" id="nav-vendedor">
+    <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-vendor"/></svg></span>
+    <span>Vendedor</span>
+  </button>
+
+  <button class="bottom-nav-item" id="nav-cart">
+    <div class="badge-wrapper">
+      <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true"><use href="#ic-cart"/></svg></span>
+      <span class="bottom-nav-badge" id="bottom-cart-count">0</span>
+    </div>
+    <span>Carrito</span>
+  </button>
+</nav>
+
+
+
+
+
+
+
+<aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
+    <div class="cart-header">
+      <h2>Tu carrito</h2>
+      <button class="icon-button" id="close-cart-btn" aria-label="Cerrar carrito"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-x"/></svg></button>
+    </div>
+    <div class="cart-body" id="cart-items-container"></div>
+    <div class="cart-footer">
+      <div class="cart-summary-row"><span>Subtotal</span><span id="cart-subtotal">$0</span></div>
+      <div class="cart-summary-row total"><span>Total</span><span id="cart-total">$0</span></div>
+      <div id="saved-phone-container" style="display:none;">
+        <div class="cart-info-row">
+          <span> <span id="saved-phone-display"></span></span>
+          <button id="change-phone-btn" class="cart-link-btn">Cambiar</button>
+        </div>
+      </div>
+      <div class="cart-delivery-block" id="cart-delivery-block">
+        <div class="cart-delivery-header">
+          <span class="cart-delivery-icon"></span>
+          <div class="cart-delivery-text">
+            <strong id="cart-delivery-title">Dirección de entrega</strong>
+            <span id="cart-delivery-subtitle" class="cart-delivery-sub">Opcional — para envío a domicilio</span>
+          </div>
+          <button id="cart-add-address-btn" class="cart-link-btn">Añadir</button>
+        </div>
+        <div id="saved-address-container" style="display:none;">
+          <div class="cart-address-display">
+            <span id="saved-address-display"></span>
+            <button id="change-address-btn" class="cart-link-btn">Editar</button>
+          </div>
+        </div>
+        <div id="cart-shipping-status"></div>
+      </div>
+      <button id="request-purchase-btn" class="primary-button full-width" style="background: linear-gradient(135deg, #25D366, #128C7E); margin-top: 8px;">Solicitar compra</button>
+      <button id="view-orders-btn" onclick="if(typeof openPanelOnTab==='function')openPanelOnTab('pedidos')" style="width:100%;margin-top:8px;padding:8px;border:none;background:transparent;color:var(--color-text-muted);font-size:12px;cursor:pointer;text-decoration:underline;">Ver mis pedidos</button>
+    </div>
+  </aside>
+
+  <!-- Overlay para cerrar modales -->
+  <div class="overlay" id="overlay"></div>
+
+
+
+
+
+  <footer class="app-footer" style="margin-bottom:70px;">
+    <div class="footer-content">
+      <div class="footer-logo"><span class="logo-mark">Z&R</span></div>
+      <div class="footer-social"><a href="https://www.facebook.com/tu_pagina" target="_blank" class="social-link">Facebook</a></div>
+      <div class="footer-copyright">
+        <p>© 2026 Z&R - Todos los derechos reservados</p>
+        <a href="privacidad.html" style="color:#ff4f81; text-decoration:none;">Privacidad</a> ·
+        <a href="terminos.html" style="color:#ff4f81; text-decoration:none;">Términos</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="api-config.js" defer></script>
+  <script src="common.js" defer></script>
+  <script src="error-monitor.js" defer></script>
+  <script src="cache-manager.js" defer></script>
+
+
+
+
+
+
+  <script>
+    (function() {
+      'use strict';
+
+      function getVendorUid() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('vendedor') || params.get('uid');
+      }
+
+      // Mostrar loader
+      function showLoader(text) {
+        const loader = document.getElementById('global-loader');
+        if (loader) {
+          const txt = loader.querySelector('.loader-text');
+          if (txt) txt.textContent = text || 'Cargando...';
+          loader.classList.remove('hidden');
+        }
+      }
+
+      function hideLoader() {
+        const loader = document.getElementById('global-loader');
+        if (loader) loader.classList.add('hidden');
+      }
+
+      // Escapar HTML
+      function esc(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function formatCurrency(value) {
+        return '$' + Number(value).toLocaleString('es-MX', { minimumFractionDigits: 0 });
+      }
+
+      function optimizeDriveUrl(url, size) {
+        if (!url) return '';
+        const match = url.match(/[-\w]{25,}/);
+        if (match) {
+          const id = match[0];
+          const sz = size || 400;
+          return `https://drive.google.com/thumbnail?id=${id}&sz=w${sz}`;
+        }
+        return url;
+      }
+
+      function digitsOnly(str) {
+        return String(str || '').replace(/\D/g, '');
+      }
+
+      const PRODUCTS_PAGE_SIZE = 12;
+
+      async function cargarCalificacionVendedor(uid) {
+        const slot = document.getElementById('profile-rating-slot');
+        if (!slot || !uid || !window.API_URL) return;
+        try {
+          const res = await fetch(`${window.API_URL}?${new URLSearchParams({ action: 'obtenerCalificacionesVendedor', vendedor_uid: uid })}`);
+          const data = await res.json();
+          if (data.ok && data.total > 0) {
+            slot.innerHTML = `<span style="color:#f59e0b;">⭐ ${data.promedio}</span> · ${data.total} calificación${data.total === 1 ? '' : 'es'}`;
+          }
+        } catch (e) { /* silencioso */ }
+      }
+
+      function renderProfile(data) {
+        const container = document.getElementById('profile-container');
+        if (!container) return;
+
+        const v = data.vendedor;
+        const productos = data.productos || [];
+
+        // Determinar iniciales
+        const initials = (v.nombre || '?')
+          .split(' ')
+          .map(w => w[0])
+          .slice(0, 2)
+          .join('')
+          .toUpperCase();
+
+        // Logo o iniciales
+        const avatarHtml = v.logo
+          ? `<img src="${esc(optimizeDriveUrl(v.logo, 200))}" alt="${esc(v.nombre)}" loading="lazy">`
+          : `<div class="initials">${esc(initials)}</div>`;
+
+        // Fecha de registro
+        let fechaRegistro = '';
+        if (v.fechaRegistro) {
+          const d = new Date(v.fechaRegistro);
+          if (!isNaN(d)) fechaRegistro = d.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        // Redes sociales
+        const socials = [
+  { name: 'Facebook', url: v.facebook, icon: '<svg width="16" height="16" aria-hidden="true"><use href="#ic-facebook"/></svg>' },
+  { name: 'Twitter',  url: v.twitter,  icon: '<svg width="16" height="16" aria-hidden="true"><use href="#ic-twitter"/></svg>' },
+  { name: 'Instagram',url: v.instagram, icon: '<svg width="16" height="16" aria-hidden="true"><use href="#ic-instagram"/></svg>' },
+  { name: 'TikTok',   url: v.tiktok,   icon: '<svg width="16" height="16" aria-hidden="true"><use href="#ic-tiktok"/></svg>' }
+].map(s => ({ ...s, url: s.url != null ? String(s.url).trim() : '' })).filter(s => s.url !== '');
+
+       const socialHtml = socials.map(s => `
+  <a href="${esc(s.url)}" target="_blank" rel="noopener">
+    ${s.icon} ${s.name}
+  </a>
+`).join('');
+
+        // Contacto: WhatsApp del negocio si existe, si no, cae al teléfono de registro
+        const waNumber  = v.whatsapp || v.telefono || '';
+        const waDigits  = digitsOnly(waNumber);
+        const telDigits = digitsOnly(v.telefono);
+        const waLink  = waDigits  ? `https://wa.me/52${waDigits}?text=${encodeURIComponent('Hola ' + (v.nombre || '') + ', vi tu perfil en Z&R y me interesan tus productos.')}` : '';
+        const telLink = telDigits ? `tel:+52${telDigits}` : '';
+
+        const isPlus = (v.plan || 'free') === 'plus';
+        const planBadgeHtml = isPlus ? `<span class="profile-plan-badge">✓✓</span>` : '';
+
+        // Iconos (mismo lenguaje visual que el resto de la app: stroke, sin relleno)
+        const icoPhone = `<svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
+        const icoChat   = `<svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
+        const icoCal     = `<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`;
+        const icoClock   = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;
+        const icoCheck   = `<svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>`;
+
+        // ── Sección "Información" ──
+        const infoBits = [
+          v.categoria ? `<div class="profile-category-chip">${esc(v.categoria)}</div>` : '',
+          v.descripcion ? `<p class="profile-description">${esc(v.descripcion)}</p>` : '',
+          fechaRegistro ? `<div class="acc-body-row">Miembro desde ${esc(fechaRegistro)}</div>` : ''
+        ].filter(Boolean).join('');
+        const infoBodyHtml = infoBits || `<div class="acc-empty">Este vendedor aún no agregó información.</div>`;
+
+        // ── Sección "Contacto" (llamar / enviar mensaje) ──
+        const contactoBits = [
+          telLink ? `<a href="${telLink}" class="profile-meta-item">Llamar · ${esc(v.telefono)}</a>` : '',
+          waLink ? `<a href="${waLink}" target="_blank" rel="noopener" class="profile-meta-item">Enviar mensaje</a>` : '',
+          v.horario ? `<span class="profile-meta-item is-static">${esc(v.horario)}</span>` : ''
+        ].filter(Boolean).join('');
+        const contactoBodyHtml = contactoBits
+          ? `<div class="profile-meta">${contactoBits}</div>`
+          : `<div class="acc-empty">Este vendedor no agregó datos de contacto.</div>`;
+
+        // ── Sección "Redes sociales" ──
+        const socialBodyHtml = socialHtml
+          ? `<div class="profile-social">${socialHtml}</div>`
+          : `<div class="acc-empty">Este vendedor no vinculó redes sociales.</div>`;
+
+        // Productos
+        let productsHtml = '';
+        if (productos.length === 0) {
+          productsHtml = `<div class="empty-products">Este vendedor aún no tiene productos publicados.</div>`;
+        } else {
+          productsHtml = productos.map((p, idx) => {
+            const img = p.imagen1 ? optimizeDriveUrl(p.imagen1, 200) : 'https://placehold.co/200x200/3b1f5f/white?text=Sin+Imagen';
+            const stock = Number(p.stock || 0);
+            const hasStock = stock > 0;
+            const talla = p.talla || '';
+            const esConfiable = p.confiable === true || p.confiable === 'true';
+            const esDonativo = p.donado === true || p.donado === 'TRUE' || p.donado === 'true';
+            const hiddenClass = idx >= PRODUCTS_PAGE_SIZE ? ' profile-product-hidden' : '';
+            // Las primeras 6 cargan de inmediato; el resto usa lazy load via data-src
+            const imgAttr = idx < 6
+              ? `src="${esc(img)}" loading="lazy"`
+              : `data-src="${esc(img)}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"`;
+            return `
+              <div class="profile-product-card${hiddenClass}" data-id="${esc(p.id)}" style="animation-delay:${Math.min(idx % PRODUCTS_PAGE_SIZE, 8) * 0.04}s">
+                ${p.badge ? `<span class="product-badge">${esc(p.badge)}</span>` : ''}
+                ${esConfiable ? `<span class="profile-confiable-badge">✓✓</span>` : ''}
+                ${esDonativo ? `<span class="product-badge" style="background:linear-gradient(135deg,#f97316,#ef4444);">Donativo</span>` : ''}
+                <img ${imgAttr} alt="${esc(p.nombre)}" onerror="this.src='https://placehold.co/200x200/3b1f5f/white?text=Error'">
+                <div class="profile-product-info">
+                  <div class="profile-product-name" title="${esc(p.nombre)}">${esc(p.nombre)}</div>
+                  <div class="profile-product-price">${formatCurrency(p.precio)}</div>
+                  ${talla ? `<div class="profile-product-talla">Info: ${esc(talla)}</div>` : ''}
+                  <button class="profile-product-add" data-id="${esc(p.id)}" data-nombre="${esc(p.nombre)}" data-precio="${p.precio}" data-img="${esc(p.imagen1 || '')}" data-talla="${esc(p.talla || '')}" data-donado="${esDonativo}" data-benid="${esDonativo ? esc(p.beneficiario_id || '') : ''}" ${!hasStock ? 'disabled' : ''}>
+                    ${hasStock ? 'Añadir' : 'Sin stock'}
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        const remaining = productos.length - PRODUCTS_PAGE_SIZE;
+        const loadMoreHtml = remaining > 0
+          ? `<div class="profile-load-more-wrap"><button id="profile-load-more-btn" class="primary-button">Mostrar ${Math.min(remaining, PRODUCTS_PAGE_SIZE)} más</button></div>`
+          : '';
+
+        // Construir HTML del perfil
+        container.innerHTML = `
+          <div class="profile-header-wrap">
+            <div class="profile-header"></div>
+            <div class="profile-avatar">
+              ${avatarHtml}
+            </div>
+          </div>
+
+          <div class="profile-info">
+
+            <div class="profile-name-row">
+              <h1 class="profile-name">${esc(v.nombre || 'Vendedor')}</h1>
+              ${planBadgeHtml}
+            </div>
+            <div id="profile-rating-slot" style="margin:2px 0 6px;font-size:13px;color:#888;"></div>
+
+            <div class="profile-accordion">
+              <div class="acc-tabs" role="tablist">
+                <button type="button" class="acc-tab-btn is-active" data-target="info" role="tab" aria-selected="true">Información</button>
+                <button type="button" class="acc-tab-btn" data-target="contacto" role="tab" aria-selected="false">Contacto</button>
+                <button type="button" class="acc-tab-btn" data-target="social" role="tab" aria-selected="false">Redes sociales</button>
+              </div>
+              <div class="acc-panels">
+                <div class="acc-panel is-active" data-panel="info">${infoBodyHtml}</div>
+                <div class="acc-panel" data-panel="contacto">${contactoBodyHtml}</div>
+                <div class="acc-panel" data-panel="social">${socialBodyHtml}</div>
+              </div>
+            </div>
+
+            <div class="profile-products">
+              <h2>Productos (${productos.length})</h2>
+              <div class="profile-products-grid">
+                ${productsHtml}
+              </div>
+              ${loadMoreHtml}
+            </div>
+          </div>
+        `;
+
+        cargarCalificacionVendedor(v.uid);
+
+        // Pestañas (Información / Contacto / Redes sociales)
+        container.querySelectorAll('.acc-tab-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const target = this.dataset.target;
+            container.querySelectorAll('.acc-tab-btn').forEach(b => {
+              const active = b === this;
+              b.classList.toggle('is-active', active);
+              b.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            container.querySelectorAll('.acc-panel').forEach(p => {
+              p.classList.toggle('is-active', p.dataset.panel === target);
+            });
+          });
+        });
+
+        // Paginación de productos ("Mostrar más")
+        const loadMoreBtn = document.getElementById('profile-load-more-btn');
+        if (loadMoreBtn) {
+          let shown = PRODUCTS_PAGE_SIZE;
+          loadMoreBtn.addEventListener('click', function() {
+            const hidden = Array.from(container.querySelectorAll('.profile-product-hidden'));
+            hidden.slice(0, PRODUCTS_PAGE_SIZE).forEach(card => card.classList.remove('profile-product-hidden'));
+            shown += PRODUCTS_PAGE_SIZE;
+            const left = productos.length - shown;
+            if (left > 0) {
+              loadMoreBtn.textContent = `Mostrar ${Math.min(left, PRODUCTS_PAGE_SIZE)} más`;
+            } else {
+              loadMoreBtn.parentElement.remove();
+            }
+          });
+        }
+
+        // Eventos para los botones "Añadir"
+        container.querySelectorAll('.profile-product-add:not(:disabled)').forEach(btn => {
+          btn.addEventListener('click', async function(e) {
+            e.stopPropagation();
+            const id = this.dataset.id;
+            const nombre = this.dataset.nombre;
+            const precio = parseFloat(this.dataset.precio);
+            const img = this.dataset.img;
+            const talla = this.dataset.talla;
+            const esDonado = this.dataset.donado === 'true';
+            const benId = this.dataset.benid || '';
+
+            if (typeof addToCart !== 'function') {
+              alert('Función addToCart no disponible. Recarga la página.');
+              return;
+            }
+
+            let beneficiario = null;
+            if (esDonado && benId) {
+              try {
+                const benRes = await fetch(`${window.API_URL}?action=obtenerBeneficiario&id=${encodeURIComponent(benId)}`).then(r => r.json());
+                if (benRes.ok && benRes.beneficiario) {
+                  beneficiario = { id: benId, nombre: benRes.beneficiario.nombre || '', cuenta_bancaria: benRes.beneficiario.cuenta_bancaria || '' };
+                }
+              } catch (_) {}
+              if (!beneficiario) beneficiario = { id: benId, nombre: '', cuenta_bancaria: '' };
+            }
+
+            addToCart({
+              ID: id,
+              Nombre: nombre,
+              Precio: precio,
+              Imagen1: img,
+              Talla: talla,
+              _comunidad: true,
+              _vendedor: v.nombre || '',
+              _vendorTel: waNumber,
+              _vendorLogo: v.logo || '',
+              _vendorPlan: v.plan || '',
+              _vendorUid: getVendorUid() || '',
+              _donacion: esDonado,
+              _beneficiario: beneficiario
+            });
+          });
+        });
+
+        // Actualizar subtítulo del header
+        const sub = document.getElementById('profile-subtitle');
+        if (sub) sub.textContent = v.nombre || 'Vendedor';
+
+        // Lazy loading de imágenes con IntersectionObserver
+        const lazyImgs = container.querySelectorAll('img[data-src]');
+        if (lazyImgs.length > 0) {
+          const imgObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+                imgObserver.unobserve(img);
+              }
+            });
+          }, { rootMargin: '200px' });
+          lazyImgs.forEach(img => imgObserver.observe(img));
+        }
+
+        hideLoader();
+      }
+
+      // ── Caché de perfil por UID en sessionStorage ──
+      const PROFILE_CACHE_PREFIX = 'zr_perfil_';
+      const PROFILE_CACHE_TTL    = 5 * 60 * 1000; // 5 min en misma sesión
+
+      function getProfileCache(uid) {
+        try {
+          const raw = sessionStorage.getItem(PROFILE_CACHE_PREFIX + uid);
+          if (!raw) return null;
+          const { data, timestamp } = JSON.parse(raw);
+          if (Date.now() - timestamp > PROFILE_CACHE_TTL) {
+            sessionStorage.removeItem(PROFILE_CACHE_PREFIX + uid);
+            return null;
+          }
+          return data;
+        } catch (e) { return null; }
+      }
+
+      function setProfileCache(uid, data) {
+        try {
+          sessionStorage.setItem(
+            PROFILE_CACHE_PREFIX + uid,
+            JSON.stringify({ data, timestamp: Date.now() })
+          );
+        } catch (e) {}
+      }
+
+      // ── Skeleton inmediato mientras carga ──
+      function showProfileSkeleton(container, cardCount = 6) {
+        const cards = Array.from({ length: cardCount }, () => `
+          <div class="profile-skeleton-card">
+            <div class="skeleton profile-skeleton-card-img"></div>
+            <div class="profile-skeleton-card-body">
+              <div class="skeleton profile-skeleton-card-name"></div>
+              <div class="skeleton profile-skeleton-card-price"></div>
+              <div class="skeleton profile-skeleton-card-btn"></div>
+            </div>
+          </div>`).join('');
+
+        container.innerHTML = `
+          <div class="profile-skeleton-wrap">
+            <div class="skeleton profile-skeleton-header"></div>
+            <div class="profile-skeleton-body">
+              <div class="skeleton profile-skeleton-avatar"></div>
+              <div class="skeleton profile-skeleton-name"></div>
+              <div class="skeleton profile-skeleton-cat"></div>
+              <div class="skeleton profile-skeleton-desc"></div>
+              <div class="skeleton profile-skeleton-desc2"></div>
+              <div class="skeleton profile-skeleton-btn"></div>
+              <div class="profile-skeleton-grid">${cards}</div>
+            </div>
+          </div>`;
+      }
+
+      async function fetchProfile(uid) {
+        if (!uid) {
+          const container = document.getElementById('profile-container');
+          if (container) {
+            container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--color-error);">❌ No se especificó el vendedor.</div>`;
+          }
+          hideLoader();
+          return;
+        }
+
+        const apiUrl = window.API_URL;
+        if (!apiUrl) {
+          if (typeof showTemporaryMessage === 'function') showTemporaryMessage('Error: API_URL no definida', 'error');
+          hideLoader();
+          return;
+        }
+
+        const container = document.getElementById('profile-container');
+
+        // 1. Mostrar caché inmediatamente si existe
+        const cached = getProfileCache(uid);
+        if (cached) {
+          renderProfile(cached);
+          // Revalidar en background silenciosamente
+          fetch(`${apiUrl}?action=obtenerPerfilVendedor&uid=${encodeURIComponent(uid)}`)
+            .then(r => r.json())
+            .then(fresh => {
+              if (fresh.ok) {
+                setProfileCache(uid, fresh);
+                // Solo re-render si los datos cambiaron
+                if (JSON.stringify(fresh) !== JSON.stringify(cached)) {
+                  renderProfile(fresh);
+                }
+              }
+            })
+            .catch(() => {});
+          return;
+        }
+
+        // 2. Sin caché: mostrar skeleton + fetch
+        if (container) showProfileSkeleton(container, 6);
+
+        try {
+          const url = `${apiUrl}?action=obtenerPerfilVendedor&uid=${encodeURIComponent(uid)}`;
+          const response = await fetch(url);
+          const data = await response.json();
+
+          if (!data.ok) {
+            throw new Error(data.error || 'Error al obtener perfil');
+          }
+
+          setProfileCache(uid, data);
+          renderProfile(data);
+        } catch (err) {
+          console.error('Error cargando perfil:', err);
+          if (container) {
+            container.innerHTML = `
+              <div style="text-align:center;padding:40px;color:var(--color-error);">
+                ❌ Error al cargar el perfil: ${esc(err.message)}
+                <br><br>
+                <a href="comunidad.html" class="back-link">← Volver a Comunidad</a>
+              </div>
+            `;
+          }
+          hideLoader();
+        }
+      }
+
+      // Inicio
+      document.addEventListener('DOMContentLoaded', function() {
+        const uid = getVendorUid();
+        if (uid) {
+          // Si hay caché, el loader apenas aparece; si no, skeleton lo cubre
+          const hasCached = !!getProfileCache(uid);
+          if (!hasCached) showLoader('Cargando perfil...');
+          fetchProfile(uid);
+        } else {
+          const container = document.getElementById('profile-container');
+          if (container) {
+            container.innerHTML = `
+              <div style="text-align:center;padding:60px 20px;color:var(--color-text-muted);">
+                <p style="font-size:20px;">👤</p>
+                <p>No se encontró el vendedor.</p>
+                <a href="comunidad.html" class="back-link" style="margin-top:16px;">← Volver a Comunidad</a>
+              </div>
+            `;
+          }
+          hideLoader();
+        }
+      });
+
+    })();
+
+
+
+
+
+
+
+
+  // NAVEGACIÓN INFERIOR (global)
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('nav-comunidad')?.addEventListener('click', () => {
+        window.location.href = 'comunidad.html';
+      });
+      document.getElementById('nav-vendedor')?.addEventListener('click', () => {
+        window.location.href = 'vendedor.html';
+      });
+      document.getElementById('nav-cart')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (typeof window.openCartDrawer === 'function') {
+          window.openCartDrawer();
+        } else {
+          console.warn('openCartDrawer no está disponible');
+        }
+      });
+    });
+
+    // Actualizar badge del carrito
+    function updateCartBadge() {
+      const badge = document.getElementById('bottom-cart-count');
+      if (badge) {
+        const cart = JSON.parse(localStorage.getItem('cart') || '{}');
+        const total = Object.values(cart).reduce((s, i) => s + (i.quantity || 0), 0);
+        badge.textContent = total;
+        badge.style.display = total > 0 ? 'flex' : 'none';
+      }
+    }
+    window.addEventListener('cartUpdated', updateCartBadge);
+    window.addEventListener('storage', updateCartBadge);
+    document.addEventListener('DOMContentLoaded', updateCartBadge);
+  </script>
+</body>
+  </html>

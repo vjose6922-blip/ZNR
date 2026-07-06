@@ -1,0 +1,204 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="
+ default-src 'self';
+ script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+ style-src 'self' 'unsafe-inline';
+ img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com;
+ connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in https://www.gstatic.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://firebase.googleapis.com https://znr-live-default-rtdb.firebaseio.com https://nominatim.openstreetmap.org;
+ font-src 'self';
+ frame-src 'none';
+ frame-ancestors 'none';
+ object-src 'none';
+ base-uri 'self';
+ worker-src 'self' blob:;
+ child-src 'self' blob:;
+">
+ <script src="error-bootstrap.js"></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>En vivo ahora — Z&R</title>
+<link rel="manifest" href="/ZNR/manifest.json">
+<meta name="theme-color" content="#1e2128">
+<link rel="preload" href="styles.css" as="style">
+<link rel="stylesheet" href="styles.css">
+<script src="api-config.js"></script>
+<style>
+  .lives-wrap { max-width: 640px; margin: 0 auto; padding: 16px; padding-bottom: 100px; }
+
+  .lives-grid { display: flex; flex-direction: column; gap: 14px; }
+
+  .live-card {
+    display: block; text-decoration: none;
+    background: var(--color-surface); border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .live-card .thumb-wrap { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+  .live-card .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .status-badge {
+    position: absolute; top: 10px; left: 10px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: var(--radius-pill);
+    font-size: 11px; font-weight: 700; letter-spacing: .03em;
+    background: rgba(239,68,68,.9); color: #fff;
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: pulse-dot 1.4s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+  .viewer-mini {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,.6); color: #fff;
+    font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: var(--radius-pill);
+  }
+
+  .live-card .info { padding: 12px 14px; }
+  .live-card .info h2 { margin: 0 0 4px; font-size: 15px; color: var(--color-text-primary); }
+  .live-card .info .vendor { margin: 0; font-size: 13px; color: var(--color-text-soft); }
+
+  .empty-state { text-align: center; padding: 70px 20px; color: var(--color-text-soft); }
+  .empty-state .icon { font-size: 46px; margin-bottom: 14px; }
+  .empty-state h2 { color: var(--color-text-primary); margin: 0 0 8px; font-size: 17px; }
+  .empty-state p { margin: 0; font-size: 13px; line-height: 1.5; }
+
+  .loading-spinner {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 3px solid var(--color-border-subtle); border-top-color: var(--color-accent-solid);
+    animation: spin 0.8s linear infinite; margin: 60px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-left">
+    <a href="comunidad.html" class="logo-touch-area" style="text-decoration:none;">
+      <span class="logo-mark">←</span>
+    </a>
+    <div class="header-text">
+      <h1 class="app-title">En vivo ahora</h1>
+      <p class="app-subtitle" id="header-subtitle">Vendedores transmitiendo</p>
+    </div>
+  </div>
+</header>
+
+<main class="lives-wrap" id="lives-wrap">
+  <div class="loading-spinner"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAaOe_lxLdQtTFCtw2BDR8KZRSafEMkkes",
+  authDomain: "znr-live.firebaseapp.com",
+  databaseURL: "https://znr-live-default-rtdb.firebaseio.com",
+  projectId: "znr-live",
+  storageBucket: "znr-live.firebasestorage.app",
+  messagingSenderId: "1038143238323",
+  appId: "1:1038143238323:web:5171b9dd8823628086c0c6"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+
+async function contarEspectadores(liveId) {
+  try {
+    const snap = await get(ref(db, `presencia/${liveId}`));
+    const data = snap.val();
+    return data ? Object.keys(data).length : 0;
+  } catch (e) { return 0; }
+}
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(0), ms))
+  ]);
+}
+
+(function() {
+  'use strict';
+
+  async function apiFetch(data) {
+    const API_BASE = window.API_URL;
+    const params = new URLSearchParams();
+    Object.entries(data || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) params.append(k, v);
+    });
+    const res = await fetch(`${API_BASE}?${params.toString()}`, { method: 'GET' });
+    return JSON.parse(await res.text());
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+
+  const wrap = document.getElementById('lives-wrap');
+  const subtitle = document.getElementById('header-subtitle');
+  let pollTimer = null;
+
+  function renderEmpty() {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📺</div>
+        <h2>Nadie está transmitiendo ahora mismo</h2>
+        <p>Cuando un vendedor Plan Plus inicie una transmisión en vivo, va a aparecer aquí. Vuelve a checar en un rato.</p>
+      </div>`;
+  }
+
+  function renderLives(lives) {
+    subtitle.textContent = `${lives.length} transmisión${lives.length === 1 ? '' : 'es'} activa${lives.length === 1 ? '' : 's'}`;
+    wrap.innerHTML = `<div class="lives-grid">${lives.map(l => `
+      <a class="live-card" href="comprador-live.html?id=${esc(l.id)}">
+        <div class="thumb-wrap">
+          <img src="https://i.ytimg.com/vi/${esc(l.youtube_id)}/hqdefault.jpg" alt="${esc(l.titulo)}" loading="lazy">
+          <span class="status-badge"><span class="status-dot"></span> EN VIVO</span>
+          <span class="viewer-mini">👀 ${l.espectadores || 0}</span>
+        </div>
+        <div class="info">
+          <h2>${esc(l.titulo)}</h2>
+          <p class="vendor">Por ${esc(l.vendedor_nombre)}</p>
+        </div>
+      </a>
+    `).join('')}</div>`;
+  }
+
+  async function cargar() {
+    try {
+      const resp = await apiFetch({ action: 'obtenerLivesActivos' });
+      if (resp.ok && resp.lives && resp.lives.length > 0) {
+        try {
+          const counts = await withTimeout(
+            Promise.all(resp.lives.map(l => contarEspectadores(l.id))),
+            3000
+          );
+          if (Array.isArray(counts)) {
+            resp.lives.forEach((l, i) => { l.espectadores = counts[i] || 0; });
+          }
+        } catch (e) {
+          // si falla el contador, seguimos mostrando la lista sin él
+        }
+        renderLives(resp.lives);
+      } else {
+        subtitle.textContent = 'Vendedores transmitiendo';
+        renderEmpty();
+      }
+    } catch (err) {
+      subtitle.textContent = 'Vendedores transmitiendo';
+      renderEmpty();
+    }
+  }
+
+  cargar();
+  pollTimer = setInterval(cargar, 20000);
+})();
+</script>
+</body>
+</html>

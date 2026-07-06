@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="
+ default-src 'self';
+ script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+ style-src 'self' 'unsafe-inline';
+ img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com;
+ connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in https://www.gstatic.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://firebase.googleapis.com https://znr-live-default-rtdb.firebaseio.com https://nominatim.openstreetmap.org;
+ font-src 'self';
+ frame-src 'none';
+ frame-ancestors 'none';
+ object-src 'none';
+ base-uri 'self';
+ worker-src 'self' blob:;
+ child-src 'self' blob:;
+">
+ <script src="error-bootstrap.js"></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>En vivo — Z&R</title>
+<link rel="manifest" href="/ZNR/manifest.json">
+<meta name="theme-color" content="#1e2128">
+<link rel="preload" href="styles.css" as="style">
+<link rel="stylesheet" href="styles.css">
+<script src="api-config.js"></script>
+<style>
+  .live-wrap { max-width: 640px; margin: 0 auto; padding: 0 0 40px; }
+
+  /* El header es contenido normal: se va con el scroll. El video se
+     "pega" arriba usando JS (position:fixed + un ancla que reserva su
+     espacio), no CSS sticky — así funciona aunque algún estilo global
+     de styles.css (p.ej. overflow-x:hidden en html/body) rompa el
+     sticky nativo, que es justo lo que estaba pasando.
+     IMPORTANTE: el video vive con position:absolute DENTRO del ancla
+     (nunca contribuye al alto del ancla por flujo normal). El ancla
+     tiene su propio alto (CSS de respaldo + congelado por JS), así
+     que nunca se colapsa cuando el video pasa a fixed. */
+  .video-anchor { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+  .video-anchor.vertical { height: 56vh; max-height: 520px; aspect-ratio: unset; }
+  .video-box { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; z-index: 20; }
+  .video-box.stuck {
+    position: fixed; top: 0; left: 0; right: 0; margin: 0 auto;
+    max-width: 640px; z-index: 20;
+  }
+  .video-slot-inner { position: absolute; inset: 0; }
+  .video-box iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .sound-overlay {
+    position: absolute; inset: 0; z-index: 5; border: none; cursor: pointer;
+    background: rgba(0,0,0,.4); color: #fff; font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .video-tap-blocker { position: absolute; inset: 0; z-index: 5; background: transparent; }
+
+  .live-info { padding: 14px 16px; border-bottom: 1px solid var(--color-border-subtle); }
+  .live-info h1 { margin: 0 0 4px; font-size: 16px; color: var(--color-text-primary); }
+  .live-info .vendor { font-size: 13px; color: var(--color-text-soft); }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: var(--radius-pill);
+    font-size: 11px; font-weight: 700; letter-spacing: .03em; margin-bottom: 8px;
+  }
+  .status-badge.live { background: rgba(239,68,68,.15); color: #f87171; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #f87171; animation: pulse-dot 1.4s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+  .viewer-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 700; color: var(--color-text-soft);
+    background: var(--color-surface-2); padding: 5px 10px; border-radius: var(--radius-pill);
+    margin-left: 6px; margin-bottom: 8px; vertical-align: middle;
+  }
+
+  .btn-reportar-flotante {
+    position: fixed; top: 14px; right: 14px; z-index: 60;
+    background: rgba(0,0,0,.55); border: none; border-radius: 50%;
+    width: 38px; height: 38px; font-size: 16px; cursor: pointer;
+    color: #fff; display: flex; align-items: center; justify-content: center;
+  }
+
+  .producto-actual {
+    display: flex; gap: 12px; align-items: center;
+    background: var(--color-surface); margin: 12px 16px;
+    border-radius: var(--radius-lg); padding: 12px;
+    border: 1px solid var(--color-accent-solid);
+  }
+  .producto-actual img { width: 56px; height: 56px; border-radius: var(--radius-md); object-fit: cover; flex-shrink: 0; }
+  .producto-actual .info { flex: 1; min-width: 0; }
+  .producto-actual .info .nombre { font-size: 14px; font-weight: 700; color: var(--color-text-primary); margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .producto-actual .info .precio { font-size: 15px; font-weight: 800; color: var(--color-accent); margin: 0; }
+  .btn-apartar {
+    background: var(--gradient-accent); color: #fff; border: none;
+    border-radius: var(--radius-pill); padding: 9px 14px; font-size: 12px;
+    font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+
+  .chat-section { padding: 0 16px; }
+  .chat-panel {
+    background: var(--color-surface-2); border-radius: var(--radius-md);
+    height: 320px; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { font-size: 13px; line-height: 1.4; }
+  .chat-msg .author { font-weight: 700; color: var(--color-accent); margin-right: 6px; }
+  .chat-msg .text { color: var(--color-text-primary); }
+  .chat-msg.mine .author { color: var(--color-primary); }
+  .chat-msg .vendido-tag {
+    display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700;
+    background: rgba(74,222,128,.15); color: #4ade80; padding: 2px 7px; border-radius: var(--radius-pill);
+  }
+  .chat-empty { text-align: center; color: var(--color-text-soft); font-size: 12px; margin-top: auto; margin-bottom: auto; }
+  .chat-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--color-border-subtle); flex-shrink: 0; }
+  .chat-input-row input {
+    flex: 1; background: var(--color-surface); border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-pill); padding: 9px 14px; color: var(--color-text-primary); font-size: 13px;
+  }
+  .chat-input-row button {
+    background: var(--gradient-accent); border: none; color: #fff;
+    border-radius: 50%; width: 38px; height: 38px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+
+  .center-card { max-width: 480px; margin: 60px auto; padding: 0 20px; text-align: center; }
+  .center-card .icon { font-size: 44px; margin-bottom: 12px; }
+  .center-card h2 { color: var(--color-text-primary); margin: 0 0 8px; }
+  .center-card p { color: var(--color-text-soft); font-size: 14px; line-height: 1.5; }
+
+  /* Debajo del video (info, producto, chat) es contenido normal que
+     se desplaza libremente. */
+  .live-info-compact {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .live-info-compact strong {
+    font-size: 14px; color: var(--color-text-primary); flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .live-info-compact .viewer-badge { margin: 0; flex-shrink: 0; }
+
+  .identity-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: flex; align-items: flex-end; z-index: var(--z-modal, 300);
+  }
+  .identity-sheet {
+    background: var(--color-surface); border-radius: 20px 20px 0 0;
+    padding: 20px; width: 100%; box-sizing: border-box;
+  }
+  .identity-sheet h2 { margin: 0 0 6px; color: var(--color-text-primary); font-size: 17px; }
+  .identity-sheet p { margin: 0 0 16px; font-size: 13px; color: var(--color-text-soft); }
+  .identity-sheet input, .identity-sheet textarea {
+    width: 100%; box-sizing: border-box; margin-bottom: 10px;
+    padding: 12px 14px; border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-2); color: var(--color-text-primary); font-size: 14px;
+    font-family: inherit;
+  }
+  .identity-sheet textarea { resize: vertical; min-height: 60px; }
+  .identity-sheet label {
+    display: block; font-size: 11px; font-weight: 600;
+    color: var(--color-text-soft); text-transform: uppercase;
+    letter-spacing: .05em; margin: 0 0 6px;
+  }
+  .identity-sheet button {
+    width: 100%; border: none; border-radius: var(--radius-pill);
+    padding: 13px; font-size: 14px; font-weight: 700; cursor: pointer;
+    background: var(--gradient-accent); color: #fff;
+  }
+  .identity-sheet button.btn-gps {
+    background: var(--color-surface-2); color: var(--color-text-primary);
+    border: 1px solid var(--color-border-subtle);
+    font-size: 13px; padding: 11px; margin-bottom: 4px;
+  }
+  .gps-status { margin: 0 0 12px; font-size: 12px; min-height: 15px; color: var(--color-text-soft); }
+  .gps-status.ok { color: #4ade80; }
+  .gps-status.error { color: #f87171; }
+  .loading-spinner {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 3px solid var(--color-border-subtle); border-top-color: var(--color-accent-solid);
+    animation: spin 0.8s linear infinite; margin: 40px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-left">
+    <a href="lives.html" class="logo-touch-area" style="text-decoration:none;">
+      <span class="logo-mark">←</span>
+    </a>
+    <div class="header-text">
+      <h1 class="app-title">En vivo</h1>
+    </div>
+  </div>
+</header>
+
+<button id="btn-reportar" class="btn-reportar-flotante" title="Reportar esta transmisión" style="display:none;">🚩</button>
+
+<main class="live-wrap" id="live-wrap">
+  <div class="loading-spinner"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { getDatabase, ref, push, onValue, set, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAaOe_lxLdQtTFCtw2BDR8KZRSafEMkkes",
+  authDomain: "znr-live.firebaseapp.com",
+  databaseURL: "https://znr-live-default-rtdb.firebaseio.com",
+  projectId: "znr-live",
+  storageBucket: "znr-live.firebasestorage.app",
+  messagingSenderId: "1038143238323",
+  appId: "1:1038143238323:web:5171b9dd8823628086c0c6"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+
+async function apiFetch(data, method = 'GET') {
+  const API_BASE = window.API_URL;
+  const params = new URLSearchParams();
+  Object.entries(data || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) params.append(k, v);
+  });
+  const res = method === 'GET'
+    ? await fetch(`${API_BASE}?${params.toString()}`, { method: 'GET' })
+    : await fetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+  return JSON.parse(await res.text());
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+const wrap = document.getElementById('live-wrap');
+const params = new URLSearchParams(location.search);
+const liveId = params.get('id');
+let sesion = null;
+let productosMap = {};
+let identity = null;
+let pollTimer = null;
+let viewerId = null;
+let presenceRef = null;
+let presenceCountUnsub = null;
+let stickyObserver = null;
+let stickySentinel = null;
+let stickyResizeHandler = null;
+
+// ── Reproductor sincronizado (video grabado que se comporta como en vivo) ──
+let ytPlayer = null;
+let ytSyncInterval = null;
+let ytMuteCheckInterval = null;
+let ytApiPromise = null;
+
+function loadYouTubeAPI() {
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve) => {
+    if (window.YT && window.YT.Player) { resolve(window.YT); return; }
+    const prevCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof prevCallback === 'function') prevCallback();
+      resolve(window.YT);
+    };
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+  });
+  return ytApiPromise;
+}
+
+function resincronizarVideo(fechaInicioMs) {
+  if (!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
+  let duracion;
+  try { duracion = ytPlayer.getDuration(); } catch (e) { return; }
+  if (!duracion) return;
+  let elapsed = (Date.now() - fechaInicioMs) / 1000;
+  if (elapsed < 0) elapsed = 0;
+  elapsed = elapsed % duracion;
+  let actual = 0;
+  try { actual = ytPlayer.getCurrentTime(); } catch (e) {}
+  if (Math.abs(actual - elapsed) > 3) {
+    try { ytPlayer.seekTo(elapsed, true); } catch (e) {}
+  }
+  try { ytPlayer.playVideo(); } catch (e) {}
+}
+
+async function iniciarPlayerSincronizado(containerId, youtubeId, fechaInicioMs) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const origin = encodeURIComponent(location.origin);
+  container.innerHTML = `
+    <iframe id="${containerId}-iframe"
+      src="https://www.youtube-nocookie.com/embed/${esc(youtubeId)}?enablejsapi=1&autoplay=1&mute=1&controls=0&disablekb=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&origin=${origin}"
+      allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>
+    <button class="sound-overlay" id="${containerId}-sound">🔊 Toca para activar el sonido</button>
+  `;
+  const YT = await loadYouTubeAPI();
+  ytPlayer = new YT.Player(containerId + '-iframe', {
+    events: {
+      onReady: () => {
+        resincronizarVideo(fechaInicioMs);
+        if (ytSyncInterval) clearInterval(ytSyncInterval);
+        ytSyncInterval = setInterval(() => resincronizarVideo(fechaInicioMs), 5000);
+        if (ytMuteCheckInterval) clearInterval(ytMuteCheckInterval);
+        ytMuteCheckInterval = setInterval(() => {
+          if (ytPlayer && typeof ytPlayer.isMuted === 'function' && !ytPlayer.isMuted()) {
+            bloquearInteraccionVideo(containerId);
+          }
+        }, 1000);
+      },
+      onStateChange: (e) => {
+        if (e.data === YT.PlayerState.ENDED) resincronizarVideo(fechaInicioMs);
+      }
+    }
+  });
+  const soundBtn = document.getElementById(containerId + '-sound');
+  if (soundBtn) {
+    soundBtn.addEventListener('click', () => {
+      if (ytPlayer && ytPlayer.unMute) {
+        ytPlayer.unMute();
+        ytPlayer.setVolume(100);
+      }
+      bloquearInteraccionVideo(containerId);
+    });
+  }
+}
+
+function bloquearInteraccionVideo(containerId) {
+  if (ytMuteCheckInterval) { clearInterval(ytMuteCheckInterval); ytMuteCheckInterval = null; }
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const soundBtn = document.getElementById(containerId + '-sound');
+  if (soundBtn) soundBtn.remove();
+  if (!document.getElementById(containerId + '-blocker')) {
+    const blocker = document.createElement('div');
+    blocker.id = containerId + '-blocker';
+    blocker.className = 'video-tap-blocker';
+    container.appendChild(blocker);
+  }
+}
+
+function detenerStickyVideo() {
+  if (stickyObserver) { stickyObserver.disconnect(); stickyObserver = null; }
+  if (stickySentinel && stickySentinel.parentNode) { stickySentinel.parentNode.removeChild(stickySentinel); }
+  stickySentinel = null;
+  if (stickyResizeHandler) { window.removeEventListener('resize', stickyResizeHandler); stickyResizeHandler = null; }
+}
+
+// El video se "pega" arriba con JS en vez de confiar en CSS
+// position:sticky. Si algún estilo global (por ejemplo
+// overflow-x:hidden en html/body) rompe el sticky nativo, esto sigue
+// funcionando: un sentinel de 0px justo antes del video se observa
+// con IntersectionObserver; cuando sale del viewport por arriba, el
+// video pasa a position:fixed (clase .stuck).
+//
+// CLAVE: el ancla (.video-anchor) congela su altura real por JS
+// (medida antes de que el video se vuelva fixed) y se la pasa también
+// al propio video. Así, cuando el video sale del flujo normal al
+// volverse fixed, el ancla NUNCA se colapsa a 0 — sigue reservando
+// exactamente el mismo espacio, así que nada salta ni se regresa.
+function setupStickyVideo() {
+  detenerStickyVideo();
+  const anchor = document.getElementById('video-anchor');
+  const videoBox = document.getElementById('video-box-el');
+  if (!anchor || !videoBox) return;
+
+  const congelarAltura = () => {
+    if (videoBox.classList.contains('stuck')) return; // ya está fija, no recalcular a ciegas
+    anchor.style.height = '';
+    videoBox.style.height = '';
+    const h = anchor.getBoundingClientRect().height;
+    if (h > 0) {
+      anchor.style.height = h + 'px';
+      videoBox.style.height = h + 'px';
+    }
+  };
+
+  requestAnimationFrame(congelarAltura);
+
+  stickyResizeHandler = () => requestAnimationFrame(congelarAltura);
+  window.addEventListener('resize', stickyResizeHandler);
+
+  stickySentinel = document.createElement('div');
+  stickySentinel.style.cssText = 'position:relative; height:0; width:100%;';
+  anchor.parentNode.insertBefore(stickySentinel, anchor);
+
+  stickyObserver = new IntersectionObserver(([entry]) => {
+    videoBox.classList.toggle('stuck', !entry.isIntersecting);
+  }, { threshold: [0] });
+  stickyObserver.observe(stickySentinel);
+}
+
+function detenerPlayerSincronizado() {
+  if (ytSyncInterval) { clearInterval(ytSyncInterval); ytSyncInterval = null; }
+  if (ytMuteCheckInterval) { clearInterval(ytMuteCheckInterval); ytMuteCheckInterval = null; }
+  if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+    try { ytPlayer.destroy(); } catch (e) {}
+  }
+  ytPlayer = null;
+}
+
+// ── Presencia (contador de espectadores en vivo) ──
+function getViewerId() {
+  try {
+    let id = sessionStorage.getItem('znr_viewer_id');
+    if (!id) {
+      id = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+      sessionStorage.setItem('znr_viewer_id', id);
+    }
+    return id;
+  } catch (e) {
+    return 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+  }
+}
+
+function registrarPresencia() {
+  if (!liveId) return;
+  viewerId = getViewerId();
+  presenceRef = ref(db, `presencia/${liveId}/${viewerId}`);
+  const nombre = (identity && identity.nombre) ? identity.nombre : 'Invitado';
+  set(presenceRef, { nombre, ts: Date.now() }).catch(err => console.error('registrarPresencia falló (revisa las reglas de Firebase):', err));
+  onDisconnect(presenceRef).remove().catch(() => {});
+}
+
+function actualizarPresenciaNombre() {
+  if (!presenceRef) return;
+  const nombre = (identity && identity.nombre) ? identity.nombre : 'Invitado';
+  set(presenceRef, { nombre, ts: Date.now() }).catch(err => console.error('actualizarPresenciaNombre falló:', err));
+}
+
+function quitarPresencia() {
+  if (presenceCountUnsub) { presenceCountUnsub(); presenceCountUnsub = null; }
+  if (presenceRef) { remove(presenceRef).catch(() => {}); presenceRef = null; }
+}
+
+function setupContadorEspectadores() {
+  if (!liveId) return;
+  const countEl = document.getElementById('viewer-count');
+  presenceCountUnsub = onValue(ref(db, `presencia/${liveId}`), (snap) => {
+    const data = snap.val() || {};
+    if (countEl) countEl.textContent = Object.keys(data).length;
+  }, (err) => console.error('setupContadorEspectadores falló (revisa las reglas de Firebase):', err));
+}
+
+// ── Reportar transmisión ──
+function mostrarReporte() {
+  const overlay = document.createElement('div');
+  overlay.className = 'identity-overlay';
+  overlay.innerHTML = `
+    <div class="identity-sheet">
+      <h2>🚩 Reportar esta transmisión</h2>
+      <p>Cuéntanos qué está pasando. Un administrador va a revisarlo. Esto no cancela nada que hayas apartado ni te saca del chat.</p>
+      <label for="rep-motivo">¿Qué está pasando?</label>
+      <textarea id="rep-motivo" maxlength="300" placeholder="Ej. contenido inapropiado, producto engañoso, lenguaje ofensivo…"></textarea>
+      <button id="rep-btn">Enviar reporte</button>
+      <button type="button" id="rep-cancel" style="background:var(--color-surface-2); color:var(--color-text-primary); border:1px solid var(--color-border-subtle); margin-top:8px;">Cancelar</button>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById('rep-cancel').addEventListener('click', () => document.body.removeChild(overlay));
+
+  document.getElementById('rep-btn').addEventListener('click', async () => {
+    const motivo = document.getElementById('rep-motivo').value.trim();
+    if (!motivo) { alert('Cuéntanos brevemente qué está pasando.'); return; }
+    const btn = document.getElementById('rep-btn');
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+    try {
+      const resp = await apiFetch({
+        action: 'reportarSesionLive',
+        liveId: liveId,
+        liveTitulo: sesion.titulo || '',
+        vendedor_uid: sesion.vendedor_id || '',
+        vendedor_nombre: sesion.vendedor_nombre || '',
+        youtubeLink: sesion.youtube_id ? `https://www.youtube.com/watch?v=${sesion.youtube_id}` : '',
+        motivo,
+        telefonoUsuario: identity ? (identity.telefono || '') : ''
+      }, 'POST');
+      if (resp.ok) {
+        alert('Gracias, tu reporte fue enviado.');
+        document.body.removeChild(overlay);
+      } else {
+        alert('No se pudo enviar el reporte: ' + (resp.error || 'error desconocido'));
+        btn.disabled = false;
+        btn.textContent = 'Enviar reporte';
+      }
+    } catch (err) {
+      alert('Error de conexión al enviar el reporte.');
+      btn.disabled = false;
+      btn.textContent = 'Enviar reporte';
+    }
+  });
+}
+
+function renderNoId() {
+  document.body.classList.remove('live-active');
+  wrap.innerHTML = `
+    <div class="center-card">
+      <div class="icon">🔗</div>
+      <h2>Link inválido</h2>
+      <p>Este link de transmisión no es válido. Pide al vendedor que te comparta el link de nuevo.</p>
+    </div>`;
+}
+
+function renderNotFound() {
+  document.body.classList.remove('live-active');
+  wrap.innerHTML = `
+    <div class="center-card">
+      <div class="icon">😕</div>
+      <h2>Transmisión no encontrada</h2>
+      <p>Puede que haya terminado o el link esté incompleto.</p>
+    </div>`;
+}
+
+function renderEnded() {
+  detenerPlayerSincronizado();
+  detenerStickyVideo();
+  quitarPresencia();
+  document.body.classList.remove('live-active');
+  wrap.innerHTML = `
+    <div class="center-card">
+      <div class="icon">✅</div>
+      <h2>Esta transmisión ya terminó</h2>
+      <p>Gracias por acompañar a ${esc(sesion.vendedor_nombre)}. Si apartaste algo, el vendedor se pondrá en contacto contigo.</p>
+    </div>`;
+}
+
+function renderScheduledWait() {
+  document.body.classList.remove('live-active');
+  wrap.innerHTML = `
+    <div class="center-card">
+      <div class="icon">⏳</div>
+      <h2>${esc(sesion.titulo)}</h2>
+      <p>${esc(sesion.vendedor_nombre)} todavía no inicia su transmisión. Vuelve a entrar en unos minutos.</p>
+    </div>`;
+}
+
+// ── Identidad del comprador (nombre + teléfono, se guarda local) ──
+function getIdentity() {
+  try {
+    const raw = localStorage.getItem('znr_chat_identity');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+function askIdentity(onDone) {
+  const prev = identity || {};
+  let gpsCoords = (typeof prev.lat === 'number' && typeof prev.lng === 'number')
+    ? { lat: prev.lat, lng: prev.lng } : null;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'identity-overlay';
+  overlay.innerHTML = `
+    <div class="identity-sheet">
+      <h2>Únete al chat</h2>
+      <p>Para comentar y apartar productos, dinos quién eres y dónde entregarte. El vendedor usará esto para contactarte y coordinar la entrega.</p>
+      <label for="idn-nombre">Tu nombre</label>
+      <input type="text" id="idn-nombre" placeholder="Nombre y apellido" maxlength="40" value="${esc(prev.nombre || '')}">
+      <label for="idn-tel">Tu teléfono</label>
+      <input type="tel" id="idn-tel" placeholder="10 dígitos" maxlength="10" value="${esc(prev.telefono || '')}">
+      <label for="idn-dir">Dirección de entrega</label>
+      <textarea id="idn-dir" placeholder="Calle, número, colonia, referencias… (o usa tu ubicación abajo)" maxlength="200">${esc(prev.direccion || '')}</textarea>
+      <button type="button" class="btn-gps" id="idn-gps-btn">📍 Usar mi ubicación actual</button>
+      <p class="gps-status ${gpsCoords ? 'ok' : ''}" id="idn-gps-status">${gpsCoords ? '✅ Ya tenemos tu ubicación guardada.' : ''}</p>
+      <label for="idn-horario">Horario para entrega</label>
+      <input type="text" id="idn-horario" placeholder="Ej. Tardes después de 5pm, fines de semana…" maxlength="80" value="${esc(prev.horario || '')}">
+      <button id="idn-btn">Entrar al chat</button>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById('idn-gps-btn').addEventListener('click', () => {
+    const statusEl = document.getElementById('idn-gps-status');
+    if (!navigator.geolocation) {
+      statusEl.className = 'gps-status error';
+      statusEl.textContent = 'Tu navegador no soporta ubicación por GPS. Escribe tu dirección arriba.';
+      return;
+    }
+    statusEl.className = 'gps-status';
+    statusEl.textContent = 'Obteniendo tu ubicación…';
+    navigator.geolocation.getCurrentPosition((pos) => {
+      gpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      statusEl.className = 'gps-status ok';
+      statusEl.textContent = '✅ Ubicación capturada. El vendedor podrá verla en el mapa.';
+    }, (err) => {
+      gpsCoords = null;
+      statusEl.className = 'gps-status error';
+      statusEl.textContent = 'No se pudo obtener tu ubicación (revisa los permisos). Escribe tu dirección arriba.';
+    }, { enableHighAccuracy: true, timeout: 10000 });
+  });
+
+  document.getElementById('idn-btn').addEventListener('click', () => {
+    const nombre = document.getElementById('idn-nombre').value.trim();
+    const tel = document.getElementById('idn-tel').value.replace(/\D/g, '');
+    const direccion = document.getElementById('idn-dir').value.trim();
+    const horario = document.getElementById('idn-horario').value.trim();
+    if (!nombre || tel.length !== 10) {
+      alert('Escribe tu nombre y un teléfono válido de 10 dígitos.');
+      return;
+    }
+    if (!direccion && !gpsCoords) {
+      alert('Escribe tu dirección o usa el botón para compartir tu ubicación.');
+      return;
+    }
+    if (!horario) {
+      alert('Dinos en qué horario podemos entregarte.');
+      return;
+    }
+    identity = {
+      nombre, telefono: tel, direccion, horario,
+      lat: gpsCoords ? gpsCoords.lat : null,
+      lng: gpsCoords ? gpsCoords.lng : null
+    };
+    localStorage.setItem('znr_chat_identity', JSON.stringify(identity));
+    actualizarPresenciaNombre();
+    document.body.removeChild(overlay);
+    onDone();
+  });
+}
+
+function renderLive() {
+  document.body.classList.add('live-active');
+  const esGrabado = sesion.tipo !== 'vivo';
+  const esVertical = sesion.orientacion === 'vertical';
+
+  const chatMarkup = `
+    <div class="chat-messages" id="chat-messages"><div class="chat-empty">Sé el primero en comentar 👋</div></div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Escribe un comentario…" maxlength="300">
+      <button id="chat-send">➤</button>
+    </div>`;
+
+  const videoMarkup = `
+    <div class="video-slot-inner" id="video-slot">
+      ${esGrabado ? '' : `<iframe src="https://www.youtube-nocookie.com/embed/${esc(sesion.youtube_id)}?autoplay=1"
+        allow="autoplay; encrypted-media" allowfullscreen title="Transmisión en vivo"></iframe>`}
+    </div>`;
+
+  if (esVertical) {
+    // Estilo YouTube: el video se queda fijo arriba; todo lo demás
+    // (título, producto, chat) es contenido normal que se desplaza
+    // por debajo. Nada se sobrepone al video.
+    wrap.innerHTML = `
+      <div class="video-anchor vertical" id="video-anchor">
+        <div class="video-box" id="video-box-el">${videoMarkup}</div>
+      </div>
+      <div class="live-info-compact">
+        <span class="status-dot"></span>
+        <strong>${esc(sesion.titulo)}</strong>
+        <span class="viewer-badge">👀 <span id="viewer-count">0</span></span>
+      </div>
+      <div id="producto-slot"></div>
+      <div class="chat-section">
+        <div class="chat-panel">${chatMarkup}</div>
+      </div>
+    `;
+  } else {
+    wrap.innerHTML = `
+      <div class="video-anchor" id="video-anchor">
+        <div class="video-box" id="video-box-el">${videoMarkup}</div>
+      </div>
+      <div class="live-info">
+        <span class="status-badge live"><span class="status-dot"></span> EN VIVO</span>
+        <span class="viewer-badge">👀 <span id="viewer-count">0</span></span>
+        <h1>${esc(sesion.titulo)}</h1>
+        <p class="vendor">Por ${esc(sesion.vendedor_nombre)}</p>
+      </div>
+      <div id="producto-slot"></div>
+      <div class="chat-section">
+        <div class="chat-panel">${chatMarkup}</div>
+      </div>
+    `;
+  }
+
+  setupStickyVideo();
+  renderProductoActual();
+  setupChat();
+  registrarPresencia();
+  setupContadorEspectadores();
+
+  document.getElementById('chat-send').addEventListener('click', enviarMensaje);
+  document.getElementById('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') enviarMensaje(); });
+
+  if (esGrabado && sesion.youtube_id && sesion.fecha_inicio) {
+    const fechaInicioMs = new Date(sesion.fecha_inicio).getTime();
+    if (!isNaN(fechaInicioMs)) {
+      iniciarPlayerSincronizado('video-slot', sesion.youtube_id, fechaInicioMs);
+    }
+  }
+}
+
+function renderProductoActual() {
+  const slot = document.getElementById('producto-slot');
+  if (!slot) return;
+  const p = productosMap[sesion.producto_actual_id];
+  if (!p) { slot.innerHTML = ''; return; }
+  const palabra = (p.nombre || '').trim().split(/\s+/)[0].toUpperCase();
+  slot.innerHTML = `
+    <div class="producto-actual">
+      <img src="${esc(p.imagen1 || 'https://placehold.co/100x100')}" alt="${esc(p.nombre)}">
+      <div class="info">
+        <p class="nombre">${esc(p.nombre)}</p>
+        <p class="precio">$${Number(p.precio || 0).toLocaleString()}</p>
+      </div>
+      <button class="btn-apartar" id="btn-apartar">🙋 Comentar "${esc(palabra)}"</button>
+    </div>`;
+  document.getElementById('btn-apartar').addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    if (!identity) { askIdentity(() => enviarMensaje(palabra)); return; }
+    enviarMensaje(palabra);
+    const textoOriginal = btn.textContent;
+    btn.textContent = '✅ Enviado';
+    btn.disabled = true;
+    setTimeout(() => { btn.textContent = textoOriginal; btn.disabled = false; }, 1200);
+  });
+}
+
+function enviarMensaje(textoDirecto) {
+  const input = document.getElementById('chat-input');
+  const text = textoDirecto != null ? textoDirecto.trim() : input.value.trim();
+  if (!text || !identity) return;
+  if (textoDirecto == null) input.value = '';
+  const payload = {
+    author: identity.nombre,
+    telefono: identity.telefono,
+    direccion: identity.direccion || '',
+    horario: identity.horario || '',
+    text, isVendor: false, ts: Date.now(),
+    producto_id: String(sesion.producto_actual_id || '')
+  };
+  if (typeof identity.lat === 'number' && typeof identity.lng === 'number') {
+    payload.lat = identity.lat;
+    payload.lng = identity.lng;
+  }
+  push(ref(db, `chats/${liveId}/messages`), payload).catch(err => {
+    alert('No se pudo enviar tu comentario: ' + err.message);
+    if (textoDirecto == null) input.value = text;
+  });
+}
+
+function setupChat() {
+  const messagesEl = document.getElementById('chat-messages');
+  onValue(ref(db, `chats/${liveId}/messages`), (snapshot) => {
+    const data = snapshot.val();
+    if (!data) { messagesEl.innerHTML = '<div class="chat-empty">Sé el primero en comentar 👋</div>'; return; }
+    const msgs = Object.values(data).sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-100);
+    messagesEl.innerHTML = msgs.map(m => `
+      <div class="chat-msg ${identity && m.author === identity.nombre ? 'mine' : ''}">
+        <span class="author">${esc(m.author)}${m.isVendor ? ' 🛍️' : ''}:</span>
+        <span class="text">${esc(m.text)}</span>
+        ${m.vendido ? '<span class="vendido-tag">✅ Vendido</span>' : ''}
+      </div>
+    `).join('');
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }, (err) => {
+    messagesEl.innerHTML = `<div class="chat-empty">No se pudo cargar el chat: ${esc(err.message)}</div>`;
+  });
+}
+
+// ── Polling ligero para detectar cambios de estado / producto actual ──
+function startPolling() {
+  pollTimer = setInterval(async () => {
+    try {
+      const resp = await apiFetch({ action: 'obtenerSesionLivePorId', id: liveId });
+      if (!resp.ok) return;
+      const nueva = resp.sesion;
+      if (nueva.estado === 'terminado') {
+        clearInterval(pollTimer);
+        sesion = nueva;
+        renderEnded();
+        return;
+      }
+      if (nueva.producto_actual_id !== sesion.producto_actual_id) {
+        sesion.producto_actual_id = nueva.producto_actual_id;
+        renderProductoActual();
+      }
+    } catch (e) { /* silencioso, reintenta en el siguiente ciclo */ }
+  }, 6000);
+}
+
+async function init() {
+  if (!liveId) { renderNoId(); return; }
+
+  identity = getIdentity();
+
+  try {
+    const resp = await apiFetch({ action: 'obtenerSesionLivePorId', id: liveId });
+    if (!resp.ok) { renderNotFound(); return; }
+    sesion = resp.sesion;
+
+    const btnReportar = document.getElementById('btn-reportar');
+    btnReportar.style.display = 'flex';
+    btnReportar.addEventListener('click', mostrarReporte);
+
+    const prodResp = await apiFetch({ action: 'listarComunidad', vendedor_uid: sesion.vendedor_id, limit: 50 });
+    if (prodResp.ok && prodResp.products) {
+      prodResp.products.forEach(p => { productosMap[p.id] = p; });
+    }
+
+    if (sesion.estado === 'terminado') { renderEnded(); return; }
+    if (sesion.estado === 'programado') { renderScheduledWait(); return; }
+
+    renderLive();
+    startPolling();
+
+    if (!identity || (!identity.direccion && !(typeof identity.lat === 'number' && typeof identity.lng === 'number')) || !identity.horario) {
+      askIdentity(() => {});
+    }
+  } catch (err) {
+    renderNotFound();
+  }
+}
+
+init();
+</script>
+</body>
+</html>

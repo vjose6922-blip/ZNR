@@ -1,0 +1,56 @@
+{
+  "name": "Z&R - Tienda de Moda",
+  "short_name": "Z&R",
+  "description": "Catálogo de moda con looks personalizados por clima y sección Comunidad",
+  "start_url": "/ZNR/index.html",
+  "scope": "/ZNR/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1e2128",
+  "background_color": "#1e2128",
+  "categories": ["shopping", "fashion"],
+  "icons": [
+    { "src": "/ZNR/icons/icon-72x72.png",            "sizes": "72x72",   "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-96x96.png",            "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-120x120.png",          "sizes": "120x120", "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-144x144.png",          "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-152x152.png",          "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-180x180.png",          "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-192x192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-256x256.png",          "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-384x384.png",          "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-512x512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/ZNR/icons/icon-512x512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/ZNR/logo.svg",                        "sizes": "any",     "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Inicio",
+      "short_name": "Inicio",
+      "description": "Página principal de Z&R",
+      "url": "/ZNR/index.html",
+      "icons": [{ "src": "/ZNR/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Catálogo",
+      "short_name": "Catálogo",
+      "description": "Ver todos los productos",
+      "url": "/ZNR/catalogo.html",
+      "icons": [{ "src": "/ZNR/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Comunidad",
+      "short_name": "Comunidad",
+      "description": "Marketplace de vendedores Z&R",
+      "url": "/ZNR/comunidad.html",
+      "icons": [{ "src": "/ZNR/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Vendedor",
+      "short_name": "Vendedor",
+      "description": "Panel de vendedor Z&R",
+      "url": "/ZNR/vendedor.html",
+      "icons": [{ "src": "/ZNR/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ]
+}
