@@ -423,7 +423,7 @@ return;
 try {
 const res = await apiFetch({ action: 'loginVendedor', telefono: firstField, password: secondField });
 if (!res.ok) throw new Error();
-// AHORA asignamos a la variable global 000
+// AHORA asignamos a la variable global 00000000000000000000000000
 vendorSession = {
 token: res.token,
 uid: res.uid,
