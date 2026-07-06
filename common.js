@@ -1029,19 +1029,12 @@ let _modalIndex  = 0;
 let _modalTouchStartX = 0;
 let _modalProduct  = null;
 function openImageModal(url, productId = null, allImages = [], productData = null) {
-const modal  = document.getElementById("image-modal");
-const overlay = document.getElementById("overlay");
-if (!modal) return;
-const BIG_SIZE = 1200; // o 1600 si quieres aún más nitidez
-function getBigUrl(u) {
-  if (!u) return u;
-  // optimizeDriveUrl extrae el ID y construye una nueva URL con el tamaño deseado
-  return optimizeDriveUrl(u, BIG_SIZE);
-}
-_modalImages = [
-  getBigUrl(url),
-  ...allImages.filter(u => u && u !== url).map(u => getBigUrl(u))
-];
+  const modal  = document.getElementById("image-modal");
+  const overlay = document.getElementById("overlay");
+  if (!modal) return;
+  const hiResUrl = getModalImageUrl(url);
+  const hiResAll = allImages.filter(u => u && u !== url).map(getModalImageUrl);
+  _modalImages = [hiResUrl, ...hiResAll];
 _modalIndex  = 0;
 _modalProduct = productData;
 initImageModalControls();
@@ -1281,9 +1274,7 @@ function _renderMagazinePanel(modal) {
       const thumbImg = typeof optimizeDriveUrl === 'function'
         ? optimizeDriveUrl(p._imagen1, 200)
         : (p._imagen1 || '');
-      const fullImg  = typeof optimizeDriveUrl === 'function'
-        ? optimizeDriveUrl(p._imagen1)
-        : (p._imagen1 || '');
+      const fullImg = getModalImageUrl(p._imagen1);
       const name = (p._nombre || 'Producto').substring(0, 28);
       const price = typeof formatCurrency === 'function'
         ? formatCurrency(p._precio)
@@ -1293,8 +1284,8 @@ function _renderMagazinePanel(modal) {
       const safeName  = typeof escapeHtml === 'function' ? escapeHtml(name) : name;
       const safeId  = escapeAttr(p._id);
       const allImg  = [p._imagen1, p._imagen2, p._imagen3]
-        .map(u => u ? (typeof optimizeDriveUrl === 'function' ? optimizeDriveUrl(u) : u) : '')
-        .filter(Boolean);
+  .map(u => u ? getModalImageUrl(u) : '')
+  .filter(Boolean);
       const allImgEncoded = escapeAttr(JSON.stringify(allImg));
       const safeNombre  = escapeAttr(p._nombre  || '');
       const safePrecio  = escapeAttr(String(p._precio  || 0));
@@ -4190,15 +4181,10 @@ window.uploadImagesInQueue = async function(files, startSlot = 1, uploadFn, onPr
     }
 };
 
-// Función de subida genérica (debe ser sobrescrita por admin y vendedor)
 window.uploadSingleImage = async function(file, slotIndex) {
     throw new Error('uploadSingleImage no está implementada. Debes asignarla en admin o vendedor.');
 };
 
-// ── Detección de Service Worker actualizado ──
-// Evita que el usuario quede ejecutando un HTML/JS viejo cacheado
-// (STALE_WHILE_REVALIDATE sirve la versión en caché primero).
-// Cuando el SW nuevo toma control, se avisa y se recarga una sola vez.
 if ('serviceWorker' in navigator) {
     let znrSwRefreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -4209,9 +4195,26 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+// Versión de alta resolución, pensada específicamente para el modal grande.
+// Ignora los topes de optimizeDriveUrl y pide el tamaño real necesario en pantalla.
+function getModalImageUrl(url) {
+  if (!url) return "https://placehold.co/900x900/3b1f5f/white?text=Z%26R";
+  if (!url.startsWith('http') && !url.startsWith('data:image')) {
+    return "https://placehold.co/900x900/3b1f5f/white?text=Z%26R";
+  }
+  const dpr = window.devicePixelRatio || 1;
+  const targetW = Math.round(Math.min(window.innerWidth, 900) * dpr);
+  const w = Math.max(targetW, 800); // nunca menos de 800px reales
 
+  const lh3Match = url.match(/lh3\.googleusercontent\.com\/d\/([-\w]{25,})/);
+  if (lh3Match) return `https://lh3.googleusercontent.com/d/${lh3Match[1]}=w${w}`;
 
+  const match = url.match(/[-\w]{25,}/);
+  if (match) return `https://lh3.googleusercontent.com/d/${match[0]}=w${w}`;
 
+  return url;
+}
+window.getModalImageUrl = getModalImageUrl;
 
 
 })();
