@@ -489,7 +489,7 @@ function renderVendorPlanPanel() {
   if (!el || !vendorSession) return;
   const esPlus   = vendorSession.plan === 'plus';
   const limite   = vendorSession.limiteProductos || (esPlus ? 200 : 20);
-  const actuales = vendorSession.productosActuales || 0;
+  const actuales = vendorSession.productosActuales || 0; // Debe ser el total real
   const pct = Math.min(100, Math.round((actuales / limite) * 100));
   const diasRestantes = vendorSession.planVence
     ? Math.ceil((new Date(vendorSession.planVence) - new Date()) / 86400000)
@@ -506,14 +506,13 @@ function renderVendorPlanPanel() {
     </div>`;
   }
 
-  // ── NUEVO: Filtro de estado ──────────────────────────────
   const statusFilterHTML = `
     <div class="vendor-status-filter" style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
       <button class="filter-status-btn active" data-status="todos" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:var(--color-accent-solid); color:#fff; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Todos</button>
       <button class="filter-status-btn" data-status="aprobado" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:transparent; color:var(--color-text-muted); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Aprobados</button>
       <button class="filter-status-btn" data-status="pendiente" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:transparent; color:var(--color-text-muted); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Pendientes</button>
       <button class="filter-status-btn" data-status="rechazado" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:transparent; color:var(--color-text-muted); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Rechazados</button>
-          </div>
+    </div>
   `;
 
   el.innerHTML = `
@@ -603,21 +602,40 @@ function showVendorProductsSkeleton(container, count = 3) {
     ${Array.from({length: count}, card).join('')}`;
 }
 
+
+
+
+window.updateDonacionesBadge = function updateDonacionesBadge() {
+  const el = document.getElementById('donaciones-count-badge');
+  if (!el) return;
+  // usa window._vendorProducts que debe ser el total de productos del vendedor (sin paginar)
+  const productos = window._vendorProducts || [];
+  const activas = productos.filter(p => p.donado === true || p.donado === 'TRUE' || p.donado === 'true').length;
+  el.textContent = activas > 0 ? `(${activas} activa${activas === 1 ? '' : 's'})` : '';
+  el.style.color = '#f97316';
+  el.style.fontWeight = '700';
+};
+
+
+
+  
 // ── Aplicar productos y renderizar paginación ──────────────
 function applyMyProducts(myProducts, container, total = null, currentPage = 1, totalPages = null) {
-  // Actualizar contador en el plan
-  const ocupados = myProducts.filter(p => p.estado === 'aprobado' || p.estado === 'pendiente').length;
+  // total debe ser el número TOTAL de productos del vendedor (sin paginar)
+  // Si no se pasa, lo calculamos a partir de los productos de la página (no es exacto)
+  const realTotal = (total !== null) ? total : myProducts.length;
+
+  // Actualizar contador en el plan con el total real
   if (vendorSession) {
-    vendorSession.productosActuales = ocupados;
+    vendorSession.productosActuales = realTotal;
     localStorage.setItem('vendor_session', JSON.stringify(vendorSession));
   }
   if (typeof renderVendorPlanPanel === 'function') renderVendorPlanPanel();
 
-  // Guardar en variable global para el filtro (aunque ahora se usa poco)
-  window._vendorProducts = myProducts;
+
+  window._vendorProducts = myProducts; 
   updateDonacionesBadge();
 
-  // Renderizar productos
   container.innerHTML = '';
   if (myProducts.length === 0) {
     container.innerHTML = `<p style="color:#aaa;text-align:center">No hay productos en esta página.</p>`;
@@ -628,11 +646,9 @@ function applyMyProducts(myProducts, container, total = null, currentPage = 1, t
     });
   }
 
-  // Aplicar layout (grid/lista)
   const savedLayout = localStorage.getItem('products_layout') || 'list';
   applyLayoutGlobal(savedLayout);
 
-  // Renderizar controles de paginación
   renderPagination(container, currentPage, totalPages, total);
 }
 
@@ -693,13 +709,12 @@ window.loadMyProducts = async function loadMyProducts(force = false, page = 1) {
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
+      // Pasamos el total real guardado en caché
       applyMyProducts(parsed.data, container, parsed.total, parsed.page, parsed.totalPages);
       // Revalidar en background
       fetchPage(uid, page, limit, status, true);
       return;
-    } catch (e) {
-      // Si falla el parse, continúa
-    }
+    } catch (e) {}
   }
 
   showVendorProductsSkeleton(container, Math.min(limit, 6));
@@ -724,20 +739,21 @@ async function fetchPage(uid, page, limit, status, background = false) {
     if (!data.ok) throw new Error(data.error);
 
     const myProducts = (data.products || []).filter(p => p.vendedor_uid === uid);
-    const total = data.total || myProducts.length;
+    const total = data.total || myProducts.length; // total REAL de productos del vendedor (sin paginar)
     const totalPages = data.totalPages || Math.ceil(total / limit);
 
-    // Guardar en caché para esta página/filtro
+    // Guardar en caché
     const cacheKey = `vendor_products_${uid}_page_${page}_status_${status}`;
     sessionStorage.setItem(cacheKey, JSON.stringify({
       data: myProducts,
-      total,
-      page,
-      totalPages,
+      total: total,
+      page: page,
+      totalPages: totalPages,
       timestamp: Date.now()
     }));
 
     if (!background) {
+      // Pasamos el total real a applyMyProducts
       applyMyProducts(myProducts, container, total, page, totalPages);
     }
   } catch (err) {
