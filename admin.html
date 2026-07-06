@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -383,7 +384,7 @@
  }
 
  .admin-cards-grid.admin-cards-grid-compact {
- grid-template-columns: repeat(auto-fill, minmax(190px, 240px));
+ grid-template-columns: repeat(3, 1fr);
  }
 
  @media (max-width: 640px) {
@@ -1543,9 +1544,9 @@
 
 <div id="upload-log" style="position:fixed; bottom:10px; right:10px; background:#333; color:#0f0; padding:8px 12px; border-radius:8px; font-size:12px; max-width:300px; z-index:9999; display:none;"></div>
 
- <section class="admin-section" id="admin-create-outer">
+ <section class="admin-section" id="admin-products-outer">
  <div class="admin-section-header">
- <h2><span class="ash-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true"><use href="#ic-plus"/></svg></span> Crear Producto</h2>
+ <h2><span class="ash-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true"><use href="#ic-plus"/></svg></span> Productos</h2>
  </div>
  <div class="admin-cards-grid admin-cards-grid-compact">
  <div class="admin-card grid-tile" id="admin-create-section">
@@ -1777,13 +1778,6 @@
 
  </div>
 
- </section>
-
- <section class="admin-section" id="admin-list-outer">
- <div class="admin-section-header">
- <h2><span class="ash-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true"><use href="#ic-catalog"/></svg></span> Lista de Productos</h2>
- </div>
- <div class="admin-cards-grid admin-cards-grid-compact">
  <div class="admin-card grid-tile" id="admin-list-section">
 
  <div class="admin-card-header tile-header" onclick="toggleGridTile('admin-list-section','list-products-body')">
