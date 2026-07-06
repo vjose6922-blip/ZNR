@@ -687,6 +687,9 @@ return;
 }
 localStorage.setItem("client_phone", cleanPhone);
 updateSavedPhoneDisplay();
+if (typeof window.solicitarPermisoNotificacionesSiFalta === 'function') {
+  window.solicitarPermisoNotificacionesSiFalta('cliente', cleanPhone);
+}
 const formatted = `${cleanPhone.slice(0,2)}-${cleanPhone.slice(2,6)}-${cleanPhone.slice(6)}`;
 showCustomAlert({
 title: " ¡Número actualizado!",
@@ -2176,9 +2179,9 @@ return;
 }
 localStorage.setItem("client_phone", clientPhone);
 updateSavedPhoneDisplay();
-}
 if (typeof window.solicitarPermisoNotificacionesSiFalta === 'function') {
   window.solicitarPermisoNotificacionesSiFalta('cliente', clientPhone);
+}
 }
 let clientAddress  = localStorage.getItem("client_address")  || "";
 let clientSchedule = localStorage.getItem("client_schedule") || "";
@@ -2298,9 +2301,9 @@ return;
 }
 localStorage.setItem("client_phone", clientPhone);
 updateSavedPhoneDisplay();
-}
 if (typeof window.solicitarPermisoNotificacionesSiFalta === 'function') {
   window.solicitarPermisoNotificacionesSiFalta('cliente', clientPhone);
+}
 }
 const byVendor = new Map();
 comunidadItems.forEach(item => {
@@ -2319,7 +2322,7 @@ const remaining  = vendors.length - 1;
 const { tel, nombre, logo, plan, vendorUid, items } = firstVendor;
 const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
 
-// Agrupar los artículos donados de este vendedor por beneficiario: ese dinero se paga directo a su cuenta, no al vendedor
+// Agrupar los artículos donados de este vendedor por beneficiario: ese dinero se paga directo a su cuenta, no al vendedor0000000000
 const donationGroups = new Map();
 items.forEach(item => {
 if (item._donacion && item._beneficiario && item._beneficiario.id) {
