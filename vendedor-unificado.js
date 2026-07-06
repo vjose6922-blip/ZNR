@@ -831,28 +831,32 @@ function renderPagination(container, currentPage, totalPages, total) {
   paginationDiv.id = 'vendor-pagination';
   paginationDiv.style.cssText = 'display:flex;justify-content:center;align-items:center;gap:12px;margin-top:20px;padding:12px 0;';
 
-  const prevBtn = document.createElement('button');
-  prevBtn.textContent = '‹ Anterior';
-  prevBtn.className = 'btn-secondary';
-  prevBtn.style.padding = '8px 16px';
-  prevBtn.disabled = currentPage <= 1;
-  prevBtn.onclick = () => loadMyProducts(true, currentPage - 1);
+  // Botón Anterior: solo si hay página anterior
+  if (currentPage > 1) {
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '‹ Anterior';
+    prevBtn.className = 'btn-secondary';
+    prevBtn.style.padding = '8px 16px';
+    prevBtn.onclick = () => loadMyProducts(true, currentPage - 1);
+    paginationDiv.appendChild(prevBtn);
+  }
 
+  // Indicador de página
   const pageInfo = document.createElement('span');
   pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
   pageInfo.style.fontSize = '14px';
   pageInfo.style.color = '#555';
-
-  const nextBtn = document.createElement('button');
-  nextBtn.textContent = 'Siguiente ›';
-  nextBtn.className = 'btn-secondary';
-  nextBtn.style.padding = '8px 16px';
-  nextBtn.disabled = currentPage >= totalPages;
-  nextBtn.onclick = () => loadMyProducts(true, currentPage + 1);
-
-  paginationDiv.appendChild(prevBtn);
   paginationDiv.appendChild(pageInfo);
-  paginationDiv.appendChild(nextBtn);
+
+  // Botón Siguiente: solo si hay página siguiente
+  if (currentPage < totalPages) {
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = 'Siguiente ›';
+    nextBtn.className = 'btn-secondary';
+    nextBtn.style.padding = '8px 16px';
+    nextBtn.onclick = () => loadMyProducts(true, currentPage + 1);
+    paginationDiv.appendChild(nextBtn);
+  }
 
   container.parentNode.insertBefore(paginationDiv, container.nextSibling);
 }
