@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -88,6 +89,8 @@
   .btn-entregado.active { background: #4ade80; color: #0a2e1a; }
   .btn-pendiente { background: rgba(251,191,36,.15); color: #fbbf24; }
   .btn-pendiente.active { background: #fbbf24; color: #3a2a04; }
+  .btn-avisar { background: rgba(59,130,246,.15); color: #60a5fa; }
+  .btn-avisar:disabled { opacity: .6; }
 
   .center-card { max-width: 480px; margin: 60px auto; padding: 0 20px; text-align: center; }
   .center-card .icon { font-size: 44px; margin-bottom: 12px; }
@@ -211,6 +214,7 @@
         <div class="estado-actions">
           <button class="btn-entregado ${estado === 'entregado' ? 'active' : ''}" data-action="entregado">✅ Entregado</button>
           <button class="btn-pendiente ${estado === 'pendiente' ? 'active' : ''}" data-action="pendiente">⏳ Pendiente</button>
+          <button class="btn-avisar" data-action="avisar">📍 Avisar llegada</button>
         </div>
       </div>`;
   }
@@ -228,9 +232,38 @@
     wrap.querySelectorAll('.entrega-card').forEach(card => {
       const key = card.dataset.key;
       card.querySelectorAll('.estado-actions button').forEach(btn => {
-        btn.addEventListener('click', () => toggleEstado(key, btn.dataset.action));
+        if (btn.dataset.action === 'avisar') {
+          btn.addEventListener('click', () => avisarLlegada(key, btn));
+        } else {
+          btn.addEventListener('click', () => toggleEstado(key, btn.dataset.action));
+        }
       });
     });
+  }
+
+  async function avisarLlegada(key, btn) {
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Enviando...';
+    try {
+      const resp = await apiFetch({
+        action: 'notificarLlegadaEntrega',
+        liveId,
+        compradorKey: key
+      }, 'POST');
+      if (!resp.ok) throw new Error(resp.error || 'No se pudo enviar el aviso');
+      if (resp.enviados > 0) {
+        btn.textContent = '✅ Avisado';
+      } else {
+        btn.textContent = '⚠️ Sin notificaciones';
+        alert('Este cliente no tiene notificaciones activadas. Contáctalo por WhatsApp o llamada.');
+      }
+    } catch (err) {
+      btn.textContent = '❌ Error';
+      alert('No se pudo avisar al cliente: ' + err.message);
+    } finally {
+      setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2500);
+    }
   }
 
   async function toggleEstado(key, nuevoEstado) {
