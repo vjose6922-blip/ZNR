@@ -92,6 +92,128 @@ window.apiCall = async function(data) {
 };
 
 
+function createVendorProductCard(product) {
+  const { id, nombre, precio, stock, descripcion, talla, categoria, imagen1, imagen2, imagen3, estado } = product;
+  const safeNombre = escapeHtml(nombre || "Producto");
+  const safeDescripcion = escapeHtml(descripcion || "");
+  const safeTalla = escapeHtml(talla || "Sin especificar");
+  const safeCategoria = escapeHtml(categoria || "");
+  const stockNum = Number(stock || 0);
+  const isOutOfStock = stockNum <= 0;
+
+  const card = document.createElement("article");
+  card.className = "product-card";
+  card.id = `producto-${id}`;
+
+  const slider = document.createElement("div");
+  slider.className = "product-slider";
+  slider.dataset.productId = id;
+
+  const track = document.createElement("div");
+  track.className = "product-slider-track";
+
+  const images = [imagen1, imagen2, imagen3]
+    .map(u => u ? (typeof optimizeDriveUrl === 'function' ? optimizeDriveUrl(u) : u) : null)
+    .filter(Boolean);
+  if (images.length === 0) {
+    images.push("https://placehold.co/400x400/3b1f5f/white?text=Sin+Imagen");
+  }
+
+  images.forEach((url) => {
+    const slide = document.createElement("div");
+    slide.className = "product-slide";
+    const img = document.createElement("img");
+    img.alt = safeNombre;
+    img.src = url;
+    img.loading = "lazy";
+    img.addEventListener("click", () => openImageModal(url, id, images, product));
+    slide.appendChild(img);
+    track.appendChild(slide);
+  });
+  slider.appendChild(track);
+
+  const dotsContainer = document.createElement("div");
+  dotsContainer.className = "slider-dots";
+  images.forEach((_, index) => {
+    const dot = document.createElement("div");
+    dot.className = "slider-dot" + (index === 0 ? " active" : "");
+    dot.dataset.index = index;
+    dotsContainer.appendChild(dot);
+  });
+  slider.appendChild(dotsContainer);
+
+  const badgeEl = document.createElement("div");
+  badgeEl.className = "product-badge";
+  badgeEl.textContent = estado || "Pendiente";
+  slider.appendChild(badgeEl);
+
+  const info = document.createElement("div");
+  info.className = "product-info";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "product-title-row";
+  const nameEl = document.createElement("h2");
+  nameEl.className = "product-name";
+  nameEl.textContent = safeNombre;
+  const priceEl = document.createElement("div");
+  priceEl.className = "product-price";
+  priceEl.textContent = formatCurrency(precio);
+  titleRow.appendChild(nameEl);
+  titleRow.appendChild(priceEl);
+
+  const metaRow = document.createElement("div");
+  metaRow.className = "product-meta-row";
+  if (safeCategoria) {
+    const categoryEl = document.createElement("span");
+    categoryEl.className = "category-badge";
+    categoryEl.textContent = safeCategoria;
+    metaRow.appendChild(categoryEl);
+  }
+  const stockEl = document.createElement("span");
+  stockEl.className = "stock-badge";
+  if (isOutOfStock) {
+    stockEl.classList.add("out-of-stock");
+    stockEl.textContent = " Sin stock";
+  } else {
+    stockEl.textContent = ` Stock: ${stockNum}`;
+  }
+  metaRow.appendChild(stockEl);
+
+  const descEl = document.createElement("p");
+  descEl.className = "product-description";
+  descEl.textContent = safeDescripcion || "Sin descripción";
+
+  const sizesEl = document.createElement("div");
+  sizesEl.className = "product-sizes";
+  sizesEl.textContent = safeTalla;
+
+  info.appendChild(titleRow);
+  info.appendChild(metaRow);
+  info.appendChild(descEl);
+  info.appendChild(sizesEl);
+
+  const actions = document.createElement("div");
+  actions.className = "product-actions";
+
+  const editBtn = document.createElement("button");
+  editBtn.className = "btn-secondary";
+  editBtn.innerHTML = 'Editar';
+  editBtn.onclick = () => editProduct(id);
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.className = "btn-secondary btn-danger";
+  deleteBtn.innerHTML = 'Eliminar';
+  deleteBtn.onclick = () => deleteMyProduct(id);
+
+  actions.appendChild(editBtn);
+  actions.appendChild(deleteBtn);
+
+  card.appendChild(slider);
+  card.appendChild(info);
+  card.appendChild(actions);
+  attachSliderEvents(slider, images.length);
+  return card;
+}
 
 
 window.debugPanel = {
