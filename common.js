@@ -201,7 +201,7 @@ const FILTER_OPTIONS_CACHE_KEY = 'zr_filter_options_cache';
 const FILTER_OPTIONS_TTL = 60 * 60 * 1000; // 1 hora
 
 async function fetchFilterOptions(force = false) {
-  // 1. Intentar cargar desde localStorage (para modo offline y velocidad)
+  // 1. Intentar cargar desde localStorage (para modo offline y000000000000
   if (!force) {
     try {
       const cached = localStorage.getItem(FILTER_OPTIONS_CACHE_KEY);
