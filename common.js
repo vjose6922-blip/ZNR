@@ -2180,6 +2180,9 @@ return;
 localStorage.setItem("client_phone", clientPhone);
 updateSavedPhoneDisplay();
 }
+if (typeof window.solicitarPermisoNotificacionesSiFalta === 'function') {
+  window.solicitarPermisoNotificacionesSiFalta('cliente', clientPhone);
+}
 let clientAddress  = localStorage.getItem("client_address")  || "";
 let clientSchedule = localStorage.getItem("client_schedule") || "";
 const hasShipping  = znrItems.some(i => hasFreeShipping(i.price));
@@ -2298,6 +2301,9 @@ return;
 }
 localStorage.setItem("client_phone", clientPhone);
 updateSavedPhoneDisplay();
+}
+if (typeof window.solicitarPermisoNotificacionesSiFalta === 'function') {
+  window.solicitarPermisoNotificacionesSiFalta('cliente', clientPhone);
 }
 const byVendor = new Map();
 comunidadItems.forEach(item => {
