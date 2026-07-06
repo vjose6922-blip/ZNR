@@ -1032,7 +1032,16 @@ function openImageModal(url, productId = null, allImages = [], productData = nul
 const modal  = document.getElementById("image-modal");
 const overlay = document.getElementById("overlay");
 if (!modal) return;
-_modalImages  = [url, ...allImages.filter(u => u && u !== url)];
+const BIG_SIZE = 1200; // o 1600 si quieres aún más nitidez
+function getBigUrl(u) {
+  if (!u) return u;
+  // optimizeDriveUrl extrae el ID y construye una nueva URL con el tamaño deseado
+  return optimizeDriveUrl(u, BIG_SIZE);
+}
+_modalImages = [
+  getBigUrl(url),
+  ...allImages.filter(u => u && u !== url).map(u => getBigUrl(u))
+];
 _modalIndex  = 0;
 _modalProduct = productData;
 initImageModalControls();
