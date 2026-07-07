@@ -182,7 +182,7 @@ img.src = imageUrl;
 } else {
 applyFallbackBackground(looksNav);
 }
-}
+
 function applyFallbackBackground(looksNav) {
 looksNav.style.backgroundImage = 'none';
 looksNav.classList.add('fallback-bg');
