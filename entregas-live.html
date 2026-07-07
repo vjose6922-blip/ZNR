@@ -204,8 +204,8 @@
           <h2>${esc(g.compradorNombre)}</h2>
           ${g.compradorTelefono ? `
             <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-              <a class="tel-link" href="tel:${g.compradorTelefono}">📞 ${esc(g.compradorTelefono)}</a>
-              <a class="tel-link" href="https://wa.me/${encodeURIComponent(g.compradorTelefono.replace(/[\s()-]/g, ''))}" target="_blank" rel="noopener">💬 WhatsApp</a>
+              <a class="tel-link" href="tel:${String(g.compradorTelefono)}">📞 ${esc(String(g.compradorTelefono))}</a>
+              <a class="tel-link" href="https://wa.me/${encodeURIComponent(String(g.compradorTelefono).replace(/[\s()-]/g, ''))}" target="_blank" rel="noopener">💬 WhatsApp</a>
             </div>
           ` : ''}
         </div>
