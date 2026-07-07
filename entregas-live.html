@@ -231,7 +231,7 @@
 
     wrap.innerHTML = renderResumen() +
       entrega.grupos.map(g => renderGrupo(g)).join('') +
-      `<p class="local-note">El estado se guarda en línea: lo que marques aquí lo va a ver el vendedor desde su panel.</p>`;
+      `<p class="local-note">Lo que marques aquí lo va a ver el vendedor desde su panel.</p>`;
 
     document.getElementById('btn-refrescar').addEventListener('click', cargar);
 
