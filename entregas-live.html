@@ -169,7 +169,7 @@
         <h2>No pudimos cargar esta entrega</h2>
         <p>${esc(msg || 'Pide al vendedor que te comparta el link de nuevo.')}</p>
       </div>`;
-}
+  }
 
   function mapsUrl(g) {
     if (typeof g.lat === 'number' && typeof g.lng === 'number') {
@@ -203,8 +203,8 @@
           <h2>${esc(g.compradorNombre)}</h2>
           ${g.compradorTelefono ? `
             <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-              <a class="tel-link" href="tel:${String(g.compradorTelefono)}">📞 ${esc(String(g.compradorTelefono))}</a>
-              <a class="tel-link" href="https://wa.me/${encodeURIComponent(String(g.compradorTelefono).replace(/[\s()-]/g, ''))}" target="_blank" rel="noopener">💬 WhatsApp</a>
+              <a class="tel-link" href="tel:${g.compradorTelefono}">📞 ${esc(g.compradorTelefono)}</a>
+              <a class="tel-link" href="https://wa.me/${encodeURIComponent(g.compradorTelefono.replace(/[\s()-]/g, ''))}" target="_blank" rel="noopener">💬 WhatsApp</a>
             </div>
           ` : ''}
         </div>
@@ -295,18 +295,18 @@
     }
   }
 
-async function cargar() {
+  async function cargar() {
     if (!liveId) { renderInvalido('Este link no trae identificador de transmisión.'); return; }
     wrap.innerHTML = '<div class="loading-spinner"></div>';
     try {
-        const resp = await apiFetch({ action: 'obtenerEntregasLive', liveId });
-        if (!resp.ok) { renderInvalido(resp.error || 'Error al cargar los datos'); return; }
-        entrega = resp;
-        render();
+      const resp = await apiFetch({ action: 'obtenerEntregasLive', liveId });
+      if (!resp.ok) { renderInvalido(resp.error); return; }
+      entrega = resp;
+      render();
     } catch (err) {
-        renderInvalido('Hubo un problema de conexión.');
+      renderInvalido('Hubo un problema de conexión.');
     }
-}
+  }
 
   cargar();
 })();
