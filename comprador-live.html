@@ -7,7 +7,7 @@
  script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.youtube.com https://s.ytimg.com https://*.firebaseio.com;
  style-src 'self' 'unsafe-inline';
  img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com https://i.ytimg.com;
- connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in https://www.gstatic.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://firebase.googleapis.com https://znr-live-default-rtdb.firebaseio.com wss://znr-live-default-rtdb.firebaseio.com https://*.firebaseio.com wss://*.firebaseio.com https://nominatim.openstreetmap.org;
+ connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in https://www.gstatic.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://firebase.googleapis.com https://znr-live-default-rtdb.firebaseio.com wss://znr-live-default-rtdb.firebaseio.com https://*.firebaseio.com wss://*.firebaseio.com https://nominatim.openstreetmap.org;
  font-src 'self';
  frame-src https://www.youtube-nocookie.com https://www.youtube.com;
  frame-ancestors 'none';
@@ -27,16 +27,6 @@
 <script src="api-config.js"></script>
 <style>
   .live-wrap { max-width: 640px; margin: 0 auto; padding: 0 0 40px; }
-
-  /* El header es contenido normal: se va con el scroll. El video se
-     "pega" arriba usando JS (position:fixed + un ancla que reserva su
-     espacio), no CSS sticky — así funciona aunque algún estilo global
-     de styles.css (p.ej. overflow-x:hidden en html/body) rompa el
-     sticky nativo, que es justo lo que estaba pasando.
-     IMPORTANTE: el video vive con position:absolute DENTRO del ancla
-     (nunca contribuye al alto del ancla por flujo normal). El ancla
-     tiene su propio alto (CSS de respaldo + congelado por JS), así
-     que nunca se colapsa cuando el video pasa a fixed. */
   .video-anchor { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
   .video-anchor.vertical { height: 56vh; max-height: 520px; aspect-ratio: unset; }
   .video-box { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; z-index: 20; }
