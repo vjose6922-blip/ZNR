@@ -399,19 +399,14 @@ async function certificarVendedorEnLive(liveId) {
   if (liveIdsCertificados.has(liveId)) return true;
 
   try {
-    // Espera a que authReady se resuelva (o falle)
     await authReady;
   } catch (authErr) {
-    // 👇 Muestra el error completo en consola
     console.error('❌ authReady falló:', authErr);
-    console.error('Mensaje:', authErr.message);
-    console.error('Stack:', authErr.stack);
     return false;
   }
 
-  // Si llegamos aquí, authUid debería estar definido
   if (!authUid) {
-    console.error('❌ authUid no definido después de authReady');
+    console.error('❌ authUid no definido');
     return false;
   }
 
@@ -423,14 +418,16 @@ async function certificarVendedorEnLive(liveId) {
       uid: authUid
     });
 
+    console.log('📦 Respuesta completa del servidor:', resp); // 👈 Agrega esto
+
     if (resp.ok) {
       liveIdsCertificados.add(liveId);
       return true;
     }
-    console.error('❌ certificarVendedorLive API falló:', resp.error);
+    console.error('❌ certificarVendedorLive API falló:', resp);
     return false;
   } catch (err) {
-    console.error('❌ Error en apiFetch certificarVendedorLive:', err);
+    console.error('❌ Error en apiFetch:', err);
     return false;
   }
 }
