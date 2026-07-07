@@ -163,10 +163,8 @@ console.log('Usando imagen por defecto');
 return getImageUrl(fileId, 400);
 }
 function updateLooksNavBackground(imageUrl) {
-const looksNav = document.getElementById('looks-nav-bg');
-if (!looksNav) {
-console.warn('No se encontro #looks-nav-bg');
-return;
+  const looksNav = document.getElementById('looks-nav-bg');
+  if (!looksNav) return;
 }
 if (imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined') {
 const img = new Image();
@@ -190,11 +188,8 @@ looksNav.style.backgroundImage = 'none';
 looksNav.classList.add('fallback-bg');
 }
 function updateWeatherWidgetUI(classified) {
-console.log(' Actualizando widget con:', classified);
-const widget = document.getElementById('weather-widget');
-if (!widget) {
-console.error(' No se encontró el widget');
-return;
+  const widget = document.getElementById('weather-widget');
+  if (!widget) return;
 }
 const temp = Math.round(classified.temperature);
 let icon = '';
