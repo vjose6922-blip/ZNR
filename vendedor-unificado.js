@@ -1,4 +1,3 @@
-
 (function() {
 'use strict';
 
@@ -2492,4 +2491,10 @@ async function loadBeneficiarioDonaciones() {
               <div style="font-size:.8rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(d.producto_nombre||d.producto_id)}</div>
               <div style="font-size:.72rem;color:#888;">De: ${esc(d.vendedor_nombre)}</div>
             </div>
-            <span style="font-size:.7rem;padding:2px 7px;border-radius:20px;background:#dcfce7;color:#166534;font-weight:700;flex-shrink:0;
+            <span style="font-size:.7rem;padding:2px 7px;border-radius:20px;background:#dcfce7;color:#166534;font-weight:700;flex-shrink:0;">Activa</span>
+          </div>`).join('')}
+    </div>`;
+  } catch(e) { area.style.display = 'none'; }
+}
+
+})(); // fin IIFE
