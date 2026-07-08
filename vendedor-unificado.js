@@ -317,6 +317,7 @@ if (!res.ok) throw new Error();
 vendorSession = {
 token: res.token,
 uid: res.uid,
+telefono: firstField,
 nombre: res.nombre,
 confiable: res.confiable,
 plan: res.plan || 'free',
