@@ -1,3 +1,4 @@
+
 (function() {
 'use strict';
 
@@ -203,6 +204,15 @@ if (registerTab) registerTab.click();
 
 if (!document.getElementById('login-section') && !document.getElementById('panel-section')) return;
 
+// 🆕 Si ya tiene un teléfono guardado como comprador (lo aceptó en el
+// carrito al hacer una compra), lo prellenamos en el login de vendedor
+// para que use el mismo número y no tenga que volver a escribirlo.
+const loginPhoneInput = document.getElementById('login-phone');
+if (loginPhoneInput && !loginPhoneInput.value) {
+  const savedClientPhone = localStorage.getItem('client_phone');
+  if (savedClientPhone) loginPhoneInput.value = savedClientPhone;
+}
+
 let uploadedImages = { 1: null, 2: null, 3: null };
 let selectedFiles = { 1: null, 2: null, 3: null };
 
@@ -335,6 +345,12 @@ tiktok: res.tiktok || '',
 fechaRegistro: res.fechaRegistro || ''
 };
 localStorage.setItem('vendor_session', JSON.stringify(vendorSession));
+
+// 🆕 El teléfono con el que acaba de iniciar sesión como vendedor pasa a
+// ser también el que se usa para comprar (carrito/checkout), sin importar
+// si ya tenía otro guardado o si es la primera vez.
+localStorage.setItem('client_phone', firstField);
+if (typeof updateSavedPhoneDisplay === 'function') updateSavedPhoneDisplay();
 } catch (_) {
 showTemporaryMessage('Credenciales incorrectas', 'error');
 hideLoader();
@@ -2476,10 +2492,4 @@ async function loadBeneficiarioDonaciones() {
               <div style="font-size:.8rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(d.producto_nombre||d.producto_id)}</div>
               <div style="font-size:.72rem;color:#888;">De: ${esc(d.vendedor_nombre)}</div>
             </div>
-            <span style="font-size:.7rem;padding:2px 7px;border-radius:20px;background:#dcfce7;color:#166534;font-weight:700;flex-shrink:0;">Activa</span>
-          </div>`).join('')}
-    </div>`;
-  } catch(e) { area.style.display = 'none'; }
-}
-
-})(); // fin IIFE
+            <span style="font-size:.7rem;padding:2px 7px;border-radius:20px;background:#dcfce7;color:#166534;font-weight:700;flex-shrink:0;
