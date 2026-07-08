@@ -775,5 +775,15 @@
  if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'flex' : 'none'; }
  });
  </script>
+
+
+<div style="position:fixed;top:0;left:0;right:0;background:red;color:white;padding:20px;z-index:999999;font-size:16px;text-align:center;">
+  client_phone = <span id="debug-phone"></span>
+</div>
+<script>
+  document.getElementById('debug-phone').textContent = localStorage.getItem('client_phone') || 'NO ENCONTRADO';
+</script>
+
+ 
 </body>
  </html>
