@@ -991,9 +991,9 @@ if (requestBtn) {
 if (_znrCount > 0 && _commCount > 0) {
 requestBtn.textContent = " Enviar pedidos (Z&R + Comunidad)";
 } else if (_commCount > 0 && _znrCount === 0) {
-requestBtn.textContent = " Contactar vendedor(es) por WhatsApp";
+requestBtn.textContent = " Contactar vendedor(es)";
 } else {
-requestBtn.textContent = " Solicitar por WhatsApp";
+requestBtn.textContent = " Solicitar compra";
 }
 }
 _refreshDeliveryBlock();
