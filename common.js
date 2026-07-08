@@ -2244,8 +2244,10 @@ requestId, timestamp: Date.now(), status: 'pendiente', total,
 items: znrItems.map(i => ({ name: i.name, quantity: i.quantity, price: i.price }))
 });
 }
-const whatsappAdminUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(adminMessage)}`;
-window.open(whatsappAdminUrl, '_blank');
+// El administrador ya recibe una notificación push automática (ver más abajo,
+// action: "createNotification"). Ya NO abrimos WhatsApp en paralelo aquí:
+// WhatsApp queda como respaldo y solo se ofrece si el push no llega
+// (eso lo maneja el propio backend / centro de notificaciones).
 try {
 await fetch(API_URL, {
 method: "POST",
@@ -2268,7 +2270,7 @@ saveCartToStorage();
 updateCartBadge();
 renderCart();
 showTemporaryMessage(
-` ¡Solicitud Z&R enviada! Recibirás el link de pago por WhatsApp cuando el administrador confirme.`,
+` ¡Solicitud Z&R enviada! Te notificaremos en cuanto el administrador confirme tu pedido.`,
 "success"
 );
 } catch(err) {
@@ -2381,26 +2383,16 @@ msg += "\n";
 msg += "_Pedido realizado a través de Z&R Comunidad_";
 const destTel = tel ? `52${tel}` : "";
 const waUrl  = destTel ? `https://wa.me/${destTel}?text=${encodeURIComponent(msg)}` : null;
-const didOpen = await _showVendorCheckoutModal({ nombre, logo, plan, subtotal, items, waUrl, remaining, donationList });
-if (didOpen) {
-// Avisamos al vendedor para que confirme la venta y se descuente el stock.
-// No bloquea el flujo: si falla, la compra sigue igual.
-if (vendorUid && window.API_URL) {
+const requestId = generateRequestId();
 const notifItems = items.map(i => ({
 productId: i.id, nombre: i.name, cantidad: i.quantity,
 talla: i.Talla || '', precio: i.price || 0, imagen: i.Imagen1 || ''
 }));
-fetch(window.API_URL, {
-method: "POST",
-body: JSON.stringify({
-action: "crearNotificacionVentaComunidad",
-vendor_uid: vendorUid,
-requestId: generateRequestId(),
-clientPhone: localStorage.getItem("client_phone") || "",
-items: notifItems
-})
-}).catch(err => console.error("No se pudo notificar al vendedor:", err));
-}
+const didOpen = await _showVendorCheckoutModal({
+nombre, logo, plan, subtotal, items, waUrl, remaining, donationList,
+vendorUid, requestId, notifItems, clientPhone: localStorage.getItem("client_phone") || ""
+});
+if (didOpen) {
 items.forEach(i => delete localCart[i.id]);
 saveCartToStorage();
 updateCartBadge();
@@ -2417,7 +2409,7 @@ await _checkoutComunidad(nextItems);
 }
 }
 }
-function _showVendorCheckoutModal({ nombre, logo, plan, subtotal, items, waUrl, remaining, donationList = [] }) {
+function _showVendorCheckoutModal({ nombre, logo, plan, subtotal, items, waUrl, remaining, donationList = [], vendorUid, requestId, notifItems, clientPhone }) {
 return new Promise(resolve => {
 const old = document.getElementById('vendor-checkout-modal');
 if (old) old.remove();
@@ -2495,21 +2487,21 @@ ${donationHtml}
 ? 'El vendedor solo coordinará contigo la entrega; el pago va directo al beneficiario.'
 : hasDonations
 ? 'El vendedor coordinará la entrega y el pago de lo que no es donativo; lo donado se paga directo al beneficiario.'
-: 'El vendedor coordinará contigo el método de pago directamente por WhatsApp.'}
+: 'El vendedor coordinará contigo el método de pago y la entrega.'}
 </p>
 ${remainingNote}
+<div id="vcm-status" style="display:none;padding:12px 14px;border-radius:14px;font-size:12.5px;text-align:center;line-height:1.5;margin-top:14px;"></div>
 <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
-${waUrl
-? `<a href="${escapeHtml(waUrl)}" target="_blank" rel="noopener"
-id="vcm-wa-btn"
+${vendorUid || waUrl
+? `<button id="vcm-send-btn"
 style="display:flex;align-items:center;justify-content:center;gap:10px;
-padding:15px;border-radius:16px;
-background:linear-gradient(135deg,#25d366,#128c7e);
+padding:15px;border-radius:16px;border:none;
+background:linear-gradient(135deg,#ff4f81,#7c3aed);
 color:#fff;font-size:15px;font-weight:700;
-text-decoration:none;-webkit-tap-highlight-color:transparent">
-<span style="font-size:22px"></span>Contactar a ${escapeHtml(nombre)}
-</a>`
-: `<div style="padding:14px;border-radius:16px;background:rgba(239,68,68,.12);color:#ef4444;text-align:center;font-size:13px;line-height:1.5">Este vendedor no tiene número registrado.<br>Búscalo directamente en la sección Comunidad.
+cursor:pointer;-webkit-tap-highlight-color:transparent">
+<span style="font-size:20px">🔔</span>Enviar pedido a ${escapeHtml(nombre)}
+</button>`
+: `<div style="padding:14px;border-radius:16px;background:rgba(239,68,68,.12);color:#ef4444;text-align:center;font-size:13px;line-height:1.5">Este vendedor no tiene forma de contacto registrada.<br>Búscalo directamente en la sección Comunidad.
 </div>`
 }
 <button id="vcm-back-btn"
@@ -2535,10 +2527,62 @@ showTemporaryMessage(cuenta, 'info');
 }
 });
 });
-const waBtn = modal.querySelector('#vcm-wa-btn');
-if (waBtn) {
-waBtn.addEventListener('click', () => {
-setTimeout(() => { modal.remove(); resolve(true); }, 350);
+const statusBox = modal.querySelector('#vcm-status');
+const showStatus = (text, kind) => {
+if (!statusBox) return;
+const colors = {
+success: { bg: 'rgba(34,197,94,.12)', fg: '#22c55e' },
+info:  { bg: 'rgba(255,255,255,.06)', fg: '#ccc' },
+error: { bg: 'rgba(239,68,68,.12)', fg: '#ef4444' }
+};
+const c = colors[kind] || colors.info;
+statusBox.style.display = 'block';
+statusBox.style.background = c.bg;
+statusBox.style.color = c.fg;
+statusBox.textContent = text;
+};
+const sendBtn = modal.querySelector('#vcm-send-btn');
+if (sendBtn) {
+sendBtn.addEventListener('click', async () => {
+sendBtn.disabled = true;
+sendBtn.style.opacity = '.7';
+sendBtn.textContent = 'Enviando notificación…';
+let enviados = 0;
+let ok = false;
+try {
+if (vendorUid && window.API_URL) {
+const res = await fetch(window.API_URL, {
+method: "POST",
+body: JSON.stringify({
+action: "crearNotificacionVentaComunidad",
+vendor_uid: vendorUid,
+requestId: requestId,
+clientPhone: clientPhone || "",
+items: notifItems
+})
+});
+const data = await res.json();
+ok = !!(data && data.ok);
+enviados = (data && data.enviados) || 0;
+}
+} catch (err) {
+console.error("No se pudo notificar al vendedor:", err);
+}
+if (ok && enviados > 0) {
+// Push entregado: WhatsApp NO se usa, es solo respaldo.
+showStatus(` Notificamos a ${nombre}. Te avisaremos aquí mismo en cuanto confirme.`, 'success');
+setTimeout(() => { modal.remove(); resolve(true); }, 1200);
+} else if (waUrl) {
+// Respaldo: el push no llegó a ningún dispositivo del vendedor.
+showStatus(' No pudimos notificar a este vendedor por la app, así que se abrirá WhatsApp para contactarlo directo.', 'info');
+window.open(waUrl, '_blank');
+setTimeout(() => { modal.remove(); resolve(true); }, 900);
+} else {
+showStatus(' No pudimos notificar a este vendedor. Intenta de nuevo más tarde o búscalo en Comunidad.', 'error');
+sendBtn.disabled = false;
+sendBtn.style.opacity = '1';
+sendBtn.textContent = `🔔 Enviar pedido a ${nombre}`;
+}
 });
 }
 modal.querySelector('#vcm-back-btn').addEventListener('click', () => {

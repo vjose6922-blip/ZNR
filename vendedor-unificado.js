@@ -452,27 +452,36 @@ container.id = 'vendor-sale-notifications';
 panel.insertAdjacentElement('afterend', container);
 }
 const esc2 = window.escapeHtml || (s => String(s == null ? '' : s));
-container.innerHTML = list.map(n => `
-<div class="vsn-card" data-req="${esc2(n.requestId)}" style="background:#fff8e1;border:1.5px solid #f5cf6b;border-radius:14px;padding:12px 14px;margin-top:10px;">
-<div style="font-size:13px;font-weight:700;color:#92702a;margin-bottom:6px;"> Tienes una venta por confirmar</div>
+container.innerHTML = list.map(n => {
+const esConfirmada = n.estado === 'confirmada';
+return `
+<div class="vsn-card" data-req="${esc2(n.requestId)}" data-estado="${esc2(n.estado || 'pendiente')}" style="background:${esConfirmada ? '#eafaf0' : '#fff8e1'};border:1.5px solid ${esConfirmada ? '#7cd9a0' : '#f5cf6b'};border-radius:14px;padding:12px 14px;margin-top:10px;">
+<div style="font-size:13px;font-weight:700;color:${esConfirmada ? '#15803d' : '#92702a'};margin-bottom:6px;">${esConfirmada ? ' Confirmada · pendiente de entregar' : ' Tienes una venta por confirmar'}</div>
 ${(n.items || []).map(it => `
-<div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:#5c4a1f;padding:2px 0;">
+<div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:${esConfirmada ? '#2f6b48' : '#5c4a1f'};padding:2px 0;">
 <span>${esc2(it.nombre)}${it.talla ? ' · ' + esc2(it.talla) : ''} × ${esc2(it.cantidad)}</span>
 <span>$${Number(it.precio || 0).toLocaleString()}</span>
 </div>
 `).join('')}
-${n.clientPhone ? `<div style="font-size:12px;color:#8a7238;margin-top:4px;">Cliente: +52 ${esc2(n.clientPhone)}</div>` : ''}
+${n.clientPhone ? `<div style="font-size:12px;color:${esConfirmada ? '#4d8064' : '#8a7238'};margin-top:4px;">Cliente: +52 ${esc2(n.clientPhone)}</div>` : ''}
 <div style="display:flex;gap:8px;margin-top:10px;">
-<button class="vsn-confirm-btn" style="flex:1;padding:8px;border:none;border-radius:10px;background:#16a34a;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;">Confirmar venta</button>
-<button class="vsn-nostock-btn" style="flex:1;padding:8px;border:none;border-radius:10px;background:#fff;border:1.5px solid #dc2626;color:#dc2626;font-size:12.5px;font-weight:700;cursor:pointer;">Sin stock</button>
+${esConfirmada
+? `<button class="vsn-delivered-btn" style="flex:1;padding:8px;border:none;border-radius:10px;background:#16a34a;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;">📬 Marcar como entregado</button>`
+: `<button class="vsn-confirm-btn" style="flex:1;padding:8px;border:none;border-radius:10px;background:#16a34a;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;">Confirmar (sí hay stock)</button>
+<button class="vsn-nostock-btn" style="flex:1;padding:8px;border:none;border-radius:10px;background:#fff;border:1.5px solid #dc2626;color:#dc2626;font-size:12.5px;font-weight:700;cursor:pointer;">Sin stock</button>`}
 </div>
+${esConfirmada ? `<div style="font-size:11px;color:#4d8064;margin-top:6px;">El stock se descuenta hasta que marques la entrega.</div>` : ''}
 </div>
-`).join('');
+`;
+}).join('');
 container.querySelectorAll('.vsn-confirm-btn').forEach(btn => {
 btn.addEventListener('click', () => resolveVendorSaleNotification(btn.closest('.vsn-card').dataset.req, 'confirmar', btn));
 });
 container.querySelectorAll('.vsn-nostock-btn').forEach(btn => {
 btn.addEventListener('click', () => resolveVendorSaleNotification(btn.closest('.vsn-card').dataset.req, 'sin_stock', btn));
+});
+container.querySelectorAll('.vsn-delivered-btn').forEach(btn => {
+btn.addEventListener('click', () => resolveVendorSaleNotification(btn.closest('.vsn-card').dataset.req, 'entregado', btn));
 });
 }
 
@@ -481,7 +490,12 @@ if (btn) btn.disabled = true;
 try {
 const data = await apiCall({ action: 'resolverNotificacionVentaComunidad', vendorToken: vendorSession.token, requestId, accion });
 if (data && data.ok) {
-window.showTemporaryMessage?.(accion === 'confirmar' ? ' Venta confirmada, stock actualizado' : 'Marcado sin stock', 'success');
+const mensajes = {
+confirmar: ' Stock confirmado. El comprador ya puede pagar.',
+sin_stock: 'Marcado sin stock',
+entregado: ' ¡Entrega marcada! Se descontó el stock.'
+};
+window.showTemporaryMessage?.(mensajes[accion] || 'Actualizado', 'success');
 loadVendorSaleNotifications();
 loadMyProducts();
 } else {
