@@ -1,4 +1,3 @@
-
 (function() {
 const COMUNIDAD_CACHE_KEY = 'zr_comunidad_data';
 const COMUNIDAD_CACHE_TTL_SESSION = 5 * 60 * 1000;
@@ -168,16 +167,7 @@ function safeString(value) {
 return (value != null) ? String(value) : '';
 }
 
-async function fetchWithRetry(fn, maxAttempts = 3, delays = [2000, 5000, 10000]) {
-for (let attempt = 0; attempt < maxAttempts; attempt++) {
-try {
-return await fn();
-} catch(err) {
-if (attempt === maxAttempts - 1) throw err;
-await new Promise(r => setTimeout(r, delays[attempt]));
-}
-}
-}
+// fetchWithRetry ahora vive en common.js (se carga antes que este archivo).
 function showSkeletonComunidad(container, count = 6) {
 const cards = Array.from({length: count}, () => `
 <div class="skeleton-product-card">
