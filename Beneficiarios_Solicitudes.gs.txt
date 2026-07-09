@@ -1,0 +1,284 @@
+// ============================================================
+// SOLICITUDES DE EDICIÓN / ELIMINACIÓN DE BENEFICIARIOS
+// ============================================================
+// Pega TODO este archivo como un archivo nuevo en tu proyecto de
+// Apps Script, por ejemplo: Beneficiarios_Solicitudes.gs
+//
+// Ya ajustado a tu Code.gs real: usa jsonResponse(), TOKEN,
+// authenticateVendor(), getBeneficiariosSheet(), getVendorsSheet(),
+// crearNotificacionCentro() y tu función eliminarBeneficiario()
+// ya existente (para aplicar las eliminaciones aprobadas).
+//
+// ── PASO OBLIGATORIO 1: agrega esta línea dentro de tu doGet,
+// junto a las demás "if (action === ...)":
+//
+//   if (action === "obtenerSolicitudesBeneficiario") return obtenerSolicitudesBeneficiario(e);
+//
+// ── PASO OBLIGATORIO 2: agrega estas líneas dentro del switch(action)
+// de tu doPost, junto a los demás "case":
+//
+//   case "solicitarEdicionBeneficiario":     result = solicitarEdicionBeneficiario(data); break;
+//   case "solicitarEliminacionBeneficiario":  result = solicitarEliminacionBeneficiario(data); break;
+//   case "aprobarSolicitudBeneficiario":      result = aprobarSolicitudBeneficiario(data); break;
+//   case "rechazarSolicitudBeneficiario":     result = rechazarSolicitudBeneficiario(data); break;
+//
+// No toca la hoja "Beneficiarios" existente más que para: (a) escribir
+// los campos editados cuando el admin aprueba una edición, y (b) llamar
+// a tu función eliminarBeneficiario() ya existente cuando aprueba una
+// eliminación. Crea su propia hoja nueva "SolicitudesBeneficiario".
+// ============================================================
+
+var SOLICITUDES_BEN_SHEET = 'SolicitudesBeneficiario';
+
+function getSolicitudesBeneficiarioSheet() {
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName(SOLICITUDES_BEN_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(SOLICITUDES_BEN_SHEET);
+    sheet.appendRow(['id','id_beneficiario','vendor_uid','tipo','estado','fecha',
+      'nombre','organizacion','ubicacion','facebook','historia','cuenta_bancaria','telefono',
+      'imagen1','imagen2','imagen3']);
+    Logger.log('✅ Hoja SolicitudesBeneficiario creada');
+  }
+  return sheet;
+}
+
+// Busca el beneficiario por id y valida que pertenezca a este vendor.
+// Devuelve el objeto del beneficiario (con _row) o null.
+function _getMiBeneficiarioAprobado(idBeneficiario, vendorUid) {
+  var sheet   = getBeneficiariosSheet();
+  var rows    = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var idIdx   = headers.indexOf('id');
+  var vIdx    = headers.indexOf('vendor_uid');
+  var eIdx    = headers.indexOf('estado');
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIdx]) === String(idBeneficiario)) {
+      if (rows[i][vIdx] !== vendorUid) return { _error: 'No tienes permiso sobre este beneficiario' };
+      if (rows[i][eIdx] !== 'aprobado') return { _error: 'Este beneficiario no está aprobado todavía' };
+      var obj = { _row: i + 1 };
+      headers.forEach(function(h, idx) { obj[h] = rows[i][idx]; });
+      return obj;
+    }
+  }
+  return null;
+}
+
+// ── Vendedor: solicitar EDICIÓN de su fundación ya aprobada ──
+function solicitarEdicionBeneficiario(data) {
+  try {
+    var vendor = authenticateVendor(data.vendorToken);
+    if (!vendor) return jsonResponse({ ok: false, error: 'No autorizado' });
+    if (!data.id_beneficiario) return jsonResponse({ ok: false, error: 'Falta id_beneficiario' });
+
+    var ben = _getMiBeneficiarioAprobado(data.id_beneficiario, vendor.uid);
+    if (!ben) return jsonResponse({ ok: false, error: 'Beneficiario no encontrado' });
+    if (ben._error) return jsonResponse({ ok: false, error: ben._error });
+
+    var sheet = getSolicitudesBeneficiarioSheet();
+    var id = Utilities.getUuid();
+    sheet.appendRow([
+      id, data.id_beneficiario, vendor.uid, 'editar', 'pendiente', new Date(),
+      data.nombre || '', data.organizacion || '', data.ubicacion || '', data.facebook || '',
+      data.historia || '', data.cuenta_bancaria || '', data.telefono || '',
+      data.imagen1 || '', data.imagen2 || '', data.imagen3 || ''
+    ]);
+
+    Logger.log('✏️ Solicitud de edición de beneficiario: ' + data.id_beneficiario + ' por ' + vendor.nombre);
+    try {
+      enviarPushA('admin', '✏️ Edición de fundación pendiente',
+        vendor.nombre + ' quiere editar su fundación "' + (ben.nombre || '') + '". Revisa el panel.',
+        'https://vjose6922-blip.github.io/ZNR/notificaciones.html#beneficiarios');
+    } catch (e) { Logger.log('No se pudo avisar al admin: ' + e.toString()); }
+
+    return jsonResponse({ ok: true, id: id });
+  } catch (err) {
+    Logger.log('Error solicitarEdicionBeneficiario: ' + err.toString());
+    return jsonResponse({ ok: false, error: err.toString() });
+  }
+}
+
+// ── Vendedor: solicitar ELIMINACIÓN de su fundación ──
+function solicitarEliminacionBeneficiario(data) {
+  try {
+    var vendor = authenticateVendor(data.vendorToken);
+    if (!vendor) return jsonResponse({ ok: false, error: 'No autorizado' });
+    if (!data.id_beneficiario) return jsonResponse({ ok: false, error: 'Falta id_beneficiario' });
+
+    var ben = _getMiBeneficiarioAprobado(data.id_beneficiario, vendor.uid);
+    if (!ben) return jsonResponse({ ok: false, error: 'Beneficiario no encontrado' });
+    if (ben._error) return jsonResponse({ ok: false, error: ben._error });
+
+    var sheet = getSolicitudesBeneficiarioSheet();
+    var id = Utilities.getUuid();
+    sheet.appendRow([id, data.id_beneficiario, vendor.uid, 'eliminar', 'pendiente', new Date(),
+      '', '', '', '', '', '', '', '', '', '']);
+
+    Logger.log('🗑️ Solicitud de eliminación de beneficiario: ' + data.id_beneficiario + ' por ' + vendor.nombre);
+    try {
+      enviarPushA('admin', '🗑️ Eliminación de fundación pendiente',
+        vendor.nombre + ' quiere eliminar su fundación "' + (ben.nombre || '') + '". Revisa el panel.',
+        'https://vjose6922-blip.github.io/ZNR/notificaciones.html#beneficiarios');
+    } catch (e) { Logger.log('No se pudo avisar al admin: ' + e.toString()); }
+
+    return jsonResponse({ ok: true, id: id });
+  } catch (err) {
+    Logger.log('Error solicitarEliminacionBeneficiario: ' + err.toString());
+    return jsonResponse({ ok: false, error: err.toString() });
+  }
+}
+
+// ── Admin: listar solicitudes pendientes (con "actual" vs "nuevo") ──
+function obtenerSolicitudesBeneficiario(e) {
+  try {
+    var token = (e && e.parameter && e.parameter.token) || '';
+    if (!token || token !== TOKEN) return jsonResponse({ ok: false, error: 'No autorizado' });
+
+    var shBen   = getBeneficiariosSheet();
+    var benRows = shBen.getDataRange().getValues();
+    var benHeaders = benRows[0];
+    var benById = {};
+    for (var i = 1; i < benRows.length; i++) {
+      var o = {};
+      benHeaders.forEach(function(h, idx) { o[h] = benRows[i][idx]; });
+      benById[String(o.id)] = o;
+    }
+
+    var sheet   = getSolicitudesBeneficiarioSheet();
+    var rows    = sheet.getDataRange().getValues();
+    var headers = rows[0];
+    var solicitudes = [];
+    for (var j = 1; j < rows.length; j++) {
+      var s = {};
+      headers.forEach(function(h, idx) { s[h] = rows[j][idx]; });
+      if (s.estado !== 'pendiente') continue;
+      solicitudes.push({
+        id: s.id,
+        tipo: s.tipo,
+        fecha: s.fecha,
+        id_beneficiario: s.id_beneficiario,
+        actual: benById[String(s.id_beneficiario)] || null,
+        nuevo: s.tipo === 'editar' ? {
+          nombre: s.nombre, organizacion: s.organizacion, ubicacion: s.ubicacion,
+          facebook: s.facebook, historia: s.historia, cuenta_bancaria: s.cuenta_bancaria,
+          telefono: s.telefono, imagen1: s.imagen1, imagen2: s.imagen2, imagen3: s.imagen3
+        } : null
+      });
+    }
+    return jsonResponse({ ok: true, solicitudes: solicitudes });
+  } catch (err) {
+    Logger.log('Error obtenerSolicitudesBeneficiario: ' + err.toString());
+    return jsonResponse({ ok: false, error: err.toString() });
+  }
+}
+
+// ── Admin: aprobar solicitud (aplica edición o ejecuta eliminación) ──
+function aprobarSolicitudBeneficiario(data) {
+  try {
+    if (!data.token || data.token !== TOKEN) return jsonResponse({ ok: false, error: 'No autorizado' });
+    if (!data.id) return jsonResponse({ ok: false, error: 'Falta id de solicitud' });
+
+    var sheet   = getSolicitudesBeneficiarioSheet();
+    var rows    = sheet.getDataRange().getValues();
+    var headers = rows[0];
+    var idIdx     = headers.indexOf('id');
+    var estadoIdx = headers.indexOf('estado');
+    var solRow = -1, sol = null;
+    for (var i = 1; i < rows.length; i++) {
+      if (String(rows[i][idIdx]) === String(data.id)) {
+        solRow = i + 1;
+        sol = {};
+        headers.forEach(function(h, idx) { sol[h] = rows[i][idx]; });
+        break;
+      }
+    }
+    if (!sol) return jsonResponse({ ok: false, error: 'Solicitud no encontrada' });
+    if (sol.estado !== 'pendiente') return jsonResponse({ ok: false, error: 'Esta solicitud ya fue resuelta' });
+
+    if (sol.tipo === 'eliminar') {
+      // Reutiliza tu función eliminarBeneficiario ya existente (borra fila,
+      // desmarca donaciones y productos donados).
+      eliminarBeneficiario({ token: TOKEN, id_beneficiario: sol.id_beneficiario });
+    } else if (sol.tipo === 'editar') {
+      var shBen   = getBeneficiariosSheet();
+      var benRows = shBen.getDataRange().getValues();
+      var benHeaders = benRows[0];
+      var idIdxBen = benHeaders.indexOf('id');
+      var benRow = -1;
+      for (var b = 1; b < benRows.length; b++) {
+        if (String(benRows[b][idIdxBen]) === String(sol.id_beneficiario)) { benRow = b + 1; break; }
+      }
+      if (benRow === -1) return jsonResponse({ ok: false, error: 'El beneficiario original ya no existe' });
+
+      var campos = ['nombre','organizacion','ubicacion','facebook','historia','cuenta_bancaria','telefono','imagen1','imagen2','imagen3'];
+      campos.forEach(function(campo) {
+        var col = benHeaders.indexOf(campo);
+        if (col !== -1 && sol[campo] !== '' && typeof sol[campo] !== 'undefined') {
+          shBen.getRange(benRow, col + 1).setValue(sol[campo]);
+        }
+      });
+      Logger.log('✏️ Edición aplicada a beneficiario ' + sol.id_beneficiario);
+    }
+
+    sheet.getRange(solRow, estadoIdx + 1).setValue('aprobada');
+
+    try {
+      var titulo = sol.tipo === 'eliminar' ? '🗑️ Eliminación confirmada' : '✅ Cambios aplicados';
+      var mensaje = sol.tipo === 'eliminar'
+        ? 'Tu fundación fue eliminada como solicitaste.'
+        : 'Tus cambios a la información de tu fundación fueron aplicados.';
+      crearNotificacionCentro(
+        'vendedor', sol.vendor_uid, sol.tipo === 'eliminar' ? 'beneficiario_eliminado' : 'beneficiario_editado',
+        titulo, mensaje, 'https://vjose6922-blip.github.io/ZNR/vendedor.html',
+        { id_beneficiario: sol.id_beneficiario }, _getVendorPhoneByUid(sol.vendor_uid)
+      );
+    } catch (e) { Logger.log('No se pudo notificar al vendedor: ' + e.toString()); }
+
+    return jsonResponse({ ok: true });
+  } catch (err) {
+    Logger.log('Error aprobarSolicitudBeneficiario: ' + err.toString());
+    return jsonResponse({ ok: false, error: err.toString() });
+  }
+}
+
+// ── Admin: rechazar solicitud (no cambia nada en Beneficiarios) ──
+function rechazarSolicitudBeneficiario(data) {
+  try {
+    if (!data.token || data.token !== TOKEN) return jsonResponse({ ok: false, error: 'No autorizado' });
+    if (!data.id) return jsonResponse({ ok: false, error: 'Falta id de solicitud' });
+
+    var sheet   = getSolicitudesBeneficiarioSheet();
+    var rows    = sheet.getDataRange().getValues();
+    var headers = rows[0];
+    var idIdx     = headers.indexOf('id');
+    var estadoIdx = headers.indexOf('estado');
+    var tipoIdx   = headers.indexOf('tipo');
+    var vendorIdx = headers.indexOf('vendor_uid');
+    var benIdIdx  = headers.indexOf('id_beneficiario');
+
+    for (var i = 1; i < rows.length; i++) {
+      if (String(rows[i][idIdx]) === String(data.id)) {
+        sheet.getRange(i + 1, estadoIdx + 1).setValue('rechazada');
+        var tipo = rows[i][tipoIdx];
+        var vendorUid = rows[i][vendorIdx];
+        var idBen = rows[i][benIdIdx];
+        try {
+          crearNotificacionCentro(
+            'vendedor', vendorUid, tipo === 'eliminar' ? 'eliminacion_rechazada' : 'edicion_rechazada',
+            tipo === 'eliminar' ? '🚫 Solicitud de eliminación rechazada' : '🚫 Cambios no aprobados',
+            tipo === 'eliminar'
+              ? 'Tu solicitud para eliminar tu fundación no fue aprobada.'
+              : 'Los cambios que propusiste para tu fundación no fueron aprobados.',
+            'https://vjose6922-blip.github.io/ZNR/vendedor.html',
+            { id_beneficiario: idBen }, _getVendorPhoneByUid(vendorUid)
+          );
+        } catch (e) { Logger.log('No se pudo notificar al vendedor: ' + e.toString()); }
+        return jsonResponse({ ok: true });
+      }
+    }
+    return jsonResponse({ ok: false, error: 'Solicitud no encontrada' });
+  } catch (err) {
+    Logger.log('Error rechazarSolicitudBeneficiario: ' + err.toString());
+    return jsonResponse({ ok: false, error: err.toString() });
+  }
+}

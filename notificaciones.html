@@ -391,12 +391,15 @@ border-radius: 8px;
  <div class="notif-section" id="section-beneficiarios" style="display:none;">
  <div class="notif-section-header" style="background:linear-gradient(135deg,#f97316,#ef4444);">
  <h2>❤️ Beneficiarios <span class="section-count" id="sc-beneficiarios">0</span></h2>
- <button class="icon-button" id="refresh-beneficiarios-btn" onclick="loadBeneficiarios(true)" title="Actualizar" style="background:rgba(255,255,255,.15);color:#fff;">
+ <button class="icon-button" id="refresh-beneficiarios-btn" onclick="loadBeneficiarios(true); loadSolicitudesBeneficiario(true);" title="Actualizar" style="background:rgba(255,255,255,.15);color:#fff;">
    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ic-refresh"/></svg>
  </button>
  </div>
  <div class="notif-section-body">
+ <p style="margin:0 0 8px;font-size:.75rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;">Solicitudes nuevas</p>
  <div id="admin-beneficiarios-list"><p style="color:#aaa;text-align:center">Cargando...</p></div>
+ <p style="margin:20px 0 8px;font-size:.75rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;">✏️ Ediciones y eliminaciones <span class="section-count" id="sc-solicitudes-ben">0</span></p>
+ <div id="admin-solicitudes-beneficiario-list"><p style="color:#aaa;text-align:center">Cargando...</p></div>
  </div>
  </div>
 
@@ -445,6 +448,7 @@ border-radius: 8px;
 
  history.replaceState(null, '', '#' + section);
  if (section === 'beneficiarios' && typeof loadBeneficiarios === 'function') loadBeneficiarios();
+if (section === 'beneficiarios' && typeof loadSolicitudesBeneficiario === 'function') loadSolicitudesBeneficiario();
  if (section === 'reportes_live' && typeof loadReportesLive === 'function') loadReportesLive();
  }
 

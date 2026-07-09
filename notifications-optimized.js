@@ -741,6 +741,101 @@ window.adminRechazarBeneficiario = async function(id, btn) {
   else await runFn();
 };
 
+// ── Admin: Solicitudes de edición/eliminación de beneficiarios ya aprobados ──
+window.loadSolicitudesBeneficiario = async function(force) {
+  const list = document.getElementById('admin-solicitudes-beneficiario-list');
+  if (!list) return;
+  list.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px;">Cargando…</p>';
+  try {
+    const token = sessionStorage.getItem('admin_token') || '';
+    const res   = await fetch(API_URL + '?' + new URLSearchParams({ action:'obtenerSolicitudesBeneficiario', token }));
+    const data  = await res.json();
+    if (!data.ok) { list.innerHTML = `<p style="color:#ef4444;text-align:center;padding:16px;">Error: ${data.error}</p>`; return; }
+    const sols = data.solicitudes || [];
+    const cnt = document.getElementById('sc-solicitudes-ben');
+    if (cnt) cnt.textContent = sols.length;
+    if (sols.length === 0) { list.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;">No hay solicitudes de edición o eliminación.</p>'; return; }
+
+    const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const campo = (label, actual, nuevo) => {
+      const cambio = String(actual||'') !== String(nuevo||'');
+      return `<div style="margin-bottom:6px;">
+        <div style="font-size:.68rem;color:#888;text-transform:uppercase;">${label}</div>
+        <div style="font-size:.8rem;${cambio?'color:#888;text-decoration:line-through;':''}">${esc(actual)||'—'}</div>
+        ${cambio ? `<div style="font-size:.8rem;color:#16a34a;font-weight:700;">→ ${esc(nuevo)||'—'}</div>` : ''}
+      </div>`;
+    };
+
+    list.innerHTML = sols.map(s => {
+      if (s.tipo === 'eliminar') {
+        return `<div class="vendor-card" style="border-left:4px solid #ef4444;">
+          <div style="padding:14px 16px;">
+            <div style="font-weight:700;font-size:.9rem;color:#dc2626;">🗑️ Solicitud de eliminación</div>
+            <div style="font-size:.82rem;margin-top:4px;">${esc(s.actual ? s.actual.nombre : s.id_beneficiario)}</div>
+            <div style="font-size:.72rem;color:#888;margin-top:2px;">${s.fecha ? new Date(s.fecha).toLocaleDateString('es-MX') : ''}</div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <button onclick="adminAprobarSolicitudBeneficiario('${esc(s.id)}', this)" style="flex:1;padding:7px;border:none;border-radius:8px;background:#ef4444;color:#fff;font-weight:700;font-size:.75rem;cursor:pointer;">✅ Confirmar eliminación</button>
+              <button onclick="adminRechazarSolicitudBeneficiario('${esc(s.id)}', this)" style="flex:1;padding:7px;border:none;border-radius:8px;background:#e5e7eb;color:#374151;font-weight:700;font-size:.75rem;cursor:pointer;">❌ Rechazar</button>
+            </div>
+          </div>
+        </div>`;
+      }
+      const actual = s.actual || {};
+      const nuevo = s.nuevo || {};
+      return `<div class="vendor-card" style="border-left:4px solid #f97316;">
+        <div style="padding:14px 16px;">
+          <div style="font-weight:700;font-size:.9rem;color:#c2410c;">✏️ Solicitud de edición</div>
+          <div style="font-size:.72rem;color:#888;margin:2px 0 10px;">${s.fecha ? new Date(s.fecha).toLocaleDateString('es-MX') : ''}</div>
+          ${campo('Nombre', actual.nombre, nuevo.nombre)}
+          ${campo('Organización', actual.organizacion, nuevo.organizacion)}
+          ${campo('Ubicación', actual.ubicacion, nuevo.ubicacion)}
+          ${campo('Facebook', actual.facebook, nuevo.facebook)}
+          ${campo('Historia', actual.historia, nuevo.historia)}
+          ${campo('Cuenta bancaria', actual.cuenta_bancaria, nuevo.cuenta_bancaria)}
+          ${campo('Teléfono', actual.telefono, nuevo.telefono)}
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button onclick="adminAprobarSolicitudBeneficiario('${esc(s.id)}', this)" style="flex:1;padding:7px;border:none;border-radius:8px;background:#22c55e;color:#fff;font-weight:700;font-size:.75rem;cursor:pointer;">✅ Aplicar cambios</button>
+            <button onclick="adminRechazarSolicitudBeneficiario('${esc(s.id)}', this)" style="flex:1;padding:7px;border:none;border-radius:8px;background:#e5e7eb;color:#374151;font-weight:700;font-size:.75rem;cursor:pointer;">❌ Rechazar</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(err) {
+    list.innerHTML = '<p style="color:#ef4444;text-align:center;padding:16px;">Error de conexión.</p>';
+  }
+};
+
+window.adminAprobarSolicitudBeneficiario = async function(id, btn) {
+  if (!confirm('¿Aplicar esta solicitud?')) return;
+  const runFn = async () => {
+    try {
+      const token = sessionStorage.getItem('admin_token') || '';
+      const res   = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ action:'aprobarSolicitudBeneficiario', id, token }).toString() });
+      const data  = await res.json();
+      if (!data.ok) { alert('Error: ' + data.error); return; }
+      loadSolicitudesBeneficiario(true);
+      loadBeneficiarios(true);
+    } catch(err) { alert('Error de conexión.'); }
+  };
+  if (btn && window.withButtonLoading) await window.withButtonLoading(btn, runFn, 'Aplicando…');
+  else await runFn();
+};
+
+window.adminRechazarSolicitudBeneficiario = async function(id, btn) {
+  if (!confirm('¿Rechazar esta solicitud?')) return;
+  const runFn = async () => {
+    try {
+      const token = sessionStorage.getItem('admin_token') || '';
+      const res   = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ action:'rechazarSolicitudBeneficiario', id, token }).toString() });
+      const data  = await res.json();
+      if (!data.ok) { alert('Error: ' + data.error); return; }
+      loadSolicitudesBeneficiario(true);
+    } catch(err) { alert('Error de conexión.'); }
+  };
+  if (btn && window.withButtonLoading) await window.withButtonLoading(btn, runFn, 'Rechazando…');
+  else await runFn();
+};
+
 // ── Admin: Reportes de transmisiones en vivo ─────────────────
 window.loadReportesLive = async function() {
   const list = document.getElementById('admin-reportes-live-list');

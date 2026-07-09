@@ -1835,13 +1835,8 @@ function openSettingsModal() {
       planInfoEl.innerHTML = '<div style="background:#f9f9f9;border-radius:10px;padding:12px 14px;">' +
         '<p style="margin:0;color:#374151;font-size:.85rem;">Estás en el plan <strong>Free</strong>.</p>' +
         '<p style="margin:4px 0 0;font-size:.82rem;color:#6b7280;">Con Plus obtienes foto de perfil, destacado, logo y aprobación instantánea.</p>' +
-        '<div id="settings-plus-notif" style="margin-top:10px;"></div></div>';
-      setTimeout(() => {
-        const area = document.getElementById('settings-plus-notif');
-        if (area) {
-          area.innerHTML = document.getElementById('vendor-plus-notif-area')?.innerHTML || '';
-        }
-      }, 50);
+        '<div id="settings-plus-notif" style="margin-top:10px;"><p style="color:#aaa;font-size:.78rem;margin:0;">Cargando…</p></div></div>';
+      loadPlusSolicitudVendedor('settings-plus-notif');
     }
   }
 
@@ -2113,8 +2108,9 @@ window.verMisEstadisticas = async function() {
   } catch (e) { /* silencioso */ }
 };
 
-async function loadPlusSolicitudVendedor() {
-const area = document.getElementById('vendor-plus-notif-area');
+async function loadPlusSolicitudVendedor(targetAreaId) {
+const areaId = targetAreaId || 'vendor-plus-notif-area';
+const area = document.getElementById(areaId);
 if (!area || !vendorSession) return;
 
 try {
@@ -2122,7 +2118,7 @@ const res = await apiCall({ action: 'getPlusSolicitudVendedor', vendorToken: ven
 const sol = res.solicitud;
 
 if (!sol) {
-area.innerHTML = `<button onclick="solicitarPlanPlus()" id="btn-solicitar-plus"
+area.innerHTML = `<button onclick="solicitarPlanPlus('${areaId}')" class="btn-solicitar-plus"
 style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:999px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">
 ⭐ Solicitar plan Plus
 </button>`;
@@ -2158,18 +2154,20 @@ const motivo = sol.motivo ? `<p style="margin:4px 0 0;color:#6b7280;font-size:12
 area.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:12px 14px;">
 <p style="margin:0;color:#dc2626;font-weight:700;font-size:13px;">❌ Solicitud rechazada</p>
 ${motivo}
-<button onclick="solicitarPlanPlus()" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+<button onclick="solicitarPlanPlus('${areaId}')" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
 Volver a solicitar
 </button>
 </div>`;
 }
 } catch(e) {
 console.warn('loadPlusSolicitudVendedor:', e);
+area.innerHTML = '<p style="color:#ef4444;font-size:.78rem;margin:0;">⚠️ No se pudo cargar. Cierra y vuelve a abrir esta sección.</p>';
 }
 }
 
-async function solicitarPlanPlus() {
-const btn = document.getElementById('btn-solicitar-plus');
+async function solicitarPlanPlus(targetAreaId) {
+const areaId = targetAreaId || 'vendor-plus-notif-area';
+const btn = document.querySelector('#' + areaId + ' .btn-solicitar-plus');
 if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
 try {
 const res = await apiCall({ action: 'solicitarPlanPlus', vendorToken: vendorSession.token });
@@ -2179,7 +2177,7 @@ if (btn) { btn.disabled = false; btn.innerHTML = '⭐ Solicitar plan Plus'; }
 return;
 }
 showTemporaryMessage('✅ Solicitud enviada', 'success');
-loadPlusSolicitudVendedor();
+loadPlusSolicitudVendedor(areaId);
 } catch(e) {
 showTemporaryMessage('⚠️ Error de red', 'error');
 if (btn) { btn.disabled = false; btn.innerHTML = '⭐ Solicitar plan Plus'; }
@@ -2511,7 +2509,12 @@ async function loadBeneficiarioDonaciones() {
         ${miBen.ubicacion ? `<div style="font-size:.75rem;color:#555;margin:2px 0;">📍 ${esc(miBen.ubicacion)}</div>` : ''}
         ${miBen.historia ? `<div style="font-size:.78rem;color:#555;margin:6px 0;line-height:1.5;">${esc(miBen.historia)}</div>` : ''}
         ${miBen.cuenta_bancaria ? `<div style="font-size:.78rem;font-family:monospace;background:#fff;border-radius:8px;padding:6px 8px;margin-top:4px;">💳 ${esc(miBen.cuenta_bancaria)}</div>` : ''}
-        <p style="margin:8px 0 0;font-size:.7rem;color:#a16207;">¿Necesitas actualizar estos datos? Escríbenos por WhatsApp desde el mismo número con el que te registraste.</p>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button id="btn-editar-fundacion" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid #f97316;background:#fff;color:#c2410c;font-weight:700;font-size:.78rem;cursor:pointer;">✏️ Editar información</button>
+          <button id="btn-eliminar-fundacion" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid #ef4444;background:#fff;color:#dc2626;font-weight:700;font-size:.78rem;cursor:pointer;">🗑️ Eliminar</button>
+        </div>
+        <div id="fundacion-accion-msg" style="display:none;margin-top:8px;padding:8px;border-radius:8px;font-size:.76rem;"></div>
+        <p style="margin:8px 0 0;font-size:.7rem;color:#a16207;">Los cambios y la eliminación pasan por revisión del administrador antes de aplicarse.</p>
       </div>`
       : `<div style="margin-top:12px;padding:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;">
           <p style="margin:0;font-size:.78rem;color:#c2410c;">❤️ Estás registrado como fundación, pero no pudimos cargar el detalle completo de tu perfil ahora mismo.</p>
@@ -2530,7 +2533,164 @@ async function loadBeneficiarioDonaciones() {
             <span style="font-size:.7rem;padding:2px 7px;border-radius:20px;background:#dcfce7;color:#166534;font-weight:700;flex-shrink:0;">Activa</span>
           </div>`).join('')}
     </div>`;
+    if (miBen) {
+      document.getElementById('btn-editar-fundacion')?.addEventListener('click', () => abrirEditarFundacionVendedor(miBen));
+      document.getElementById('btn-eliminar-fundacion')?.addEventListener('click', () => solicitarEliminarFundacionVendedor(miBen));
+    }
   } catch(e) { area.style.display = 'none'; }
+}
+
+// ── Modal compacto para solicitar edición del perfil de beneficiario ──
+function abrirEditarFundacionVendedor(miBen) {
+  const old = document.getElementById('modal-editar-fundacion');
+  if (old) old.remove();
+  const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const escv = s => String(s||'').replace(/"/g,'&quot;');
+  const modal = document.createElement('div');
+  modal.id = 'modal-editar-fundacion';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:90%;overflow-y:auto;padding:24px 20px 36px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h2 style="margin:0;font-size:1rem;font-weight:800;">Editar tu fundación</h2>
+        <button id="btn-close-edit-fund" style="background:none;border:none;font-size:22px;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <p style="font-size:.8rem;color:#888;margin:0 0 14px;">Estos cambios se enviarán como solicitud. El administrador comparará tu información actual con la nueva antes de aplicarla.</p>
+      <div id="edit-fund-msg" style="display:none;padding:10px;border-radius:10px;margin-bottom:12px;font-size:.82rem;"></div>
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Nombre completo *</label>
+      <input id="ef-nombre" type="text" value="${escv(miBen.nombre)}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Organización (opcional)</label>
+      <input id="ef-org" type="text" value="${escv(miBen.organizacion)}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Ciudad / Estado *</label>
+      <input id="ef-ubicacion" type="text" value="${escv(miBen.ubicacion)}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Facebook (URL o usuario)</label>
+      <input id="ef-facebook" type="text" value="${escv(miBen.facebook)}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">¿Para qué necesitas las donaciones? *</label>
+      <textarea id="ef-historia" rows="3" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;resize:vertical;">${esc(miBen.historia)}</textarea>
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">CLABE / Número de cuenta *</label>
+      <input id="ef-cuenta" type="text" value="${escv(miBen.cuenta_bancaria)}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">WhatsApp (10 dígitos) *</label>
+      <input id="ef-telefono" type="tel" value="${escv(miBen.telefono)}" maxlength="10" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:16px;font-size:.88rem;">
+      <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Fotos (opcional, máx. 3)</label>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        ${[1,2,3].map(n => `
+        <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;">
+          <span id="ef-img-placeholder-${n}" style="font-size:1.4rem;display:${miBen['imagen'+n] ? 'none' : ''};">📷</span>
+          <img id="ef-img-preview-${n}" src="${escv(miBen['imagen'+n]||'')}" style="display:${miBen['imagen'+n]?'block':'none'};width:100%;height:100%;object-fit:cover;">
+          <input type="file" id="ef-img-${n}" accept="image/*" style="display:none;">
+        </label>`).join('')}
+      </div>
+      <button id="btn-submit-edit-fund" style="width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-weight:800;font-size:.92rem;cursor:pointer;">Enviar cambios</button>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('btn-close-edit-fund').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  [1,2,3].forEach(n => {
+    document.getElementById('ef-img-' + n)?.addEventListener('change', function() {
+      const file = this.files && this.files[0];
+      if (!file) return;
+      const preview = document.getElementById('ef-img-preview-' + n);
+      const placeholder = document.getElementById('ef-img-placeholder-' + n);
+      const url = URL.createObjectURL(file);
+      preview.src = url; preview.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+    });
+  });
+
+  document.getElementById('btn-submit-edit-fund').addEventListener('click', async function() {
+    const showMsg = (txt, ok) => {
+      const el = document.getElementById('edit-fund-msg');
+      el.textContent = txt; el.style.display = 'block';
+      el.style.background = ok ? '#dcfce7' : '#fee2e2';
+      el.style.color = ok ? '#166534' : '#991b1b';
+    };
+    const nombre = document.getElementById('ef-nombre').value.trim();
+    const ubicacion = document.getElementById('ef-ubicacion').value.trim();
+    const historia = document.getElementById('ef-historia').value.trim();
+    const cuenta = document.getElementById('ef-cuenta').value.trim();
+    const tel = document.getElementById('ef-telefono').value.replace(/\D/g,'');
+    if (!nombre) return showMsg('El nombre es requerido.', false);
+    if (!ubicacion) return showMsg('La ciudad/estado es requerida.', false);
+    if (!historia) return showMsg('Cuéntanos tu propósito.', false);
+    if (!cuenta) return showMsg('La cuenta bancaria es requerida.', false);
+    if (tel.length !== 10) return showMsg('El WhatsApp debe tener 10 dígitos.', false);
+
+    const btn = this;
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    try {
+      async function uploadImg(file) {
+        const reader = new FileReader();
+        const base64 = await new Promise((res, rej) => {
+          reader.onload = () => res(reader.result.split(',')[1]);
+          reader.onerror = rej;
+          reader.readAsDataURL(file);
+        });
+        const r = await fetch(window.API_URL, {
+          method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ action:'uploadImageVendedor', data: base64, mimeType: file.type, fileName: file.name, vendorToken: vendorSession.token }).toString()
+        });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || 'Error al subir imagen');
+        return j.url || '';
+      }
+      const imgUrls = [miBen.imagen1||'', miBen.imagen2||'', miBen.imagen3||''];
+      for (let n = 1; n <= 3; n++) {
+        const fileInput = document.getElementById('ef-img-' + n);
+        if (fileInput && fileInput.files[0]) {
+          btn.textContent = `Subiendo foto ${n}…`;
+          imgUrls[n-1] = await uploadImg(fileInput.files[0]);
+        }
+      }
+      btn.textContent = 'Enviando cambios…';
+      const res = await fetch(window.API_URL, {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action: 'solicitarEdicionBeneficiario',
+          id_beneficiario: miBen.id,
+          vendorToken: vendorSession.token,
+          nombre, organizacion: document.getElementById('ef-org').value.trim(),
+          ubicacion, facebook: document.getElementById('ef-facebook').value.trim(),
+          historia, cuenta_bancaria: cuenta, telefono: tel,
+          imagen1: imgUrls[0], imagen2: imgUrls[1], imagen3: imgUrls[2]
+        }).toString()
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showMsg('✅ Cambios enviados. El administrador los revisará.', true);
+        setTimeout(() => modal.remove(), 2500);
+      } else {
+        showMsg('⚠️ ' + (data.error || 'Error al enviar'), false);
+        btn.disabled = false; btn.textContent = 'Enviar cambios';
+      }
+    } catch (err) {
+      showMsg('⚠️ Error de conexión: ' + err.message, false);
+      btn.disabled = false; btn.textContent = 'Enviar cambios';
+    }
+  });
+}
+
+// ── Solicitar eliminación de la fundación (requiere aprobación del admin) ──
+async function solicitarEliminarFundacionVendedor(miBen) {
+  if (!confirm('¿Seguro que quieres solicitar la eliminación de tu fundación "' + (miBen.nombre||'') + '"? El administrador revisará tu solicitud antes de eliminarla.')) return;
+  const msgEl = document.getElementById('fundacion-accion-msg');
+  const showMsg = (txt, ok) => {
+    if (!msgEl) return;
+    msgEl.textContent = txt; msgEl.style.display = 'block';
+    msgEl.style.background = ok ? '#dcfce7' : '#fee2e2';
+    msgEl.style.color = ok ? '#166534' : '#991b1b';
+  };
+  try {
+    const res = await fetch(window.API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action:'solicitarEliminacionBeneficiario', id_beneficiario: miBen.id, vendorToken: vendorSession.token }).toString()
+    });
+    const data = await res.json();
+    if (data.ok) showMsg('✅ Solicitud de eliminación enviada. El administrador la revisará.', true);
+    else showMsg('⚠️ ' + (data.error || 'Error al enviar'), false);
+  } catch (e) {
+    showMsg('⚠️ Error de conexión.', false);
+  }
 }
 
 })(); // fin IIFE

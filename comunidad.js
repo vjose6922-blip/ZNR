@@ -1364,9 +1364,12 @@ document.addEventListener('DOMContentLoaded', initComunidad);
 initComunidad();
 }
 
-// ── Modal: Registro de beneficiario ─────────────────────────
-window.openBeneficiarioRegister = function() {
-  console.log('🔥 openBeneficiarioRegister ejecutada');
+// ── Modal: Registro de beneficiario (y también edición, ver 2do/3er parámetro) ─
+// modoEdicion: true => es una solicitud de edición sobre un beneficiario ya aprobado
+// idBeneficiario: id del beneficiario existente (requerido si modoEdicion=true)
+// datosActuales: objeto con los valores actuales para prellenar el formulario
+window.openBeneficiarioRegister = function(modoEdicion, idBeneficiario, datosActuales) {
+  console.log('🔥 openBeneficiarioRegister ejecutada', modoEdicion ? '(edición)' : '(nuevo)');
 
   // Restaurar sesión desde localStorage si no existe
   if (!window.vendorSession) {
@@ -1384,50 +1387,53 @@ window.openBeneficiarioRegister = function() {
   const old = document.getElementById('modal-beneficiario-register');
   if (old) old.remove();
 
+  const d = datosActuales || {};
+  const escv = s => String(s || '').replace(/"/g, '&quot;');
+
   const modal = document.createElement('div');
   modal.id = 'modal-beneficiario-register';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
   modal.innerHTML = `
     <div style="background:var(--color-surface,#fff);border-radius:20px 20px 0 0;width:100%; height:90%;overflow-y:auto;padding:24px 20px 36px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <h2 style="margin:0;font-size:1rem;font-weight:800;">Registrate tu Fundacion</h2>
+        <h2 style="margin:0;font-size:1rem;font-weight:800;">${modoEdicion ? 'Editar tu fundación' : 'Registrate tu Fundacion'}</h2>
         <button id="btn-close-ben-reg" style="background:none;border:none;font-size:22px;cursor:pointer;line-height:1;">×</button>
       </div>
-      <p style="font-size:.8rem;color:#888;margin:0 0 14px;">Completa tu información. El administrador revisará tu solicitud y te contactará por WhatsApp.</p>
+      <p style="font-size:.8rem;color:#888;margin:0 0 14px;">${modoEdicion ? 'Estos cambios se enviarán como solicitud. El administrador comparará tu información actual con la nueva antes de aplicarla.' : 'Completa tu información. El administrador revisará tu solicitud y te contactará por WhatsApp.'}</p>
       <div id="ben-reg-msg" style="display:none;padding:10px;border-radius:10px;margin-bottom:12px;font-size:.82rem;"></div>
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Nombre completo *</label>
-      <input id="ben-nombre" type="text" placeholder="Tu nombre completo" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <input id="ben-nombre" type="text" value="${escv(d.nombre)}" placeholder="Tu nombre completo" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Organización (opcional)</label>
-      <input id="ben-org" type="text" placeholder="Nombre de la organización si aplica" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <input id="ben-org" type="text" value="${escv(d.organizacion)}" placeholder="Nombre de la organización si aplica" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Ciudad / Estado *</label>
-      <input id="ben-ubicacion" type="text" placeholder="Ej. Nuevo Laredo, Tamaulipas" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <input id="ben-ubicacion" type="text" value="${escv(d.ubicacion)}" placeholder="Ej. Nuevo Laredo, Tamaulipas" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Facebook (URL o usuario)</label>
-      <input id="ben-facebook" type="text" placeholder="https://facebook.com/tu-pagina" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <input id="ben-facebook" type="text" value="${escv(d.facebook)}" placeholder="https://facebook.com/tu-pagina" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">¿Para qué necesitas las donaciones? *</label>
-      <textarea id="ben-historia" rows="3" placeholder="Cuéntanos tu historia o propósito..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;resize:vertical;"></textarea>
+      <textarea id="ben-historia" rows="3" placeholder="Cuéntanos tu historia o propósito..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;resize:vertical;">${escv(d.historia)}</textarea>
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">CLABE / Número de cuenta *</label>
-      <input id="ben-cuenta" type="text" placeholder="18 dígitos CLABE o número de cuenta" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+      <input id="ben-cuenta" type="text" value="${escv(d.cuenta_bancaria)}" placeholder="18 dígitos CLABE o número de cuenta" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">WhatsApp (10 dígitos) *</label>
-      <input id="ben-telefono" type="tel" placeholder="8671234567" maxlength="10" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:16px;font-size:.88rem;">
+      <input id="ben-telefono" type="tel" value="${escv(d.telefono)}" placeholder="8671234567" maxlength="10" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:16px;font-size:.88rem;">
       <label style="font-size:.78rem;font-weight:700;color:#888;display:block;margin-bottom:3px;">Fotos (opcional, máx. 3 — puedes elegir varias a la vez)</label>
       <div style="display:flex;gap:8px;margin-bottom:16px;" id="ben-img-previews">
         <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;" id="ben-img-label-1">
-          <span id="ben-img-placeholder-1" style="font-size:1.4rem;">📷</span>
-          <img id="ben-img-preview-1" style="display:none;width:100%;height:100%;object-fit:cover;">
+          <span id="ben-img-placeholder-1" style="font-size:1.4rem;display:${d.imagen1 ? 'none' : ''};">📷</span>
+          <img id="ben-img-preview-1" src="${escv(d.imagen1||'')}" style="display:${d.imagen1?'block':'none'};width:100%;height:100%;object-fit:cover;">
           <input type="file" id="ben-img-1" accept="image/*" multiple style="display:none;">
         </label>
         <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;" id="ben-img-label-2">
-          <span id="ben-img-placeholder-2" style="font-size:1.4rem;">📷</span>
-          <img id="ben-img-preview-2" style="display:none;width:100%;height:100%;object-fit:cover;">
+          <span id="ben-img-placeholder-2" style="font-size:1.4rem;display:${d.imagen2 ? 'none' : ''};">📷</span>
+          <img id="ben-img-preview-2" src="${escv(d.imagen2||'')}" style="display:${d.imagen2?'block':'none'};width:100%;height:100%;object-fit:cover;">
           <input type="file" id="ben-img-2" accept="image/*" multiple style="display:none;">
         </label>
         <label style="flex:1;aspect-ratio:1;border:1.5px dashed #e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fafafa;" id="ben-img-label-3">
-          <span id="ben-img-placeholder-3" style="font-size:1.4rem;">📷</span>
-          <img id="ben-img-preview-3" style="display:none;width:100%;height:100%;object-fit:cover;">
+          <span id="ben-img-placeholder-3" style="font-size:1.4rem;display:${d.imagen3 ? 'none' : ''};">📷</span>
+          <img id="ben-img-preview-3" src="${escv(d.imagen3||'')}" style="display:${d.imagen3?'block':'none'};width:100%;height:100%;object-fit:cover;">
           <input type="file" id="ben-img-3" accept="image/*" multiple style="display:none;">
         </label>
       </div>
-      <button id="btn-submit-ben" style="width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-weight:800;font-size:.92rem;cursor:pointer;">Enviar solicitud</button>
+      <button id="btn-submit-ben" data-modo="${modoEdicion ? 'editar' : 'nuevo'}" data-id="${escv(idBeneficiario||'')}" style="width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-weight:800;font-size:.92rem;cursor:pointer;">${modoEdicion ? 'Enviar cambios' : 'Enviar solicitud'}</button>
     </div>`;
 
   document.body.appendChild(modal);
@@ -1476,6 +1482,8 @@ window.openBeneficiarioRegister = function() {
   // Evento de envío
   document.getElementById('btn-submit-ben')?.addEventListener('click', async function(e) {
     e.preventDefault();
+    const modo = this.dataset.modo === 'editar' ? 'editar' : 'nuevo';
+    const idBen = this.dataset.id || '';
     const showMsg = (txt, ok) => {
       const el = document.getElementById('ben-reg-msg');
       el.textContent = txt;
@@ -1571,28 +1579,31 @@ window.openBeneficiarioRegister = function() {
         }
       }
 
-      btn.textContent = 'Enviando solicitud…';
+      btn.textContent = modo === 'editar' ? 'Enviando cambios…' : 'Enviando solicitud…';
+      const payload = {
+        action: modo === 'editar' ? 'solicitarEdicionBeneficiario' : 'registrarBeneficiario',
+        nombre,
+        organizacion: document.getElementById('ben-org').value.trim(),
+        ubicacion,
+        facebook: document.getElementById('ben-facebook').value.trim(),
+        historia,
+        cuenta_bancaria: cuenta,
+        telefono: tel,
+        imagen1: imgUrls[0],
+        imagen2: imgUrls[1],
+        imagen3: imgUrls[2],
+        vendorToken: vendor.token
+      };
+      if (modo === 'editar') payload.id_beneficiario = idBen;
       const res = await fetch(window.API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          action: 'registrarBeneficiario',
-          nombre,
-          organizacion: document.getElementById('ben-org').value.trim(),
-          ubicacion,
-          facebook: document.getElementById('ben-facebook').value.trim(),
-          historia,
-          cuenta_bancaria: cuenta,
-          telefono: tel,
-          imagen1: imgUrls[0],
-          imagen2: imgUrls[1],
-          imagen3: imgUrls[2]
-        }).toString()
+        body: new URLSearchParams(payload).toString()
       });
 
       const data = await res.json();
       if (data.ok) {
-        showMsg('✅ ¡Solicitud enviada! El administrador te contactará pronto por WhatsApp.', true);
+        showMsg(modo === 'editar' ? '✅ ¡Cambios enviados! El administrador los revisará antes de aplicarlos.' : '✅ ¡Solicitud enviada! El administrador te contactará pronto por WhatsApp.', true);
         btn.textContent = 'Enviado';
         setTimeout(() => {
           const modal = document.getElementById('modal-beneficiario-register');
@@ -1601,13 +1612,13 @@ window.openBeneficiarioRegister = function() {
       } else {
         showMsg('⚠️ ' + (data.error || 'Error al enviar'), false);
         btn.disabled = false;
-        btn.textContent = 'Enviar solicitud';
+        btn.textContent = modo === 'editar' ? 'Enviar cambios' : 'Enviar solicitud';
       }
     } catch (err) {
       console.error('Error en registro beneficiario:', err);
       showMsg('⚠️ Error de conexión: ' + err.message, false);
       btn.disabled = false;
-      btn.textContent = 'Enviar solicitud';
+      btn.textContent = modo === 'editar' ? 'Enviar cambios' : 'Enviar solicitud';
     }
   });
 };
