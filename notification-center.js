@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const POLL_MS = 60000; // refresco de badge cada 60s
+  const POLL_MS = 180000; 
   let modalBuilt = false;
   let currentTab = 'pedidos';
   let cache = { items: [], loaded: false };
@@ -320,6 +320,20 @@
     }
   }
 
+  window.addEventListener('znr:nueva-notificacion', refreshBadgeOnly);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'znr-nueva-notificacion') {
+        refreshBadgeOnly();
+      }
+    });
+  }
+ 
+  // 🆕 Al volver a la pestaña tras estar oculta, refresca por si se perdió algún push
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshBadgeOnly();
+  });
+  
   function init() {
     injectStyles();
     wireBellButtons();
