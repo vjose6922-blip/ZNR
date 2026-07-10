@@ -437,12 +437,23 @@ loadMyProducts();
 renderVendorPlanPanel();
 loadVendorSaleNotifications();
 if (!window._vsnPollingStarted) {
-window._vsnPollingStarted = true;
-setInterval(loadVendorSaleNotifications, 45000);
+  window._vsnPollingStarted = true;
+ 
+  window.addEventListener('znr:nueva-notificacion', loadVendorSaleNotifications);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'znr-nueva-notificacion') {
+        loadVendorSaleNotifications();
+      }
+    });
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) loadVendorSaleNotifications();
+  });
+   setInterval(loadVendorSaleNotifications, 180000);
 }
 }
 
-// ── Notificaciones de venta pendientes (Comunidad) ──────────────────────
 async function loadVendorSaleNotifications() {
 if (!vendorSession || !vendorSession.uid) return;
 try {
@@ -525,9 +536,6 @@ if (btn && window.withButtonLoading) await window.withButtonLoading(btn, runFn, 
 else await runFn();
 }
 
-// ──────────────────────────────────────────────
-// RENDER PANEL PLAN + FILTROS
-// ──────────────────────────────────────────────
 function renderVendorPlanPanel() {
   const el = document.getElementById('vendor-plan-panel');
   if (!el || !vendorSession) return;
