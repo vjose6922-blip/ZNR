@@ -1,14 +1,4 @@
-/**
- * ============================================================
- * FCM (Firebase Cloud Messaging) — Service Worker para Z&R
- * Guarda este archivo TAL CUAL como: /ZNR/firebase-messaging-sw.js
- * (debe vivir en la raíz de /ZNR/, junto a tu sw.js normal)
- * ============================================================
- *
- * Este archivo es DISTINTO a tu sw.js de la PWA. Firebase necesita
- * su propio service worker para poder mostrar notificaciones
- * cuando la pestaña está cerrada o en segundo plano.
- */
+
 
 importScripts("https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js");
@@ -25,8 +15,6 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Notificaciones que llegan cuando la app está en SEGUNDO PLANO
-// (pestaña cerrada, minimizada, o el navegador en otra pestaña)
 messaging.onBackgroundMessage((payload) => {
   console.log("🔔 Push recibido en segundo plano:", payload);
 
@@ -43,6 +31,11 @@ messaging.onBackgroundMessage((payload) => {
       { action: "open", title: "Ver ahora" },
       { action: "close", title: "Cerrar" }
     ]
+  });
+  self.clients.matchAll({ type: "window", incluideUncontrolled: true }).then((clientList) => {
+    clientList.forEach((client) => {
+      client.postMessage({ type: 'znr-nueva-notificacion' });
+    });
   });
 });
 
