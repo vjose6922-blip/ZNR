@@ -518,52 +518,80 @@ showCustomAlert({ title: "Error", message: "Ocurrió un error. Intenta nuevament
 if (typeof hideLoader === 'function') hideLoader();
 }
 }
+
+
+
+
+
+async function fetchConReintento(url, opciones, maxIntentos = 2) {
+  for (let intento = 0; intento <= maxIntentos; intento++) {
+    const response = await fetch(url, opciones);
+    const data = await response.json();
+
+    if (data.ok || !data.retry) {
+      // éxito, o un error que no es de "reintenta" (ej. token inválido, sin stock real)
+      return data;
+    }
+
+    if (intento < maxIntentos) {
+      const espera = 800 + Math.random() * 700; // 0.8s–1.5s, con variación
+      await new Promise(r => setTimeout(r, espera));
+    }
+  }
+  return { ok: false, error: "No se pudo confirmar el pedido después de varios intentos. Intenta de nuevo en un momento." };
+}
+
+
+
+
 async function confirmGroupPurchase(requestId) {
-const confirmed = await new Promise(resolve => {
-showCustomConfirm({
-title: "Confirmar compra",
-message: "¿Confirmar TODOS los productos con stock disponible de esta solicitud?",
-icon: "",
-confirmText: "Sí, confirmar",
-cancelText: "Cancelar",
-onConfirm: () => resolve(true),
-onCancel: () => resolve(false)
-});
-});
-if (!confirmed) return;
-if (typeof showLoader === 'function') showLoader("Procesando solicitud completa...");
-try {
-const response = await fetch(API_URL, {
-method: "POST",
-headers: { "Content-Type": "application/x-www-form-urlencoded" },
-body: new URLSearchParams({ action: "confirmGroupPurchase", requestId: requestId, token: sessionStorage.getItem("admin_token") || "" }).toString()
-});
-const data = await response.json();
-if (!data.ok) throw new Error(data.error || "Error al confirmar");
-let summary = `${data.message}`;
-if (data.approvedCount > 0) {
-summary += `\n\nTotal a pagar: $${(data.totalAmount || 0).toLocaleString()}`;
-}
-if (data.paymentLink) {
-summary += `\n\nLink de pago generado. Se enviará al cliente por WhatsApp.`;
-}
-showCustomAlert({
-title: "Compra confirmada",
-message: summary,
-icon: "",
-confirmText: "Aceptar",
-onConfirm: () => {
-if (data.whatsappUrl) window.open(data.whatsappUrl, '_blank');
-}
-});
-invalidateNotificationsCache();
-if (typeof window.refreshAllAdminBadges === 'function') window.refreshAllAdminBadges();
-if (typeof checkNotifications === 'function') checkNotifications();
-setTimeout(() => { loadNotificationsOptimized(true); }, 1500);
-} catch (err) {
-showCustomAlert({ title: "Error", message: "Ocurrió un error. Intenta nuevamente.", icon: "", confirmText: "Aceptar" });
-if (typeof hideLoader === 'function') hideLoader();
-}
+  const confirmed = await new Promise(resolve => {
+    showCustomConfirm({
+      title: "Confirmar compra",
+      message: "¿Confirmar TODOS los productos con stock disponible de esta solicitud?",
+      icon: "",
+      confirmText: "Sí, confirmar",
+      cancelText: "Cancelar",
+      onConfirm: () => resolve(true),
+      onCancel: () => resolve(false)
+    });
+  });
+  if (!confirmed) return;
+
+  if (typeof showLoader === 'function') showLoader("Procesando solicitud completa...");
+  try {
+    const data = await fetchConReintento(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ action: "confirmGroupPurchase", requestId: requestId, token: sessionStorage.getItem("admin_token") || "" }).toString()
+    });
+
+    if (!data.ok) throw new Error(data.error || "Error al confirmar");
+
+    let summary = `${data.message}`;
+    if (data.approvedCount > 0) {
+      summary += `\n\nTotal a pagar: $${(data.totalAmount || 0).toLocaleString()}`;
+    }
+    if (data.paymentLink) {
+      summary += `\n\nLink de pago generado. Se enviará al cliente por WhatsApp.`;
+    }
+    showCustomAlert({
+      title: "Compra confirmada",
+      message: summary,
+      icon: "",
+      confirmText: "Aceptar",
+      onConfirm: () => {
+        if (data.whatsappUrl) window.open(data.whatsappUrl, '_blank');
+      }
+    });
+    invalidateNotificationsCache();
+    if (typeof window.refreshAllAdminBadges === 'function') window.refreshAllAdminBadges();
+    if (typeof checkNotifications === 'function') checkNotifications();
+    setTimeout(() => { loadNotificationsOptimized(true); }, 1500);
+  } catch (err) {
+    showCustomAlert({ title: "Error", message: err.message || "Ocurrió un error. Intenta nuevamente.", icon: "", confirmText: "Aceptar" });
+    if (typeof hideLoader === 'function') hideLoader();
+  }
 }
 async function cancelGroupPurchase(requestId) {
 const confirmed = await new Promise(resolve => {
