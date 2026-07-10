@@ -1850,58 +1850,7 @@
 .npi-badge.zero{background:rgba(255,255,255,.12);color:#888;}
 </style>
 <script>
-async function loadNotifPanelCounts() {
-  const token = sessionStorage.getItem('admin_token') || '';
-  const api  = window.API_URL || window.ADMIN_API_URL || '';
-  try {
-    const gasGet = (params) => fetch(api + '?' + new URLSearchParams(params).toString()).then(r=>r.json()).catch(()=>({}));
-    // Escalonamos las peticiones (en vez de Promise.all simultáneo) para no saturadas
-    // peticiones al mismo tiempo (ej: justo después del login).00000000
-    const delay = (ms) => new Promise(r => setTimeout(r, ms));
-    const nRes = await gasGet({ action: 'notificationsBatch', page: 1, pageSize: 200, noCache: false });
-    await delay(150);
-    const vRes = token ? await gasGet({ action: 'vendedoresAdmin', token }) : {};
-    await delay(150);
-    const pRes = token ? await gasGet({ action: 'productosPendientes', token }) : {};
-    await delay(150);
-    const rRes = token ? await gasGet({ action: 'obtenerReportes', token }) : {};
-    await delay(150);
-    const plusRes = token ? await gasGet({ action: 'solicitudesPlus', token }) : {};
-    await delay(150);
-    const benRes = token ? await gasGet({ action: 'obtenerBeneficiarios', estado: 'pendiente', token }) : {};
-    const groups = nRes.groups || [];
-    const solCount  = groups.filter(g => g.notifications && g.notifications.some(n => n.status === 'pending' && n.hasStock)).length;
-    const vendCount = (vRes.vendors||[]).filter(v=>v.estado==='pendiente').length;
-    const pendCount = (pRes.products||[]).length;
-    const repCount  = (rRes.reportes||[]).length;
-    const plusCount = (plusRes.solicitudes||[]).length;
-    const benCount  = (benRes.beneficiarios||[]).length;
-    setBadge('notif-panel-solicitudes-count', solCount);
-    setBadge('notif-panel-vendors-count',  vendCount);
-    setBadge('notif-panel-pending-count',  pendCount);
-    setBadge('notif-panel-reportes-count', repCount);
-    setBadge('notif-panel-plus-count',     plusCount);
-    setBadge('notif-panel-beneficiarios-count', benCount);
-    const totalCount = solCount + vendCount + pendCount + repCount + plusCount + benCount;
-    const mainBadge = document.getElementById('notif-badge');
-    if (mainBadge) {
-      mainBadge.textContent = totalCount > 0 ? totalCount : '0';
-      if (totalCount > 0) {
-        mainBadge.classList.add('has-notifs');
-        mainBadge.title = totalCount + ' notificaciones pendientes';
-      } else {
-        mainBadge.classList.remove('has-notifs');
-        mainBadge.title = '';
-      }
-    }
-    if (typeof window._updateNotifTabBadge === 'function') {
-      window._updateNotifTabBadge('solicitudes', solCount);
-      window._updateNotifTabBadge('vendors', vendCount);
-      window._updateNotifTabBadge('pending', pendCount);
-      window._updateNotifTabBadge('reportes', repCount);
-    }
-  } catch(e) { console.warn('loadNotifPanelCounts error:', e); }
-}
+
 async function openDonacionesStatsModal() {
   const old = document.getElementById('modal-donaciones-stats');
   if (old) old.remove();
