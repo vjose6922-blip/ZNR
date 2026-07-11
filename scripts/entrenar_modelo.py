@@ -43,6 +43,11 @@ from PIL import Image
 # ── Configuración ──────────────────────────────────────────────────────────
 
 CATALOGO_CSV_URL = os.environ.get("CATALOGO_CSV_URL", "").strip()
+# API key de Google Cloud con la Drive API habilitada. Usar la API oficial
+# es mucho más confiable que el truco de "uc?export=download", que Google
+# bloquea cada vez más seguido cuando la solicitud viene de una IP de
+# datacenter (como los runners de GitHub Actions).
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "").strip()
 # Configurable desde el workflow_dispatch (input min_fotos_categoria) para
 # permitir "pruebas de humo" con inventario chico. Súbelo a 15+ en cuanto
 # tengas más fotos por categoría — con muy pocas fotos el modelo no aprende
@@ -118,20 +123,20 @@ def leer_catalogo():
     return filas
 
 
-# ── 2. Descargar fotos (convierte links de Drive a descarga directa) ───────
+# ── 2. Descargar fotos (Drive API v3 oficial; fallback al truco de enlace) ──
 
-def drive_a_descarga_directa(url):
-    """Convierte varios formatos de link de Drive a un link de descarga directa."""
+def extraer_drive_id(url):
+    """Extrae el ID de archivo de Drive de varios formatos de link posibles."""
     m = re.search(r"/file/d/([a-zA-Z0-9_-]+)", url)
     if m:
-        return f"https://drive.google.com/uc?export=download&id={m.group(1)}"
+        return m.group(1)
     m = re.search(r"[?&]id=([a-zA-Z0-9_-]+)", url)
     if m:
-        return f"https://drive.google.com/uc?export=download&id={m.group(1)}"
+        return m.group(1)
     m = re.search(r"lh3\.googleusercontent\.com/d/([a-zA-Z0-9_-]+)", url)
     if m:
-        return f"https://drive.google.com/uc?export=download&id={m.group(1)}"
-    return url  # ya es una URL directa (u otro hosting)
+        return m.group(1)
+    return None
 
 
 MAGIC_BYTES = {
@@ -155,9 +160,9 @@ def _es_imagen_valida(data):
 
 
 def _extraer_confirm_token(html_bytes):
-    """Cuando Drive no puede confirmar la descarga automáticamente, devuelve
-    una página HTML con un formulario/token de confirmación en vez del
-    archivo. Intentamos extraer ese token para reintentar la descarga real."""
+    """Fallback: cuando Drive no puede confirmar la descarga automáticamente
+    vía el link público, devuelve una página HTML con un token de
+    confirmación. Solo se usa si no hay GOOGLE_API_KEY configurada."""
     try:
         texto = html_bytes.decode("utf-8", errors="ignore")
     except Exception:
@@ -166,26 +171,48 @@ def _extraer_confirm_token(html_bytes):
     return m.group(1) if m else None
 
 
+def _descargar_via_drive_api(drive_id):
+    """Método principal y confiable: Drive API v3 oficial. Requiere que el
+    archivo tenga permiso "Cualquiera con el enlace puede ver" (ya es el caso,
+    dado que estas fotos ya se muestran públicamente en la app)."""
+    url = f"https://www.googleapis.com/drive/v3/files/{drive_id}?alt=media&key={GOOGLE_API_KEY}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        return resp.read()
+
+
+def _descargar_via_link_publico(drive_id):
+    """Fallback legado (menos confiable): el truco de uc?export=download.
+    Google lo bloquea cada vez más seguido desde IPs de datacenter."""
+    url = f"https://drive.google.com/uc?export=download&id={drive_id}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        data = resp.read()
+
+    if not _es_imagen_valida(data):
+        token = _extraer_confirm_token(data)
+        if token:
+            url_confirm = f"https://drive.google.com/uc?export=download&confirm={token}&id={drive_id}"
+            req2 = urllib.request.Request(url_confirm, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req2, timeout=20) as resp2:
+                data = resp2.read()
+    return data
+
+
 def descargar_imagen(url, destino, intentos=3):
-    url_directa = drive_a_descarga_directa(url)
+    drive_id = extraer_drive_id(url)
+
     for intento in range(intentos):
         try:
-            req = urllib.request.Request(url_directa, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                data = resp.read()
-
-            if not _es_imagen_valida(data):
-                # Puede ser la página de confirmación de Drive ("no se puede
-                # escanear este archivo por virus" / cuota). Intentamos sacar
-                # el token de confirmación y reintentar con la URL real.
-                token = _extraer_confirm_token(data)
-                if token and "drive.google.com" in url_directa:
-                    m = re.search(r"id=([a-zA-Z0-9_-]+)", url_directa)
-                    if m:
-                        url_confirm = f"https://drive.google.com/uc?export=download&confirm={token}&id={m.group(1)}"
-                        req2 = urllib.request.Request(url_confirm, headers={"User-Agent": "Mozilla/5.0"})
-                        with urllib.request.urlopen(req2, timeout=20) as resp2:
-                            data = resp2.read()
+            if drive_id and GOOGLE_API_KEY:
+                data = _descargar_via_drive_api(drive_id)
+            elif drive_id:
+                data = _descargar_via_link_publico(drive_id)
+            else:
+                # No es un link de Drive reconocible; se asume URL directa de otro hosting.
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    data = resp.read()
 
             if not _es_imagen_valida(data):
                 raise ValueError("La respuesta no es una imagen válida (probablemente una página de error/advertencia de Drive)")
@@ -195,7 +222,7 @@ def descargar_imagen(url, destino, intentos=3):
             return True
         except Exception as e:
             if intento == intentos - 1:
-                log(f"  ⚠️ No se pudo descargar {url_directa}: {e}")
+                log(f"  ⚠️ No se pudo descargar (drive_id={drive_id}): {e}")
                 return False
             time.sleep(1.5)
     return False
@@ -422,6 +449,10 @@ def limpiar_dataset_temporal():
 
 def main():
     log("=== Iniciando reentrenamiento del modelo de auto-tag de categoría ===")
+    if not GOOGLE_API_KEY:
+        log("⚠️ GOOGLE_API_KEY no configurada — usando el truco de link público de Drive "
+            "(menos confiable, Google lo bloquea seguido desde IPs de datacenter). "
+            "Agrega el secret GOOGLE_API_KEY para descargas confiables.")
     filas = leer_catalogo()
     categorias_finales = construir_dataset(filas)
     categorias_finales = validar_dataset_final(categorias_finales)
