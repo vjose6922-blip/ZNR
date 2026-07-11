@@ -1254,39 +1254,14 @@ window.openBeneficiarioModal?.(benBtn.dataset.benId);
 function _renderMagazinePanel(modal) {
   const panel = modal.querySelector('.im-magazine-panel');
   if (!panel) return;
-  
   const current = _modalProduct;
   const isComunidad = current && (current._comunidad === true);
-  
-  // 🔥 PASO 1: Obtener el pool de productos
   let rawPool;
   if (isComunidad) {
-    // Prioridad: catálogo completo de comunidad (cargado por loadFullCommunityCatalog)
     rawPool = window.allCommunityProductsIndexed || [];
-    // Si está vacío, usar los productos de la página actual
-    if (rawPool.length === 0 && typeof allCommunityProducts !== 'undefined') {
-      rawPool = allCommunityProducts || [];
-    }
   } else {
-    // Para productos normales, usar el catálogo general indexado
-    rawPool = (typeof allProductsIndexed !== 'undefined' && allProductsIndexed.length > 0) 
-      ? allProductsIndexed 
-      : (typeof allProducts !== 'undefined' ? allProducts : []);
+    rawPool = (typeof allProductsIndexed !== 'undefined' ? allProductsIndexed : []);
   }
-  
-  // 🔥 PASO 2: Si aún no hay nada, intentar con filteredProducts (los de la página)
-  if (rawPool.length === 0 && typeof filteredProducts !== 'undefined') {
-    rawPool = filteredProducts || [];
-  }
-  
-  // 🔥 PASO 3: Si el pool sigue vacío, ocultar el panel y salir
-  if (rawPool.length === 0) {
-    panel.style.display = 'none';
-    modal.querySelector('.im-magazine-layout').classList.add('im-no-panel');
-    return;
-  }
-  
-  // Normalizar los productos del pool para que tengan el mismo formato que espera el modal
   const pool = rawPool.map(p => ({
     _raw:  p,
     _id:  String(p.ID  || p.id  || ''),
@@ -1308,113 +1283,102 @@ function _renderMagazinePanel(modal) {
     _donado: p.donado === true || p.donado === 'TRUE' || p.donado === 'true',
     _beneficiarioId: p.beneficiario_id || p._beneficiarioId || '',
   }));
-  
   const currentId  = current ? String(current.ID || current.id || '') : '';
   const currentCat = current ? (current.Categoria || current.categoria || '') : '';
-  
-  // 🔥 PASO 4: Seleccionar relacionados
   let related = [];
   if (current && pool.length) {
-    // Intentar productos de otras categorías con stock
     const otherCat = pool.filter(p =>
       p._id !== currentId &&
       p._categoria !== currentCat &&
       p._stock > 0
     );
     related = otherCat.sort(() => Math.random() - 0.5).slice(0, 3);
-    
-    // Si no hay suficientes de otras categorías, rellenar con cualquier producto (incluyendo la misma categoría)
     if (related.length < 3) {
+      // Si no hay suficientes de otras categorías, rellenamos con lo que haya
+      // (incluyendo la misma categoría) para no dejar el panel vacío.
       const others = pool.filter(p =>
         p._id !== currentId &&
         p._stock > 0 &&
         !related.find(r => r._id === p._id)
       ).sort(() => Math.random() - 0.5);
-      // Tomar los que faltan hasta 3
-      const needed = 3 - related.length;
-      related = [...related, ...others.slice(0, needed)];
+      related = [...related, ...others].slice(0, 3);
     }
   }
-  
-  // 🔥 PASO 5: Si después de todo no hay relacionados, ocultar panel
   if (related.length === 0) {
     panel.style.display = 'none';
     modal.querySelector('.im-magazine-layout').classList.add('im-no-panel');
     return;
   }
-  
-  // 🔥 PASO 6: Renderizar los 3 productos relacionados
   panel.style.display = '';
   modal.querySelector('.im-magazine-layout').classList.remove('im-no-panel');
-  
-  panel.innerHTML = related.map(p => {
-    const thumbImg = typeof optimizeDriveUrl === 'function'
-      ? optimizeDriveUrl(p._imagen1, 200)
-      : (p._imagen1 || '');
-    const fullImg = getModalImageUrl(p._imagen1);
-    const name = (p._nombre || 'Producto').substring(0, 28);
-    const price = typeof formatCurrency === 'function'
-      ? formatCurrency(p._precio)
-      : `$${p._precio}`;
-    const safeImg     = thumbImg ? escapeAttr(thumbImg) : 'https://placehold.co/200x200/3b1f5f/white?text=Z%26R';
-    const safeFullImg = fullImg  ? escapeAttr(fullImg)  : safeImg;
-    const safeName  = typeof escapeHtml === 'function' ? escapeHtml(name) : name;
-    const safeId  = escapeAttr(p._id);
-    const allImg  = [p._imagen1, p._imagen2, p._imagen3]
-      .map(u => u ? getModalImageUrl(u) : '')
-      .filter(Boolean);
-    const allImgEncoded = escapeAttr(JSON.stringify(allImg));
-    const safeNombre  = escapeAttr(p._nombre  || '');
-    const safePrecio  = escapeAttr(String(p._precio  || 0));
-    const safeCat  = escapeAttr(p._categoria  || '');
-    const safeTalla  = escapeAttr(p._talla  || '');
-    const safeDesc  = escapeAttr(p._descripcion || '');
-    const safeStock  = escapeAttr(String(p._stock ?? -1));
-    const safeBadge  = escapeAttr(p._badge  || '');
-    const safeImg1  = escapeAttr(p._imagen1  || '');
-    const safeImg2  = escapeAttr(p._imagen2  || '');
-    const safeImg3  = escapeAttr(p._imagen3  || '');
-    const safeComunidad = p._comunidad ? '1' : '0';
-    const safeVendNombre = escapeAttr(p._vendedorNombre || '');
-    const safeVendUid  = escapeAttr(p._vendedorUid  || '');
-    const safeVendLogo  = escapeAttr(p._vendedorLogo  || '');
-    const safeVendPlan  = escapeAttr(p._vendedorPlan  || '');
-    const safeDonado  = p._donado ? '1' : '0';
-    const safeBenId  = escapeAttr(p._beneficiarioId || '');
-    return `
-      <button class="im-related-card"
-        data-id="${safeId}"
-        data-img="${safeFullImg}"
-        data-all-images="${allImgEncoded}"
-        data-nombre="${safeNombre}"
-        data-precio="${safePrecio}"
-        data-categoria="${safeCat}"
-        data-talla="${safeTalla}"
-        data-descripcion="${safeDesc}"
-        data-stock="${safeStock}"
-        data-badge="${safeBadge}"
-        data-imagen1="${safeImg1}"
-        data-imagen2="${safeImg2}"
-        data-imagen3="${safeImg3}"
-        data-comunidad="${safeComunidad}"
-        data-vendedor-nombre="${safeVendNombre}"
-        data-vendedor-uid="${safeVendUid}"
-        data-vendedor-logo="${safeVendLogo}"
-        data-vendedor-plan="${safeVendPlan}"
-        data-donado="${safeDonado}"
-        data-ben-id="${safeBenId}"
-        aria-label="Ver ${safeName}">
-        <div class="im-related-img-wrap">
-          <img src="${safeImg}" alt="${safeName}" loading="lazy" />
-        </div>
-        <div class="im-related-info">
-          <span class="im-related-name">${safeName}</span>
-          <span class="im-related-price">${price}</span>
-        </div>
-      </button>`;
-  }).join('');
-  
-  // Event listeners para los botones de relacionados
+  panel.innerHTML = `
+    ${related.map(p => {
+      const thumbImg = typeof optimizeDriveUrl === 'function'
+        ? optimizeDriveUrl(p._imagen1, 200)
+        : (p._imagen1 || '');
+      const fullImg = getModalImageUrl(p._imagen1);
+      const name = (p._nombre || 'Producto').substring(0, 28);
+      const price = typeof formatCurrency === 'function'
+        ? formatCurrency(p._precio)
+        : `$${p._precio}`;
+      const safeImg     = thumbImg ? escapeAttr(thumbImg) : 'https://placehold.co/200x200/3b1f5f/white?text=Z%26R';
+      const safeFullImg = fullImg  ? escapeAttr(fullImg)  : safeImg;
+      const safeName  = typeof escapeHtml === 'function' ? escapeHtml(name) : name;
+      const safeId  = escapeAttr(p._id);
+      const allImg  = [p._imagen1, p._imagen2, p._imagen3]
+  .map(u => u ? getModalImageUrl(u) : '')
+  .filter(Boolean);
+      const allImgEncoded = escapeAttr(JSON.stringify(allImg));
+      const safeNombre  = escapeAttr(p._nombre  || '');
+      const safePrecio  = escapeAttr(String(p._precio  || 0));
+      const safeCat  = escapeAttr(p._categoria  || '');
+      const safeTalla  = escapeAttr(p._talla  || '');
+      const safeDesc  = escapeAttr(p._descripcion || '');
+      const safeStock  = escapeAttr(String(p._stock ?? -1));
+      const safeBadge  = escapeAttr(p._badge  || '');
+      const safeImg1  = escapeAttr(p._imagen1  || '');
+      const safeImg2  = escapeAttr(p._imagen2  || '');
+      const safeImg3  = escapeAttr(p._imagen3  || '');
+      const safeComunidad = p._comunidad ? '1' : '0';
+      const safeVendNombre = escapeAttr(p._vendedorNombre || '');
+      const safeVendUid  = escapeAttr(p._vendedorUid  || '');
+      const safeVendLogo  = escapeAttr(p._vendedorLogo  || '');
+      const safeVendPlan  = escapeAttr(p._vendedorPlan  || '');
+      const safeDonado  = p._donado ? '1' : '0';
+      const safeBenId  = escapeAttr(p._beneficiarioId || '');
+      return `
+        <button class="im-related-card"
+          data-id="${safeId}"
+          data-img="${safeFullImg}"
+          data-all-images="${allImgEncoded}"
+          data-nombre="${safeNombre}"
+          data-precio="${safePrecio}"
+          data-categoria="${safeCat}"
+          data-talla="${safeTalla}"
+          data-descripcion="${safeDesc}"
+          data-stock="${safeStock}"
+          data-badge="${safeBadge}"
+          data-imagen1="${safeImg1}"
+          data-imagen2="${safeImg2}"
+          data-imagen3="${safeImg3}"
+          data-comunidad="${safeComunidad}"
+          data-vendedor-nombre="${safeVendNombre}"
+          data-vendedor-uid="${safeVendUid}"
+          data-vendedor-logo="${safeVendLogo}"
+          data-vendedor-plan="${safeVendPlan}"
+          data-donado="${safeDonado}"
+          data-ben-id="${safeBenId}"
+          aria-label="Ver ${safeName}">
+          <div class="im-related-img-wrap">
+            <img src="${safeImg}" alt="${safeName}" loading="lazy" />
+          </div>
+          <div class="im-related-info">
+            <span class="im-related-name">${safeName}</span>
+            <span class="im-related-price">${price}</span>
+          </div>
+        </button>`;
+    }).join('')}
+  `;
   panel.querySelectorAll('.im-related-card').forEach(btn => {
     btn.addEventListener('click', () => {
       const img1  = btn.dataset.img;
@@ -1452,7 +1416,6 @@ function _renderMagazinePanel(modal) {
     });
   });
 }
-
 function _modalNav(dir) {
 if (_modalImages.length < 2) return;
 _modalIndex = (_modalIndex + dir + _modalImages.length) % _modalImages.length;
@@ -4329,6 +4292,8 @@ if ('serviceWorker' in navigator) {
     }
 }
 
+// Versión de alta resolución, pensada específicamente para el modal grande.
+// Ignora los topes de optimizeDriveUrl y pide el tamaño real necesario en pantalla.
 function getModalImageUrl(url) {
   if (!url) return "https://placehold.co/900x900/3b1f5f/white?text=Z%26R";
   if (!url.startsWith('http') && !url.startsWith('data:image')) {
