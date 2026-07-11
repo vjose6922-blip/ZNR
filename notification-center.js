@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const POLL_MS = 180000; 
+  const POLL_MS = 600000; // 🔧 red de seguridad (antes 3 min); push + visibilitychange son la vía principal
   let modalBuilt = false;
   let currentTab = 'pedidos';
   let cache = { items: [], loaded: false };

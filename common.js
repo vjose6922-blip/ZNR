@@ -3509,20 +3509,25 @@ const orders = loadOrders();
 if (!orders.length) return;
 const toCheck = orders.filter(o => o.status === 'pendiente' || o.status === 'pending');
 if (!toCheck.length) return;
-await Promise.allSettled(toCheck.map(async o => {
-try {
-const res  = await fetch(`${API_URL}?action=checkRequestStatus&requestId=${encodeURIComponent(o.requestId)}`);
+// 🔧 Antes: una llamada GAS por pedido pendiente (N+1). Ahora: un solo
+// checkRequestStatusBatch con todos los requestId de una vez.
+const ids = toCheck.map(o => o.requestId);
+const res  = await fetch(`${API_URL}?action=checkRequestStatusBatch&requestIds=${encodeURIComponent(JSON.stringify(ids))}`);
 const data = await res.json();
-if (!data.ok) return;
+if (!data.ok || !data.statuses) return;
 const map = { pending:'pendiente', approved:'confirmado', cancelled:'cancelled', rejected:'rejected' };
-const newStatus = map[data.status] || data.status;
+const all = loadOrders();
+let changed = false;
+toCheck.forEach(o => {
+const entry = data.statuses[o.requestId];
+if (!entry) return;
+const newStatus = map[entry.status] || entry.status;
 if (newStatus !== o.status) {
-  const all = loadOrders();
   const idx = all.findIndex(x => x.requestId === o.requestId);
-  if (idx !== -1) { all[idx].status = newStatus; saveOrders(all); }
+  if (idx !== -1) { all[idx].status = newStatus; changed = true; }
 }
-} catch {}
-}));
+});
+if (changed) saveOrders(all);
 } catch {}
 }
 function detectSection(product) {

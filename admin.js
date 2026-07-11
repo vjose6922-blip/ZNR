@@ -688,10 +688,29 @@ async function checkNotifications() {
   }
 }
  
+let _adminNotifPushWired = false;
 function startNotificationMonitoring() {
   if (notificationInterval) clearInterval(notificationInterval);
   checkNotifications();
-  notificationInterval = setInterval(checkNotifications, 45000); // 🆕 45s en vez de 10s
+
+  // 🔧 Push ya cubre esto en tiempo real (enviarPushA('admin', ...) dispara
+  // znr-nueva-notificacion en todas las pestañas admin abiertas). El poll
+  // fijo ahora es solo una red de seguridad ante push perdido, no la vía
+  // principal de actualización — de ahí que baje de 45s a 3 min.
+  if (!_adminNotifPushWired) {
+    _adminNotifPushWired = true;
+    window.addEventListener('znr:nueva-notificacion', checkNotifications);
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'znr-nueva-notificacion') checkNotifications();
+      });
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) checkNotifications();
+    });
+  }
+
+  notificationInterval = setInterval(checkNotifications, 180000); // 🔧 red de seguridad: 3 min
 }
 function stopNotificationMonitoring() {
   if (notificationInterval) {
@@ -1130,7 +1149,19 @@ const data = await gasPost(payload);
 if (!data.ok) throw new Error(data.error);
 if (typeof showTemporaryMessage === 'function') showTemporaryMessage(msg, 'success');
 const row = document.getElementById(`prow-${id}`);
-if (row) { row.style.opacity = '0'; setTimeout(() => { row.remove(); loadPendingProducts(); }, 300); }
+// 🔧 La fila ya se quita del DOM; no hace falta re-pegarle a GAS
+// (productosPendientes escanea toda la hoja) solo para redibujar la
+// misma lista sin esa fila. Si queda vacía, mostramos el mensaje local.
+if (row) {
+  row.style.opacity = '0';
+  setTimeout(() => {
+    row.remove();
+    const container = document.getElementById('admin-pending-list') || row.parentElement;
+    if (container && !container.querySelector('.pending-product-row')) {
+      container.innerHTML = '<p style="color:#aaa;text-align:center">Sin productos pendientes </p>';
+    }
+  }, 300);
+}
 if (typeof window.refreshAllAdminBadges === 'function') window.refreshAllAdminBadges();
 } catch (err) {
 if (typeof showTemporaryMessage === 'function') showTemporaryMessage(' ' + err.message, 'error');

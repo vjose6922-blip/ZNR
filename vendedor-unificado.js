@@ -450,7 +450,9 @@ if (!window._vsnPollingStarted) {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) loadVendorSaleNotifications();
   });
-   setInterval(loadVendorSaleNotifications, 180000);
+   // 🔧 Ya escuchamos push (znr:nueva-notificacion) y visibilitychange arriba,
+   // así que este interval pasa a ser solo red de seguridad (antes 180s).
+   setInterval(loadVendorSaleNotifications, 600000);
 }
 }
 

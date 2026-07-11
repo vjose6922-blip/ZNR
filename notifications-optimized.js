@@ -465,18 +465,35 @@ document.querySelectorAll('.lazy-notif').forEach(img => {
 lazyImageObserver.observe(img);
 });
 }
+let _notifOptPushWired = false;
 function startAutoRefresh() {
 if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-autoRefreshInterval = setInterval(() => {
-if (!document.hidden) {
-refreshInBackground();
+
+// 🔧 Push (crearNotification → enviarPushA('admin', ...)) ya dispara
+// znr-nueva-notificacion en cuanto entra un pedido nuevo. El poll fijo
+// pasa a ser solo respaldo (antes 30s, chocaba con la caché de 25s del
+// backend y recargaba la hoja completa casi en cada tick).
+if (!_notifOptPushWired) {
+  _notifOptPushWired = true;
+  window.addEventListener('znr:nueva-notificacion', refreshInBackground);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'znr-nueva-notificacion') refreshInBackground();
+    });
+  }
 }
-}, 30000);
+
 document.addEventListener('visibilitychange', () => {
 if (!document.hidden) {
 refreshInBackground();
 }
 });
+
+autoRefreshInterval = setInterval(() => {
+if (!document.hidden) {
+refreshInBackground();
+}
+}, 300000); // 🔧 red de seguridad: 5 min (antes 30s)
 }
 function stopAutoRefresh() {
 if (autoRefreshInterval) {

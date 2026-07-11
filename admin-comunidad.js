@@ -285,7 +285,19 @@
       if (!data.ok) throw new Error(data.error);
       _msg(msg, 'success');
       const row = document.getElementById(`prow-${id}`);
-      if (row) { row.style.opacity = '0'; setTimeout(() => { row.remove(); loadPendingProducts(); }, 300); }
+      // 🔧 La fila ya se quita del DOM; evitamos re-pegarle a GAS
+      // (productosPendientes escanea toda la hoja ProductosComunidad)
+      // solo para redibujar la misma lista sin esa fila.
+      if (row) {
+        row.style.opacity = '0';
+        setTimeout(() => {
+          row.remove();
+          const container = document.getElementById('admin-pending-list');
+          if (container && !container.querySelector('.pending-product-row')) {
+            container.innerHTML = '<p style="color:#aaa;text-align:center">Sin productos pendientes </p>';
+          }
+        }, 300);
+      }
       if (typeof window.refreshAllAdminBadges === 'function') window.refreshAllAdminBadges();
     } catch (err) { _msg(' ' + err.message, 'error'); }
     };
