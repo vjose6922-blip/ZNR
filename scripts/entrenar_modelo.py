@@ -38,6 +38,7 @@ from collections import defaultdict
 
 import numpy as np
 import tensorflow as tf
+from PIL import Image
 
 # ── Configuración ──────────────────────────────────────────────────────────
 
@@ -133,6 +134,38 @@ def drive_a_descarga_directa(url):
     return url  # ya es una URL directa (u otro hosting)
 
 
+MAGIC_BYTES = {
+    b"\xff\xd8\xff": "jpeg",
+    b"\x89PNG\r\n\x1a\n": "png",
+    b"GIF87a": "gif",
+    b"GIF89a": "gif",
+    b"BM": "bmp",
+}
+
+
+def _es_imagen_valida(data):
+    """Revisa los primeros bytes del archivo para confirmar que es una imagen
+    real (JPEG/PNG/GIF/BMP) y no una página HTML de error/advertencia de Drive."""
+    if not data or len(data) < 100:
+        return False
+    for firma in MAGIC_BYTES:
+        if data.startswith(firma):
+            return True
+    return False
+
+
+def _extraer_confirm_token(html_bytes):
+    """Cuando Drive no puede confirmar la descarga automáticamente, devuelve
+    una página HTML con un formulario/token de confirmación en vez del
+    archivo. Intentamos extraer ese token para reintentar la descarga real."""
+    try:
+        texto = html_bytes.decode("utf-8", errors="ignore")
+    except Exception:
+        return None
+    m = re.search(r'confirm=([0-9A-Za-z_-]+)', texto)
+    return m.group(1) if m else None
+
+
 def descargar_imagen(url, destino, intentos=3):
     url_directa = drive_a_descarga_directa(url)
     for intento in range(intentos):
@@ -140,8 +173,23 @@ def descargar_imagen(url, destino, intentos=3):
             req = urllib.request.Request(url_directa, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=20) as resp:
                 data = resp.read()
-            if len(data) < 500:  # probablemente una página de error/HTML, no una imagen
-                raise ValueError("Respuesta demasiado pequeña, probablemente no es una imagen válida")
+
+            if not _es_imagen_valida(data):
+                # Puede ser la página de confirmación de Drive ("no se puede
+                # escanear este archivo por virus" / cuota). Intentamos sacar
+                # el token de confirmación y reintentar con la URL real.
+                token = _extraer_confirm_token(data)
+                if token and "drive.google.com" in url_directa:
+                    m = re.search(r"id=([a-zA-Z0-9_-]+)", url_directa)
+                    if m:
+                        url_confirm = f"https://drive.google.com/uc?export=download&confirm={token}&id={m.group(1)}"
+                        req2 = urllib.request.Request(url_confirm, headers={"User-Agent": "Mozilla/5.0"})
+                        with urllib.request.urlopen(req2, timeout=20) as resp2:
+                            data = resp2.read()
+
+            if not _es_imagen_valida(data):
+                raise ValueError("La respuesta no es una imagen válida (probablemente una página de error/advertencia de Drive)")
+
             with open(destino, "wb") as f:
                 f.write(data)
             return True
@@ -194,6 +242,39 @@ def construir_dataset(filas):
 
     log(f"Categorías finales para entrenar ({len(categorias_finales)}): {categorias_finales}")
     return categorias_finales
+
+
+def validar_dataset_final(categorias_finales):
+    """Última red de seguridad: abre cada imagen descargada con Pillow y
+    elimina cualquier archivo corrupto/truncado antes de entrenar. Si una
+    categoría queda por debajo del mínimo después de esta limpieza, se
+    descarta también."""
+    categorias_ok = []
+    for categoria in categorias_finales:
+        carpeta = os.path.join(DATASET_DIR, categoria.replace("/", "-"))
+        if not os.path.isdir(carpeta):
+            continue
+        validas = 0
+        for nombre_archivo in list(os.listdir(carpeta)):
+            ruta = os.path.join(carpeta, nombre_archivo)
+            try:
+                with Image.open(ruta) as img:
+                    img.verify()
+                validas += 1
+            except Exception:
+                log(f"  🗑️ Eliminando imagen corrupta/no válida: {ruta}")
+                os.remove(ruta)
+        if validas >= MIN_FOTOS_POR_CATEGORIA:
+            categorias_ok.append(categoria)
+        else:
+            log(f"  ⚠️ Categoría '{categoria}' quedó con solo {validas} fotos válidas tras la limpieza, se descarta.")
+
+    if len(categorias_ok) < 2:
+        log("❌ Después de validar las imágenes, no quedan suficientes categorías con suficientes fotos.")
+        sys.exit(1)
+
+    log(f"Categorías validadas para entrenar ({len(categorias_ok)}): {categorias_ok}")
+    return categorias_ok
 
 
 # ── 3 y 4. Entrenar MobileNetV2 (transfer learning + fine-tuning) ──────────
@@ -343,6 +424,7 @@ def main():
     log("=== Iniciando reentrenamiento del modelo de auto-tag de categoría ===")
     filas = leer_catalogo()
     categorias_finales = construir_dataset(filas)
+    categorias_finales = validar_dataset_final(categorias_finales)
     model, class_names = entrenar(categorias_finales)
     exportar(model, class_names)
     limpiar_dataset_temporal()
