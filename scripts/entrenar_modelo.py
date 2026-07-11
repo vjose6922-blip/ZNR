@@ -42,7 +42,11 @@ import tensorflow as tf
 # ── Configuración ──────────────────────────────────────────────────────────
 
 CATALOGO_CSV_URL = os.environ.get("CATALOGO_CSV_URL", "").strip()
-MIN_FOTOS_POR_CATEGORIA = 15
+# Configurable desde el workflow_dispatch (input min_fotos_categoria) para
+# permitir "pruebas de humo" con inventario chico. Súbelo a 15+ en cuanto
+# tengas más fotos por categoría — con muy pocas fotos el modelo no aprende
+# un patrón visual real, solo memoriza.
+MIN_FOTOS_POR_CATEGORIA = int(os.environ.get("MIN_FOTOS_POR_CATEGORIA", "15"))
 IMG_SIZE = 224
 BATCH_SIZE = 16
 EPOCHS_HEAD = 8
@@ -194,24 +198,50 @@ def entrenar(categorias_finales):
             import shutil
             shutil.rmtree(ruta)
 
-    train_ds = tf.keras.utils.image_dataset_from_directory(
-        DATASET_DIR,
-        validation_split=VALIDATION_SPLIT,
-        subset="training",
-        seed=SEED,
-        image_size=(IMG_SIZE, IMG_SIZE),
-        batch_size=BATCH_SIZE,
-        label_mode="categorical",
+    # Con inventario chico (pruebas de humo) no siempre alcanza para separar
+    # validación sin arriesgarse a dejar clases sin ejemplos en algún lado.
+    # Umbral simple: si el total de imágenes es muy bajo, entrenamos con
+    # todo el dataset y sin validación (solo para confirmar que el pipeline
+    # completo funciona de punta a punta).
+    total_imagenes = sum(
+        len(os.listdir(os.path.join(DATASET_DIR, d)))
+        for d in os.listdir(DATASET_DIR)
+        if os.path.isdir(os.path.join(DATASET_DIR, d))
     )
-    val_ds = tf.keras.utils.image_dataset_from_directory(
-        DATASET_DIR,
-        validation_split=VALIDATION_SPLIT,
-        subset="validation",
-        seed=SEED,
-        image_size=(IMG_SIZE, IMG_SIZE),
-        batch_size=BATCH_SIZE,
-        label_mode="categorical",
-    )
+    usar_validacion = total_imagenes >= 40  # ~ suficiente para separar 15% sin dejar clases vacías
+
+    if usar_validacion:
+        train_ds = tf.keras.utils.image_dataset_from_directory(
+            DATASET_DIR,
+            validation_split=VALIDATION_SPLIT,
+            subset="training",
+            seed=SEED,
+            image_size=(IMG_SIZE, IMG_SIZE),
+            batch_size=BATCH_SIZE,
+            label_mode="categorical",
+        )
+        val_ds = tf.keras.utils.image_dataset_from_directory(
+            DATASET_DIR,
+            validation_split=VALIDATION_SPLIT,
+            subset="validation",
+            seed=SEED,
+            image_size=(IMG_SIZE, IMG_SIZE),
+            batch_size=BATCH_SIZE,
+            label_mode="categorical",
+        )
+    else:
+        log(f"⚠️ Dataset muy pequeño ({total_imagenes} imágenes en total) — "
+            f"entrenando SIN separar validación. Esto es solo una prueba de "
+            f"humo del pipeline; sube MIN_FOTOS_POR_CATEGORIA y agrega más "
+            f"fotos antes de confiar en la precisión del modelo.")
+        train_ds = tf.keras.utils.image_dataset_from_directory(
+            DATASET_DIR,
+            seed=SEED,
+            image_size=(IMG_SIZE, IMG_SIZE),
+            batch_size=BATCH_SIZE,
+            label_mode="categorical",
+        )
+        val_ds = None
 
     # class_names viene ordenado alfabéticamente por Keras — este es el
     # orden EXACTO que debe coincidir con labels.txt / CATEGORY_MAP.
@@ -233,7 +263,8 @@ def entrenar(categorias_finales):
 
     AUTOTUNE = tf.data.AUTOTUNE
     train_ds = train_ds.map(lambda x, y: (data_augmentation(preprocess(x)), y), num_parallel_calls=AUTOTUNE).prefetch(AUTOTUNE)
-    val_ds = val_ds.map(lambda x, y: (preprocess(x), y), num_parallel_calls=AUTOTUNE).prefetch(AUTOTUNE)
+    if val_ds is not None:
+        val_ds = val_ds.map(lambda x, y: (preprocess(x), y), num_parallel_calls=AUTOTUNE).prefetch(AUTOTUNE)
 
     base_model = tf.keras.applications.MobileNetV2(
         input_shape=(IMG_SIZE, IMG_SIZE, 3),
