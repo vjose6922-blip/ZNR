@@ -1121,6 +1121,12 @@ window.handleFileSelect = function(n, input) {
     const files = input.files;
     if (!files || files.length === 0) return;
 
+    // Auto-tag de categoría por IA: solo se dispara con la foto del slot 1,
+    // corre 100% client-side y nunca bloquea ni retrasa la subida/publicación.
+    if (n === 1 && files[0] && typeof window.sugerirYAplicar === 'function') {
+        window.sugerirYAplicar(files[0]);
+    }
+
     const vendorUploadFn = async (file, slot) => {
         return await uploadSingleImage(file);
     };

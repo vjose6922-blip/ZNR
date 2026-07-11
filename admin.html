@@ -1539,6 +1539,10 @@
  <span class="amc-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true"><use href="#ic-refresh"/></svg></span>
  <span class="amc-label">Pendientes por cargar</span>
  </button>
+ <button type="button" class="admin-mini-card" onclick="reentrenarModeloIA()">
+ <span class="amc-icon">🧠</span>
+ <span class="amc-label">Reentrenar modelo IA (categorías)</span>
+ </button>
  </div>
  </section>
 
@@ -2100,6 +2104,69 @@ async function openAnalyticsModal(period) {
 function esc_(s) { return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ── Monitor de Errores (movido al panel de Notificaciones > Herramientas) ──
+// ── Reentrenar modelo de IA (auto-tag de categoría) ───────────────────────
+async function reentrenarModeloIA() {
+  const confirmado = await new Promise((resolve) => {
+    showCustomConfirm({
+      title: '🧠 Reentrenar modelo de IA',
+      message: 'Esto dispara un entrenamiento nuevo del modelo de auto-tag de categorías en GitHub Actions, usando las fotos y categorías actuales del catálogo. Puede tardar varios minutos y reemplazará el modelo en producción al terminar. ¿Continuar?',
+      icon: '🧠',
+      confirmText: 'Sí, reentrenar',
+      cancelText: 'Cancelar',
+      onConfirm: () => resolve(true),
+      onCancel: () => resolve(false)
+    });
+  });
+  if (!confirmado) return;
+
+  showLoader('Disparando reentrenamiento...');
+  try {
+    const api = window.API_URL || '';
+    const token = sessionStorage.getItem('admin_token') || '';
+    if (!api || !token) {
+      hideLoader();
+      showCustomAlert({
+        title: '⚠️ Sin sesión activa',
+        message: 'No hay API_URL o token de admin disponible. Inicia sesión de nuevo.',
+        icon: '⚠️',
+        confirmText: 'Entendido'
+      });
+      return;
+    }
+    const res = await fetch(api, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'reentrenarModeloIA', token }).toString()
+    });
+    const data = await res.json();
+    hideLoader();
+    if (!data || !data.ok) {
+      showCustomAlert({
+        title: '⚠️ No se pudo disparar el reentrenamiento',
+        message: (data && data.error) || 'Error desconocido.',
+        icon: '⚠️',
+        confirmText: 'Entendido'
+      });
+      return;
+    }
+    showCustomAlert({
+      title: '✅ Reentrenamiento disparado',
+      message: data.message || 'Revisa la pestaña Actions de tu repo en GitHub para ver el progreso.',
+      icon: '✅',
+      confirmText: 'Entendido'
+    });
+  } catch (err) {
+    hideLoader();
+    console.error('Error reentrenarModeloIA:', err);
+    showCustomAlert({
+      title: '⚠️ Error de conexión',
+      message: 'No se pudo contactar al servidor. Intenta de nuevo.',
+      icon: '⚠️',
+      confirmText: 'Entendido'
+    });
+  }
+}
+
 function openErrorMonitorModal() {
   const old = document.getElementById('modal-error-monitor');
   if (old) old.remove();
