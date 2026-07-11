@@ -1,0 +1,311 @@
+"""
+scripts/entrenar_modelo.py
+
+Entrena el modelo de auto-tag de categoría para ZNR y exporta:
+  - model.tflite  (a la raíz del repo)
+  - labels.txt    (a la raíz del repo, mismo orden de clases que el modelo)
+
+Se ejecuta dentro de GitHub Actions (.github/workflows/reentrenar-modelo.yml),
+disparado por Apps Script vía workflow_dispatch. También se puede correr
+localmente o adaptar a un notebook de Colab para pruebas manuales.
+
+Flujo:
+  1. Lee el catálogo desde el CSV publicado del Google Sheet
+     (variable de entorno CATALOGO_CSV_URL).
+  2. Descarga las fotos de cada producto (convierte links de Drive a
+     descarga directa).
+  3. Descarta categorías con menos de MIN_FOTOS_POR_CATEGORIA fotos.
+  4. Entrena MobileNetV2 (transfer learning) + fine-tuning ligero.
+  5. Exporta model.tflite + labels.txt a la raíz del repo.
+
+IMPORTANTE: el orden de clases en labels.txt debe coincidir EXACTAMENTE con
+CATEGORY_MAP en ai-clasificador.js. Este script ordena las clases
+alfabéticamente de forma determinista y las escribe en ese orden en
+labels.txt — después de cada entrenamiento, actualiza CATEGORY_MAP en
+ai-clasificador.js para que coincida (o deja que el módulo cargue labels.txt
+en tiempo de ejecución, que ya tiene prioridad sobre CATEGORY_MAP).
+"""
+
+import os
+import re
+import sys
+import io
+import csv
+import time
+import urllib.request
+import urllib.error
+from collections import defaultdict
+
+import numpy as np
+import tensorflow as tf
+
+# ── Configuración ──────────────────────────────────────────────────────────
+
+CATALOGO_CSV_URL = os.environ.get("CATALOGO_CSV_URL", "").strip()
+MIN_FOTOS_POR_CATEGORIA = 15
+IMG_SIZE = 224
+BATCH_SIZE = 16
+EPOCHS_HEAD = 8
+EPOCHS_FINETUNE = 6
+VALIDATION_SPLIT = 0.15
+SEED = 42
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATASET_DIR = os.path.join(REPO_ROOT, "_dataset_temp")
+MODEL_OUT = os.path.join(REPO_ROOT, "model.tflite")
+LABELS_OUT = os.path.join(REPO_ROOT, "labels.txt")
+
+# Nombres de columna posibles (para tolerar variaciones de mayúsculas/acentos
+# entre lo asumido en el informe y el Sheet real de Jose). Ajusta esta lista
+# si tu columna real usa otro nombre.
+COL_CATEGORIA_CANDIDATOS = ["categoria", "categoría", "category"]
+COL_IMAGEN_CANDIDATOS = ["imagen1", "imagen 1", "imagen_1", "image1", "foto1", "foto 1"]
+
+
+def log(msg):
+    print(f"[entrenar_modelo] {msg}", flush=True)
+
+
+# ── 1. Leer catálogo desde el CSV publicado del Sheet ──────────────────────
+
+def leer_catalogo():
+    if not CATALOGO_CSV_URL:
+        log("❌ Falta la variable de entorno CATALOGO_CSV_URL (secret de GitHub Actions).")
+        sys.exit(1)
+
+    log(f"Descargando catálogo desde: {CATALOGO_CSV_URL}")
+    with urllib.request.urlopen(CATALOGO_CSV_URL, timeout=30) as resp:
+        raw = resp.read().decode("utf-8-sig")
+
+    reader = csv.DictReader(io.StringIO(raw))
+    fieldnames = reader.fieldnames or []
+    fieldnames_lower = {f.lower().strip(): f for f in fieldnames}
+
+    col_categoria = next((fieldnames_lower[c] for c in COL_CATEGORIA_CANDIDATOS if c in fieldnames_lower), None)
+    col_imagen = next((fieldnames_lower[c] for c in COL_IMAGEN_CANDIDATOS if c in fieldnames_lower), None)
+
+    if not col_categoria or not col_imagen:
+        log(f"❌ No se encontraron las columnas esperadas. Columnas detectadas: {fieldnames}")
+        log("   Ajusta COL_CATEGORIA_CANDIDATOS / COL_IMAGEN_CANDIDATOS en este script a tus nombres reales.")
+        sys.exit(1)
+
+    log(f"Columna de categoría detectada: '{col_categoria}' | columna de imagen: '{col_imagen}'")
+
+    filas = []
+    for row in reader:
+        categoria = (row.get(col_categoria) or "").strip()
+        imagen = (row.get(col_imagen) or "").strip()
+        if categoria and imagen:
+            filas.append((categoria, imagen))
+
+    log(f"Filas válidas leídas del catálogo: {len(filas)}")
+    return filas
+
+
+# ── 2. Descargar fotos (convierte links de Drive a descarga directa) ───────
+
+def drive_a_descarga_directa(url):
+    """Convierte varios formatos de link de Drive a un link de descarga directa."""
+    m = re.search(r"/file/d/([a-zA-Z0-9_-]+)", url)
+    if m:
+        return f"https://drive.google.com/uc?export=download&id={m.group(1)}"
+    m = re.search(r"[?&]id=([a-zA-Z0-9_-]+)", url)
+    if m:
+        return f"https://drive.google.com/uc?export=download&id={m.group(1)}"
+    m = re.search(r"lh3\.googleusercontent\.com/d/([a-zA-Z0-9_-]+)", url)
+    if m:
+        return f"https://drive.google.com/uc?export=download&id={m.group(1)}"
+    return url  # ya es una URL directa (u otro hosting)
+
+
+def descargar_imagen(url, destino, intentos=3):
+    url_directa = drive_a_descarga_directa(url)
+    for intento in range(intentos):
+        try:
+            req = urllib.request.Request(url_directa, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = resp.read()
+            if len(data) < 500:  # probablemente una página de error/HTML, no una imagen
+                raise ValueError("Respuesta demasiado pequeña, probablemente no es una imagen válida")
+            with open(destino, "wb") as f:
+                f.write(data)
+            return True
+        except Exception as e:
+            if intento == intentos - 1:
+                log(f"  ⚠️ No se pudo descargar {url_directa}: {e}")
+                return False
+            time.sleep(1.5)
+    return False
+
+
+def construir_dataset(filas):
+    conteo = defaultdict(int)
+    por_categoria = defaultdict(list)
+    for categoria, imagen in filas:
+        por_categoria[categoria].append(imagen)
+
+    categorias_validas = {
+        cat: urls for cat, urls in por_categoria.items()
+        if len(urls) >= MIN_FOTOS_POR_CATEGORIA
+    }
+
+    descartadas = set(por_categoria) - set(categorias_validas)
+    if descartadas:
+        log(f"Categorías descartadas por tener menos de {MIN_FOTOS_POR_CATEGORIA} fotos: {sorted(descartadas)}")
+
+    if len(categorias_validas) < 2:
+        log("❌ Se necesitan al menos 2 categorías con suficientes fotos para entrenar.")
+        sys.exit(1)
+
+    os.makedirs(DATASET_DIR, exist_ok=True)
+    for categoria in sorted(categorias_validas.keys()):
+        carpeta = os.path.join(DATASET_DIR, categoria.replace("/", "-"))
+        os.makedirs(carpeta, exist_ok=True)
+        urls = categorias_validas[categoria]
+        log(f"Descargando {len(urls)} fotos para categoría '{categoria}'...")
+        n_ok = 0
+        for i, url in enumerate(urls):
+            destino = os.path.join(carpeta, f"{i:04d}.jpg")
+            if descargar_imagen(url, destino):
+                n_ok += 1
+        conteo[categoria] = n_ok
+        log(f"  ✅ {n_ok}/{len(urls)} descargadas para '{categoria}'")
+
+    # Re-filtrar por si algunas descargas fallaron y la categoría quedó chica
+    categorias_finales = sorted([c for c, n in conteo.items() if n >= MIN_FOTOS_POR_CATEGORIA])
+    if len(categorias_finales) < 2:
+        log("❌ Después de descargar, no quedan suficientes categorías con suficientes fotos.")
+        sys.exit(1)
+
+    log(f"Categorías finales para entrenar ({len(categorias_finales)}): {categorias_finales}")
+    return categorias_finales
+
+
+# ── 3 y 4. Entrenar MobileNetV2 (transfer learning + fine-tuning) ──────────
+
+def entrenar(categorias_finales):
+    # Elimina del directorio de dataset cualquier carpeta que no haya
+    # quedado en la lista final (por si alguna categoría fue descartada
+    # después de la descarga).
+    for nombre in os.listdir(DATASET_DIR):
+        ruta = os.path.join(DATASET_DIR, nombre)
+        if os.path.isdir(ruta) and nombre not in [c.replace("/", "-") for c in categorias_finales]:
+            log(f"Eliminando carpeta descartada del dataset: {nombre}")
+            import shutil
+            shutil.rmtree(ruta)
+
+    train_ds = tf.keras.utils.image_dataset_from_directory(
+        DATASET_DIR,
+        validation_split=VALIDATION_SPLIT,
+        subset="training",
+        seed=SEED,
+        image_size=(IMG_SIZE, IMG_SIZE),
+        batch_size=BATCH_SIZE,
+        label_mode="categorical",
+    )
+    val_ds = tf.keras.utils.image_dataset_from_directory(
+        DATASET_DIR,
+        validation_split=VALIDATION_SPLIT,
+        subset="validation",
+        seed=SEED,
+        image_size=(IMG_SIZE, IMG_SIZE),
+        batch_size=BATCH_SIZE,
+        label_mode="categorical",
+    )
+
+    # class_names viene ordenado alfabéticamente por Keras — este es el
+    # orden EXACTO que debe coincidir con labels.txt / CATEGORY_MAP.
+    class_names = train_ds.class_names
+    log(f"Orden de clases (alfabético, usado también en labels.txt): {class_names}")
+
+    num_clases = len(class_names)
+
+    data_augmentation = tf.keras.Sequential([
+        tf.keras.layers.RandomFlip("horizontal"),
+        tf.keras.layers.RandomRotation(0.08),
+        tf.keras.layers.RandomZoom(0.1),
+        tf.keras.layers.RandomContrast(0.1),
+    ])
+
+    # Normalización estilo MobileNet: [-1, 1]. Debe coincidir con
+    # fileToInputTensor() en ai-clasificador.js.
+    preprocess = tf.keras.layers.Rescaling(scale=1.0 / 127.5, offset=-1)
+
+    AUTOTUNE = tf.data.AUTOTUNE
+    train_ds = train_ds.map(lambda x, y: (data_augmentation(preprocess(x)), y), num_parallel_calls=AUTOTUNE).prefetch(AUTOTUNE)
+    val_ds = val_ds.map(lambda x, y: (preprocess(x), y), num_parallel_calls=AUTOTUNE).prefetch(AUTOTUNE)
+
+    base_model = tf.keras.applications.MobileNetV2(
+        input_shape=(IMG_SIZE, IMG_SIZE, 3),
+        include_top=False,
+        weights="imagenet",
+    )
+    base_model.trainable = False
+
+    inputs = tf.keras.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
+    x = base_model(inputs, training=False)
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+    x = tf.keras.layers.Dropout(0.3)(x)
+    outputs = tf.keras.layers.Dense(num_clases, activation="softmax")(x)
+    model = tf.keras.Model(inputs, outputs)
+
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
+        loss="categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+
+    log("Entrenando cabeza (transfer learning, base congelada)...")
+    model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS_HEAD)
+
+    log("Fine-tuning ligero (descongelando últimas capas de MobileNetV2)...")
+    base_model.trainable = True
+    for layer in base_model.layers[:-30]:
+        layer.trainable = False
+
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
+        loss="categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+    model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS_FINETUNE)
+
+    return model, class_names
+
+
+# ── 5. Exportar model.tflite + labels.txt ──────────────────────────────────
+
+def exportar(model, class_names):
+    log("Convirtiendo a TFLite...")
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    tflite_model = converter.convert()
+
+    with open(MODEL_OUT, "wb") as f:
+        f.write(tflite_model)
+    log(f"✅ Modelo exportado: {MODEL_OUT} ({len(tflite_model) / 1024:.1f} KB)")
+
+    with open(LABELS_OUT, "w", encoding="utf-8") as f:
+        f.write("\n".join(class_names) + "\n")
+    log(f"✅ Labels exportados: {LABELS_OUT}")
+
+
+def limpiar_dataset_temporal():
+    import shutil
+    if os.path.isdir(DATASET_DIR):
+        shutil.rmtree(DATASET_DIR)
+        log("Dataset temporal eliminado (no se commitea al repo).")
+
+
+def main():
+    log("=== Iniciando reentrenamiento del modelo de auto-tag de categoría ===")
+    filas = leer_catalogo()
+    categorias_finales = construir_dataset(filas)
+    model, class_names = entrenar(categorias_finales)
+    exportar(model, class_names)
+    limpiar_dataset_temporal()
+    log("=== Reentrenamiento completado ===")
+
+
+if __name__ == "__main__":
+    main()
