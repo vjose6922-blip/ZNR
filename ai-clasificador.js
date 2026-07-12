@@ -62,20 +62,20 @@ async function _cargarModelo() {
 
       try {
         _model = await _liteRtCore.loadAndCompile(MODEL_URL, { accelerator: 'webgpu' });
-        console.log('[ai-clasificador] Modelo cargado con aceleración WebGPU');
+        console.warn('[ai-clasificador] Modelo cargado con aceleración WebGPU');
       } catch (errGpu) {
         console.warn('[ai-clasificador] WebGPU no disponible, usando CPU/wasm:', errGpu);
         _model = await _liteRtCore.loadAndCompile(MODEL_URL, { accelerator: 'wasm' });
-        console.log('[ai-clasificador] Modelo cargado con CPU/wasm');
+        console.warn('[ai-clasificador] Modelo cargado con CPU/wasm');
       }
 
       try {
         const labels = await _cargarLabels();
         if (labels && labels.length) {
           CATEGORY_MAP = labels;
-          console.log('[ai-clasificador] labels.txt cargado, categorías del modelo:', CATEGORY_MAP);
+          console.warn('[ai-clasificador] labels.txt cargado, categorías del modelo:', CATEGORY_MAP);
         } else {
-          console.log('[ai-clasificador] labels.txt no disponible o vacío, usando CATEGORY_MAP por defecto:', CATEGORY_MAP);
+          console.warn('[ai-clasificador] labels.txt no disponible o vacío, usando CATEGORY_MAP por defecto:', CATEGORY_MAP);
         }
       } catch (errLabels) {
         console.warn('[ai-clasificador] No se pudo cargar labels.txt, usando CATEGORY_MAP por defecto:', errLabels);
@@ -192,17 +192,17 @@ window.sugerirYAplicar = async function(file) {
 
     // No pisar una categoría que el vendedor ya eligió manualmente.
     if (select.value && select.dataset.aiSugerida !== 'true') {
-      console.log(`[ai-clasificador] Ya hay una categoría seleccionada manualmente ("${select.value}"), no se sobreescribe.`);
+      console.warn(`[ai-clasificador] Ya hay una categoría seleccionada manualmente ("${select.value}"), no se sobreescribe.`);
       return;
     }
 
     const resultado = await clasificarImagen(file);
     if (!resultado) {
-      console.log('[ai-clasificador] Sin sugerencia: el modelo no está disponible o la confianza fue nula.');
+      console.warn('[ai-clasificador] Sin sugerencia: el modelo no está disponible o la confianza fue nula.');
       return;
     }
 
-    console.log(`[ai-clasificador] Predicción cruda del modelo: "${resultado.categoria}" (${Math.round(resultado.confianza * 100)}%)`);
+    console.warn(`[ai-clasificador] Predicción cruda del modelo: "${resultado.categoria}" (${Math.round(resultado.confianza * 100)}%)`);
 
     const opcionExiste = Array.from(select.options).some(o => o.value === resultado.categoria);
     if (!opcionExiste) {
@@ -215,7 +215,7 @@ window.sugerirYAplicar = async function(file) {
     select.dataset.aiSugerida = 'true';
     select.dispatchEvent(new Event('change', { bubbles: true }));
 
-    console.log(`[ai-clasificador] Sugerencia aplicada: ${resultado.categoria} (${Math.round(resultado.confianza * 100)}%)`);
+    console.warn(`[ai-clasificador] Sugerencia aplicada: ${resultado.categoria} (${Math.round(resultado.confianza * 100)}%)`);
 
     if (typeof window.showTemporaryMessage === 'function') {
       window.showTemporaryMessage(`✨ Categoría sugerida: ${resultado.categoria} (${Math.round(resultado.confianza * 100)}%)`, 'info');
