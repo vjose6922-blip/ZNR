@@ -1,3 +1,4 @@
+
 // ai-clasificador.js
 // Módulo de auto-tag de categoría por IA (client-side, sin servidor).
 // Se carga como <script type="module"> en vendedor.html.
@@ -17,11 +18,10 @@ const MODEL_URL = './model.tflite';
 const WASM_BASE = 'https://cdn.jsdelivr.net/npm/@litertjs/core/wasm/';
 const LITERT_ESM = 'https://cdn.jsdelivr.net/npm/@litertjs/core/+esm';
 
-// ⚠️ TEMPORAL: umbral bajado a 0.01 solo para pruebas con un modelo entrenado
-// con muy pocas fotos por categoría. Súbelo de nuevo a ~0.55 en cuanto
-// reentrenes con más inventario por categoría — con un umbral tan bajo el
-// modelo va a "sugerir" categorías aunque esté prácticamente adivinando.
-const UMBRAL_CONFIANZA = 0.01;
+// Umbral de confianza mínimo para aplicar la sugerencia automáticamente.
+// Ajustar hacia arriba (0.5-0.6) conforme crezca el inventario por categoría
+// y el modelo tenga más ejemplos reales para aprender un patrón visual sólido.
+const UMBRAL_CONFIANZA = 0.25;
 const INPUT_SIZE = 224; // 224x224, como MobileNetV2
 
 // Las categorías reales del modelo se leen SIEMPRE de labels.txt (se genera
@@ -60,14 +60,31 @@ async function _cargarModelo() {
       _liteRtCore = await import(/* webpackIgnore: true */ LITERT_ESM);
       await _liteRtCore.loadLiteRt(WASM_BASE);
 
-      // ⚠️ TEMPORAL para diagnóstico: forzamos CPU/wasm y evitamos WebGPU.
-      // Con WebGPU el modelo carga sin error pero la inferencia devuelve
-      // puros ceros (bug sospechado del delegado WebGPU con este modelo).
-      // CPU/wasm es más maduro y probado. Si esto resuelve el problema,
-      // dejamos wasm como único método (más lento pero confiable) o
-      // investigamos el bug de WebGPU más adelante.
-      _model = await _liteRtCore.loadAndCompile(MODEL_URL, { accelerator: 'wasm' });
-      console.error('[ai-clasificador] Modelo cargado con CPU/wasm (WebGPU deshabilitado temporalmente para diagnóstico)');
+      // Intentamos WebGPU primero (más rápido), pero con una auto-prueba de
+      // sanidad: se detectó que el delegado WebGPU de LiteRT.js puede cargar
+      // el modelo sin error y aun así devolver una salida degenerada (puros
+      // ceros) con este modelo. Corremos una inferencia de prueba con un
+      // tensor en blanco; si la salida es degenerada, descartamos WebGPU y
+      // usamos CPU/wasm en su lugar — sin que el vendedor note nada.
+      let modeloWebGpuValido = false;
+      try {
+        const modeloGpu = await _liteRtCore.loadAndCompile(MODEL_URL, { accelerator: 'webgpu' });
+        modeloWebGpuValido = await _probarSalidaValida(modeloGpu);
+        if (modeloWebGpuValido) {
+          _model = modeloGpu;
+          console.error('[ai-clasificador] Modelo cargado con aceleración WebGPU (auto-prueba de sanidad OK)');
+        } else {
+          console.error('[ai-clasificador] WebGPU cargó pero la auto-prueba detectó salida degenerada (bug conocido) — usando CPU/wasm en su lugar.');
+          modeloGpu.delete?.();
+        }
+      } catch (errGpu) {
+        console.error('[ai-clasificador] WebGPU no disponible o falló al cargar, usando CPU/wasm:', errGpu);
+      }
+
+      if (!modeloWebGpuValido) {
+        _model = await _liteRtCore.loadAndCompile(MODEL_URL, { accelerator: 'wasm' });
+        console.error('[ai-clasificador] Modelo cargado con CPU/wasm');
+      }
 
       return _model;
     } catch (err) {
@@ -78,6 +95,33 @@ async function _cargarModelo() {
   })();
 
   return _loadingPromise;
+}
+
+/**
+ * Corre una inferencia de prueba con un tensor en blanco (todo ceros) para
+ * confirmar que el modelo compilado con este acelerador da una salida
+ * "viva" (no todo ceros/NaN). Usado para descartar automáticamente el bug
+ * conocido de WebGPU con este modelo, sin bloquear al usuario con errores.
+ */
+async function _probarSalidaValida(modelo) {
+  let tensorPrueba;
+  try {
+    const datosVacios = new Float32Array(INPUT_SIZE * INPUT_SIZE * 3);
+    tensorPrueba = new _liteRtCore.Tensor(datosVacios, [1, INPUT_SIZE, INPUT_SIZE, 3]);
+    const resultados = await modelo.run(tensorPrueba);
+    const salida = resultados[0];
+    const cpuResult = await salida.moveTo('wasm');
+    const valores = cpuResult.toTypedArray();
+    salida.delete?.();
+    cpuResult.delete?.();
+
+    const suma = Array.from(valores).reduce((acc, v) => acc + Math.abs(v), 0);
+    return Number.isFinite(suma) && suma > 1e-6;
+  } catch {
+    return false;
+  } finally {
+    tensorPrueba?.delete?.();
+  }
 }
 
 /**
@@ -242,4 +286,3 @@ document.addEventListener('DOMContentLoaded', () => {
     select.dataset.aiSugerida = 'false';
   });
 });
-
