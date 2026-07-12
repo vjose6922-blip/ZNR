@@ -144,17 +144,29 @@ export async function clasificarImagen(file) {
   try {
     inputTensor = await fileToInputTensor(file);
     const resultados = await model.run(inputTensor);
+    console.error(`[ai-clasificador] model.run() devolvió ${resultados.length} tensor(es) de salida.`);
+
     const salida = resultados[0];
+    console.error('[ai-clasificador] Forma del tensor de salida:', salida?.shape);
+
     const cpuResult = await salida.moveTo('wasm');
     const valores = cpuResult.toTypedArray();
+    console.error(`[ai-clasificador] Valores crudos de salida (${valores.length}):`, Array.from(valores));
 
     const { idx, confianza } = _softmaxArgmax(valores);
+    console.error(`[ai-clasificador] Índice ganador: ${idx}, confianza: ${confianza}, CATEGORY_MAP.length: ${CATEGORY_MAP?.length}`);
 
     salida.delete?.();
     cpuResult.delete?.();
 
-    if (idx < 0 || idx >= CATEGORY_MAP.length) return null;
-    if (confianza < UMBRAL_CONFIANZA) return null;
+    if (idx < 0 || idx >= CATEGORY_MAP.length) {
+      console.error('[ai-clasificador] Descartado: índice fuera de rango (posible salida vacía o CATEGORY_MAP no coincide en tamaño).');
+      return null;
+    }
+    if (confianza < UMBRAL_CONFIANZA) {
+      console.error(`[ai-clasificador] Descartado: confianza ${confianza} menor al umbral ${UMBRAL_CONFIANZA}.`);
+      return null;
+    }
 
     return { categoria: CATEGORY_MAP[idx], confianza };
   } catch (err) {
