@@ -215,6 +215,13 @@ window.sugerirYAplicar = async function(file) {
     select.dataset.aiSugerida = 'true';
     select.dispatchEvent(new Event('change', { bubbles: true }));
 
+    // Algunos navegadores móviles (Android WebView) renderizan el <select>
+    // con un tono más claro tipo placeholder cuando el valor se asigna por
+    // JS en vez de un toque real del usuario. Forzamos el estilo para que
+    // se vea igual que una selección manual.
+    select.style.color = 'var(--color-text-primary, #1a1a2e)';
+    select.style.fontWeight = '600';
+
     console.error(`[ai-clasificador] Sugerencia aplicada: ${resultado.categoria} (${Math.round(resultado.confianza * 100)}%)`);
 
     if (typeof window.showTemporaryMessage === 'function') {
@@ -235,3 +242,4 @@ document.addEventListener('DOMContentLoaded', () => {
     select.dataset.aiSugerida = 'false';
   });
 });
+
