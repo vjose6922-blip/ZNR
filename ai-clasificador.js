@@ -60,14 +60,14 @@ async function _cargarModelo() {
       _liteRtCore = await import(/* webpackIgnore: true */ LITERT_ESM);
       await _liteRtCore.loadLiteRt(WASM_BASE);
 
-      try {
-        _model = await _liteRtCore.loadAndCompile(MODEL_URL, { accelerator: 'webgpu' });
-        console.error('[ai-clasificador] Modelo cargado con aceleración WebGPU');
-      } catch (errGpu) {
-        console.error('[ai-clasificador] WebGPU no disponible, usando CPU/wasm:', errGpu);
-        _model = await _liteRtCore.loadAndCompile(MODEL_URL, { accelerator: 'wasm' });
-        console.error('[ai-clasificador] Modelo cargado con CPU/wasm');
-      }
+      // ⚠️ TEMPORAL para diagnóstico: forzamos CPU/wasm y evitamos WebGPU.
+      // Con WebGPU el modelo carga sin error pero la inferencia devuelve
+      // puros ceros (bug sospechado del delegado WebGPU con este modelo).
+      // CPU/wasm es más maduro y probado. Si esto resuelve el problema,
+      // dejamos wasm como único método (más lento pero confiable) o
+      // investigamos el bug de WebGPU más adelante.
+      _model = await _liteRtCore.loadAndCompile(MODEL_URL, { accelerator: 'wasm' });
+      console.error('[ai-clasificador] Modelo cargado con CPU/wasm (WebGPU deshabilitado temporalmente para diagnóstico)');
 
       return _model;
     } catch (err) {
