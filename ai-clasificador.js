@@ -194,30 +194,32 @@ export async function clasificarImagen(file) {
     const resultados = await model.run(inputTensor);
     console.error(`[ai-clasificador] model.run() devolvió ${resultados.length} tensor(es) de salida.`);
 
-    const salida = resultados[0];
-    console.error('[ai-clasificador] Forma del tensor de salida:', salida?.shape);
+    // IMPORTANTE: no asumimos el orden [clasificación, embedding] por
+    // posición — TFLite no siempre conserva el orden en que se definieron
+    // las salidas en Python al convertir el modelo. Identificamos cada
+    // tensor por su TAMAÑO: el embedding de MobileNetV2 siempre trae 1280
+    // valores; la clasificación de categoría trae uno por categoría (un
+    // puñado). Esto es robusto sin importar en qué orden los devuelva el
+    // runtime.
+    const tensoresLeidos = [];
+    for (const tensor of resultados) {
+      const cpuTensor = await tensor.moveTo('wasm');
+      const valores = Array.from(cpuTensor.toTypedArray());
+      tensoresLeidos.push(valores);
+      tensor.delete?.();
+      cpuTensor.delete?.();
+    }
+    console.error('[ai-clasificador] Tamaños de las salidas leídas:', tensoresLeidos.map(v => v.length));
 
-    const cpuResult = await salida.moveTo('wasm');
-    const valores = cpuResult.toTypedArray();
-    console.error(`[ai-clasificador] Valores crudos de salida (${valores.length}):`, Array.from(valores));
+    const DIM_EMBEDDING = 1280;
+    const salidaEmbedding = tensoresLeidos.find(v => v.length === DIM_EMBEDDING) || null;
+    const salidaClasificacion = tensoresLeidos.find(v => v.length !== DIM_EMBEDDING) || tensoresLeidos[0];
 
-    const { idx, confianza } = _softmaxArgmax(valores);
+    const embedding = salidaEmbedding;
+    const { idx, confianza } = _softmaxArgmax(salidaClasificacion);
     console.error(`[ai-clasificador] Índice ganador: ${idx}, confianza: ${confianza}, CATEGORY_MAP.length: ${CATEGORY_MAP?.length}`);
 
-    salida.delete?.();
-    cpuResult.delete?.();
-
-    // Segunda salida del modelo (si existe): el embedding/huella visual.
-    let embedding = null;
-    if (resultados.length > 1 && resultados[1]) {
-      const salidaEmbedding = resultados[1];
-      const cpuEmbedding = await salidaEmbedding.moveTo('wasm');
-      embedding = Array.from(cpuEmbedding.toTypedArray());
-      salidaEmbedding.delete?.();
-      cpuEmbedding.delete?.();
-    }
-
-    if (idx < 0 || idx >= CATEGORY_MAP.length) {
+    if (idx < 0 || !CATEGORY_MAP || idx >= CATEGORY_MAP.length) {
       console.error('[ai-clasificador] Índice fuera de rango (posible salida vacía o CATEGORY_MAP no coincide en tamaño).');
       return { categoria: null, confianza: 0, embedding };
     }
