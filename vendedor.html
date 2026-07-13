@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -281,6 +280,7 @@
  <button id="share-vendor-link" class="btn-secondary" style="font-size:12px; margin-left:10px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-share"/></svg> Link de mi tienda</button>
  </h2>
  <div id="vendor-plan-panel" style="margin:4px 0 16px;"></div>
+ <div id="informe-semanal-card" style="margin:4px 0 16px;"></div>
  <input type="file" id="logo-file-input" accept="image/*" style="display:none">
 <div id="products-container" class="products-container vendor-products"></div>
 </div>
@@ -290,29 +290,6 @@
  <div class="vendor-section">
  <h2 id="form-title">Publicar producto</h2>
  <input type="hidden" id="edit-product-id">
-
- <div class="field-group">
- <label>Fotos (máx. 3)</label>
- <div class="img-upload-row">
- <div class="img-upload-slot" id="slot-1" onclick="triggerUpload(1)">
- <span style="font-size:24px;color:#ccc"></span>
- <input type="file" id="file-1" accept="image/*" multiple onchange="handleFileSelect(1, this)">
- <button class="remove-img" onclick="removeImg(event,1)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
- </div>
- <div class="img-upload-slot" id="slot-2" onclick="triggerUpload(2)">
- <span style="font-size:24px;color:#ccc"></span>
- <input type="file" id="file-2" accept="image/*" multiple onchange="handleFileSelect(2, this)">
- <button class="remove-img" onclick="removeImg(event,2)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
- </div>
- <div class="img-upload-slot" id="slot-3" onclick="triggerUpload(3)">
- <span style="font-size:24px;color:#ccc"></span>
- <input type="file" id="file-3" accept="image/*" multiple onchange="handleFileSelect(3, this)">
- <button class="remove-img" onclick="removeImg(event,3)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
- </div>
- </div>
- <p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Puedes seleccionar varias a la vez. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
- </div>
-
  <div class="field-group">
  <label>Nombre *</label>
  <input type="text" id="pNombre" placeholder="Ej: Blusa floral verano" maxlength="120">
@@ -357,30 +334,33 @@
 <option>Automotriz</option>
 <option>Alimentos y bebidas</option>
 <option>Salud y bienestar</option>
-<option>Temporada - Navidad</option>
-<option>Temporada - Halloween</option>
-<option>Temporada - Día del Padre</option>
-<option>Temporada - Día de la Madre</option>
-<option>Temporada - Pascua</option>
-<option>Temporada - Día de Muertos</option>  
-<option>Temporada - San Valentín</option>
-<option>Temporada - Pascua</option>
-<option>Temporada - Día del Niño</option>
-<option>Temporada - Día de la Madre</option>
-<option>Temporada - Día del Padre</option>
-<option>Temporada - Graduaciones</option>
-<option>Temporada - Regreso a Clases</option>
-<option>Temporada - Fiestas Patrias</option>
-<option>Temporada - Halloween</option>
-<option>Temporada - Día de Muertos</option>
-<option>Temporada - Buen Fin</option>
-<option>Temporada - Navidad</option>
-<option>Temporada - Año Nuevo</option>
-<option>Temporada - Reyes Magos</option>  
+<option>Temporada</option>
  </select>
  </div>
  <div class="field-group"><label>INFO</label><input type="text" id="pTalla" placeholder="Tallas, Medidas, etc.."></div>
  <div class="field-group"><label>Descripción</label><textarea id="pDescripcion" placeholder="Describe tu producto..." maxlength="500"></textarea></div>
+
+ <div class="field-group">
+ <label>Fotos (máx. 3)</label>
+ <div class="img-upload-row">
+ <div class="img-upload-slot" id="slot-1" onclick="triggerUpload(1)">
+ <span style="font-size:24px;color:#ccc"></span>
+ <input type="file" id="file-1" accept="image/*" multiple onchange="handleFileSelect(1, this)">
+ <button class="remove-img" onclick="removeImg(event,1)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
+ </div>
+ <div class="img-upload-slot" id="slot-2" onclick="triggerUpload(2)">
+ <span style="font-size:24px;color:#ccc"></span>
+ <input type="file" id="file-2" accept="image/*" multiple onchange="handleFileSelect(2, this)">
+ <button class="remove-img" onclick="removeImg(event,2)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
+ </div>
+ <div class="img-upload-slot" id="slot-3" onclick="triggerUpload(3)">
+ <span style="font-size:24px;color:#ccc"></span>
+ <input type="file" id="file-3" accept="image/*" multiple onchange="handleFileSelect(3, this)">
+ <button class="remove-img" onclick="removeImg(event,3)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
+ </div>
+ </div>
+ <p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Puedes seleccionar varias a la vez. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
+ </div>
 
  <!-- Menú "Tomar foto / Elegir de galería" para los slots de producto -->
  <div id="photo-source-sheet" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center;">
@@ -638,6 +618,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <button id="btn-gestionar-donaciones" onclick="openGestionarDonacionesModal()" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #f97316;background:#fff7ed;color:#ea580c;font-size:.9rem;font-weight:700;cursor:pointer;">
             ❤️ Gestionar donaciones
           </button>
+          <!-- Si este vendedor también está registrado como beneficiario/fundación,
+               aquí se muestra su perfil (nombre, historia, cuenta, fotos) y las
+               donaciones que recibe. Ver loadBeneficiarioDonaciones() en vendedor-unificado.js -->
           <div id="settings-donaciones-recibidas-area" style="display:none;"></div>
         </div>
       </div>

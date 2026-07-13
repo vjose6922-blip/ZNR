@@ -435,6 +435,7 @@ alert('No se pudo copiar. Comparte este enlace:\n' + shareUrl);
 
 loadMyProducts();
 renderVendorPlanPanel();
+loadInformeSemanal();
 loadVendorSaleNotifications();
 if (!window._vsnPollingStarted) {
   window._vsnPollingStarted = true;
@@ -536,6 +537,45 @@ window.showTemporaryMessage?.(' Error de red', 'error');
 };
 if (btn && window.withButtonLoading) await window.withButtonLoading(btn, runFn, 'Procesando…');
 else await runFn();
+}
+
+async function loadInformeSemanal() {
+  const el = document.getElementById('informe-semanal-card');
+  if (!el || !vendorSession || !vendorSession.uid) return;
+  try {
+    const data = await apiCall({ action: 'obtenerUltimoInformeSemanal', vendor_uid: vendorSession.uid });
+    if (!data || !data.ok || !data.informe) { el.innerHTML = ''; return; }
+    renderInformeSemanal(data.informe);
+  } catch (e) {
+    console.error('No se pudo cargar el informe semanal:', e);
+  }
+}
+
+function renderInformeSemanal(informe) {
+  const el = document.getElementById('informe-semanal-card');
+  if (!el) return;
+
+  // Si el informe es de hace más de ~10 días, ya está muy viejo para
+  // mostrarlo como "tu semana" — mejor no confundir al vendedor.
+  const fechaGenerado = new Date(informe.fecha_generado);
+  const diasDesde = (Date.now() - fechaGenerado.getTime()) / 86400000;
+  if (isNaN(diasDesde) || diasDesde > 10) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div style="background:linear-gradient(135deg,#f5f3ff,#fdf4ff);border:1px solid #e9d5ff;border-radius:14px;padding:14px 16px;">
+      <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:6px;">📊 Informe semanal</div>
+      <div style="font-size:13px;color:var(--color-text-main);line-height:1.5;">${_escapeHtmlInforme(informe.resumen_texto || '')}</div>
+    </div>
+  `;
+}
+
+// Reutiliza la misma lógica de escape que ya existe en el proyecto
+// (escapeHtml de common.js) si está disponible; si no, hace un escape básico.
+function _escapeHtmlInforme(texto) {
+  if (typeof window.escapeHtml === 'function') return window.escapeHtml(texto);
+  const div = document.createElement('div');
+  div.textContent = texto;
+  return div.innerHTML;
 }
 
 function renderVendorPlanPanel() {
