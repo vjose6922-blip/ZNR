@@ -58,7 +58,7 @@
     duracionBurbuja: 4500,           // ms que se muestra el mensaje en pantalla
     storageKey: 'zr_voice_assistant_enabled',
     requierePalabraActivacion: true, // si es true, ignora todo lo que no empiece/incluya la palabra de activación
-    palabraActivacion: 'Eipriel' // di, por ejemplo: "oye asistente, busca camisetas rojas"
+    palabraActivacion: 'oye asistente' // di, por ejemplo: "oye asistente, busca camisetas rojas"
   };
 
   // ============================================================
@@ -872,6 +872,7 @@
         transcript += event.results[i][0].transcript;
       }
       const esFinal = event.results[event.results.length - 1].isFinal;
+      if (pausadoPorHabla) return; // el asistente está hablando; ignoramos para no escucharse a sí mismo
       if (esFinal) {
         procesarComando(transcript);
       } else {
@@ -909,10 +910,14 @@
 
     r.onend = () => {
       ultimoEventoReconocimiento = Date.now();
-      // El navegador corta la sesión periódicamente; si el switch
-      // sigue en ON y no está pausado por el habla del asistente,
-      // se reinicia automáticamente.
-      if (reconocimientoActivo && !pausadoPorHabla) {
+      // El navegador corta la sesión periódicamente (esto sí genera el
+      // sonido nativo de "micrófono encendido/apagado" y no podemos
+      // evitarlo: es del navegador, no de este script). Si el switch
+      // sigue en ON, se reinicia automáticamente. Ya NO detenemos el
+      // micrófono nosotros mismos mientras el asistente habla (ver
+      // pausadoPorHabla más abajo), así que esto solo ocurre por el
+      // ciclo natural del navegador, no lo duplicamos.
+      if (reconocimientoActivo) {
         setTimeout(() => { if (reconocimientoActivo) iniciarSesionReconocimiento(); }, 250);
       } else {
         setEstadoPill(AV_STATE.enabled ? 'idle-on' : 'idle');
@@ -941,18 +946,20 @@
     }
   }
 
+  // Ya NO detienen ni reinician el micrófono: solo activan/desactivan una
+  // bandera que hace que se ignoren los resultados mientras el asistente
+  // habla. Antes llamaban a reconocimiento.stop()/start(), lo que sumaba
+  // un ciclo extra de "encendido de micrófono" (con su sonido) cada vez
+  // que el asistente respondía — que era la causa principal del pitido
+  // frecuente. El micrófono ahora sigue una sola sesión continua real;
+  // el único sonido que queda es el que el navegador genera por su cuenta
+  // cuando corta la sesión de forma natural (fuera de nuestro control).
   function pausarReconocimientoTemporalmente() {
     pausadoPorHabla = true;
-    if (reconocimiento) {
-      try { reconocimiento.stop(); } catch (_) {}
-    }
   }
 
   function reanudarReconocimientoSiCorresponde() {
     pausadoPorHabla = false;
-    if (reconocimientoActivo) {
-      setTimeout(() => { if (reconocimientoActivo) iniciarSesionReconocimiento(); }, 300);
-    }
   }
 
   function iniciarWatchdog() {
