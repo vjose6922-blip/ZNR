@@ -377,40 +377,243 @@
     hablar('No entendí ese comando. Puedes decir "ayuda" para escuchar lo que puedo hacer.');
   }
 
+  // ============================================================
+  // 6.1) INTEGRACIÓN REAL CON EL CATÁLOGO (catalogo.html / home.js)
+  // ------------------------------------------------------------
+  // catalogo.html expone window.applyFilters() (definido en script.js),
+  // que lee los valores de #search-input, #gender-filter, #category-filter,
+  // #size-filter y #sort-select y filtra el catálogo. NO existe
+  // window.fetchProducts ni window.ensureFullCatalog (viven dentro de un
+  // IIFE), así que toda la integración pasa por rellenar esos campos del
+  // DOM y llamar a applyFilters().
+  // ============================================================
+
+  function catalogoListo() {
+    return !!document.getElementById('search-input') && typeof window.applyFilters === 'function';
+  }
+
+  function esperarCatalogoListo(callback, intentos = 20) {
+    if (catalogoListo()) { callback(); return; }
+    if (intentos <= 0) return;
+    setTimeout(() => esperarCatalogoListo(callback, intentos - 1), 300);
+  }
+
+  function seleccionarOpcionPorTexto(select, texto) {
+    const q = normalizar(texto);
+    for (const opt of select.options) {
+      if (normalizar(opt.textContent).includes(q) || normalizar(opt.value).includes(q)) {
+        select.value = opt.value;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function aplicarCamposFiltro(filtros) {
+    if (filtros.search !== undefined) { const el = document.getElementById('search-input'); if (el) el.value = filtros.search; }
+    if (filtros.gender !== undefined) { const el = document.getElementById('gender-filter'); if (el) el.value = filtros.gender; }
+    if (filtros.category !== undefined) { const el = document.getElementById('category-filter'); if (el) seleccionarOpcionPorTexto(el, filtros.category); }
+    if (filtros.size !== undefined) { const el = document.getElementById('size-filter'); if (el) seleccionarOpcionPorTexto(el, filtros.size); }
+    if (filtros.sort !== undefined) { const el = document.getElementById('sort-select'); if (el) el.value = filtros.sort; }
+  }
+
+  // Aplica filtros ya sea en el momento (si estamos en catalogo.html) o
+  // navegando allá y reaplicándolos apenas cargue (vía sessionStorage).
+  function aplicarYConfirmarFiltro(filtrosParciales, mensajeConfirmacion) {
+    if (catalogoListo()) {
+      aplicarCamposFiltro(filtrosParciales);
+      window.applyFilters();
+      hablar(mensajeConfirmacion);
+    } else {
+      sessionStorage.setItem('av_pending_filters', JSON.stringify(filtrosParciales));
+      hablar(`Te llevo al catálogo. ${mensajeConfirmacion}`);
+      setTimeout(() => { window.location.href = AV_CONFIG.urlCatalogo; }, 900);
+    }
+  }
+
+  function aplicarFiltrosPendientes() {
+    const raw = sessionStorage.getItem('av_pending_filters');
+    if (!raw) return;
+    sessionStorage.removeItem('av_pending_filters');
+    let filtros;
+    try { filtros = JSON.parse(raw); } catch (_) { return; }
+    esperarCatalogoListo(() => {
+      aplicarCamposFiltro(filtros);
+      window.applyFilters();
+    });
+  }
+
+  // ============================================================
+  // 6.2) AGREGAR PRODUCTOS AL CARRITO POR VOZ
+  // ------------------------------------------------------------
+  // No duplicamos la lógica de addToCart(): buscamos la tarjeta real
+  // en pantalla (.product-card, usada igual en script.js, home.js y
+  // comunidad.js) y le hacemos click al botón "Añadir al carrito" que
+  // ya trae su propio manejo de stock, wishlist, animación, etc.
+  // ============================================================
+  const ORDINALES = { primero: 0, primer: 0, segundo: 1, tercero: 2, tercer: 2, cuarto: 3, quinto: 4 };
+  const REFERENCIAS_GENERICAS = ['esto', 'lo', 'eso', 'este producto', 'ese producto', 'este', 'ese', ''];
+
+  function buscarTarjetaProductoPorNombre(nombre) {
+    const cards = Array.from(document.querySelectorAll('.product-card'));
+    if (!cards.length) return null;
+    const q = normalizar(nombre);
+    let candidatos = cards.filter(c => {
+      const nameEl = c.querySelector('.product-name');
+      return nameEl && normalizar(nameEl.textContent).includes(q);
+    });
+    if (candidatos.length) return candidatos[0];
+    const palabras = q.split(/\s+/).filter(Boolean);
+    candidatos = cards.filter(c => {
+      const nameEl = c.querySelector('.product-name');
+      if (!nameEl) return false;
+      const nombreNorm = normalizar(nameEl.textContent);
+      return palabras.every(p => nombreNorm.includes(p));
+    });
+    return candidatos[0] || null;
+  }
+
+  function ejecutarAgregarDesdeTarjeta(card) {
+    const nameEl = card.querySelector('.product-name');
+    const btn = card.querySelector('button.primary-button, button[data-product-id]');
+    if (!btn || btn.disabled) {
+      hablar('Ese producto no tiene stock disponible.');
+      return;
+    }
+    btn.click();
+    hablar(`Agregué ${nameEl ? nameEl.textContent.trim() : 'el producto'} al carrito.`);
+  }
+
+  function intentarAgregarConNombre(nombre, reintentado) {
+    const card = buscarTarjetaProductoPorNombre(nombre);
+    if (card) { ejecutarAgregarDesdeTarjeta(card); return; }
+    if (!reintentado) {
+      // por si el comando llegó justo cuando el catálogo aún estaba renderizando
+      setTimeout(() => intentarAgregarConNombre(nombre, true), 700);
+      return;
+    }
+    hablar(`No encontré "${nombre}" entre los productos visibles. Intenta buscarlo primero.`);
+  }
+
+  function intentarAgregarSinNombre() {
+    // 1) Modal de producto individual abierto (openImageModal en common.js)
+    const modal = document.getElementById('image-modal');
+    if (modal && modal.classList.contains('open')) {
+      const buyBtn = modal.querySelector('#im-buy-btn');
+      if (buyBtn && !buyBtn.disabled) {
+        buyBtn.click();
+        hablar('Agregué el producto al carrito.');
+        return;
+      }
+    }
+    // 2) Un único producto visible en la página
+    const cards = document.querySelectorAll('.product-card');
+    if (cards.length === 1) { ejecutarAgregarDesdeTarjeta(cards[0]); return; }
+    hablar('¿Cuál producto quieres agregar? Por ejemplo: agrega camiseta roja al carrito.');
+  }
+
   // ---- Comando: BUSCAR ------------------------------------------------
   registrarComando({
     id: 'buscar-producto',
     patron: /^(?:busca(?:r|me)?|encuentra|encontrar|quiero ver)\s+(.+)/,
     accion: (_texto, match) => {
       const query = match[1].trim();
-      if (!query) {
-        hablar('¿Qué producto quieres buscar?');
+      if (!query) { hablar('¿Qué producto quieres buscar?'); return; }
+      aplicarYConfirmarFiltro({ search: query }, `Buscando ${query}.`);
+    }
+  });
+
+  // ---- Comando: FILTRAR POR GÉNERO --------------------------------------
+  registrarComando({
+    id: 'filtro-genero-hombre',
+    frases: ['ropa de hombre', 'ropa para hombre', 'filtra por hombre', 'filtrar por hombre', 'solo hombre', 'moda hombre', 'para caballero', 'ver caballero'],
+    accion: () => aplicarYConfirmarFiltro({ gender: 'HOMBRE' }, 'Mostrando ropa de hombre.')
+  });
+  registrarComando({
+    id: 'filtro-genero-mujer',
+    frases: ['ropa de mujer', 'ropa para mujer', 'filtra por mujer', 'filtrar por mujer', 'solo mujer', 'moda mujer', 'para dama', 'ver dama'],
+    accion: () => aplicarYConfirmarFiltro({ gender: 'MUJER' }, 'Mostrando ropa de mujer.')
+  });
+
+  // ---- Comando: FILTRAR POR CATEGORÍA -----------------------------------
+  registrarComando({
+    id: 'filtro-categoria',
+    patron: /^(?:filtra(?:r)? por categoria|categoria|ver categoria)\s+(.+)/,
+    accion: (_t, match) => {
+      const cat = match[1].trim();
+      aplicarYConfirmarFiltro({ category: cat }, `Filtrando por categoría ${cat}.`);
+    }
+  });
+
+  // ---- Comando: FILTRAR POR TALLA ----------------------------------------
+  registrarComando({
+    id: 'filtro-talla',
+    patron: /^(?:filtra(?:r)? por talla|talla)\s+(.+)/,
+    accion: (_t, match) => {
+      const talla = match[1].trim();
+      aplicarYConfirmarFiltro({ size: talla }, `Filtrando por talla ${talla}.`);
+    }
+  });
+
+  // ---- Comando: ORDENAR POR PRECIO ---------------------------------------
+  registrarComando({
+    id: 'orden-precio-asc',
+    frases: ['ordenar por precio de menor a mayor', 'precio de menor a mayor', 'ordena de menor a mayor'],
+    accion: () => aplicarYConfirmarFiltro({ sort: 'price-asc' }, 'Ordenando por precio, de menor a mayor.')
+  });
+  registrarComando({
+    id: 'orden-precio-desc',
+    frases: ['ordenar por precio de mayor a menor', 'precio de mayor a menor', 'ordena de mayor a menor'],
+    accion: () => aplicarYConfirmarFiltro({ sort: 'price-desc' }, 'Ordenando por precio, de mayor a menor.')
+  });
+
+  // ---- Comando: QUITAR FILTROS -------------------------------------------
+  registrarComando({
+    id: 'limpiar-filtros',
+    frases: ['quitar filtros', 'limpiar filtros', 'borrar filtros', 'quita los filtros', 'sin filtros'],
+    accion: () => {
+      if (!catalogoListo()) { hablar('Los filtros solo están disponibles en el catálogo.'); return; }
+      ['gender-filter', 'category-filter', 'sort-select', 'size-filter'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+      const si = document.getElementById('search-input'); if (si) si.value = '';
+      window.applyFilters();
+      hablar('Quité todos los filtros.');
+    }
+  });
+
+  // ---- Comando: AGREGAR AL CARRITO ---------------------------------------
+  registrarComando({
+    id: 'agregar-al-carrito',
+    patron: /^(?:agrega(?:r|le)?|anade|pon|compra(?:r)?|quiero comprar|dame)\s+(.+)/,
+    accion: (_texto, match) => {
+      let nombre = match[1]
+        .replace(/\s*(al carrito|en el carrito|a mi carrito|a el carrito)\s*$/, '')
+        .replace(/^(el|la|los|las)\s+/, '')
+        .trim();
+      if (REFERENCIAS_GENERICAS.includes(nombre)) { intentarAgregarSinNombre(); return; }
+      if (nombre.replace(/\s+producto$/, '') in ORDINALES) {
+        const idx = ORDINALES[nombre.replace(/\s+producto$/, '')];
+        const cards = document.querySelectorAll('.product-card');
+        const card = cards[idx];
+        if (!card) { hablar('No encontré ese producto en la lista.'); return; }
+        ejecutarAgregarDesdeTarjeta(card);
         return;
       }
-      if (typeof window.fetchProducts === 'function' && document.getElementById('search-input')) {
-        const input = document.getElementById('search-input');
-        input.value = query;
-        window.fetchProducts(false, 1, { search: query });
-        hablar(`Buscando ${query} en el catálogo.`);
-      } else {
-        sessionStorage.setItem('av_pending_search', query);
-        hablar(`Te llevo al catálogo para buscar ${query}.`);
-        setTimeout(() => { window.location.href = `${AV_CONFIG.urlCatalogo}?buscar=${encodeURIComponent(query)}`; }, 900);
-      }
+      intentarAgregarConNombre(nombre, false);
     }
   });
 
   // ---- Comando: IR AL CARRITO ------------------------------------------
   registrarComando({
     id: 'ir-al-carrito',
-    frases: ['ir al carrito', 'abrir carrito', 'ver carrito', 'mi carrito', 'ver mi carrito'],
+    frases: ['ir al carrito', 'abrir carrito', 'ver carrito', 'mi carrito', 'ver mi carrito', 'muestrame el carrito'],
     accion: () => {
       if (typeof window.openCartDrawer === 'function' && document.getElementById('cart-drawer')) {
         window.openCartDrawer();
         hablar('Aquí está tu carrito.');
       } else {
-        hablar('Te llevo a tu carrito.');
-        setTimeout(() => { window.location.href = AV_CONFIG.urlInicio; }, 900);
+        hablar('El carrito no está disponible en esta página.');
       }
     }
   });
@@ -481,7 +684,7 @@
     id: 'ayuda',
     frases: ['ayuda', 'que puedes hacer', 'qué puedes hacer', 'comandos disponibles'],
     accion: () => {
-      hablar('Puedo buscar productos, abrir el carrito, mostrar ofertas, llevarte al inicio o al catálogo, leer tus notificaciones y contarte el estado de tu pedido. Solo dime, por ejemplo: buscar camisetas rojas.');
+      hablar('Puedo buscar productos, filtrar por hombre, mujer, categoría o talla, ordenar por precio, agregar productos al carrito, abrir el carrito, llevarte al inicio o al catálogo, leer tus notificaciones y contarte el estado de tu pedido. Por ejemplo: buscar camisetas rojas, o agrega la primera al carrito.');
     }
   });
 
@@ -721,25 +924,6 @@
   }
 
   // ============================================================
-  // 10) RETOMAR BÚSQUEDA POR VOZ AL LLEGAR A catalogo.html
-  // ============================================================
-  function aplicarBusquedaPendiente() {
-    const params = new URLSearchParams(window.location.search);
-    const query = params.get('buscar') || sessionStorage.getItem('av_pending_search');
-    if (!query) return;
-    sessionStorage.removeItem('av_pending_search');
-    const intentar = () => {
-      if (typeof window.fetchProducts === 'function' && document.getElementById('search-input')) {
-        document.getElementById('search-input').value = query;
-        window.fetchProducts(false, 1, { search: query });
-      } else {
-        setTimeout(intentar, 300);
-      }
-    };
-    if (document.getElementById('search-input')) intentar();
-  }
-
-  // ============================================================
   // 11) INICIALIZACIÓN
   // ============================================================
   function init() {
@@ -747,7 +931,7 @@
     injectIndicators();
     cargarEstadoGuardado();
     observarPanelDePreferencias();
-    aplicarBusquedaPendiente();
+    aplicarFiltrosPendientes(); // retoma búsqueda/filtros si veníamos de otra página por voz
 
     // Si el usuario ya había encendido el asistente en una visita
     // anterior, lo reactivamos automáticamente en esta página. El
