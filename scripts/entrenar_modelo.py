@@ -59,7 +59,6 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "").strip()
 # funcionando normal — simplemente no se suben/actualizan embeddings.
 FIREBASE_SERVICE_ACCOUNT_JSON = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
 FIREBASE_RTDB_URL = "https://znr-live-default-rtdb.firebaseio.com"
-EMBEDDINGS_DIR = os.path.join(REPO_ROOT, "_embeddings_temp")
 # Configurable desde el workflow_dispatch (input min_fotos_categoria) para
 # permitir "pruebas de humo" con inventario chico. Súbelo a 15+ en cuanto
 # tengas más fotos por categoría — con muy pocas fotos el modelo no aprende
@@ -74,6 +73,7 @@ SEED = 42
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATASET_DIR = os.path.join(REPO_ROOT, "_dataset_temp")
+EMBEDDINGS_DIR = os.path.join(REPO_ROOT, "_embeddings_temp")
 MODEL_OUT = os.path.join(REPO_ROOT, "model.tflite")
 LABELS_OUT = os.path.join(REPO_ROOT, "labels.txt")
 
