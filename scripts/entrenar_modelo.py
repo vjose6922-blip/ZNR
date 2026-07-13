@@ -31,6 +31,7 @@ import re
 import sys
 import io
 import csv
+import json
 import time
 import urllib.request
 import urllib.error
@@ -39,6 +40,8 @@ from collections import defaultdict
 import numpy as np
 import tensorflow as tf
 from PIL import Image
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request as GoogleAuthRequest
 
 # ── Configuración ──────────────────────────────────────────────────────────
 
@@ -48,6 +51,15 @@ CATALOGO_CSV_URL = os.environ.get("CATALOGO_CSV_URL", "").strip()
 # bloquea cada vez más seguido cuando la solicitud viene de una IP de
 # datacenter (como los runners de GitHub Actions).
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "").strip()
+
+# Service account de Firebase (mismo JSON que ya usas como FCM_SERVICE_ACCOUNT
+# en Apps Script — hay que copiarlo también como secret de GitHub Actions,
+# ya que este workflow corre fuera de Apps Script y no puede leer sus
+# Propiedades del script). Si no está configurado, el entrenamiento sigue
+# funcionando normal — simplemente no se suben/actualizan embeddings.
+FIREBASE_SERVICE_ACCOUNT_JSON = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+FIREBASE_RTDB_URL = "https://znr-live-default-rtdb.firebaseio.com"
+EMBEDDINGS_DIR = os.path.join(REPO_ROOT, "_embeddings_temp")
 # Configurable desde el workflow_dispatch (input min_fotos_categoria) para
 # permitir "pruebas de humo" con inventario chico. Súbelo a 15+ en cuanto
 # tengas más fotos por categoría — con muy pocas fotos el modelo no aprende
@@ -94,6 +106,7 @@ def leer_catalogo():
     col_categoria = next((fieldnames_lower[c] for c in COL_CATEGORIA_CANDIDATOS if c in fieldnames_lower), None)
     col_imagen = next((fieldnames_lower[c] for c in COL_IMAGEN_CANDIDATOS if c in fieldnames_lower), None)
     col_estado = fieldnames_lower.get("estado")  # ProductosComunidad tiene moderación (aprobado/pendiente/rechazado)
+    col_id = fieldnames_lower.get("id")
 
     if not col_categoria or not col_imagen:
         log(f"❌ No se encontraron las columnas esperadas. Columnas detectadas: {fieldnames}")
@@ -101,20 +114,22 @@ def leer_catalogo():
         sys.exit(1)
 
     log(f"Columna de categoría detectada: '{col_categoria}' | columna de imagen: '{col_imagen}'"
-        + (f" | columna de estado: '{col_estado}'" if col_estado else ""))
+        + (f" | columna de estado: '{col_estado}'" if col_estado else "")
+        + (f" | columna de id: '{col_id}'" if col_id else ""))
 
     filas = []
     descartadas_por_estado = 0
     for row in reader:
         categoria = (row.get(col_categoria) or "").strip()
         imagen = (row.get(col_imagen) or "").strip()
+        producto_id = (row.get(col_id) or "").strip() if col_id else ""
         if col_estado:
             estado = (row.get(col_estado) or "").strip().lower()
             if estado and estado != "aprobado":
                 descartadas_por_estado += 1
                 continue
         if categoria and imagen:
-            filas.append((categoria, imagen))
+            filas.append({"id": producto_id, "categoria": categoria, "imagen": imagen})
 
     if descartadas_por_estado:
         log(f"Filas descartadas por no estar aprobadas (estado != 'aprobado'): {descartadas_por_estado}")
@@ -255,8 +270,8 @@ def descargar_imagen(url, destino, intentos=3, debug_log=None):
 def construir_dataset(filas):
     conteo = defaultdict(int)
     por_categoria = defaultdict(list)
-    for categoria, imagen in filas:
-        por_categoria[categoria].append(imagen)
+    for fila in filas:
+        por_categoria[fila["categoria"]].append(fila["imagen"])
 
     categorias_validas = {
         cat: urls for cat, urls in por_categoria.items()
@@ -424,9 +439,9 @@ def entrenar(categorias_finales):
 
     inputs = tf.keras.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
     x = base_model(inputs, training=False)
-    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+    x = tf.keras.layers.GlobalAveragePooling2D(name="embedding_pool")(x)
     x = tf.keras.layers.Dropout(0.3)(x)
-    outputs = tf.keras.layers.Dense(num_clases, activation="softmax")(x)
+    outputs = tf.keras.layers.Dense(num_clases, activation="softmax", name="categoria_softmax")(x)
     model = tf.keras.Model(inputs, outputs)
 
     model.compile(
@@ -450,24 +465,33 @@ def entrenar(categorias_finales):
     )
     model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS_FINETUNE)
 
-    return model, class_names
+    return model, class_names, base_model
 
 
 # ── 5. Exportar model.tflite + labels.txt ──────────────────────────────────
 
-def exportar(model, class_names):
-    log("Preparando modelo de inferencia con forma de entrada fija (batch=1)...")
+def exportar(model, class_names, base_model):
+    log("Preparando modelo de inferencia con forma de entrada fija (batch=1) y dos salidas...")
     # El modelo se entrenó con lote flexible (necesario para batches de 16+
     # durante el entrenamiento). Pero LiteRT.js en el navegador exige que el
     # tensor de entrada coincida EXACTAMENTE con la forma del modelo
     # exportado, incluyendo la dimensión de lote — con lote dinámico (-1)
     # rechaza el tensor [1, 224, 224, 3] con un error de "ranked tensor type".
-    # Por eso envolvemos el modelo ya entrenado en uno nuevo con entrada de
-    # lote fijo=1 solo para exportar (reutiliza las mismas capas y pesos, no
-    # hay que reentrenar nada).
+    #
+    # Además, exportamos DOS salidas en el mismo modelo (una sola pasada del
+    # navegador sirve para ambas cosas, sin cargar/correr un modelo aparte):
+    #   1. clasificacion: probabilidades de categoría (auto-tag, como antes)
+    #   2. embedding: vector de 1280 números (huella visual de la foto, para
+    #      el buscador por similitud de Comunidad)
+    # GlobalAveragePooling2D no tiene pesos propios, así que recrearla aquí
+    # es matemáticamente idéntica a la usada en entrenamiento — solo
+    # reutilizamos base_model y la capa Dense ya entrenados (con sus pesos).
     entrada_fija = tf.keras.Input(shape=(IMG_SIZE, IMG_SIZE, 3), batch_size=1)
-    salida_fija = model(entrada_fija)
-    modelo_inferencia = tf.keras.Model(entrada_fija, salida_fija)
+    features = base_model(entrada_fija, training=False)
+    embedding = tf.keras.layers.GlobalAveragePooling2D(name="embedding_export")(features)
+    capa_clasificacion = model.get_layer("categoria_softmax")
+    clasificacion = capa_clasificacion(embedding)
+    modelo_inferencia = tf.keras.Model(entrada_fija, [clasificacion, embedding])
 
     log("Convirtiendo a TFLite...")
     converter = tf.lite.TFLiteConverter.from_keras_model(modelo_inferencia)
@@ -476,11 +500,17 @@ def exportar(model, class_names):
 
     with open(MODEL_OUT, "wb") as f:
         f.write(tflite_model)
-    log(f"✅ Modelo exportado: {MODEL_OUT} ({len(tflite_model) / 1024:.1f} KB)")
+    log(f"✅ Modelo exportado: {MODEL_OUT} ({len(tflite_model) / 1024:.1f} KB) — 2 salidas: clasificación + embedding")
 
     with open(LABELS_OUT, "w", encoding="utf-8") as f:
         f.write("\n".join(class_names) + "\n")
     log(f"✅ Labels exportados: {LABELS_OUT}")
+
+    # Devolvemos un extractor de embeddings en Python puro (Keras, sin pasar
+    # por TFLite) para calcular la huella visual de TODO el catálogo en este
+    # mismo proceso de entrenamiento — mismo cálculo, mismos pesos.
+    extractor_embedding = tf.keras.Model(entrada_fija, embedding)
+    return extractor_embedding
 
 
 def limpiar_dataset_temporal():
@@ -490,18 +520,135 @@ def limpiar_dataset_temporal():
         log("Dataset temporal eliminado (no se commitea al repo).")
 
 
+# ── 6. Embeddings del catálogo completo (búsqueda visual en Comunidad) ─────
+
+def generar_embeddings_catalogo_completo(filas, extractor_embedding):
+    """Calcula la huella visual (embedding) de CADA producto aprobado con
+    foto válida, sin importar si su categoría se usó o no para entrenar el
+    clasificador — el buscador visual de Comunidad necesita cobertura de
+    todo el catálogo, no solo de las categorías con suficientes fotos."""
+    filas_con_id = [f for f in filas if f.get("id")]
+    if len(filas_con_id) < len(filas):
+        log(f"⚠️ {len(filas) - len(filas_con_id)} filas sin columna 'id' reconocible, se omiten del cálculo de embeddings.")
+
+    log(f"Calculando embeddings para todo el catálogo ({len(filas_con_id)} productos con id + foto)...")
+    os.makedirs(EMBEDDINGS_DIR, exist_ok=True)
+
+    embeddings = {}
+    debug_log = []
+    ok, fallidos = 0, 0
+    for fila in filas_con_id:
+        producto_id = fila["id"]
+        destino = os.path.join(EMBEDDINGS_DIR, f"{producto_id}.jpg")
+        if not descargar_imagen(fila["imagen"], destino, debug_log=debug_log):
+            fallidos += 1
+            continue
+        try:
+            with Image.open(destino) as img:
+                img = img.convert("RGB").resize((IMG_SIZE, IMG_SIZE))
+                arr = np.asarray(img, dtype=np.float32)
+                arr = (arr / 127.5) - 1.0
+                arr = np.expand_dims(arr, axis=0)  # [1, 224, 224, 3]
+            vector = extractor_embedding.predict(arr, verbose=0)[0]
+            # Redondeado a 5 decimales: precisión de sobra para similitud de
+            # coseno, y reduce el tamaño del JSON que se sube/descarga.
+            embeddings[producto_id] = [round(float(v), 5) for v in vector]
+            ok += 1
+        except Exception as e:
+            log(f"  ⚠️ No se pudo calcular embedding para producto {producto_id}: {e}")
+            fallidos += 1
+        finally:
+            try:
+                os.remove(destino)
+            except OSError:
+                pass
+
+    log(f"Embeddings calculados: {ok} ok, {fallidos} fallidos de {len(filas_con_id)}.")
+    return embeddings
+
+
+def _obtener_token_firebase():
+    if not FIREBASE_SERVICE_ACCOUNT_JSON:
+        return None
+    try:
+        info = json.loads(FIREBASE_SERVICE_ACCOUNT_JSON)
+        creds = service_account.Credentials.from_service_account_info(
+            info,
+            scopes=[
+                "https://www.googleapis.com/auth/firebase.database",
+                "https://www.googleapis.com/auth/userinfo.email",
+            ],
+        )
+        creds.refresh(GoogleAuthRequest())
+        return creds.token
+    except Exception as e:
+        log(f"⚠️ No se pudo autenticar con el service account de Firebase: {e}")
+        return None
+
+
+def subir_embeddings_firebase(embeddings):
+    """Sube TODOS los embeddings en una sola llamada (PATCH a la raíz de
+    /embeddings), en vez de una petición por producto — mucho más eficiente
+    para GitHub Actions y para el límite de bandwidth del plan gratuito."""
+    if not embeddings:
+        log("⚠️ No hay embeddings para subir.")
+        return
+
+    token = _obtener_token_firebase()
+    if not token:
+        log("⚠️ FIREBASE_SERVICE_ACCOUNT_JSON no configurado (o inválido) — "
+            "los embeddings NO se subieron a Firebase. El auto-tag de categoría "
+            "no se ve afectado, solo el buscador visual de Comunidad.")
+        return
+
+    url = f"{FIREBASE_RTDB_URL}/embeddings.json"
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(embeddings).encode("utf-8"),
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            method="PATCH",
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            if resp.status == 200:
+                log(f"✅ {len(embeddings)} embeddings subidos a Firebase RTDB ({FIREBASE_RTDB_URL}/embeddings).")
+            else:
+                log(f"⚠️ Firebase respondió con estado {resp.status} al subir embeddings.")
+    except urllib.error.HTTPError as e:
+        cuerpo = e.read()[:300].decode("utf-8", errors="replace")
+        log(f"⚠️ Error subiendo embeddings a Firebase: HTTP {e.code} - {cuerpo}")
+    except Exception as e:
+        log(f"⚠️ Error subiendo embeddings a Firebase: {e}")
+
+
+def limpiar_embeddings_temporal():
+    import shutil
+    if os.path.isdir(EMBEDDINGS_DIR):
+        shutil.rmtree(EMBEDDINGS_DIR)
+
+
 def main():
     log("=== Iniciando reentrenamiento del modelo de auto-tag de categoría ===")
     if not GOOGLE_API_KEY:
         log("⚠️ GOOGLE_API_KEY no configurada — usando el truco de link público de Drive "
             "(menos confiable, Google lo bloquea seguido desde IPs de datacenter). "
             "Agrega el secret GOOGLE_API_KEY para descargas confiables.")
+    if not FIREBASE_SERVICE_ACCOUNT_JSON:
+        log("⚠️ FIREBASE_SERVICE_ACCOUNT_JSON no configurada — el modelo se entrena "
+            "normal, pero no se subirán/actualizarán los embeddings del buscador "
+            "visual de Comunidad en este reentrenamiento.")
+
     filas = leer_catalogo()
     categorias_finales = construir_dataset(filas)
     categorias_finales = validar_dataset_final(categorias_finales)
-    model, class_names = entrenar(categorias_finales)
-    exportar(model, class_names)
+    model, class_names, base_model = entrenar(categorias_finales)
+    extractor_embedding = exportar(model, class_names, base_model)
     limpiar_dataset_temporal()
+
+    embeddings = generar_embeddings_catalogo_completo(filas, extractor_embedding)
+    subir_embeddings_firebase(embeddings)
+    limpiar_embeddings_temporal()
+
     log("=== Reentrenamiento completado ===")
 
 
