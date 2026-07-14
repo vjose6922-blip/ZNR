@@ -327,18 +327,11 @@
  align-items: center;
  justify-content: space-between;
  text-align: left;
- position: sticky;
- top: 0;
- z-index: 2;
  border-radius: 0;
  }
- /* El formulario de crear/editar producto no debe quedar fijo — se mueve
- junto con el resto del formulario al hacer scroll (a diferencia del
- listado, donde sí conviene que el header quede fijo). */
- #admin-create-section.expanded .admin-card-header.tile-header {
- position: static;
- top: auto;
- }
+ /* Ninguna sección del panel de admin (ni el formulario de crear/editar
+ producto, ni el listado en modo lista o cuadrícula) debe quedar fija en
+ pantalla — todo se mueve junto con el contenido al hacer scroll. */
  .grid-tile.expanded {
  position: fixed;
  inset: 0;
