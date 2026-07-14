@@ -11,7 +11,7 @@
  img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com;
  connect-src 'self' https://script.google.com https://script.googleusercontent.com https://wttr.in https://www.gstatic.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://firebase.googleapis.com https://znr-live-default-rtdb.firebaseio.com https://nominatim.openstreetmap.org;
  font-src 'self';
- frame-src 'none';
+ frame-src https://www.google.com;
  frame-ancestors 'none';
  object-src 'none';
  base-uri 'self';
@@ -109,6 +109,34 @@
     font-size: 11px; color: var(--color-text-soft); text-align: center;
     margin: 18px 0 4px; line-height: 1.5;
   }
+
+  .maps-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000; padding: 12px;
+  }
+  .maps-overlay.open { display: flex; }
+  .maps-modal {
+    width: 100%; max-width: 560px; height: 80vh; max-height: 640px;
+    background: var(--color-surface); border-radius: var(--radius-lg);
+    overflow: hidden; display: flex; flex-direction: column;
+    border: 1px solid var(--color-border-subtle);
+  }
+  .maps-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .maps-modal-header span { font-size: 13px; font-weight: 700; color: var(--color-text-primary); }
+  .maps-modal-close {
+    background: var(--color-surface-2); border: none; color: var(--color-text-primary);
+    width: 30px; height: 30px; border-radius: 50%; font-size: 16px; cursor: pointer;
+  }
+  .maps-modal iframe { flex: 1; width: 100%; border: 0; }
+  .maps-modal-footer { padding: 8px 12px; }
+  .maps-modal-footer a {
+    display: block; text-align: center; text-decoration: none;
+    font-size: 12px; color: var(--color-accent); padding: 6px;
+  }
 </style>
 </head>
 <body>
@@ -123,6 +151,19 @@
 </header>
 
 <main class="entregas-wrap" id="entregas-wrap"><div class="loading-spinner"></div></main>
+
+<div class="maps-overlay" id="maps-overlay">
+  <div class="maps-modal">
+    <div class="maps-modal-header">
+      <span id="maps-modal-title">📍 Ubicación</span>
+      <button class="maps-modal-close" id="maps-modal-close">✕</button>
+    </div>
+    <iframe id="maps-modal-iframe" src="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <div class="maps-modal-footer">
+      <a id="maps-modal-external" href="#" target="_blank" rel="noopener">Abrir en la app de Google Maps ↗</a>
+    </div>
+  </div>
+</div>
 
 <script>
 (function() {
@@ -181,6 +222,38 @@
     return null;
   }
 
+  function mapsEmbedUrl(g) {
+    if (typeof g.lat === 'number' && typeof g.lng === 'number') {
+      return `https://www.google.com/maps?q=${g.lat},${g.lng}&z=16&output=embed`;
+    }
+    if (g.direccion) {
+      return `https://www.google.com/maps?q=${encodeURIComponent(g.direccion)}&z=16&output=embed`;
+    }
+    return null;
+  }
+
+  const mapsOverlay = document.getElementById('maps-overlay');
+  const mapsIframe = document.getElementById('maps-modal-iframe');
+  const mapsTitle = document.getElementById('maps-modal-title');
+  const mapsExternal = document.getElementById('maps-modal-external');
+
+  function openMapsModal(g) {
+    const embedUrl = mapsEmbedUrl(g);
+    if (!embedUrl) return;
+    mapsTitle.textContent = `📍 ${g.compradorNombre || 'Ubicación'}`;
+    mapsIframe.src = embedUrl;
+    mapsExternal.href = mapsUrl(g) || '#';
+    mapsOverlay.classList.add('open');
+  }
+
+  function closeMapsModal() {
+    mapsOverlay.classList.remove('open');
+    mapsIframe.src = ''; // detiene la carga al cerrar
+  }
+
+  document.getElementById('maps-modal-close').addEventListener('click', closeMapsModal);
+  mapsOverlay.addEventListener('click', (e) => { if (e.target === mapsOverlay) closeMapsModal(); });
+
   function renderResumen() {
     const total = entrega.grupos.length;
     const entregados = entrega.grupos.filter(g => g.estado === 'entregado').length;
@@ -216,7 +289,7 @@
         ${(g.items || []).map(it => `<div class="item-row"><span>${esc(it.nombre)}</span><span>$${Number(it.precio || 0).toLocaleString()}</span></div>`).join('')}
         <div class="total-row"><span>Total</span><span>$${Number(g.total || 0).toLocaleString()}</span></div>
       </div>
-      ${url ? `<a class="btn-maps" href="${esc(url)}" target="_blank" rel="noopener">🗺️ Ver ubicación en Maps</a>` : ''}
+      ${url ? `<button type="button" class="btn-maps" data-action="ver-mapa">🗺️ Ver ubicación en Maps</button>` : ''}
       <div class="estado-actions">
         <button class="btn-entregado ${estado === 'entregado' ? 'active' : ''}" data-action="entregado">✅ Entregado</button>
         <button class="btn-pendiente ${estado === 'pendiente' ? 'active' : ''}" data-action="pendiente">⏳ Pendiente</button>
@@ -237,6 +310,13 @@
 
     wrap.querySelectorAll('.entrega-card').forEach(card => {
       const key = card.dataset.key;
+      const btnMapa = card.querySelector('[data-action="ver-mapa"]');
+      if (btnMapa) {
+        btnMapa.addEventListener('click', () => {
+          const g = entrega.grupos.find(g => String(g.compradorKey) === String(key));
+          if (g) openMapsModal(g);
+        });
+      }
       card.querySelectorAll('.estado-actions button').forEach(btn => {
         if (btn.dataset.action === 'avisar') {
           btn.addEventListener('click', () => avisarLlegada(key, btn));
