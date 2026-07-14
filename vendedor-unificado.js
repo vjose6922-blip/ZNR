@@ -551,6 +551,8 @@ async function loadInformeSemanal() {
   }
 }
 
+const INFORME_SEMANAL_DISMISS_KEY = 'znr_informe_semanal_cerrado';
+
 function renderInformeSemanal(informe) {
   const el = document.getElementById('informe-semanal-card');
   if (!el) return;
@@ -561,12 +563,32 @@ function renderInformeSemanal(informe) {
   const diasDesde = (Date.now() - fechaGenerado.getTime()) / 86400000;
   if (isNaN(diasDesde) || diasDesde > 10) { el.innerHTML = ''; return; }
 
+  // Identificador único de este informe (por vendedor + fecha de
+  // generación). Si el vendedor ya cerró ESTE informe, no se vuelve a
+  // mostrar — pero en cuanto se genere uno nuevo la próxima semana, el id
+  // cambia y sí aparece de nuevo.
+  const informeId = `${informe.vendor_uid}_${informe.fecha_generado}`;
+  if (localStorage.getItem(INFORME_SEMANAL_DISMISS_KEY) === informeId) {
+    el.innerHTML = '';
+    return;
+  }
+
   el.innerHTML = `
-    <div style="background:linear-gradient(135deg,#f5f3ff,#fdf4ff);border:1px solid #e9d5ff;border-radius:14px;padding:14px 16px;">
-      <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:6px;">📊 Informe semanal</div>
-      <div style="font-size:13px;color:var(--color-text-main);line-height:1.5;">${_escapeHtmlInforme(informe.resumen_texto || '')}</div>
+    <div class="informe-semanal-flotante" id="informe-semanal-flotante">
+      <button type="button" class="informe-semanal-cerrar" id="informe-semanal-cerrar-btn" aria-label="Cerrar">✕</button>
+      <div class="titulo">📊 Informe semanal</div>
+      <div class="texto">${_escapeHtmlInforme(informe.resumen_texto || '')}</div>
     </div>
   `;
+
+  const btnCerrar = document.getElementById('informe-semanal-cerrar-btn');
+  if (btnCerrar) {
+    btnCerrar.addEventListener('click', () => {
+      localStorage.setItem(INFORME_SEMANAL_DISMISS_KEY, informeId);
+      const card = document.getElementById('informe-semanal-flotante');
+      if (card) card.remove();
+    });
+  }
 }
 
 // Reutiliza la misma lógica de escape que ya existe en el proyecto

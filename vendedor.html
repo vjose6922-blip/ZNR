@@ -280,7 +280,7 @@
  <button id="share-vendor-link" class="btn-secondary" style="font-size:12px; margin-left:10px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-share"/></svg> Link de mi tienda</button>
  </h2>
  <div id="vendor-plan-panel" style="margin:4px 0 16px;"></div>
- <div id="informe-semanal-card" style="margin:4px 0 16px;"></div>
+ <div id="informe-semanal-card"></div>
  <input type="file" id="logo-file-input" accept="image/*" style="display:none">
 <div id="products-container" class="products-container vendor-products"></div>
 </div>
@@ -334,20 +334,7 @@
 <option>Automotriz</option>
 <option>Alimentos y bebidas</option>
 <option>Salud y bienestar</option>
-<option>Temporada - San Valentín</option>
-<option>Temporada - Pascua</option>
-<option>Temporada - Día del Niño</option>
-<option>Temporada - Día de la Madre</option>
-<option>Temporada - Día del Padre</option>
-<option>Temporada - Graduaciones</option>
-<option>Temporada - Regreso a Clases</option>
-<option>Temporada - Fiestas Patrias</option>
-<option>Temporada - Halloween</option>
-<option>Temporada - Día de Muertos</option>
-<option>Temporada - Buen Fin</option>
-<option>Temporada - Navidad</option>
-<option>Temporada - Año Nuevo</option>
-<option>Temporada - Reyes Magos</option>
+<option>Temporada</option>
  </select>
  </div>
  <div class="field-group"><label>INFO</label><input type="text" id="pTalla" placeholder="Tallas, Medidas, etc.."></div>
@@ -394,6 +381,47 @@
  </div>
  <style>
  @keyframes slideUpSheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
+ @keyframes informeSemanalIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+ .informe-semanal-flotante {
+ position: fixed;
+ top: 72px;
+ left: 12px;
+ right: 12px;
+ max-width: 420px;
+ margin: 0 auto;
+ z-index: 60;
+ background: linear-gradient(135deg,#f5f3ff,#fdf4ff);
+ border: 1px solid #e9d5ff;
+ border-radius: 14px;
+ padding: 14px 40px 14px 16px;
+ box-shadow: 0 8px 24px rgba(124,58,237,0.18);
+ animation: informeSemanalIn 0.25s ease-out;
+ }
+ .informe-semanal-flotante .titulo {
+ font-size: 13px; font-weight: 700; color: #7c3aed; margin-bottom: 6px;
+ }
+ .informe-semanal-flotante .texto {
+ font-size: 13px; color: var(--color-text-main); line-height: 1.5;
+ }
+ .informe-semanal-cerrar {
+ position: absolute;
+ top: 10px;
+ right: 10px;
+ width: 24px;
+ height: 24px;
+ border-radius: 50%;
+ border: none;
+ background: rgba(124,58,237,0.12);
+ color: #7c3aed;
+ font-size: 14px;
+ line-height: 1;
+ cursor: pointer;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ padding: 0;
+ }
+ .informe-semanal-cerrar:active { background: rgba(124,58,237,0.24); }
  </style>
 
  <button class="btn-primary" id="submit-product-btn"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-publish"/></svg> Publicar producto</button>
