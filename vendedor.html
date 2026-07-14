@@ -310,11 +310,14 @@
  <button class="remove-img" onclick="removeImg(event,3)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
  </div>
  </div>
-<p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Puedes seleccionar varias a la vez. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
+
+  
+  
+  
+  <p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Puedes seleccionar varias a la vez. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
  </div>
 
  <div class="field-group">
- <button type="button" class="btn-secondary" id="btn-completar-ia" onclick="completarAnuncioConIA()" style="width:100%">✨ Completar anuncio con IA</button>
  <div id="ia-sugerencia-box" style="display:none;margin-top:10px;padding:12px;border:1px solid #e5d9fb;border-radius:12px;background:#faf7ff;">
    <p style="font-size:12px;color:#7c3aed;font-weight:600;margin:0 0 8px">Sugerencia de IA</p>
    <p style="font-size:13px;margin:0 0 4px"><strong>Nombre:</strong> <span id="ia-sugerencia-nombre"></span></p>
@@ -332,6 +335,12 @@
  <label>Nombre *</label>
  <input type="text" id="pNombre" placeholder="Ej: Blusa floral verano" maxlength="120">
  </div>
+ <div class="field-group">
+ <button type="button" class="btn-secondary" id="btn-completar-ia" onclick="completarAnuncioConIA()" style="width:100%">✨ Completar anuncio con IA</button>
+ </div>
+
+
+  
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
  <div class="field-group"><label>Precio (MXN) *</label><input type="number" id="pPrecio" placeholder="350" min="0" max="99999"></div>
  <div class="field-group"><label>Stock *</label><input type="number" id="pStock" placeholder="5" min="0" max="9999"></div>
