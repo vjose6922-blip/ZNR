@@ -848,9 +848,12 @@
   let erroresSeguidos = 0;
   let ultimoEventoReconocimiento = 0;
   let ultimoIntentoInicio = 0;
+  let inicioSesionActual = 0;
   let watchdogInterval = null;
-  const WATCHDOG_INTERVALO_MS = 8000;
-  const WATCHDOG_TIMEOUT_MS = 16000; // si no hay ningún evento en este lapso, se asume "zombie"
+  let sesionConfirmada = false; // true solo cuando el navegador confirma con onstart que sí arrancó
+  const WATCHDOG_INTERVALO_MS = 4000;
+  const WATCHDOG_TIMEOUT_ARRANQUE_MS = 6000;   // si en este lapso nunca llega onstart, sí es un cuelgue real
+  const WATCHDOG_TIMEOUT_SEGURIDAD_MS = 5 * 60 * 1000; // red de seguridad amplia; el silencio normal NO cuenta como falla
 
   function crearReconocimiento() {
     const r = new SpeechRecognitionAPI();
@@ -862,6 +865,8 @@
     r.onstart = () => {
       erroresSeguidos = 0;
       ultimoEventoReconocimiento = Date.now();
+      inicioSesionActual = Date.now();
+      sesionConfirmada = true;
       setEstadoPill('listening');
     };
 
@@ -910,6 +915,13 @@
 
     r.onend = () => {
       ultimoEventoReconocimiento = Date.now();
+      // Diagnóstico: para saber cada cuánto reinicia el navegador la
+      // sesión en TU dispositivo/navegador (varía mucho entre Android,
+      // desktop, etc.). Puedes ver esto en la consola.
+      if (inicioSesionActual && !pausadoPorHabla) {
+        const duracionSeg = ((Date.now() - inicioSesionActual) / 1000).toFixed(1);
+        console.log(`[AsistenteVoz] La sesión de reconocimiento duró ${duracionSeg}s antes de que el navegador la cortara.`);
+      }
       // El navegador corta la sesión periódicamente (esto sí genera el
       // sonido nativo de "micrófono encendido/apagado" y no podemos
       // evitarlo: es del navegador, no de este script). Si el switch
@@ -933,6 +945,7 @@
     if (ahora - ultimoIntentoInicio < 400) return; // evita dos arranques casi simultáneos
     ultimoIntentoInicio = ahora;
     ultimoEventoReconocimiento = ahora;
+    sesionConfirmada = false;
     if (reconocimiento) {
       try { reconocimiento.abort(); } catch (_) {}
     }
@@ -967,8 +980,21 @@
     watchdogInterval = setInterval(() => {
       if (!reconocimientoActivo || pausadoPorHabla || document.hidden) return;
       const inactivoPor = Date.now() - ultimoEventoReconocimiento;
-      if (inactivoPor > WATCHDOG_TIMEOUT_MS) {
-        console.warn('[AsistenteVoz] El reconocimiento lleva mucho tiempo sin responder, reiniciando sesión...');
+
+      // Caso real de cuelgue: llamamos a start() pero el navegador nunca
+      // confirmó con onstart. El silencio normal (nadie hablando) NO
+      // cuenta aquí porque sesionConfirmada ya estaría en true.
+      if (!sesionConfirmada && inactivoPor > WATCHDOG_TIMEOUT_ARRANQUE_MS) {
+        console.warn('[AsistenteVoz] El micrófono no confirmó su arranque, reintentando...');
+        iniciarSesionReconocimiento();
+        return;
+      }
+
+      // Red de seguridad muy amplia por si el navegador se queda colgado
+      // de verdad sin avisar (no confundir con silencio normal, que puede
+      // durar minutos sin que eso sea un problema).
+      if (sesionConfirmada && inactivoPor > WATCHDOG_TIMEOUT_SEGURIDAD_MS) {
+        console.warn('[AsistenteVoz] Sin actividad del reconocimiento por mucho tiempo, reiniciando por seguridad...');
         iniciarSesionReconocimiento();
       }
     }, WATCHDOG_INTERVALO_MS);
