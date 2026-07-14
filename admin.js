@@ -424,6 +424,12 @@ function fillFormForEdit(product) {
     // Abrir la tarjeta del formulario automáticamente — antes había que
     // abrirla manualmente después de tocar "Editar" en la tarjeta del
     // producto, aunque los datos ya estuvieran cargados adentro.
+    if (typeof window.closeGridTile === 'function') {
+        // Si el listado estaba abierto, se cierra primero — ambas tarjetas
+        // expandidas a la vez se superponen (las dos usan position:fixed
+        // pantalla completa).
+        window.closeGridTile('admin-list-section', 'list-products-body');
+    }
     if (typeof window.openGridTile === 'function') {
         window.openGridTile('admin-create-section', 'create-product-body');
     }
