@@ -310,8 +310,23 @@
  <button class="remove-img" onclick="removeImg(event,3)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
  </div>
  </div>
- <p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Puedes seleccionar varias a la vez. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
+<p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Puedes seleccionar varias a la vez. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
  </div>
+
+ <div class="field-group">
+ <button type="button" class="btn-secondary" id="btn-completar-ia" onclick="completarAnuncioConIA()" style="width:100%">✨ Completar anuncio con IA</button>
+ <div id="ia-sugerencia-box" style="display:none;margin-top:10px;padding:12px;border:1px solid #e5d9fb;border-radius:12px;background:#faf7ff;">
+   <p style="font-size:12px;color:#7c3aed;font-weight:600;margin:0 0 8px">Sugerencia de IA</p>
+   <p style="font-size:13px;margin:0 0 4px"><strong>Nombre:</strong> <span id="ia-sugerencia-nombre"></span></p>
+   <p style="font-size:13px;margin:0 0 10px"><strong>Descripción:</strong> <span id="ia-sugerencia-descripcion"></span></p>
+   <div style="display:flex;gap:8px">
+     <button type="button" class="btn-primary" onclick="usarSugerenciaIA()" style="flex:1">Usar esto</button>
+     <button type="button" class="btn-secondary" onclick="descartarSugerenciaIA()" style="flex:1">Descartar</button>
+   </div>
+ </div>
+ </div>
+
+ <!-- Menú "Tomar foto / Elegir de galería" para los slots de producto -->
 
  <div class="field-group">
  <label>Nombre *</label>
