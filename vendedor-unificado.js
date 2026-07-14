@@ -435,8 +435,12 @@ alert('No se pudo copiar. Comparte este enlace:\n' + shareUrl);
 
 loadMyProducts();
 renderVendorPlanPanel();
-loadInformeSemanal();
 loadVendorSaleNotifications();
+// Escalonado a propósito: esta llamada no es urgente (a diferencia de
+// productos/notificaciones/FCM), así que se retrasa un poco para no sumarse
+// a la ráfaga de peticiones simultáneas al abrir el panel y no competir por
+// el límite de ejecuciones concurrentes de Apps Script.
+setTimeout(loadInformeSemanal, 4000);
 if (!window._vsnPollingStarted) {
   window._vsnPollingStarted = true;
  
