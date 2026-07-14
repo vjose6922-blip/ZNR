@@ -325,7 +325,7 @@
       const resp = await fetch(AV_CONFIG.nluEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS con Apps Script
-        body: JSON.stringify({ comando: textoOriginal }),
+        body: JSON.stringify({ action: 'interpretarComandoVoz', comando: textoOriginal }),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
