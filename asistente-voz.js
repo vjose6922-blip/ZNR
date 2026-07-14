@@ -13,9 +13,9 @@
     duracionBurbuja: 4500,           // ms que se muestra el mensaje en pantalla
     storageKey: 'zr_voice_assistant_enabled',
     requierePalabraActivacion: true, // si es true, ignora todo lo que no empiece/incluya la palabra de activación
-    palabraActivacion: 'oye asistente', // di, por ejemplo: "oye asistente, busca camisetas rojas"
+    palabraActivacion: 'Hola', // di, por ejemplo: "oye asistente, busca camisetas rojas"
     nluHabilitado: true,   // si es false, solo usa el matching local por frases (comportamiento actual)
-    nluEndpoint: 'https://script.google.com/macros/s/TU_DEPLOYMENT_ID/exec?action=interpretarComandoVoz', // TODO: reemplazar con tu Web App de GAS
+    nluEndpoint: 'https://script.google.com/macros/s/AKfycbzNshrt3zldBNiyoB8x36ktCEO02H0cKxebiTuK7UAbsgd5R9biaCW7W4ihm1aVOJG7ww/exec?action=interpretarComandoVoz', // TODO: reemplazar con tu Web App de GAS
     nluTimeoutMs: 6000
   };
 
