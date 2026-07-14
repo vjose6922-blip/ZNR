@@ -290,6 +290,29 @@
  <div class="vendor-section">
  <h2 id="form-title">Publicar producto</h2>
  <input type="hidden" id="edit-product-id">
+
+ <div class="field-group">
+ <label>Fotos (máx. 3)</label>
+ <div class="img-upload-row">
+ <div class="img-upload-slot" id="slot-1" onclick="triggerUpload(1)">
+ <span style="font-size:24px;color:#ccc"></span>
+ <input type="file" id="file-1" accept="image/*" multiple onchange="handleFileSelect(1, this)">
+ <button class="remove-img" onclick="removeImg(event,1)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
+ </div>
+ <div class="img-upload-slot" id="slot-2" onclick="triggerUpload(2)">
+ <span style="font-size:24px;color:#ccc"></span>
+ <input type="file" id="file-2" accept="image/*" multiple onchange="handleFileSelect(2, this)">
+ <button class="remove-img" onclick="removeImg(event,2)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
+ </div>
+ <div class="img-upload-slot" id="slot-3" onclick="triggerUpload(3)">
+ <span style="font-size:24px;color:#ccc"></span>
+ <input type="file" id="file-3" accept="image/*" multiple onchange="handleFileSelect(3, this)">
+ <button class="remove-img" onclick="removeImg(event,3)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
+ </div>
+ </div>
+ <p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Puedes seleccionar varias a la vez. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
+ </div>
+
  <div class="field-group">
  <label>Nombre *</label>
  <input type="text" id="pNombre" placeholder="Ej: Blusa floral verano" maxlength="120">
@@ -339,28 +362,6 @@
  </div>
  <div class="field-group"><label>INFO</label><input type="text" id="pTalla" placeholder="Tallas, Medidas, etc.."></div>
  <div class="field-group"><label>Descripción</label><textarea id="pDescripcion" placeholder="Describe tu producto..." maxlength="500"></textarea></div>
-
- <div class="field-group">
- <label>Fotos (máx. 3)</label>
- <div class="img-upload-row">
- <div class="img-upload-slot" id="slot-1" onclick="triggerUpload(1)">
- <span style="font-size:24px;color:#ccc"></span>
- <input type="file" id="file-1" accept="image/*" multiple onchange="handleFileSelect(1, this)">
- <button class="remove-img" onclick="removeImg(event,1)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
- </div>
- <div class="img-upload-slot" id="slot-2" onclick="triggerUpload(2)">
- <span style="font-size:24px;color:#ccc"></span>
- <input type="file" id="file-2" accept="image/*" multiple onchange="handleFileSelect(2, this)">
- <button class="remove-img" onclick="removeImg(event,2)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
- </div>
- <div class="img-upload-slot" id="slot-3" onclick="triggerUpload(3)">
- <span style="font-size:24px;color:#ccc"></span>
- <input type="file" id="file-3" accept="image/*" multiple onchange="handleFileSelect(3, this)">
- <button class="remove-img" onclick="removeImg(event,3)"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" aria-hidden="true"><use href="#ic-x"/></svg></button>
- </div>
- </div>
- <p style="font-size:11px;color:#aaa;margin-top:6px">Sube fotos reales de tu producto. Puedes seleccionar varias a la vez. Imágenes claras y bien iluminadas aumentan tus ventas.</p>
- </div>
 
  <!-- Menú "Tomar foto / Elegir de galería" para los slots de producto -->
  <div id="photo-source-sheet" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center;">

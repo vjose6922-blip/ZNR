@@ -1142,8 +1142,13 @@ const el = document.getElementById(id);
 if (el) el.value = '';
 });
 const cat = document.getElementById('pCategoria');
-if (cat) cat.value = '';
-[1,2,3].forEach(n => clearSlotPreview(n));
+if (cat) { cat.value = ''; cat.dataset.aiSugerida = 'false'; cat.style.fontWeight = ''; }
+[1,2,3].forEach(n => {
+  clearSlotPreview(n);
+  const fileInput = document.getElementById(`file-${n}`);
+  if (fileInput) fileInput.value = ''; // sin esto, el <input> real seguía "recordando" la foto anterior
+  selectedFiles[n] = null;
+});
 uploadedImages = { 1: null, 2: null, 3: null };
 }
 
