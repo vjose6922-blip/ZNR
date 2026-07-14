@@ -127,6 +127,14 @@
     padding: 10px 14px; border-bottom: 1px solid var(--color-border-subtle);
   }
   .maps-modal-header span { font-size: 13px; font-weight: 700; color: var(--color-text-primary); }
+  .maps-modal-status {
+    font-size: 11px; color: var(--color-text-soft); padding: 0 14px 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .maps-modal-status .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; flex-shrink: 0;
+  }
+  .maps-modal-status.live .dot { background: #4ade80; }
   .maps-modal-close {
     background: var(--color-surface-2); border: none; color: var(--color-text-primary);
     width: 30px; height: 30px; border-radius: 50%; font-size: 16px; cursor: pointer;
@@ -158,9 +166,12 @@
       <span id="maps-modal-title">📍 Ubicación</span>
       <button class="maps-modal-close" id="maps-modal-close">✕</button>
     </div>
+    <div class="maps-modal-status" id="maps-modal-status">
+      <span class="dot"></span><span id="maps-modal-status-text">Obteniendo tu ubicación…</span>
+    </div>
     <iframe id="maps-modal-iframe" src="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
     <div class="maps-modal-footer">
-      <a id="maps-modal-external" href="#" target="_blank" rel="noopener">Abrir en la app de Google Maps ↗</a>
+      <a id="maps-modal-external" href="#" target="_blank" rel="noopener">🧭 Abrir en Google Maps para navegación por voz ↗</a>
     </div>
   </div>
 </div>
@@ -232,23 +243,79 @@
     return null;
   }
 
+  function destParam(g) {
+    if (typeof g.lat === 'number' && typeof g.lng === 'number') return `${g.lat},${g.lng}`;
+    if (g.direccion) return encodeURIComponent(g.direccion);
+    return null;
+  }
+
+  function mapsRouteEmbedUrl(originLat, originLng, g) {
+    const dest = destParam(g);
+    if (!dest) return null;
+    return `https://www.google.com/maps?saddr=${originLat},${originLng}&daddr=${dest}&dirflg=d&output=embed`;
+  }
+
   const mapsOverlay = document.getElementById('maps-overlay');
   const mapsIframe = document.getElementById('maps-modal-iframe');
   const mapsTitle = document.getElementById('maps-modal-title');
   const mapsExternal = document.getElementById('maps-modal-external');
+  const mapsStatus = document.getElementById('maps-modal-status');
+  const mapsStatusText = document.getElementById('maps-modal-status-text');
+
+  const ROUTE_REFRESH_MS = 25000; // no refrescar el iframe más seguido que esto
+  let watchId = null;
+  let lastRouteUpdate = 0;
+
+  function setStatus(text, live) {
+    mapsStatusText.textContent = text;
+    mapsStatus.classList.toggle('live', !!live);
+  }
+
+  function stopWatching() {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+  }
 
   function openMapsModal(g) {
-    const embedUrl = mapsEmbedUrl(g);
-    if (!embedUrl) return;
     mapsTitle.textContent = `📍 ${g.compradorNombre || 'Ubicación'}`;
-    mapsIframe.src = embedUrl;
     mapsExternal.href = mapsUrl(g) || '#';
     mapsOverlay.classList.add('open');
+    lastRouteUpdate = 0;
+
+    if (!navigator.geolocation) {
+      setStatus('Tu navegador no soporta ubicación en vivo — mostrando destino.', false);
+      mapsIframe.src = mapsEmbedUrl(g) || '';
+      return;
+    }
+
+    setStatus('Obteniendo tu ubicación…', false);
+    mapsIframe.src = mapsEmbedUrl(g) || ''; // mientras llega el GPS, muestra el destino
+
+    stopWatching();
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const now = Date.now();
+        if (now - lastRouteUpdate < ROUTE_REFRESH_MS) return;
+        lastRouteUpdate = now;
+        const routeUrl = mapsRouteEmbedUrl(pos.coords.latitude, pos.coords.longitude, g);
+        if (routeUrl) {
+          mapsIframe.src = routeUrl;
+          setStatus('Ruta en vivo — se actualiza cada ~25 seg', true);
+        }
+      },
+      (err) => {
+        setStatus('No pudimos acceder a tu ubicación — mostrando destino.', false);
+      },
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 12000 }
+    );
   }
 
   function closeMapsModal() {
     mapsOverlay.classList.remove('open');
-    mapsIframe.src = ''; // detiene la carga al cerrar
+    mapsIframe.src = '';
+    stopWatching();
   }
 
   document.getElementById('maps-modal-close').addEventListener('click', closeMapsModal);
