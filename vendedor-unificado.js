@@ -622,14 +622,24 @@ function renderVendorPlanPanel() {
     </div>`;
   }
 
-  const statusFilterHTML = `
-    <div class="vendor-status-filter" style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
-      <button class="filter-status-btn active" data-status="todos" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:var(--color-accent-solid); color:#fff; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Todos</button>
-      <button class="filter-status-btn" data-status="aprobado" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:transparent; color:var(--color-text-muted); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Aprobados</button>
-      <button class="filter-status-btn" data-status="pendiente" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:transparent; color:var(--color-text-muted); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Pendientes</button>
-      <button class="filter-status-btn" data-status="rechazado" style="padding:4px 12px; border-radius:20px; border:1.5px solid var(--color-border-subtle); background:transparent; color:var(--color-text-muted); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">Rechazados</button>
-    </div>
-  `;
+  const statusOpciones = [
+  { status: 'todos',     label: 'Todos' },
+  { status: 'aprobado',  label: 'Aprobados' },
+  { status: 'pendiente', label: 'Pendientes' },
+  { status: 'rechazado', label: 'Rechazados' },
+];
+const statusFilterHTML = `
+  <div class="vendor-status-filter" style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+    ${statusOpciones.map(({ status, label }) => {
+      const activo = (currentStatusFilter || 'todos') === status;
+      const clase = activo ? 'filter-status-btn active' : 'filter-status-btn';
+      const bg = activo ? 'var(--color-accent-solid)' : 'transparent';
+      const color = activo ? '#fff' : 'var(--color-text-muted)';
+      const borderColor = activo ? 'var(--color-accent-solid)' : 'var(--color-border-subtle)';
+      return `<button class="${clase}" data-status="${status}" style="padding:4px 12px; border-radius:20px; border:1.5px solid ${borderColor}; background:${bg}; color:${color}; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;">${label}</button>`;
+    }).join('')}
+  </div>
+`;
 
   el.innerHTML = `
     <div style="background:#f8f8fc;border-radius:14px;padding:12px 14px;">
