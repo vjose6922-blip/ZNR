@@ -17,6 +17,17 @@
  child-src 'self' blob:;
 ">
  <script src="error-bootstrap.js"></script>
+ <script>
+   // Si desde el panel de admin se activó "abrir siempre aquí", saltar
+   // directo al panel antes de que se cargue nada de la tienda. Va
+   // primero que todo lo demás para que no se alcance a ver el catálogo
+   // ni un instante antes de redirigir.
+   try {
+     if (localStorage.getItem('ui_render_mode') === 'rm-8823-x') {
+       location.replace('/ZNR/admin.html');
+     }
+   } catch (e) {}
+ </script>
 
  <title>Z&R | Inicio</title>
  <meta name="viewport" content="width=device-width, initial-scale=1" />
