@@ -734,6 +734,16 @@ function stopNotificationMonitoring() {
 function openNotifications() {
 window.location.href = "notificaciones.html";
 }
+// Refleja visualmente si el "abrir siempre aquí" está activo o no,
+// para que el botón no dependa de memoria — se ve con solo mirarlo.
+function actualizarEstadoAutostart(btn) {
+  const activo = localStorage.getItem("ui_render_mode") === "rm-8823-x";
+  btn.style.background = activo ? "rgba(139, 92, 246, 0.55)" : "rgba(255,255,255,0.1)";
+  btn.title = activo
+    ? "Activado: la app abre aquí siempre. Toca para desactivar."
+    : "Abrir siempre aquí al iniciar la app";
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 const loginForm = document.getElementById("admin-login-form");
 if (loginForm) loginForm.addEventListener("submit", handleAdminLogin);
@@ -775,6 +785,23 @@ const resetBtn = document.getElementById("reset-form-btn");
 if (resetBtn) resetBtn.addEventListener("click", resetProductForm);
 const refreshBtn = document.getElementById("admin-refresh-btn");
 if (refreshBtn) refreshBtn.addEventListener("click", loadAdminProducts);
+const autostartBtn = document.getElementById("admin-autostart-toggle");
+if (autostartBtn) {
+  actualizarEstadoAutostart(autostartBtn);
+  autostartBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const activo = localStorage.getItem("ui_render_mode") === "rm-8823-x";
+    if (activo) {
+      localStorage.removeItem("ui_render_mode");
+      if (window.showTemporaryMessage) window.showTemporaryMessage("La app abrirá la tienda normal", "info");
+    } else {
+      localStorage.setItem("ui_render_mode", "rm-8823-x");
+      if (window.showTemporaryMessage) window.showTemporaryMessage("La app abrirá siempre aquí", "success");
+    }
+    actualizarEstadoAutostart(autostartBtn);
+  });
+}
 const adminSearch = document.getElementById("admin-search-input");
 const adminCategory = document.getElementById("admin-category-filter");
 const adminStock = document.getElementById("admin-stock-filter");
