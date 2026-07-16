@@ -40,6 +40,7 @@ function invalidateComunidadCache() {
   totalPagesGlobal = 1;
   allCommunityProducts = [];
   filteredProducts = [];
+  communityRandomOrder = null;
   sessionStorage.removeItem(COMUNIDAD_CACHE_KEY);
   localStorage.removeItem(COMUNIDAD_CACHE_KEY);
 }
@@ -84,11 +85,12 @@ let totalPagesGlobal = 1;         // total de páginas devuelto por el backend
 let currentFilters = {};          // filtros activos (para mantenerlos al cambia00000
 let isLoading = false;
 let gridContainer, catSelect, vendorSelect, paginationDiv;
-let hasLoadedOnce = false; // true solo tras la primera carga real de la página (no en cada cambio de filtro)
+let hasLoadedOnce = false; 
 let debounceTimer = null;
 let inspectorMode = false;
 let initialHashHandledComunidad = false;
-let comunidadFilterOptionsLoaded = false; // asegura que el select muestre TODAS las opciones, no solo las del filtro activo
+let comunidadFilterOptionsLoaded = false; 
+let communityRandomOrder = null; 
 async function initInspectorMode() {
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('inspector') !== '1') return;
@@ -231,6 +233,23 @@ async function loadComunidadPageGAS(page, filters, opts = {}) {
   }
 
   try {
+    // Si ya tenemos el orden aleatorio armado en esta sesión (por Algolia o
+    // por una llamada GAS previa), solo paginamos en memoria, sin red.
+    if (esVistaComunidadPorDefecto(filters) && communityRandomOrder && !opts.force) {
+      currentPage      = page;
+      totalPagesGlobal = Math.max(1, Math.ceil(communityRandomOrder.length / PAGE_SIZE));
+      const start = (page - 1) * PAGE_SIZE;
+      allCommunityProducts = communityRandomOrder.slice(start, start + PAGE_SIZE);
+      filteredProducts     = [...allCommunityProducts];
+      window.allCommunityProductsIndexed = allCommunityProducts;
+      renderProducts();
+      handleInitialHashComunidad();
+      isLoading = false;
+      hasLoadedOnce = true;
+      if (typeof window.hideLoader === 'function') window.hideLoader();
+      return;
+    }
+
     const url = buildComunidadUrl(page, filters);
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 10000);
@@ -240,10 +259,17 @@ async function loadComunidadPageGAS(page, filters, opts = {}) {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error del servidor');
 
-    // Actualizar estado global
-    currentPage      = data.page      || page;
-    totalPagesGlobal = data.totalPages || 1;
-    allCommunityProducts = data.products || [];
+    if (data.fullSet) {
+      communityRandomOrder = data.products || [];
+      currentPage      = page;
+      totalPagesGlobal = Math.max(1, Math.ceil(communityRandomOrder.length / PAGE_SIZE));
+      const start = (page - 1) * PAGE_SIZE;
+      allCommunityProducts = communityRandomOrder.slice(start, start + PAGE_SIZE);
+    } else {
+      currentPage      = data.page      || page;
+      totalPagesGlobal = data.totalPages || 1;
+      allCommunityProducts = data.products || [];
+    }
     filteredProducts     = [...allCommunityProducts];
     window.allCommunityProductsIndexed = allCommunityProducts;
 
@@ -371,6 +397,33 @@ function aplicarOrdenLocal(orden) {
   allCommunityProducts = filteredProducts;
 }
 
+// ── Vista por defecto = sin ningún filtro activo (ahí aplica el orden
+// aleatorio con la página 1 reservada a verificados + ZNR) ────────────────
+function esVistaComunidadPorDefecto(filters) {
+  return !filters.categoria && !filters.busqueda && !filters.vendedor && !filters.orden;
+}
+
+function shuffleArray(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Arma el orden completo de la vista por defecto: página 1 = solo verificados
+// (plan 'plus') + productos ZNR, mezclados al azar; el resto se mezcla después
+// sin repetir nada de la página 1. Se calcula UNA sola vez por sesión.
+function construirOrdenAleatorioComunidad(hits) {
+  const esVerificadoOZNR = p => p.es_znr === true || p.vendedor_plan === 'plus';
+  const verificados = shuffleArray(hits.filter(esVerificadoOZNR));
+  const pagina1 = verificados.slice(0, PAGE_SIZE);
+  const pagina1Ids = new Set(pagina1.map(p => String(p.id)));
+  const resto = shuffleArray(hits.filter(p => !pagina1Ids.has(String(p.id))));
+  return pagina1.concat(resto);
+}
+
 // ── Carga y renderiza una página de productos vía Algolia (público, rápido) ──
 async function loadComunidadPageAlgolia(page, filters, opts = {}) {
   if (isLoading && !opts.force) return;
@@ -399,51 +452,68 @@ async function loadComunidadPageAlgolia(page, filters, opts = {}) {
   try {
     if (!window.algoliaIndex) throw new Error('Algolia no está configurado');
 
-    const filterParts = [];
-    if (filters.categoria) filterParts.push('categoria:"' + String(filters.categoria).replace(/"/g, '') + '"');
-    if (filters.vendedor)  filterParts.push('vendedor_uid:"' + String(filters.vendedor).replace(/"/g, '') + '"');
-    if (filters.orden === 'verificados') filterParts.push('vendedor_plan:"plus"');
-    const filterString = filterParts.join(' AND ');
+    // Las opciones del select se cargan aparte y solo una vez, así siempre
+    // muestran TODAS las categorías/vendedores, no solo las del filtro activo.
+    loadComunidadFilterOptionsAlgolia();
 
-    // El select "Ordenar por" usa réplicas de Algolia para calificación/precio.
-    // Si la réplica no existe todavía (no configurada en el dashboard de Algolia),
-    // caemos de vuelta al índice normal y ordenamos localmente esta página.
-    const targetIndex = getAlgoliaIndexForOrden(filters.orden);
-    let searchResult;
-    try {
-      searchResult = await targetIndex.search(filters.busqueda || '', {
-        filters: filterString,
-        hitsPerPage: PAGE_SIZE,
-        page: Math.max(0, page - 1), // Algolia pagina desde 0
-        facets: ['categoria', 'vendedor_nombre']
-      });
-    } catch (replicaErr) {
-      if (targetIndex !== window.algoliaIndex) {
-        console.warn('Réplica de Algolia no encontrada, usando índice base + orden local:', replicaErr);
-        searchResult = await window.algoliaIndex.search(filters.busqueda || '', {
+    if (esVistaComunidadPorDefecto(filters)) {
+      // ── Vista por defecto: se trae un lote grande UNA sola vez y se pagina
+      // en memoria (así la página 1 queda reservada a verificados+ZNR y el
+      // resto se mantiene fijo mientras el usuario navega de página) ──────
+      if (!communityRandomOrder) {
+        const searchResult = await window.algoliaIndex.search('', {
+          hitsPerPage: 300,
+          facets: ['categoria', 'vendedor_nombre']
+        });
+        communityRandomOrder = construirOrdenAleatorioComunidad(searchResult.hits || []);
+      }
+
+      currentPage      = page;
+      totalPagesGlobal = Math.max(1, Math.ceil(communityRandomOrder.length / PAGE_SIZE));
+      const start = (page - 1) * PAGE_SIZE;
+      allCommunityProducts = communityRandomOrder.slice(start, start + PAGE_SIZE);
+      filteredProducts     = [...allCommunityProducts];
+      window.allCommunityProductsIndexed = allCommunityProducts;
+
+      if (page === 1) setComunidadCache(allCommunityProducts);
+
+    } else {
+      // ── Con filtros/búsqueda/orden activos: paginado normal vía Algolia ──
+      const filterParts = [];
+      if (filters.categoria) filterParts.push('categoria:"' + String(filters.categoria).replace(/"/g, '') + '"');
+      if (filters.vendedor)  filterParts.push('vendedor_uid:"' + String(filters.vendedor).replace(/"/g, '') + '"');
+      if (filters.orden === 'verificados') filterParts.push('vendedor_plan:"plus"');
+      const filterString = filterParts.join(' AND ');
+
+      const targetIndex = getAlgoliaIndexForOrden(filters.orden);
+      let searchResult;
+      try {
+        searchResult = await targetIndex.search(filters.busqueda || '', {
           filters: filterString,
           hitsPerPage: PAGE_SIZE,
           page: Math.max(0, page - 1),
           facets: ['categoria', 'vendedor_nombre']
         });
-      } else {
-        throw replicaErr;
+      } catch (replicaErr) {
+        if (targetIndex !== window.algoliaIndex) {
+          console.warn('Réplica de Algolia no encontrada, usando índice base + orden local:', replicaErr);
+          searchResult = await window.algoliaIndex.search(filters.busqueda || '', {
+            filters: filterString,
+            hitsPerPage: PAGE_SIZE,
+            page: Math.max(0, page - 1),
+            facets: ['categoria', 'vendedor_nombre']
+          });
+        } else {
+          throw replicaErr;
+        }
       }
-    }
 
-    currentPage      = page;
-    totalPagesGlobal = searchResult.nbPages || 1;
-    allCommunityProducts = searchResult.hits || [];
-    filteredProducts     = [...allCommunityProducts];
-    aplicarOrdenLocal(filters.orden); // respaldo si la réplica no estaba disponible
-    window.allCommunityProductsIndexed = allCommunityProducts;
-
-    // Las opciones del select se cargan aparte y solo una vez (ver loadComunidadFilterOptionsAlgolia),
-    // así siempre muestran TODAS las categorías/vendedores, no solo los del filtro activo.
-    loadComunidadFilterOptionsAlgolia();
-
-    if (page === 1 && !filters.categoria && !filters.busqueda && !filters.vendedor && !filters.orden) {
-      setComunidadCache(allCommunityProducts);
+      currentPage      = page;
+      totalPagesGlobal = searchResult.nbPages || 1;
+      allCommunityProducts = searchResult.hits || [];
+      filteredProducts     = [...allCommunityProducts];
+      aplicarOrdenLocal(filters.orden);
+      window.allCommunityProductsIndexed = allCommunityProducts;
     }
 
     renderProducts();
@@ -818,7 +888,7 @@ style="width:100%;height:100%;object-fit:contain;display:block;background:var(--
 ${vendorName ? `<div style="font-size:11px;color:var(--color-text-muted,#888);margin-top:2px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;">
 <span style="display:flex;align-items:center;gap:5px;">
   ${vendorAvatarHtml}
-  <a href="perfil-vendedor.html?vendedor=${esc(product.vendedor_uid)}" style="color:var(--color-text-main);font-weight:600;text-decoration:none;cursor:pointer;hover:underline;">${esc(vendorName)}</a>
+  <a href="${(product.es_znr || product.vendedor_uid === 'znr_oficial') ? 'catalogo.html' : ('perfil-vendedor.html?vendedor=' + esc(product.vendedor_uid))}" style="color:var(--color-text-main);font-weight:600;text-decoration:none;cursor:pointer;hover:underline;">${esc(vendorName)}</a>
 </span>
 ${esDonativo && product.beneficiario_id ? `<button class="btn-ver-beneficiario" data-ben-id="${esc(safeString(product.beneficiario_id))}" style="background:none;border:none;padding:0;color:#f97316;font-weight:600;font-size:11px;cursor:pointer;text-decoration:underline;">Ver beneficiario</button>` : ''}
 </div>` : ''}
