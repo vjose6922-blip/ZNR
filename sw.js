@@ -1,4 +1,4 @@
-const CACHE_NAME    = 'zr-cache-v31';
+const CACHE_NAME    = 'zr-cache-v32';
 const DYNAMIC_CACHE = 'zr-dynamic-v14';
 const OFFLINE_URL   = '/ZNR/offline.html';
 
@@ -32,6 +32,7 @@ const STATIC_ASSETS = [
   '/ZNR/manifest.json',
   '/ZNR/manifest-admin.json',
   '/ZNR/placeholder.svg',
+  '/ZNR/labels.txt',
 ];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
