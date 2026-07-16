@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1058,19 +1059,13 @@
         const sub = document.getElementById('profile-subtitle');
         if (sub) sub.textContent = v.nombre || 'Vendedor';
 
-        // Lazy loading de imágenes con IntersectionObserver
+        // Lazy loading de imágenes con IntersectionObserver (reutilizado
+        // entre renders: renderProfile puede correr 2 veces por visita —
+        // caché inmediata + revalidación en background — y antes creaba
+        // un observer nuevo cada vez sin desconectar el anterior)
         const lazyImgs = container.querySelectorAll('img[data-src]');
         if (lazyImgs.length > 0) {
-          const imgObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-              if (entry.isIntersecting) {
-                const img = entry.target;
-                img.src = img.dataset.src;
-                img.removeAttribute('data-src');
-                imgObserver.unobserve(img);
-              }
-            });
-          }, { rootMargin: '200px' });
+          const imgObserver = getProfileLazyObserver();
           lazyImgs.forEach(img => imgObserver.observe(img));
         }
 
@@ -1080,6 +1075,23 @@
       // ── Caché de perfil por UID en sessionStorage ──
       const PROFILE_CACHE_PREFIX = 'zr_perfil_';
       const PROFILE_CACHE_TTL    = 5 * 60 * 1000; // 5 min en misma sesión
+
+      // ── Observer de lazy-loading reutilizado entre renders del perfil ──
+      let _profileLazyObserver = null;
+      function getProfileLazyObserver() {
+        if (_profileLazyObserver) return _profileLazyObserver;
+        _profileLazyObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const img = entry.target;
+              img.src = img.dataset.src;
+              img.removeAttribute('data-src');
+              _profileLazyObserver.unobserve(img);
+            }
+          });
+        }, { rootMargin: '200px' });
+        return _profileLazyObserver;
+      }
 
       function getProfileCache(uid) {
         try {

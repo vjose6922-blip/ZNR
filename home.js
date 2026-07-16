@@ -1,6 +1,32 @@
 (function () {
 'use strict';
 window.allProducts = window.allProducts || [];
+
+// ── Observer de lazy-loading reutilizado entre renders de "looks" en home ──
+// generateHomeLooksFromWishlist() puede correr varias veces por sesión
+// (cambia el wishlist, se recarga la sección); antes creaba un
+// IntersectionObserver nuevo cada vez.
+let _homeLooksLazyObserver = null;
+function getHomeLooksLazyObserver() {
+if (!('IntersectionObserver' in window)) return null;
+if (_homeLooksLazyObserver) return _homeLooksLazyObserver;
+_homeLooksLazyObserver = new IntersectionObserver((entries) => {
+entries.forEach(entry => {
+if (entry.isIntersecting) {
+const img = entry.target;
+const src = img.getAttribute('data-src');
+if (src) {
+img.src = src;
+img.removeAttribute('data-src');
+img.classList.add('loaded');
+}
+_homeLooksLazyObserver.unobserve(img);
+}
+});
+}, { rootMargin: '100px' });
+return _homeLooksLazyObserver;
+}
+
 const CATEGORIES = [
 { name: 'Caballero', icon: '', filter: 'HOMBRE', url: 'catalogo.html?gender=HOMBRE' },
 { name: 'Dama', icon: '', filter: 'MUJER', url: 'catalogo.html?gender=MUJER' }
@@ -411,21 +437,8 @@ return;
 homeLooksDelegated = true;
 }
 const lazyImgs = container.querySelectorAll('.lazy');
-if ('IntersectionObserver' in window) {
-const observer = new IntersectionObserver((entries) => {
-entries.forEach(entry => {
-if (entry.isIntersecting) {
-const img = entry.target;
-const src = img.getAttribute('data-src');
-if (src) {
-img.src = src;
-img.removeAttribute('data-src');
-img.classList.add('loaded');
-}
-observer.unobserve(img);
-}
-});
-}, { rootMargin: '100px' });
+const observer = getHomeLooksLazyObserver();
+if (observer) {
 lazyImgs.forEach(img => observer.observe(img));
 } else {
 lazyImgs.forEach(img => {
