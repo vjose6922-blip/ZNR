@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -710,15 +709,28 @@
 
       const PRODUCTS_PAGE_SIZE = 12;
 
+      function renderCalificacionVendedor(slot, data) {
+        if (data && data.ok && data.total > 0) {
+          slot.innerHTML = `<span style="color:#f59e0b;">${Icon('star')} ${data.promedio}</span> · ${data.total} calificación${data.total === 1 ? '' : 'es'}`;
+        }
+      }
+
       async function cargarCalificacionVendedor(uid) {
         const slot = document.getElementById('profile-rating-slot');
         if (!slot || !uid || !window.API_URL) return;
+
+        const cacheKey = RATING_CACHE_PREFIX + uid;
+        const cached = getSessionCacheTTL(cacheKey, RATING_CACHE_TTL);
+        if (cached) {
+          renderCalificacionVendedor(slot, cached);
+          return; // dentro del TTL: no revalidamos, es un dato de bajo impacto visual
+        }
+
         try {
           const res = await fetch(`${window.API_URL}?${new URLSearchParams({ action: 'obtenerCalificacionesVendedor', vendedor_uid: uid })}`);
           const data = await res.json();
-          if (data.ok && data.total > 0) {
-            slot.innerHTML = `<span style="color:#f59e0b;">${Icon('star')} ${data.promedio}</span> · ${data.total} calificación${data.total === 1 ? '' : 'es'}`;
-          }
+          setSessionCacheTTL(cacheKey, data);
+          renderCalificacionVendedor(slot, data);
         } catch (e) { /* silencioso */ }
       }
 
@@ -729,10 +741,26 @@
       async function cargarPestanaFundacion(v) {
         if (!window.API_URL || !v || !v.uid) return;
         try {
-          const [donRes, benRes] = await Promise.all([
-            fetch(`${window.API_URL}?${new URLSearchParams({ action: 'obtenerDonacionesRecibidas', vendor_uid: v.uid })}`).then(r => r.json()).catch(() => null),
-            fetch(`${window.API_URL}?${new URLSearchParams({ action: 'obtenerBeneficiariosAprobados' })}`).then(r => r.json()).catch(() => null)
-          ]);
+          const donCacheKey = DONACIONES_CACHE_PREFIX + v.uid;
+          const donCached = getSessionCacheTTL(donCacheKey, DONACIONES_CACHE_TTL);
+          const benCached = getSessionCacheTTL(BENEFICIARIOS_CACHE_KEY, BENEFICIARIOS_CACHE_TTL);
+
+          const donPromise = donCached
+            ? Promise.resolve(donCached)
+            : fetch(`${window.API_URL}?${new URLSearchParams({ action: 'obtenerDonacionesRecibidas', vendor_uid: v.uid })}`)
+                .then(r => r.json())
+                .then(data => { setSessionCacheTTL(donCacheKey, data); return data; })
+                .catch(() => null);
+
+          // Lista global: se comparte entre todos los perfiles vistos en la sesión.
+          const benPromise = benCached
+            ? Promise.resolve(benCached)
+            : fetch(`${window.API_URL}?${new URLSearchParams({ action: 'obtenerBeneficiariosAprobados' })}`)
+                .then(r => r.json())
+                .then(data => { setSessionCacheTTL(BENEFICIARIOS_CACHE_KEY, data); return data; })
+                .catch(() => null);
+
+          const [donRes, benRes] = await Promise.all([donPromise, benPromise]);
           if (!donRes || !donRes.ok || !donRes.esBeneficiario) return;
           if (!benRes || !benRes.ok) return;
           const miTel = digitsOnly(v.telefono);
@@ -1074,6 +1102,40 @@
           );
         } catch (e) {}
       }
+
+      // ── Caché genérica en sessionStorage con TTL (mismo patrón que el perfil) ──
+      // Se reutiliza para calificaciones, donaciones y beneficiarios aprobados,
+      // que antes se pedían al backend en cada apertura de perfil sin cachear.
+      function getSessionCacheTTL(key, ttlMs) {
+        try {
+          const raw = sessionStorage.getItem(key);
+          if (!raw) return null;
+          const { data, timestamp } = JSON.parse(raw);
+          if (Date.now() - timestamp > ttlMs) {
+            sessionStorage.removeItem(key);
+            return null;
+          }
+          return data;
+        } catch (e) { return null; }
+      }
+
+      function setSessionCacheTTL(key, data) {
+        try {
+          sessionStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+        } catch (e) {}
+      }
+
+      const RATING_CACHE_PREFIX  = 'zr_calif_';
+      const RATING_CACHE_TTL     = 10 * 60 * 1000; // 10 min
+
+      const DONACIONES_CACHE_PREFIX = 'zr_donaciones_';
+      const DONACIONES_CACHE_TTL    = 5 * 60 * 1000; // 5 min
+
+      // Lista global de beneficiarios aprobados: NO depende del uid del perfil
+      // que se está viendo, así que una sola clave sirve para todos los perfiles
+      // que se abran en la misma sesión.
+      const BENEFICIARIOS_CACHE_KEY = 'zr_beneficiarios_aprobados';
+      const BENEFICIARIOS_CACHE_TTL = 15 * 60 * 1000; // 15 min
 
       // ── Skeleton inmediato mientras carga ──
       function showProfileSkeleton(container, cardCount = 6) {
