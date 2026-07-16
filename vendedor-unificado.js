@@ -322,7 +322,7 @@ return;
 
 try {
 const res = await apiFetch({ action: 'loginVendedor', telefono: firstField, password: secondField });
-if (!res.ok) throw new Error();
+if (!res || !res.ok) throw new Error((res && res.error) || 'Credenciales incorrectas');
 vendorSession = {
 token: res.token,
 uid: res.uid,
@@ -350,8 +350,8 @@ localStorage.setItem('vendor_session', JSON.stringify(vendorSession));
 // si ya tenía otro guardado o si es la primera vez.
 localStorage.setItem('client_phone', firstField);
 if (typeof updateSavedPhoneDisplay === 'function') updateSavedPhoneDisplay();
-} catch (_) {
-showTemporaryMessage('Credenciales incorrectas', 'error');
+} catch (err) {
+showTemporaryMessage(err?.message || 'Credenciales incorrectas', 'error');
 hideLoader();
 return;
 }

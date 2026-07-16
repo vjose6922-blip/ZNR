@@ -4131,13 +4131,13 @@ window.uploadSingleImage = async function(file, slotIndex) {
 };
 
 if ('serviceWorker' in navigator) {
-    if (!sessionStorage.getItem('sw_reloaded')) {
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            sessionStorage.setItem('sw_reloaded', 'true');
-            try { showTemporaryMessage('Actualizando a la última versión…', 'info'); } catch {}
-            setTimeout(() => window.location.reload(), 800);
-        });
-    }
+    let _swReloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (_swReloading) return;
+        _swReloading = true;
+        try { showTemporaryMessage('Actualizando a la última versión…', 'info'); } catch {}
+        setTimeout(() => window.location.reload(), 800);
+    });
 }
 
 // Versión de alta resolución, pensada específicamente para el modal grande.
