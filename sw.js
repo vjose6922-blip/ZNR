@@ -1,10 +1,7 @@
 const CACHE_NAME    = 'zr-cache-v33';
-const DYNAMIC_CACHE = 'zr-dynamic-v14';
-const IMAGE_CACHE   = 'zr-images-v1';
+const DYNAMIC_CACHE = 'zr-dynamic-v15';
 const OFFLINE_URL   = '/ZNR/offline.html';
 
-const MAX_IMAGE_ENTRIES   = 500;
-const MAX_DYNAMIC_ENTRIES = 150;
 const STATIC_ASSETS = [
   '/ZNR/',
   '/ZNR/index.html',
@@ -67,7 +64,7 @@ self.addEventListener('activate', event => {
       const names = await caches.keys();
       await Promise.all(
         names
-          .filter(n => ![CACHE_NAME, DYNAMIC_CACHE, IMAGE_CACHE].includes(n))
+          .filter(n => n !== CACHE_NAME && n !== DYNAMIC_CACHE)
           .map(n => caches.delete(n))
       );
       await self.clients.claim();
@@ -76,20 +73,6 @@ self.addEventListener('activate', event => {
     })()
   );
 });
-
-
-
-async function trimCache(cacheName, maxEntries) {
-  const cache = await caches.open(cacheName);
-  const keys = await cache.keys();
-  const excess = keys.length - maxEntries;
-  if (excess <= 0) return;
-  await Promise.all(keys.slice(0, excess).map(k => cache.delete(k)));
-}
-
-
-
-
 
 function getCacheStrategy(request) {
   const url = new URL(request.url);
@@ -106,20 +89,8 @@ function getCacheStrategy(request) {
 self.addEventListener('fetch', event => {
   if (event.request.url.startsWith('chrome-extension://')) return;
   const strategy = getCacheStrategy(event.request);
-
-  if (strategy === 'CACHE_FIRST') {
-    const url = new URL(event.request.url);
-    const isImage = IMAGE_CDN_HOSTS.some(h => url.hostname.includes(h)) ||
-                    IMAGE_EXTENSIONS.some(ext => url.pathname.toLowerCase().endsWith(ext));
-    if (isImage) {
-      event.respondWith(cacheFirst(event.request, IMAGE_CACHE, MAX_IMAGE_ENTRIES));
-      return;
-    }
-    event.respondWith(cacheFirst(event.request, DYNAMIC_CACHE, MAX_DYNAMIC_ENTRIES));
-    return;
-  }
-
   const handlers = {
+    CACHE_FIRST:            cacheFirst,
     NETWORK_ONLY:           networkOnly,
     NETWORK_FIRST:          networkFirst,
     STALE_WHILE_REVALIDATE: staleWhileRevalidate,
@@ -127,15 +98,14 @@ self.addEventListener('fetch', event => {
   event.respondWith((handlers[strategy] || networkFirst)(event.request));
 });
 
-async function cacheFirst(request, cacheName = DYNAMIC_CACHE, maxEntries = MAX_DYNAMIC_ENTRIES) {
+async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
   try {
     const net = await fetch(request);
     if (net?.status === 200) {
-      const cache = await caches.open(cacheName);
-      await cache.put(request, net.clone());
-      trimCache(cacheName, maxEntries).catch(() => {});
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, net.clone());
     }
     return net;
   } catch {
