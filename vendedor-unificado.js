@@ -4,6 +4,29 @@
 // ──────────────────────────────────────────────
 // v0000
 // ──────────────────────────────────────────────
+
+// ── AUTOVERIFICACIÓN DE DEPLOY ──────────────────────────────
+// Descarga su propio archivo por red (la misma URL que el navegador
+// usó para cargarlo) y confirma si el texto de las funciones de
+// donaciones realmente está ahí. Esto evita depender de copiar/pegar
+// código a mano para saber qué versión quedó publicada de verdad.
+(function __znrSelfCheck() {
+  try {
+    const src = (document.currentScript && document.currentScript.src) || '';
+    if (!src) return;
+    fetch(src, { cache: 'no-store' }).then(r => r.text()).then(text => {
+      const hasGetCached = text.includes('async function getVendorProductsPageCached');
+      const hasFetchRaw  = text.includes('async function fetchVendorProductsPageRaw');
+      window.__znrDeployCheck = { src, length: text.length, hasGetCached, hasFetchRaw };
+      const msg = `[ZNR-DEPLOY-CHECK] src=${src} | bytes=${text.length} | getVendorProductsPageCached presente=${hasGetCached} | fetchVendorProductsPageRaw presente=${hasFetchRaw}`;
+      console.log(msg);
+      if (!hasGetCached || !hasFetchRaw) {
+        console.error('[ZNR-DEPLOY-CHECK] ⚠️ El archivo publicado en GitHub Pages NO contiene estas funciones. El deploy no se subió completo.');
+      }
+    }).catch(e => console.log('[ZNR-DEPLOY-CHECK] No se pudo autoverificar:', e.message));
+  } catch (e) {}
+})();
+
 let vendorSession = null;
 Object.defineProperty(window, 'vendorSession', {
   get() { return vendorSession; },
@@ -2629,11 +2652,13 @@ window.openGestionarDonacionesModal = async function(page = 1) {
   let result;
   try {
     if (typeof getVendorProductsPageCached !== 'function') {
+      const dc = window.__znrDeployCheck;
+      const dcMsg = dc
+        ? `deployCheck: bytes=${dc.length} getCached=${dc.hasGetCached} fetchRaw=${dc.hasFetchRaw}`
+        : 'deployCheck: aún no terminó (espera 2s y reintenta)';
       throw new Error('DIAG: getVendorProductsPageCached=' + typeof getVendorProductsPageCached +
         ' | fetchVendorProductsPageRaw=' + typeof fetchVendorProductsPageRaw +
-        ' | scriptSrc=' + (document.currentScript ? document.currentScript.src : 'n/a') +
-        ' | totalScripts=' + document.querySelectorAll('script[src*="vendedor-unificado"]').length +
-        ' | srcs=' + Array.from(document.querySelectorAll('script[src*="vendedor-unificado"]')).map(s=>s.src).join(','));
+        ' | ' + dcMsg);
     }
     result = await getVendorProductsPageCached(uid, page, DONACION_PAGE_LIMIT, 'todos');
   } catch (e) {
