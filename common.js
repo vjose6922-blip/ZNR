@@ -2751,10 +2751,6 @@ try {
 const registration = await navigator.serviceWorker.register('/ZNR/sw.js', {
 scope: '/ZNR/'
 });
-// Forzar chequeo inmediato de actualización en cada carga, en vez de
-// esperar al chequeo automático del navegador (que puede tardar o
-// respetar caché HTTP viejo del propio sw.js).
-registration.update().catch(() => {});
 navigator.serviceWorker.addEventListener('message', event => {
 if (event.data.type === 'CONNECTION_STATUS') {
 }
@@ -4135,13 +4131,13 @@ window.uploadSingleImage = async function(file, slotIndex) {
 };
 
 if ('serviceWorker' in navigator) {
-    let _swReloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (_swReloading) return;
-        _swReloading = true;
-        try { showTemporaryMessage('Actualizando a la última versión…', 'info'); } catch {}
-        setTimeout(() => window.location.reload(), 800);
-    });
+    if (!sessionStorage.getItem('sw_reloaded')) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            sessionStorage.setItem('sw_reloaded', 'true');
+            try { showTemporaryMessage('Actualizando a la última versión…', 'info'); } catch {}
+            setTimeout(() => window.location.reload(), 800);
+        });
+    }
 }
 
 // Versión de alta resolución, pensada específicamente para el modal grande.

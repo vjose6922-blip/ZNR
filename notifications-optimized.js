@@ -447,7 +447,7 @@ if (dataSrc) img.src = dataSrc;
 });
 return;
 }
-if (!lazyImageObserver) {
+if (lazyImageObserver) lazyImageObserver.disconnect();
 lazyImageObserver = new IntersectionObserver((entries) => {
 entries.forEach(entry => {
 if (entry.isIntersecting) {
@@ -461,7 +461,6 @@ lazyImageObserver.unobserve(img);
 }
 });
 }, { rootMargin: '100px' });
-}
 document.querySelectorAll('.lazy-notif').forEach(img => {
 lazyImageObserver.observe(img);
 });

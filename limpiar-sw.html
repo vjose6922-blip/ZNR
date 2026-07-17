@@ -78,15 +78,7 @@
 
         <hr>
 
-        <button onclick="limpiezaTotal()" style="background:#27ae60;width:100%;padding:16px;font-size:17px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" aria-hidden="true"><use href="#ic-trash"/></svg>
-            Limpieza total (recomendado) y volver a Mi Tienda
-        </button>
-        <p style="font-size:13px;color:#777;margin-top:8px;">Esto elimina el Service Worker, TODO el Cache Storage (donde quedan pegados los archivos viejos) y sessionStorage, luego te manda a vendedor.html con todo fresco.</p>
-
-        <hr>
-
-        <button id="btnCargar" onclick="cargarWorkers()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true"><use href="#ic-search"/></svg> Buscar Service Workers activos (avanzado)</button>
+        <button id="btnCargar" onclick="cargarWorkers()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true"><use href="#ic-search"/></svg> Buscar Service Workers activos</button>
 
         <div id="lista"></div>
         <div id="mensaje"></div>
@@ -167,30 +159,6 @@
             }
         }
 
-        // Limpieza total: SW + Cache Storage + sessionStorage, y redirige
-        async function limpiezaTotal() {
-            const mensajeDiv = document.getElementById('mensaje');
-            mensajeDiv.innerHTML = '<div class="mensaje info">' + Icon('clock') + ' Limpiando todo, un momento…</div>';
-            try {
-                if ('serviceWorker' in navigator) {
-                    const registrations = await navigator.serviceWorker.getRegistrations();
-                    for (const reg of registrations) { await reg.unregister(); }
-                }
-                if ('caches' in window) {
-                    const keys = await caches.keys();
-                    for (const key of keys) { await caches.delete(key); }
-                }
-                try { sessionStorage.clear(); } catch (_) {}
-                mensajeDiv.innerHTML = '<div class="mensaje exito">' + Icon('check') + ' Todo limpio. Redirigiendo a Mi Tienda…</div>';
-                setTimeout(() => {
-                    window.location.href = '/ZNR/vendedor.html?_reset=' + Date.now();
-                }, 1200);
-            } catch (error) {
-                mensajeDiv.innerHTML = `<div class="mensaje error">${Icon('x')} Error durante la limpieza: ${error.message}</div>`;
-                console.error(error);
-            }
-        }
-
         // Función para eliminar un SW específico por su scope
         async function eliminarWorker(scope, index) {
             const mensajeDiv = document.getElementById('mensaje');
@@ -250,7 +218,8 @@
             }
         }
 
-        // Ya no se auto-carga la lista avanzada; el usuario usa el botón verde de arriba.
+        // Cargar automáticamente al abrir la página
+        window.onload = cargarWorkers;
     </script>
 </body>
 </html>

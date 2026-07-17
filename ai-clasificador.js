@@ -129,10 +129,7 @@ async function _probarSalidaValida(modelo) {
  * desincronización cuando cambien las clases entrenadas.
  */
 async function _cargarLabels() {
-  // Sin 'no-store': labels.txt es estático y casi nunca cambia (solo al
-  // reentrenar el modelo), así que dejamos que el Service Worker lo sirva
-  // desde caché (CACHE_FIRST) en vez de forzar red cada vez.
-  const res = await fetch('./labels.txt');
+  const res = await fetch('./labels.txt', { cache: 'no-store' });
   if (!res.ok) return null;
   const texto = await res.text();
   return texto.split('\n').map(l => l.trim()).filter(Boolean);
@@ -324,19 +321,3 @@ document.addEventListener('DOMContentLoaded', () => {
     select.dataset.aiSugerida = 'false';
   });
 });
-
-// ── Precalentamiento en segundo plano ──────────────────────────────────
-// model.tflite pesa ~2.4 MB. En vez de agregarlo al precache global del
-// Service Worker (que penalizaría a TODOS los visitantes, incluyendo
-// compradores que nunca clasifican), lo descargamos y compilamos en ocioso
-// solo en vendedor.html (donde este script ya se carga), así el Service
-// Worker lo cachea (CACHE_FIRST) y el modelo queda compilado ANTES de que
-// el vendedor suba su primera foto — sin bloquear ni retrasar nada visible.
-(function precalentarModeloEnOcioso() {
-  const ejecutar = () => { _cargarModelo().catch(() => {}); };
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(ejecutar, { timeout: 5000 });
-  } else {
-    setTimeout(ejecutar, 2000);
-  }
-})();

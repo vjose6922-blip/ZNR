@@ -1,5 +1,5 @@
-const CACHE_NAME    = 'zr-cache-v38';
-const DYNAMIC_CACHE = 'zr-dynamic-v15';
+const CACHE_NAME    = 'zr-cache-v31';
+const DYNAMIC_CACHE = 'zr-dynamic-v14';
 const OFFLINE_URL   = '/ZNR/offline.html';
 
 const STATIC_ASSETS = [
@@ -30,8 +30,8 @@ const STATIC_ASSETS = [
   '/ZNR/error-monitor.js',
   '/ZNR/icons.js',
   '/ZNR/manifest.json',
+  '/ZNR/manifest-admin.json',
   '/ZNR/placeholder.svg',
-  '/ZNR/labels.txt',
 ];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
@@ -45,12 +45,12 @@ self.addEventListener('install', event => {
       await Promise.allSettled(
         STATIC_ASSETS.map(async asset => {
           try {
-            const response = await fetch(asset, { cache: 'reload' });
+            const response = await fetch(asset);
             if (response.ok) await cache.put(asset, response);
           } catch {}
         })
       );
-      const offlineRes = await fetch(OFFLINE_URL, { cache: 'reload' }).catch(() => null);
+      const offlineRes = await fetch(OFFLINE_URL).catch(() => null);
       if (offlineRes?.ok) await cache.put(OFFLINE_URL, offlineRes);
       await self.skipWaiting();
     })()

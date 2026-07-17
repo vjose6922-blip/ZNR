@@ -43,35 +43,6 @@ function invalidateComunidadCache() {
   communityRandomOrder = null;
   sessionStorage.removeItem(COMUNIDAD_CACHE_KEY);
   localStorage.removeItem(COMUNIDAD_CACHE_KEY);
-  sessionStorage.removeItem(COMMUNITY_ORDER_CACHE_KEY);
-  invalidateAlgoliaSearchCache();
-}
-
-// ── Persistencia del orden aleatorio de la vista por defecto (300 hits) ──
-// Antes vivía solo en la variable de módulo `communityRandomOrder`, que se
-// perdía en cada recarga completa (F5, volver de otra página de la PWA),
-// forzando un nuevo fetch de 300 hits a Algolia aunque la página 1 sí
-// estuviera cacheada. Con esto sobrevive mientras dure la sesión.
-const COMMUNITY_ORDER_CACHE_KEY = 'zr_comunidad_orden_aleatorio';
-const COMMUNITY_ORDER_CACHE_TTL = 10 * 60 * 1000; // 10 min
-
-function setCommunityOrderCache(order) {
-  try {
-    sessionStorage.setItem(COMMUNITY_ORDER_CACHE_KEY, JSON.stringify({ data: order, timestamp: Date.now() }));
-  } catch (e) {}
-}
-
-function getCommunityOrderCache() {
-  try {
-    const raw = sessionStorage.getItem(COMMUNITY_ORDER_CACHE_KEY);
-    if (!raw) return null;
-    const { data, timestamp } = JSON.parse(raw);
-    if (Date.now() - timestamp > COMMUNITY_ORDER_CACHE_TTL) {
-      sessionStorage.removeItem(COMMUNITY_ORDER_CACHE_KEY);
-      return null;
-    }
-    return data;
-  } catch (e) { return null; }
 }
 'use strict';
 if (typeof window.optimizeDriveUrl !== 'function') {
@@ -119,49 +90,7 @@ let debounceTimer = null;
 let inspectorMode = false;
 let initialHashHandledComunidad = false;
 let comunidadFilterOptionsLoaded = false; 
-let communityRandomOrder = null;
-
-// ── Memoización de búsquedas/filtros de Algolia (vista NO por defecto) ──
-// La vista por defecto ya se cachea completa (300 hits, una vez por sesión).
-// Esta caché es para cuando hay categoría/búsqueda/vendedor/orden activos:
-// evita volver a golpear Algolia si el usuario regresa al mismo filtro
-// (ej. entra a "Vestidos", sale, vuelve a entrar) dentro de una ventana corta.
-const algoliaSearchCache = new Map();
-const ALGOLIA_SEARCH_CACHE_TTL = 2 * 60 * 1000; // 2 min: la comunidad cambia más seguido que el catálogo
-const ALGOLIA_SEARCH_CACHE_MAX = 40; // límite simple para no crecer sin control en una sesión larga
-
-function getAlgoliaSearchCacheKey(filters, page) {
-  return JSON.stringify({
-    b: filters.busqueda  || '',
-    c: filters.categoria || '',
-    v: filters.vendedor  || '',
-    o: filters.orden     || '',
-    p: page
-  });
-}
-
-function getCachedAlgoliaSearch(key) {
-  const entry = algoliaSearchCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.timestamp > ALGOLIA_SEARCH_CACHE_TTL) {
-    algoliaSearchCache.delete(key);
-    return null;
-  }
-  return entry.data;
-}
-
-function setCachedAlgoliaSearch(key, data) {
-  if (algoliaSearchCache.size >= ALGOLIA_SEARCH_CACHE_MAX) {
-    // el Map conserva orden de inserción: el primero es el más viejo
-    const oldestKey = algoliaSearchCache.keys().next().value;
-    algoliaSearchCache.delete(oldestKey);
-  }
-  algoliaSearchCache.set(key, { data, timestamp: Date.now() });
-}
-
-function invalidateAlgoliaSearchCache() {
-  algoliaSearchCache.clear();
-} 
+let communityRandomOrder = null; 
 async function initInspectorMode() {
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('inspector') !== '1') return;
@@ -532,15 +461,11 @@ async function loadComunidadPageAlgolia(page, filters, opts = {}) {
       // en memoria (así la página 1 queda reservada a verificados+ZNR y el
       // resto se mantiene fijo mientras el usuario navega de página) ──────
       if (!communityRandomOrder) {
-        communityRandomOrder = getCommunityOrderCache();
-      }
-      if (!communityRandomOrder) {
         const searchResult = await window.algoliaIndex.search('', {
           hitsPerPage: 300,
           facets: ['categoria', 'vendedor_nombre']
         });
         communityRandomOrder = construirOrdenAleatorioComunidad(searchResult.hits || []);
-        setCommunityOrderCache(communityRandomOrder);
       }
 
       currentPage      = page;
@@ -554,38 +479,33 @@ async function loadComunidadPageAlgolia(page, filters, opts = {}) {
 
     } else {
       // ── Con filtros/búsqueda/orden activos: paginado normal vía Algolia ──
-      const searchCacheKey = getAlgoliaSearchCacheKey(filters, page);
-      let searchResult = getCachedAlgoliaSearch(searchCacheKey);
+      const filterParts = [];
+      if (filters.categoria) filterParts.push('categoria:"' + String(filters.categoria).replace(/"/g, '') + '"');
+      if (filters.vendedor)  filterParts.push('vendedor_uid:"' + String(filters.vendedor).replace(/"/g, '') + '"');
+      if (filters.orden === 'verificados') filterParts.push('vendedor_plan:"plus"');
+      const filterString = filterParts.join(' AND ');
 
-      if (!searchResult) {
-        const filterParts = [];
-        if (filters.categoria) filterParts.push('categoria:"' + String(filters.categoria).replace(/"/g, '') + '"');
-        if (filters.vendedor)  filterParts.push('vendedor_uid:"' + String(filters.vendedor).replace(/"/g, '') + '"');
-        if (filters.orden === 'verificados') filterParts.push('vendedor_plan:"plus"');
-        const filterString = filterParts.join(' AND ');
-
-        const targetIndex = getAlgoliaIndexForOrden(filters.orden);
-        try {
-          searchResult = await targetIndex.search(filters.busqueda || '', {
+      const targetIndex = getAlgoliaIndexForOrden(filters.orden);
+      let searchResult;
+      try {
+        searchResult = await targetIndex.search(filters.busqueda || '', {
+          filters: filterString,
+          hitsPerPage: PAGE_SIZE,
+          page: Math.max(0, page - 1),
+          facets: ['categoria', 'vendedor_nombre']
+        });
+      } catch (replicaErr) {
+        if (targetIndex !== window.algoliaIndex) {
+          console.warn('Réplica de Algolia no encontrada, usando índice base + orden local:', replicaErr);
+          searchResult = await window.algoliaIndex.search(filters.busqueda || '', {
             filters: filterString,
             hitsPerPage: PAGE_SIZE,
             page: Math.max(0, page - 1),
             facets: ['categoria', 'vendedor_nombre']
           });
-        } catch (replicaErr) {
-          if (targetIndex !== window.algoliaIndex) {
-            console.warn('Réplica de Algolia no encontrada, usando índice base + orden local:', replicaErr);
-            searchResult = await window.algoliaIndex.search(filters.busqueda || '', {
-              filters: filterString,
-              hitsPerPage: PAGE_SIZE,
-              page: Math.max(0, page - 1),
-              facets: ['categoria', 'vendedor_nombre']
-            });
-          } else {
-            throw replicaErr;
-          }
+        } else {
+          throw replicaErr;
         }
-        setCachedAlgoliaSearch(searchCacheKey, searchResult);
       }
 
       currentPage      = page;
@@ -1122,11 +1042,9 @@ function renderPagination() {
     paginationDiv.appendChild(nextBtn);
   }
 }
-let _comunidadLazyObserver = null;
-function getComunidadLazyObserver() {
-if (!('IntersectionObserver' in window)) return null;
-if (_comunidadLazyObserver) return _comunidadLazyObserver;
-_comunidadLazyObserver = new IntersectionObserver((entries) => {
+function initLazyImages() {
+if (!('IntersectionObserver' in window)) return;
+const observer = new IntersectionObserver((entries) => {
 entries.forEach(entry => {
 if (entry.isIntersecting) {
 const img = entry.target;
@@ -1135,15 +1053,10 @@ if (dataSrc) {
 img.src = dataSrc;
 img.removeAttribute('data-src');
 }
-_comunidadLazyObserver.unobserve(img);
+observer.unobserve(img);
 }
 });
 }, { rootMargin: '100px' });
-return _comunidadLazyObserver;
-}
-function initLazyImages() {
-const observer = getComunidadLazyObserver();
-if (!observer) return;
 document.querySelectorAll('.comunidad-card-img[data-src]').forEach(img => observer.observe(img));
 }
 function bindFilterChangeEvents() {

@@ -4,29 +4,6 @@
 // ──────────────────────────────────────────────
 // v0000
 // ──────────────────────────────────────────────
-
-// ── AUTOVERIFICACIÓN DE DEPLOY ──────────────────────────────
-// Descarga su propio archivo por red (la misma URL que el navegador
-// usó para cargarlo) y confirma si el texto de las funciones de
-// donaciones realmente está ahí. Esto evita depender de copiar/pegar
-// código a mano para saber qué versión quedó publicada de verdad.
-(function __znrSelfCheck() {
-  try {
-    const src = (document.currentScript && document.currentScript.src) || '';
-    if (!src) return;
-    fetch(src, { cache: 'no-store' }).then(r => r.text()).then(text => {
-      const hasGetCached = text.includes('async function getVendorProductsPageCached');
-      const hasFetchRaw  = text.includes('async function fetchVendorProductsPageRaw');
-      window.__znrDeployCheck = { src, length: text.length, hasGetCached, hasFetchRaw };
-      const msg = `[ZNR-DEPLOY-CHECK] src=${src} | bytes=${text.length} | getVendorProductsPageCached presente=${hasGetCached} | fetchVendorProductsPageRaw presente=${hasFetchRaw}`;
-      console.log(msg);
-      if (!hasGetCached || !hasFetchRaw) {
-        console.error('[ZNR-DEPLOY-CHECK] ⚠️ El archivo publicado en GitHub Pages NO contiene estas funciones. El deploy no se subió completo.');
-      }
-    }).catch(e => console.log('[ZNR-DEPLOY-CHECK] No se pudo autoverificar:', e.message));
-  } catch (e) {}
-})();
-
 let vendorSession = null;
 Object.defineProperty(window, 'vendorSession', {
   get() { return vendorSession; },
@@ -345,7 +322,7 @@ return;
 
 try {
 const res = await apiFetch({ action: 'loginVendedor', telefono: firstField, password: secondField });
-if (!res || !res.ok) throw new Error((res && res.error) || 'Credenciales incorrectas');
+if (!res.ok) throw new Error();
 vendorSession = {
 token: res.token,
 uid: res.uid,
@@ -373,8 +350,8 @@ localStorage.setItem('vendor_session', JSON.stringify(vendorSession));
 // si ya tenía otro guardado o si es la primera vez.
 localStorage.setItem('client_phone', firstField);
 if (typeof updateSavedPhoneDisplay === 'function') updateSavedPhoneDisplay();
-} catch (err) {
-showTemporaryMessage(err?.message || 'Credenciales incorrectas', 'error');
+} catch (_) {
+showTemporaryMessage('Credenciales incorrectas', 'error');
 hideLoader();
 return;
 }
@@ -710,10 +687,30 @@ function applyVendorStatusFilter(status) {
 }
 
 // ── FUNCIONES DE CACHÉ ────────────────────────────────
-// (La caché real de "mis productos" vive por página en sessionStorage,
-// ver fetchVendorProductsPageRaw / getVendorProductsPageCached / 
-// invalidateAllVendorProductPages más abajo — se usa tanto desde "Mis
-// productos" como desde el modal de donaciones.)
+const VENDOR_PRODUCTS_CACHE_KEY = 'zr_vendor_products';
+const VENDOR_PRODUCTS_CACHE_TTL = 3 * 60 * 1000; // 3 min
+
+window.getVendorProductsCache = function(uid) {
+  try {
+    const raw = sessionStorage.getItem(VENDOR_PRODUCTS_CACHE_KEY + '_' + uid);
+    if (!raw) return null;
+    const { data, timestamp } = JSON.parse(raw);
+    if (Date.now() - timestamp > VENDOR_PRODUCTS_CACHE_TTL) {
+      sessionStorage.removeItem(VENDOR_PRODUCTS_CACHE_KEY + '_' + uid);
+      return null;
+    }
+    return data;
+  } catch(e) { return null; }
+};
+window.setVendorProductsCache = function(uid, products) {
+  try {
+    sessionStorage.setItem(VENDOR_PRODUCTS_CACHE_KEY + '_' + uid,
+      JSON.stringify({ data: products, timestamp: Date.now() }));
+  } catch(e) {}
+};
+window.invalidateVendorProductsCache = function(uid) {
+  try { sessionStorage.removeItem(VENDOR_PRODUCTS_CACHE_KEY + '_' + (uid || vendorSession?.uid)); } catch(e) {}
+};
 
 function showVendorProductsSkeleton(container, count = 3) {
   const card = () => `
@@ -1009,70 +1006,40 @@ window.loadMyProducts = async function loadMyProducts(force = false, page = 1) {
   await fetchPage(uid, page, limit, status, false);
 };
 
-// ── Fetch + escritura de caché por página (compartido entre "Mis productos"
-//    y el modal de donaciones — misma clave, así cualquiera de los dos
-//    "calienta" la caché para el otro) ─────────────────────────────────
-async function fetchVendorProductsPageRaw(uid, page, limit, status) {
-  if (!vendorSession || !vendorSession.token) {
-    throw new Error('Tu sesión expiró, vuelve a iniciar sesión.');
-  }
-  const data = await apiFetch({
-    action: 'listarComunidad',
-    vendedor_uid: uid,
-    admin: 'true',
-    limit: limit,
-    page: page,
-    estado: status !== 'todos' ? status : undefined,
-    vendorToken: vendorSession.token
-  }, 'GET');
-
-  if (!data.ok) throw new Error(data.error);
-
-  const myProducts = (data.products || []).filter(p => p.vendedor_uid === uid);
-  const total = data.total || myProducts.length;
-  const totalPages = data.totalPages || Math.ceil(total / limit);
-  const result = { data: myProducts, total, page, totalPages, timestamp: Date.now() };
-
-  sessionStorage.setItem(`vendor_products_${uid}_page_${page}_status_${status}`, JSON.stringify(result));
-  return result;
-}
-
-// Cache-first: sirve la página cacheada si existe (y revalida en background,
-// igual que loadMyProducts), o va a red si no hay nada guardado todavía.
-async function getVendorProductsPageCached(uid, page, limit, status) {
-  const cacheKey = `vendor_products_${uid}_page_${page}_status_${status}`;
-  const cached = sessionStorage.getItem(cacheKey);
-  if (cached) {
-    try {
-      const parsed = JSON.parse(cached);
-      fetchVendorProductsPageRaw(uid, page, limit, status).catch(() => {}); // revalidación silenciosa
-      return parsed;
-    } catch (e) {}
-  }
-  return fetchVendorProductsPageRaw(uid, page, limit, status);
-}
-
-// Se usa después de asignar/quitar una donación: no sabemos en qué página(s)
-// ni con qué filtro de estado quedó el producto afectado, así que se limpian
-// todas las páginas cacheadas de este vendedor y el próximo acceso (a "Mis
-// productos" o al modal de donaciones) trae datos frescos.
-function invalidateAllVendorProductPages(uid) {
-  try {
-    const prefix = `vendor_products_${uid}_page_`;
-    Object.keys(sessionStorage).forEach(k => {
-      if (k.startsWith(prefix)) sessionStorage.removeItem(k);
-    });
-  } catch (e) {}
-}
-
 async function fetchPage(uid, page, limit, status, background = false) {
   const container = document.getElementById('products-container');
   if (!container) return;
 
   try {
-    const result = await fetchVendorProductsPageRaw(uid, page, limit, status);
+    const data = await apiFetch({
+      action: 'listarComunidad',
+      vendedor_uid: uid,
+      admin: 'true',
+      limit: limit,
+      page: page,
+      estado: status !== 'todos' ? status : undefined,
+      vendorToken: vendorSession.token
+    }, 'GET');
+
+    if (!data.ok) throw new Error(data.error);
+
+    // Filtrar por uid por si acaso
+    const myProducts = (data.products || []).filter(p => p.vendedor_uid === uid);
+    const total = data.total || myProducts.length;
+    const totalPages = data.totalPages || Math.ceil(total / limit);
+
+    // Guardar en caché
+    const cacheKey = `vendor_products_${uid}_page_${page}_status_${status}`;
+    sessionStorage.setItem(cacheKey, JSON.stringify({
+      data: myProducts,
+      total: total,
+      page: page,
+      totalPages: totalPages,
+      timestamp: Date.now()
+    }));
+
     if (!background) {
-      applyMyProducts(result.data, container, result.total, result.page, result.totalPages);
+      applyMyProducts(myProducts, container, total, page, totalPages);
     }
   } catch (err) {
     if (!background) {
@@ -1149,7 +1116,7 @@ try {
 const res = await apiFetch({ action: 'deleteComunidad', id, vendorToken: vendorSession.token });
 if (!res.ok) throw new Error(res.error);
 showTemporaryMessage(' Producto eliminado', 'info');
-invalidateAllVendorProductPages(vendorSession.uid);
+window.invalidateVendorProductsCache();
 loadMyProducts(true);
 } catch (err) {
 showTemporaryMessage(' ' + err.message, 'error');
@@ -1471,7 +1438,7 @@ console.log(" Respuesta del servidor:", res);
 if (!res.ok) throw new Error(res.error || 'Error del servidor');
 showTemporaryMessage(editId ? ' Producto actualizado' : ' Producto publicado', 'success');
 cancelEdit();
-invalidateAllVendorProductPages(vendorSession.uid);
+window.invalidateVendorProductsCache();
 loadMyProducts(true);
 } catch (err) {
 console.error("Error en submitProduct:", err);
@@ -2477,9 +2444,8 @@ window.toggleSettingsSection = function(btn) {
 };
 
 // ── Modal de gestión de donaciones ──────────────────────────
-window.openDonarProductosModal = async function(productoId, returnPage) {
-  const prod = (window._vendorProductsDonacion && window._vendorProductsDonacion.find(p => String(p.id) === String(productoId)))
-            || (window._vendorProducts && window._vendorProducts.find(p => String(p.id) === String(productoId)));
+window.openDonarProductosModal = async function(productoId) {
+  const prod = window._vendorProducts && window._vendorProducts.find(p => String(p.id) === String(productoId));
   if (!prod) { showTemporaryMessage('Recarga tus productos primero', 'error'); return; }
 
   const donado = prod.donado === true || prod.donado === 'TRUE' || prod.donado === 'true';
@@ -2548,12 +2514,7 @@ if (prod.imagen1) {
       btn.disabled = true; btn.textContent = 'Quitando…';
       try {
         const data = await apiFetch({ action:'desasignarDonacion', producto_id: String(productoId), vendor_token: vendorSession.token });
-        if (data.ok) {
-          showMsg('Donación removida', true);
-          invalidateAllVendorProductPages(vendorSession.uid);
-          if (returnPage) openGestionarDonacionesModal(returnPage); else loadMyProducts(true);
-          setTimeout(() => modal.remove(), 1400);
-        }
+        if (data.ok) { showMsg('Donación removida', true); window.invalidateVendorProductsCache(); loadMyProducts(true); setTimeout(() => modal.remove(), 1400); }
         else { showMsg((data.error||'Error'), false); btn.disabled = false; btn.textContent = 'Quitar donación'; }
       } catch(e) { showMsg('Error de conexión', false); btn.disabled = false; btn.textContent = 'Quitar donación'; }
     });
@@ -2604,12 +2565,7 @@ const benData = await window.apiFetch({ action:'obtenerBeneficiariosAprobados' }
         const payload = { action:'asignarDonacion', producto_id: String(productoId), beneficiario_id: benId, vendor_token: vendorSession.token };
         window.debugPanel && window.debugPanel.log('DEBUG PAYLOAD', JSON.stringify(payload));
         const data = await apiFetch(payload);
-        if (data.ok) {
-          showMsg('Donación asignada correctamente', true);
-          invalidateAllVendorProductPages(vendorSession.uid);
-          if (returnPage) openGestionarDonacionesModal(returnPage); else loadMyProducts(true);
-          setTimeout(() => modal.remove(), 1400);
-        }
+        if (data.ok) { showMsg('Donación asignada correctamente', true); window.invalidateVendorProductsCache(); loadMyProducts(true); setTimeout(() => modal.remove(), 1400); }
         else { showMsg((data.error||'Error'), false); btn.disabled = false; btn.innerHTML = Icon('heart-fill') + ' Asignar donación'; }
       } catch(e) {
         window.debugPanel && window.debugPanel.log('DEBUG ERROR', e.message || String(e));
@@ -2621,7 +2577,7 @@ const benData = await window.apiFetch({ action:'obtenerBeneficiariosAprobados' }
 };
 
 // ── "Gestionar donaciones" desde ajustes ──────────────────────
-window.openGestionarDonacionesModal = async function(page = 1) {
+window.openGestionarDonacionesModal = async function() {
   const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   const old = document.getElementById('modal-gestionar-donaciones');
@@ -2642,37 +2598,16 @@ window.openGestionarDonacionesModal = async function(page = 1) {
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
   const uid = vendorSession?.uid;
-  const lista = document.getElementById('gestionar-lista');
-  if (!uid || !lista) return;
-
-  // Paginado igual que "Mis productos" (20 por página) pero SIEMPRE con
-  // estado 'todos': aquí queremos ver todo lo que se pueda donar, sin
-  // importar el filtro de estado que tenga activa la pestaña principal.
-  const DONACION_PAGE_LIMIT = 20;
-  let result;
-  try {
-    if (typeof getVendorProductsPageCached !== 'function') {
-      const dc = window.__znrDeployCheck;
-      const dcMsg = dc
-        ? `deployCheck: bytes=${dc.length} getCached=${dc.hasGetCached} fetchRaw=${dc.hasFetchRaw}`
-        : 'deployCheck: aún no terminó (espera 2s y reintenta)';
-      throw new Error('DIAG: getVendorProductsPageCached=' + typeof getVendorProductsPageCached +
-        ' | fetchVendorProductsPageRaw=' + typeof fetchVendorProductsPageRaw +
-        ' | ' + dcMsg);
-    }
-    result = await getVendorProductsPageCached(uid, page, DONACION_PAGE_LIMIT, 'todos');
-  } catch (e) {
-    console.error('openGestionarDonacionesModal:', e);
-    lista.innerHTML = `<p style="color:#ef4444;text-align:center;padding:24px 0;">No se pudieron cargar tus productos.<br><small style="color:#f0abab;">${(e && e.message) ? String(e.message).replace(/[<>]/g,'') : ''}</small></p>`;
-    return;
+  const cached = uid ? window.getVendorProductsCache(uid) : null;
+  if (cached) {
+    window._vendorProducts = cached;
+  } else {
+    try { await loadMyProducts(); } catch(e) { /* usa lo que haya */ }
   }
 
-  // Se guarda aparte de window._vendorProducts a propósito: no queremos
-  // pisar la página que esté mostrando en ese momento la pestaña "Mis
-  // productos" si el vendedor la dejó abierta detrás del modal.
-  window._vendorProductsDonacion = result.data;
-
-  const productos = result.data;
+  const productos = window._vendorProducts || [];
+  const lista = document.getElementById('gestionar-lista');
+  if (!lista) return;
 
   lista.style.padding = '14px 20px 0';
   lista.style.textAlign = '';
@@ -2691,7 +2626,7 @@ window.openGestionarDonacionesModal = async function(page = 1) {
                     <div style="font-size:.72rem;color:#888;">$${Number(p.precio||0).toLocaleString()} · Stock: ${p.stock||0}</div>
                     ${donado ? '<div style="font-size:.7rem;color:#f97316;margin-top:1px;">' + Icon('heart-fill') + ' Donando</div>' : '<div style="font-size:.7rem;color:#bbb;margin-top:1px;">Sin asignar</div>'}
                   </div>
-                  <button onclick="document.getElementById('modal-gestionar-donaciones').remove();openDonarProductosModal(${p.id}, ${page})"
+                  <button onclick="document.getElementById('modal-gestionar-donaciones').remove();openDonarProductosModal(${p.id})"
                     style="flex-shrink:0;width:36px;height:36px;border-radius:50%;border:none;
                     background:${donado ? 'linear-gradient(135deg,#f97316,#ef4444)' : '#f5f5f8'};
                     color:${donado ? '#fff' : '#aaa'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
@@ -2700,14 +2635,7 @@ window.openGestionarDonacionesModal = async function(page = 1) {
                 </div>`;
               }).join('')
           }
-        </div>
-        ${result.totalPages > 1 ? `
-        <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:16px;">
-          ${page > 1 ? `<button class="btn-secondary" style="padding:8px 16px;" onclick="openGestionarDonacionesModal(${page - 1})">‹</button>` : ''}
-          <span style="font-size:.8rem;color:#555;">Página ${page} de ${result.totalPages}</span>
-          ${page < result.totalPages ? `<button class="btn-secondary" style="padding:8px 16px;" onclick="openGestionarDonacionesModal(${page + 1})">›</button>` : ''}
-        </div>` : ''}
-      `;
+        </div>`;
 };
 
 // ── Modal: entregas de mis transmisiones en vivo ─────────────
