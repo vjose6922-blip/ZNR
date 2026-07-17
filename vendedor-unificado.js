@@ -635,7 +635,7 @@ function renderVendorPlanPanel() {
 const statusFilterHTML = `
   <div class="vendor-status-filter" style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
     ${statusOpciones.map(({ status, label }) => {
-      const activo = (currentStatusFilter || 'todos') === status;
+      const activo = (window.currentStatusFilter || 'todos') === status;
       const clase = activo ? 'filter-status-btn active' : 'filter-status-btn';
       const bg = activo ? 'var(--color-accent-solid)' : 'transparent';
       const color = activo ? '#fff' : 'var(--color-text-muted)';
@@ -679,10 +679,13 @@ const statusFilterHTML = `
 }
 
 // ── FILTRO DE ESTADO ──────────────────────────────────
-let currentStatusFilter = 'todos';
+// Se expone en window (en vez de un `let` suelto) para que cualquier función
+// que la lea —sin importar en qué parte del archivo o de qué cierre esté—
+// nunca truene con "currentStatusFilter is not defined".
+window.currentStatusFilter = window.currentStatusFilter || 'todos';
 
 function applyVendorStatusFilter(status) {
-  currentStatusFilter = status;
+  window.currentStatusFilter = status;
   loadMyProducts(true, 1);
 }
 
@@ -1028,7 +1031,7 @@ window.loadMyProducts = async function loadMyProducts(force = false, page = 1) {
   if (!uid) return;
 
   const limit = 20;
-  const status = currentStatusFilter || 'todos';
+  const status = window.currentStatusFilter || 'todos';
 
   const cached = !force ? getVendorPageCache(uid, page, status) : null;
 
@@ -2622,7 +2625,7 @@ window.openGestionarDonacionesModal = async function(page = 1) {
   const uid = vendorSession?.uid;
   if (!uid) return;
   const limit = 20;
-  const status = currentStatusFilter || 'todos';
+  const status = window.currentStatusFilter || 'todos';
 
   let modal = document.getElementById('modal-gestionar-donaciones');
   if (!modal) {
