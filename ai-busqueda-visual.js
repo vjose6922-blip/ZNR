@@ -81,22 +81,86 @@ async function _obtenerProductosPorIds(ids) {
   return data.productos || [];
 }
 
+// ============================================================
+// Overlay de carga con SVG centrado
+// ============================================================
 function _injectOverlayStyles() {
   if (document.getElementById('bv-overlay-styles')) return;
   const s = document.createElement('style');
   s.id = 'bv-overlay-styles';
   s.textContent = `
-#bv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease}
-#bv-overlay.visible{opacity:1;pointer-events:auto}
-.bv-box{display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px 32px;border-radius:20px;background:var(--color-surface,#252831);border:1px solid rgba(255,255,255,.08);box-shadow:0 8px 40px rgba(0,0,0,.4)}
-.bv-spinner{width:64px;height:64px;position:relative}
-.bv-spinner svg{width:100%;height:100%}
-.bv-ring{fill:none;stroke:rgba(255,79,129,.18);stroke-width:5}
-.bv-arc{fill:none;stroke:#ff4f81;stroke-width:5;stroke-linecap:round;stroke-dasharray:90 150;transform-origin:center;animation:bv-spin 1s linear infinite}
-.bv-cam{animation:bv-pulse 1.4s ease-in-out infinite}
-@keyframes bv-spin{to{transform:rotate(360deg)}}
-@keyframes bv-pulse{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1)}}
-.bv-text{font-size:13px;font-weight:600;color:var(--color-text-secondary,#bbb);text-align:center}
+#bv-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+#bv-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.bv-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 32px 28px;
+  border-radius: 24px;
+  background: var(--color-surface, #252831);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  max-width: 300px;
+  width: 100%;
+}
+.bv-spinner {
+  width: 72px;
+  height: 72px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bv-spinner svg {
+  width: 100%;
+  height: 100%;
+}
+.bv-ring {
+  fill: none;
+  stroke: rgba(255, 79, 129, 0.18);
+  stroke-width: 5;
+}
+.bv-arc {
+  fill: none;
+  stroke: #ff4f81;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 90 150;
+  transform-origin: center;
+  animation: bv-spin 1s linear infinite;
+}
+.bv-cam {
+  fill: none;
+  stroke: #ff4f81;
+  stroke-width: 2.5;
+}
+@keyframes bv-spin {
+  to { transform: rotate(360deg); }
+}
+.bv-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #bbb);
+  text-align: center;
+  margin: 0;
+}
 `;
   document.head.appendChild(s);
 }
@@ -114,10 +178,11 @@ function _toggleOverlayCarga(mostrar) {
             <svg viewBox="0 0 64 64">
               <circle class="bv-ring" cx="32" cy="32" r="27"/>
               <circle class="bv-arc" cx="32" cy="32" r="27"/>
-              <g class="bv-cam" transform="translate(20,20)">
-                <rect x="0" y="4" width="24" height="16" rx="3" fill="none" stroke="#ff4f81" stroke-width="2"/>
-                <circle cx="12" cy="12" r="4.5" fill="none" stroke="#ff4f81" stroke-width="2"/>
-                <rect x="8" y="1" width="8" height="3.5" rx="1" fill="#ff4f81"/>
+              <!-- Cámara centrada en el viewBox -->
+              <g transform="translate(32,32)">
+                <rect x="-12" y="-8" width="24" height="16" rx="3" class="bv-cam"/>
+                <circle cx="0" cy="0" r="5" class="bv-cam"/>
+                <rect x="-5" y="-12" width="10" height="4" rx="1.5" fill="#ff4f81"/>
               </g>
             </svg>
           </div>
@@ -128,9 +193,18 @@ function _toggleOverlayCarga(mostrar) {
     requestAnimationFrame(() => overlay.classList.add('visible'));
   } else if (overlay) {
     overlay.classList.remove('visible');
+    // Opcional: eliminar el overlay del DOM después de la transición
+    setTimeout(() => {
+      if (overlay && !overlay.classList.contains('visible')) {
+        overlay.remove();
+      }
+    }, 300);
   }
 }
 
+// ============================================================
+// Funciones auxiliares para el botón y el chip
+// ============================================================
 function _mostrarEstadoBoton(boton, estado) {
   if (!boton) return;
   if (estado === 'buscando') {
@@ -159,6 +233,9 @@ function _mostrarChipBusquedaVisual() {
   bar.prepend(chip);
 }
 
+// ============================================================
+// Lógica principal de búsqueda
+// ============================================================
 async function _buscarPorFoto(file) {
   const boton = document.getElementById('busqueda-visual-btn');
   _mostrarEstadoBoton(boton, 'buscando');
@@ -233,6 +310,9 @@ async function _buscarPorFoto(file) {
   }
 }
 
+// ============================================================
+// Inicialización
+// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   const boton = document.getElementById('busqueda-visual-btn');
   const input = document.getElementById('busqueda-visual-input');
