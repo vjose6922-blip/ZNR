@@ -3862,21 +3862,6 @@ if (hasSizes && !dot) {
 dot = document.createElement('span'); dot.className='up-header-dot'; btn.appendChild(dot);
 } else if (!hasSizes && dot) dot.remove();
 }
-function patchScriptFilters() {
-if (window._upPatched) return; window._upPatched = true;
-const orig = window.applyFilters;
-if (typeof orig!=='function') return;
-window.applyFilters = function(...args) {
-orig.apply(this, args);
-if (typeof filteredProducts!=='undefined' && filteredProducts.length) {
-const sorted = sortByUserSize(filteredProducts);
-if (sorted.some((p,i)=>p!==filteredProducts[i])) {
-filteredProducts.length=0; sorted.forEach(p=>filteredProducts.push(p));
-if (typeof renderProductsPage==='function') renderProductsPage(true);
-}
-}
-};
-}
 function injectStyles() {
 if (document.getElementById('up-styles')) return;
 const s = document.createElement('style');
@@ -3960,7 +3945,6 @@ document.head.appendChild(s);
 function initUserPreferences() {
 injectStyles();
 wirePrefsButton();
-if (typeof applyFilters === 'function') patchScriptFilters();
 }
 document.addEventListener('DOMContentLoaded', initUserPreferences);
 window.escapeHtml = escapeHtml;

@@ -86,7 +86,10 @@ return;
 let featured = window.allProducts.filter(p => p.Stock > 0 && p.Stock !== "0");
 const withBadge = featured.filter(p => p.Badge);
 const withoutBadge = featured.filter(p => !p.Badge);
-featured = [...withBadge, ...withoutBadge].slice(0, 8);
+featured = [...withBadge, ...withoutBadge];
+// Reordenar según preferencia de tallas del usuario (si configuró alguna en el panel)
+if (typeof window.sortByUserSize === 'function') featured = window.sortByUserSize(featured);
+featured = featured.slice(0, 8);
 container.innerHTML = '';
 featured.forEach(product => {
 container.appendChild(createMiniProductCard(product));

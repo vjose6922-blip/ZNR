@@ -570,6 +570,11 @@ chips[Number(idx)].clear();
 function renderProductsPage(reset = false) {
 const container = document.getElementById("products-container");
 if (!container) return;
+// Reordenar según preferencia de tallas del usuario (si configuró alguna en el panel)
+if (typeof window.sortByUserSize === 'function' && filteredProducts.length) {
+const sorted = window.sortByUserSize(filteredProducts);
+if (sorted.some((p, i) => p !== filteredProducts[i])) filteredProducts = sorted;
+}
 // Los productos ya vienen paginados desde el backend — renderizamos todos
 container.innerHTML = "";
 if (filteredProducts.length === 0) {
