@@ -2751,6 +2751,10 @@ try {
 const registration = await navigator.serviceWorker.register('/ZNR/sw.js', {
 scope: '/ZNR/'
 });
+// Forzar chequeo inmediato de actualización en cada carga, en vez de
+// esperar al chequeo automático del navegador (que puede tardar o
+// respetar caché HTTP viejo del propio sw.js).
+registration.update().catch(() => {});
 navigator.serviceWorker.addEventListener('message', event => {
 if (event.data.type === 'CONNECTION_STATUS') {
 }
