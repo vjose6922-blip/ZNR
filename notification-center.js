@@ -122,39 +122,150 @@
 #nc-overlay.visible{opacity:1;pointer-events:auto}
 #nc-modal{position:fixed;top:0;right:0;height:100dvh;width:min(420px,100vw);background:var(--color-surface,#252831);border-left:1px solid var(--color-border-subtle,rgba(255,255,255,.07));z-index:9201;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:-8px 0 40px rgba(0,0,0,.4)}
 #nc-modal.visible{transform:translateX(0)}
-.nc-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.nc-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--color-border-subtle,rgba(255,255,255,.07));flex-shrink:0}
 .nc-title{font-size:16px;font-weight:700;margin:0;color:var(--color-text-primary,#fff);display:flex;align-items:center;gap:8px}
 .nc-close{background:rgba(255,255,255,.07);border:none;color:var(--color-text-secondary,#aaa);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
 .nc-close:hover{background:rgba(255,79,129,.15);color:#ff4f81}
-.nc-tabs{display:flex;gap:6px;padding:12px 16px 0;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.nc-tabs{display:flex;gap:6px;padding:12px 16px 0;border-bottom:1px solid var(--color-border-subtle,rgba(255,255,255,.07));flex-shrink:0}
 .nc-tab{flex:1;text-align:center;padding:9px 6px;border-radius:10px 10px 0 0;border:none;background:transparent;color:var(--color-text-muted,#888);font-size:13px;font-weight:600;cursor:pointer}
 .nc-tab.active{background:rgba(255,79,129,.12);color:#ff4f81}
 .nc-markall{background:none;border:none;color:#ff4f81;font-size:12px;font-weight:600;cursor:pointer;padding:8px 16px;text-align:right}
 .nc-list{flex:1;overflow-y:auto;padding:10px 14px 20px}
 .nc-empty{text-align:center;color:var(--color-text-muted,#888);padding:60px 20px;font-size:13px}
-.nc-item{display:flex;gap:12px;padding:14px;border-radius:14px;background:rgba(255,255,255,.03);margin-bottom:10px;border:1px solid rgba(255,255,255,.06);cursor:pointer;position:relative;border-bottom:1px solid rgba(255,255,255,.08)}
-.nc-item.unread{background:rgba(255,79,129,.07);border-color:rgba(255,79,129,.25)}
-.nc-item.unread::before{content:'';position:absolute;top:14px;left:5px;width:7px;height:7px;border-radius:50%;background:#ff4f81}
-.nc-icon{font-size:20px;flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);border-radius:10px}
+
+/* ── Estilos principales de la notificación ── */
+.nc-item{
+  display:flex;
+  gap:12px;
+  padding:14px;
+  border-radius:14px;
+  background:rgba(255,255,255,.03);
+  margin-bottom:10px;
+  border:1px solid var(--color-border-subtle, rgba(255,255,255,.06));
+  cursor:pointer;
+  position:relative;
+  border-bottom:1px solid var(--color-border-subtle, rgba(255,255,255,.08));
+}
+.nc-item.unread{
+  background:rgba(255,79,129,.07);
+  border-color:rgba(255,79,129,.25);
+}
+.nc-item.unread::before{
+  content:'';
+  position:absolute;
+  top:14px;
+  left:5px;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#ff4f81;
+}
+.nc-icon{
+  font-size:20px;
+  flex-shrink:0;
+  width:32px;
+  height:32px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.05);
+  border-radius:10px;
+}
 .nc-body{flex:1;min-width:0}
-.nc-item-title{font-size:13.5px;font-weight:700;color:var(--color-text-primary,#fff);margin:0 0 3px;display:flex;align-items:center;gap:6px}
-.nc-item-title .nc-expand-icon{font-size:10px;color:var(--color-text-muted);transition:transform .2s}
+.nc-item-title{
+  font-size:13.5px;
+  font-weight:700;
+  color:var(--color-text-primary,#fff);
+  margin:0 0 3px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.nc-item-title .nc-expand-icon{
+  font-size:10px;
+  color:var(--color-text-muted);
+  transition:transform .2s;
+}
 .nc-item.expanded .nc-expand-icon{transform:rotate(180deg)}
-.nc-msg-collapsed{max-height:0;overflow:hidden;transition:max-height .3s ease, opacity .2s ease;opacity:0}
-.nc-item.expanded .nc-msg-collapsed{max-height:200px;opacity:1}
-.nc-item-msg{font-size:12.5px;color:var(--color-text-secondary,#bbb);margin:6px 0 6px;line-height:1.4}
-.nc-item-fecha{font-size:11px;color:var(--color-text-muted,#777)}
-.nc-wa-btn{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:6px 12px;border-radius:20px;background:#25d36622;color:#25d366;font-size:11.5px;font-weight:700;border:1px solid #25d36655;text-decoration:none}
+
+/* ── Fecha siempre visible ── */
+.nc-item-fecha{
+  font-size:11px;
+  color:var(--color-text-muted,#777);
+  margin:0 0 4px;
+}
+
+/* ── Mensaje colapsable ── */
+.nc-msg-collapsed{
+  max-height:0;
+  overflow:hidden;
+  transition:max-height .3s ease, opacity .2s ease;
+  opacity:0;
+}
+.nc-item.expanded .nc-msg-collapsed{
+  max-height:200px;
+  opacity:1;
+}
+.nc-item-msg{
+  font-size:12.5px;
+  color:var(--color-text-secondary,#bbb);
+  margin:6px 0 6px;
+  line-height:1.4;
+}
+
+.nc-wa-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  margin-top:8px;
+  padding:6px 12px;
+  border-radius:20px;
+  background:#25d36622;
+  color:#25d366;
+  font-size:11.5px;
+  font-weight:700;
+  border:1px solid #25d36655;
+  text-decoration:none;
+}
 .nc-wa-btn:hover{background:#25d36633}
-.nc-skel-item{display:flex;gap:12px;padding:14px;border-radius:14px;background:rgba(255,255,255,.03);margin-bottom:10px;border:1px solid rgba(255,255,255,.06)}
-.nc-skel-icon{flex-shrink:0;width:32px;height:32px;border-radius:10px;background:linear-gradient(90deg,#2a2f3a 25%,#323848 50%,#2a2f3a 75%);background-size:200% 100%;animation:nc-shimmer 1.5s ease-in-out infinite}
+
+/* ── Skeletons ── */
+.nc-skel-item{
+  display:flex;
+  gap:12px;
+  padding:14px;
+  border-radius:14px;
+  background:rgba(255,255,255,.03);
+  margin-bottom:10px;
+  border:1px solid var(--color-border-subtle, rgba(255,255,255,.06));
+}
+.nc-skel-icon{
+  flex-shrink:0;
+  width:32px;
+  height:32px;
+  border-radius:10px;
+  background:linear-gradient(90deg,#2a2f3a 25%,#323848 50%,#2a2f3a 75%);
+  background-size:200% 100%;
+  animation:nc-shimmer 1.5s ease-in-out infinite;
+}
 .nc-skel-body{flex:1;min-width:0}
-.nc-skel-line{height:12px;border-radius:6px;background:linear-gradient(90deg,#2a2f3a 25%,#323848 50%,#2a2f3a 75%);background-size:200% 100%;animation:nc-shimmer 1.5s ease-in-out infinite;margin-bottom:8px}
+.nc-skel-line{
+  height:12px;
+  border-radius:6px;
+  background:linear-gradient(90deg,#2a2f3a 25%,#323848 50%,#2a2f3a 75%);
+  background-size:200% 100%;
+  animation:nc-shimmer 1.5s ease-in-out infinite;
+  margin-bottom:8px;
+}
 .nc-skel-line.nc-skel-title{width:55%;height:13.5px}
 .nc-skel-line.nc-skel-msg{width:90%}
 .nc-skel-line.nc-skel-msg2{width:70%}
 .nc-skel-line.nc-skel-date{width:35%;height:11px;margin-bottom:0}
-@keyframes nc-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+@keyframes nc-shimmer{
+  0%{background-position:200% 0}
+  100%{background-position:-200% 0}
+}
 `;
     document.head.appendChild(s);
   }
@@ -248,28 +359,24 @@
               ${n.titulo || ''}
               <span class="nc-expand-icon">▼</span>
             </p>
+            <p class="nc-item-fecha">${fechaCorta(n.fecha)}</p> <!-- FECHA SIEMPRE VISIBLE -->
             <div class="nc-msg-collapsed">
               <p class="nc-item-msg">${n.mensaje || ''}</p>
-              <p class="nc-item-fecha">${fechaCorta(n.fecha)}</p>
               ${waBtn}
             </div>
           </div>
         </div>`;
     }).join('');
 
-    // Evento click: expandir / colapsar y marcar como leída
     listEl.querySelectorAll('.nc-item').forEach(el => {
       el.addEventListener('click', async function(e) {
-        // Evitar que el clic en un enlace dentro dispare el toggle
         if (e.target.closest('a')) return;
 
         const id = this.dataset.id;
         const notif = cache.items.find(n => String(n.id) === String(id));
 
-        // Expandir / colapsar
         this.classList.toggle('expanded');
 
-        // Si se expande y no está leída, marcar como leída
         if (this.classList.contains('expanded') && notif && !notif.leida) {
           notif.leida = true;
           await marcarLeida(notif);
