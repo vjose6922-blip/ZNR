@@ -81,6 +81,56 @@ async function _obtenerProductosPorIds(ids) {
   return data.productos || [];
 }
 
+function _injectOverlayStyles() {
+  if (document.getElementById('bv-overlay-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'bv-overlay-styles';
+  s.textContent = `
+#bv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease}
+#bv-overlay.visible{opacity:1;pointer-events:auto}
+.bv-box{display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px 32px;border-radius:20px;background:var(--color-surface,#252831);border:1px solid rgba(255,255,255,.08);box-shadow:0 8px 40px rgba(0,0,0,.4)}
+.bv-spinner{width:64px;height:64px;position:relative}
+.bv-spinner svg{width:100%;height:100%}
+.bv-ring{fill:none;stroke:rgba(255,79,129,.18);stroke-width:5}
+.bv-arc{fill:none;stroke:#ff4f81;stroke-width:5;stroke-linecap:round;stroke-dasharray:90 150;transform-origin:center;animation:bv-spin 1s linear infinite}
+.bv-cam{animation:bv-pulse 1.4s ease-in-out infinite}
+@keyframes bv-spin{to{transform:rotate(360deg)}}
+@keyframes bv-pulse{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1)}}
+.bv-text{font-size:13px;font-weight:600;color:var(--color-text-secondary,#bbb);text-align:center}
+`;
+  document.head.appendChild(s);
+}
+
+function _toggleOverlayCarga(mostrar) {
+  _injectOverlayStyles();
+  let overlay = document.getElementById('bv-overlay');
+  if (mostrar) {
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'bv-overlay';
+      overlay.innerHTML = `
+        <div class="bv-box">
+          <div class="bv-spinner">
+            <svg viewBox="0 0 64 64">
+              <circle class="bv-ring" cx="32" cy="32" r="27"/>
+              <circle class="bv-arc" cx="32" cy="32" r="27"/>
+              <g class="bv-cam" transform="translate(20,20)">
+                <rect x="0" y="4" width="24" height="16" rx="3" fill="none" stroke="#ff4f81" stroke-width="2"/>
+                <circle cx="12" cy="12" r="4.5" fill="none" stroke="#ff4f81" stroke-width="2"/>
+                <rect x="8" y="1" width="8" height="3.5" rx="1" fill="#ff4f81"/>
+              </g>
+            </svg>
+          </div>
+          <p class="bv-text">Buscando productos parecidos…</p>
+        </div>`;
+      document.body.appendChild(overlay);
+    }
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+  } else if (overlay) {
+    overlay.classList.remove('visible');
+  }
+}
+
 function _mostrarEstadoBoton(boton, estado) {
   if (!boton) return;
   if (estado === 'buscando') {
@@ -112,6 +162,7 @@ function _mostrarChipBusquedaVisual() {
 async function _buscarPorFoto(file) {
   const boton = document.getElementById('busqueda-visual-btn');
   _mostrarEstadoBoton(boton, 'buscando');
+  _toggleOverlayCarga(true);
 
   try {
     const resultado = await clasificarImagen(file);
@@ -178,6 +229,7 @@ async function _buscarPorFoto(file) {
     }
   } finally {
     _mostrarEstadoBoton(boton, 'normal');
+    _toggleOverlayCarga(false);
   }
 }
 
