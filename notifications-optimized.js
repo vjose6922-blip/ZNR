@@ -939,7 +939,7 @@ window.loadReportesLive = async function() {
           <div style="margin-top:6px;font-size:.82rem;color:#333;background:#fff0f0;border-radius:8px;padding:8px 10px;">${esc(r.motivo)}</div>
         </div>
         <div class="actions">
-          ${r.youtubeLink ? `<a class="btn-marcar-revisado" style="background:#e3f2fd;color:#1565c0;text-decoration:none;" href="${esc(r.youtubeLink)}" target="_blank" rel="noopener"  >${Icon('play',{size:13})} Ver video</a>` : ''}
+          ${r.facebookLink ? `<a class="btn-marcar-revisado" style="background:#e3f2fd;color:#1565c0;text-decoration:none;" href="${esc(r.facebookLink)}" target="_blank" rel="noopener"  >${Icon('play',{size:13})} Ver video</a>` : ''}
           <button class="btn-suspend" onclick="adminSuspenderVendedorDesdeReporte('${esc(r.vendedorUid)}','${esc(r.reporteId)}', this)">${Icon('ban',{size:13})} Suspender cuenta</button>
           <button class="btn-marcar-revisado" onclick="adminMarcarReporteLiveRevisado('${esc(r.reporteId)}', this)">${_icCheck} Marcar revisado</button>
         </div>
