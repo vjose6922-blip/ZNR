@@ -2762,8 +2762,8 @@ if (!('serviceWorker' in navigator)) {
 return false;
 }
 try {
-const registration = await navigator.serviceWorker.register('/ZNR/sw.js', {
-scope: '/ZNR/'
+const registration = await navigator.serviceWorker.register('/znr/sw.js', {
+scope: '/znr/'
 });
 navigator.serviceWorker.addEventListener('message', event => {
 if (event.data.type === 'CONNECTION_STATUS') {

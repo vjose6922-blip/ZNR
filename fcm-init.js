@@ -57,7 +57,7 @@ async function solicitarPermisoNotificacionesSiFalta(ownerType, ownerId) {
     }
 
     // permission === "granted" (recién otorgado o ya lo tenía de antes)
-    const registration = await navigator.serviceWorker.register("/ZNR/firebase-messaging-sw.js");
+    const registration = await navigator.serviceWorker.register("/znr/firebase-messaging-sw.js");
     const token = await getToken(messaging, {
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: registration
@@ -81,7 +81,7 @@ onMessage(messaging, (payload) => {
   console.log("🔔 Push recibido en primer plano:", payload);
   const { title, body } = payload.notification || {};
   if (title && Notification.permission === "granted") {
-    new Notification(title, { body, icon: "/ZNR/logo.svg" });
+    new Notification(title, { body, icon: "/znr/logo.svg" });
   }
   window.dispatchEvent(new CustomEvent('ZNR:nueva-notificacion'));
 });

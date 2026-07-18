@@ -1,37 +1,36 @@
-const CACHE_NAME    = 'zr-cache-v32';
+const CACHE_NAME    = 'zr-cache-v33';
 const DYNAMIC_CACHE = 'zr-dynamic-v14';
-const OFFLINE_URL   = '/ZNR/offline.html';
+const OFFLINE_URL   = '/znr/offline.html';
 
 const STATIC_ASSETS = [
-  '/ZNR/',
-  '/ZNR/index.html',
-  '/ZNR/catalogo.html',
-  '/ZNR/outfit.html',
-  '/ZNR/armar-outfit.html',
-  '/ZNR/comunidad.html',
-  '/ZNR/perfil-vendedor.html',
-  '/ZNR/vendedor.html',
-  '/ZNR/admin.html',
-  '/ZNR/notificaciones.html',
-  '/ZNR/offline.html',
-  '/ZNR/styles.css',
-  '/ZNR/api-config.js',
-  '/ZNR/common.js',
-  '/ZNR/script.js',
-  '/ZNR/looks.js',
-  '/ZNR/home.js',
-  '/ZNR/admin.js',
-  '/ZNR/comunidad.js',
-  '/ZNR/vendedor-unificado.js',
-  '/ZNR/notifications-optimized.js',
-  '/ZNR/admin-comunidad.js',
-  '/ZNR/offline-manager.js',
-  '/ZNR/cache-manager.js',
-  '/ZNR/error-monitor.js',
-  '/ZNR/icons.js',
-  '/ZNR/manifest.json',
-  '/ZNR/manifest-admin.json',
-  '/ZNR/placeholder.svg',
+  '/znr/',
+  '/znr/index.html',
+  '/znr/catalogo.html',
+  '/znr/outfit.html',
+  '/znr/armar-outfit.html',
+  '/znr/comunidad.html',
+  '/znr/perfil-vendedor.html',
+  '/znr/vendedor.html',
+  '/znr/admin.html',
+  '/znr/notificaciones.html',
+  '/znr/offline.html',
+  '/znr/styles.css',
+  '/znr/api-config.js',
+  '/znr/common.js',
+  '/znr/script.js',
+  '/znr/looks.js',
+  '/znr/home.js',
+  '/znr/admin.js',
+  '/znr/comunidad.js',
+  '/znr/vendedor-unificado.js',
+  '/znr/notifications-optimized.js',
+  '/znr/admin-comunidad.js',
+  '/znr/offline-manager.js',
+  '/znr/cache-manager.js',
+  '/znr/error-monitor.js',
+  '/znr/icons.js',
+  '/znr/manifest.json',
+  '/znr/placeholder.svg',
 ];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
@@ -171,12 +170,12 @@ self.addEventListener('push', event => {
   const notif = payload.notification || {};
   const title = notif.title || 'Z&R';
   const body  = notif.body  || '¡Novedades en Z&R!';
-  const url   = (payload.data && payload.data.url) || payload.fcmOptions?.link || '/ZNR/';
+  const url   = (payload.data && payload.data.url) || payload.fcmOptions?.link || '/znr/';
 
   event.waitUntil((async () => {
     await self.registration.showNotification(title, {
       body:    body,
-      icon:    '/ZNR/logo.svg',
+      icon:    '/znr/logo.svg',
       vibrate: [200, 100, 200],
       data:    { url: url },
       actions: [{ action: 'open', title: 'Ver ahora' }, { action: 'close', title: 'Cerrar' }]
@@ -194,7 +193,7 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   if (event.action === 'open' || !event.action) {
-    const url = event.notification.data?.url || '/ZNR/';
+    const url = event.notification.data?.url || '/znr/';
     event.waitUntil(
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
         for (const c of clients) {
@@ -223,7 +222,7 @@ self.addEventListener('periodicsync', event => {
         .then(async r => {
           if (r.ok) {
             const cache = await caches.open(CACHE_NAME);
-            await cache.put('/ZNR/api/products', r.clone());
+            await cache.put('/znr/api/products', r.clone());
           }
         })
         .catch(() => {})

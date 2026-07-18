@@ -20,11 +20,11 @@ messaging.onBackgroundMessage((payload) => {
 
   const title = (payload.notification && payload.notification.title) || "Z&R";
   const body  = (payload.notification && payload.notification.body)  || "¡Novedades en Z&R!";
-  const url   = (payload.data && payload.data.url) || payload.fcmOptions?.link || "/ZNR/";
+  const url   = (payload.data && payload.data.url) || payload.fcmOptions?.link || "/znr/";
 
   self.registration.showNotification(title, {
     body: body,
-    icon: "/ZNR/logo.svg",
+    icon: "/znr/logo.svg",
     vibrate: [200, 100, 200],
     data: { url: url },
     actions: [
@@ -44,7 +44,7 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   if (event.action === "close") return;
 
-  const url = (event.notification.data && event.notification.data.url) || "/ZNR/";
+  const url = (event.notification.data && event.notification.data.url) || "/znr/";
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

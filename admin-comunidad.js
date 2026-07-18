@@ -152,7 +152,7 @@
           `Hola ${nombre}, tu cuenta de vendedor en Z&R Comunidad ha sido *aprobada*.\n\n` +
           `*Tu contraseña temporal es:* ${data.codigo}\n\n` +
           `Puedes cambiarla después de iniciar sesión.\n\n` +
-          ` Accede aquí: vjose6922-blip.github.io/ZNR/vendedor.html\n\n` +
+          ` Accede aquí: vjose6922-blip.github.io/znr/vendedor.html\n\n` +
           `¡Bienvenido! `;
         if (isMobile) {
           if (waWindow) waWindow.close();
@@ -201,7 +201,7 @@
           `Hola ${nombre}, tu nueva contraseña temporal para Z&R Comunidad es:\n\n` +
           `*${data.codigo}*\n\n` +
           `Puedes cambiarla después de iniciar sesión.\n\n` +
-          ` Accede aquí: vjose6922-blip.github.io/ZNR/vendedor.html`;
+          ` Accede aquí: vjose6922-blip.github.io/znr/vendedor.html`;
         if (isMobile) {
           if (waWindow) waWindow.close();
           window.location.href = `whatsapp://send?phone=52${data.telefono}&text=${encodeURIComponent(mensaje)}`;
