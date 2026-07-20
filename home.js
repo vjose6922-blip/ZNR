@@ -38,7 +38,14 @@ window.dispatchEvent(new CustomEvent('recentProductsUpdated'));
 }
 
 // fetchWithRetry ahora vive en common.js (se carga antes que este archivo).
+function showSkeletonFeatured(count = 4) {
+const container = document.getElementById('featured-products');
+if (!container) return;
+container.innerHTML = Array.from({length: count}, () => `
+<div class="skeleton-product-card"><div class="sk-img shimmer"></div><div class="sk-body"><div class="sk-line sk-title shimmer"></div><div class="sk-line sk-price shimmer"></div><div class="sk-line sk-badge shimmer"></div></div></div>`).join('');
+}
 async function loadProducts() {
+showSkeletonFeatured();
 window.loadProductsUnified({
 onProducts(products) {
 renderCategories();
@@ -50,7 +57,7 @@ onError() {
 const container = document.getElementById('featured-products');
 if (container) {
 container.innerHTML = `
-<div style="text-align:center;padding:40px;grid-column:1/-1;">
+<div style="text-align:center;padding:40px;grid-column:1/-1;min-height:340px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;">
 <p style="margin-bottom:12px;">Error al cargar productos.</p>
 <button onclick="loadProducts()" style="padding:10px 24px;border-radius:40px;border:none;background:var(--color-accent,#ff4f81);color:white;font-weight:600;cursor:pointer;font-size:14px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-refresh"/></svg> Reintentar</button>
 </div>`;
@@ -58,7 +65,7 @@ container.innerHTML = `
 const looksContainer = document.getElementById('home-looks-container');
 if (looksContainer) {
 looksContainer.innerHTML = `
-<div style="text-align:center;padding:40px;">
+<div style="text-align:center;padding:40px;min-height:200px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;">
 <p style="margin-bottom:12px;color:var(--color-text-muted);">No se pudieron cargar los looks.</p>
 <button onclick="loadProducts()" style="padding:10px 24px;border-radius:40px;border:none;background:var(--color-accent,#ff4f81);color:white;font-weight:600;cursor:pointer;font-size:14px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><use href="#ic-refresh"/></svg> Reintentar</button>
 </div>`;

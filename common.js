@@ -2618,7 +2618,11 @@ async function loadProductsUnified({ onProducts, onError, force = false, page = 
   // Petición real al backend con page/limit/filters
   try {
     showLoader('Cargando productos...');
-    const res = await fetch(buildUrl());
+    const res = await fetchWithRetry(() => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      return fetch(buildUrl(), { signal: controller.signal }).finally(() => clearTimeout(timeoutId));
+    }, 2, [1500]);
     const data = await res.json();
     const products = data.products || [];
     const meta = {
