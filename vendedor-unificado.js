@@ -508,24 +508,30 @@ if (navVendor) navVendor.style.display = '';
 const cardName = document.getElementById('vendor-card-name');
 if (cardName && vendorSession) cardName.textContent = vendorSession.nombre;
 
-const shareBtn = document.getElementById('share-vendor-link');
-if (shareBtn) {
-const newBtn = shareBtn.cloneNode(true);
-shareBtn.parentNode.replaceChild(newBtn, shareBtn);
-newBtn.style.display = 'inline-block';
-newBtn.addEventListener('click', () => {
-const vendorNameEncoded = encodeURIComponent(vendorSession.nombre);
-const baseDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-const shareUrl = `${baseDir}comunidad.html?vendedor=${vendorNameEncoded}`;
-navigator.clipboard.writeText(shareUrl)
-.then(() => {
-window.showTemporaryMessage?.(' Enlace copiado (URL completa)', 'success');
-})
-.catch(() => {
-alert('No se pudo copiar. Comparte este enlace:\n' + shareUrl);
-});
-});
+// Eliminar el botón antiguo si existe
+const oldShareBtn = document.getElementById('share-vendor-link');
+if (oldShareBtn) oldShareBtn.remove();
+
+// Crear botón en el header (junto al nombre del vendedor)
+const headerName = document.getElementById('vendor-name-header');
+if (headerName) {
+  // Eliminar botón previo si ya existe (por si se llama varias veces)
+  const existing = document.getElementById('share-vendor-link-header');
+  if (existing) existing.remove();
+
+  const shareBtn = document.createElement('button');
+  shareBtn.id = 'share-vendor-link-header';
+  shareBtn.className = 'btn-secondary';
+  shareBtn.style.cssText = 'font-size:11px; padding:4px 10px; margin-left:8px; border-radius:20px;';
+  shareBtn.innerHTML = Icon('share') + ' Compartir';
+  shareBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    abrirModalCompartirTienda();
+  });
+  headerName.appendChild(shareBtn);
 }
+
+
 
 loadMyProducts();
 renderVendorPlanPanel();
@@ -741,11 +747,16 @@ function renderVendorPlanPanel() {
     : `<span style="background:#eee;color:#999;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;">FREE</span>`;
 
   let renovacionHTML = '';
-  if (esPlus && diasRestantes != null && diasRestantes <= 7) {
-    renovacionHTML = `<div style="margin-top:8px;background:#fff8e1;color:#92702a;font-size:12px;border-radius:10px;padding:8px 12px;">
-      Tu plan Plus vence en ${diasRestantes} día${diasRestantes === 1 ? '' : 's'}. Contacta al admin para renovarlo y no perder tu visibilidad.
-    </div>`;
-  }
+if (esPlus && diasRestantes != null && diasRestantes <= 7) {
+  renovacionHTML = `
+    <div style="margin-top:8px;background:#fff8e1;color:#92702a;font-size:12px;border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <span>Tu plan Plus vence en ${diasRestantes} día${diasRestantes === 1 ? '' : 's'}. Renueva para no perder tu visibilidad.</span>
+      <button onclick="openSettingsModal(true)" style="padding:6px 14px;border:none;border-radius:20px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-weight:700;font-size:12px;cursor:pointer;">
+        Renovar
+      </button>
+    </div>
+  `;
+}
 
   const statusOpciones = [
   { status: 'todos',     label: 'Todos' },
@@ -2102,7 +2113,7 @@ function updateVendorAvatar() {
   }
 }
 
-function openSettingsModal() {
+function openSettingsModal(expandirPlan) {
   if (!vendorSession) return;
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
@@ -2209,6 +2220,17 @@ function openSettingsModal() {
         photoInput.value = '';
       }
     });
+  }
+ if (expandirPlan) {
+    setTimeout(() => {
+      const toggles = document.querySelectorAll('.settings-section-toggle');
+      for (const toggle of toggles) {
+        if (toggle.textContent.trim().includes('Plan')) {
+          if (!toggle.classList.contains('open')) toggle.click();
+          break;
+        }
+      }
+    }, 300);
   }
 }
 
@@ -2461,17 +2483,19 @@ window.verMisEstadisticas = async function() {
     const all = data.products || [];
     const aprobados  = all.filter(p => p.estado === 'aprobado').length;
     const pendientes = all.filter(p => p.estado === 'pendiente').length;
-    const stock = all.reduce((s, p) => s + (Number(p.stock) || 0), 0);
+    const valorInventario = all
+  .filter(p => p.estado === 'aprobado')
+  .reduce((s, p) => s + (Number(p.precio) || 0) * (Number(p.stock) || 0), 0);
 
     grid.innerHTML = `
       <div style="background:#f0fff4;border-radius:14px;padding:14px;text-align:center;">
         <div style="font-size:22px;font-weight:800;color:#2e7d32;">${all.length}</div>
         <div style="font-size:11px;color:#555;">Productos</div>
       </div>
-      <div style="background:#f5f3ff;border-radius:14px;padding:14px;text-align:center;">
-        <div style="font-size:22px;font-weight:800;color:#7c3aed;">${stock}</div>
-        <div style="font-size:11px;color:#555;">Stock total</div>
-      </div>
+     <div style="background:#f5f3ff;border-radius:14px;padding:14px;text-align:center;">
+  <div style="font-size:22px;font-weight:800;color:#7c3aed;">${formatCurrency(valorInventario)}</div>
+  <div style="font-size:11px;color:#555;">Valor del inventario</div>
+</div>
       <div style="background:#eef2ff;border-radius:14px;padding:14px;text-align:center;">
         <div style="font-size:22px;font-weight:800;color:#4338ca;">${aprobados}</div>
         <div style="font-size:11px;color:#555;">Aprobados</div>
@@ -3151,5 +3175,70 @@ async function solicitarEliminarFundacionVendedor(miBen) {
     showMsg('Error de conexión.', false);
   }
 }
+
+
+
+
+
+
+
+
+
+
+// ── Modal para compartir tienda con QR ──────────────────────
+function abrirModalCompartirTienda() {
+  if (!vendorSession || !vendorSession.uid) {
+    showTemporaryMessage('Inicia sesión para compartir tu tienda.', 'error');
+    return;
+  }
+  const baseDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+  const shareUrl = `${baseDir}perfil-vendedor.html?vendedor=${encodeURIComponent(vendorSession.uid)}`;
+
+  // Eliminar modal antiguo si existe
+  const oldModal = document.getElementById('modal-compartir-tienda');
+  if (oldModal) oldModal.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-compartir-tienda';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:20px;width:100%;max-width:400px;padding:24px 20px 30px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;font-size:1.1rem;font-weight:800;">${Icon('share')} Compartir tienda</h3>
+        <button onclick="this.closest('#modal-compartir-tienda').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#888;">×</button>
+      </div>
+      <div style="margin:10px 0 18px;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}" alt="QR" style="width:160px;height:160px;border-radius:12px;border:1px solid #eee;">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input type="text" id="share-url-input" value="${shareUrl}" readonly style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:10px;font-size:.85rem;background:#f5f5f8;outline:none;">
+        <button id="share-copy-btn" style="padding:8px 16px;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer;">Copiar</button>
+      </div>
+      <p style="font-size:.75rem;color:#888;margin:4px 0 0;">Escanea el QR o comparte el enlace para que otros vean tu perfil.</p>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+  document.getElementById('share-copy-btn')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => showTemporaryMessage('Enlace copiado', 'success'))
+      .catch(() => {
+        const input = document.getElementById('share-url-input');
+        input.select();
+        document.execCommand('copy');
+        showTemporaryMessage('Enlace copiado', 'success');
+      });
+  });
+}
+
+
+
+
+
+
+
+
+
 
 })(); // fin IIFE
