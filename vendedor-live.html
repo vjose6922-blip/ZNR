@@ -1022,17 +1022,41 @@ async function finalizarTransmision(finBtn) {
   try {
     const snap = await withTimeout(get(ref(db, `chats/${currentSesion.id}/messages`)), 5000);
     const data = snap.val() || {};
-    const ventas = Object.values(data)
-      .filter(m => m.vendido && !m.isVendor)
-      .map(m => ({
+    const vendidos = Object.values(data).filter(m => m.vendido && !m.isVendor);
+
+    // El teléfono/dirección/horario/GPS ya no viajan en el mensaje de
+    // chat — se piden en bloque al backend (que lee contactos/{liveId}
+    // en RTDB con credenciales de servidor y deja auditoría), y solo
+    // para los uid que realmente tienen algo marcado como vendido.
+    const uidsConVenta = [...new Set(vendidos.map(m => m.uid).filter(Boolean))];
+    let contactosPorUid = {};
+    if (uidsConVenta.length > 0) {
+      try {
+        const respContactos = await withTimeout(apiFetch({
+          action: 'obtenerContactosParaCierre',
+          vendorToken: vendorSession.token,
+          liveId: currentSesion.id,
+          uids: JSON.stringify(uidsConVenta)
+        }), 8000);
+        if (respContactos.ok) contactosPorUid = respContactos.contactos || {};
+        else console.error('obtenerContactosParaCierre falló:', respContactos.error);
+      } catch (errContactos) {
+        console.error('obtenerContactosParaCierre falló:', errContactos);
+      }
+    }
+
+    const ventas = vendidos.map(m => {
+      const c = contactosPorUid[m.uid] || {};
+      return {
         productId: m.producto_id || '',
         comprador_nombre: m.author || '',
-        comprador_telefono: m.telefono || '',
-        comprador_direccion: m.direccion || '',
-        comprador_horario: m.horario || '',
-        comprador_lat: (typeof m.lat === 'number') ? m.lat : null,
-        comprador_lng: (typeof m.lng === 'number') ? m.lng : null
-      }));
+        comprador_telefono: c.telefono || '',
+        comprador_direccion: c.direccion || '',
+        comprador_horario: c.horario || '',
+        comprador_lat: (typeof c.lat === 'number') ? c.lat : null,
+        comprador_lng: (typeof c.lng === 'number') ? c.lng : null
+      };
+    });
 
     if (ventas.length > 0) {
       const resp = await withTimeout(apiFetch({
@@ -1161,7 +1185,7 @@ function marcarVendido(liveId, key, msg) {
     }
     return;
   }
-  if (confirm(`¿Marcar "${msg.text}" de ${msg.author} (${msg.telefono || 'sin teléfono'}) como vendido?`)) {
+  if (confirm(`¿Marcar "${msg.text}" de ${msg.author} como vendido?`)) {
     update(ref(db, `chats/${liveId}/messages/${key}`), { vendido: true });
   }
 }
@@ -1212,7 +1236,7 @@ function setupChat(liveId, myName, isVendor) {
     if (!text) return;
     inputEl.value = '';
     push(ref(db, `chats/${liveId}/messages`), {
-      author: myName, text, isVendor, ts: Date.now()
+      uid: authUid, author: myName, text, isVendor, ts: Date.now()
     }).catch(err => {
       console.error('send (chat vendedor) falló (revisa las reglas de Firebase):', err);
       alert('No se pudo enviar el mensaje: ' + err.message);

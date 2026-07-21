@@ -552,9 +552,34 @@ function askIdentity(onDone) {
       lng: gpsCoords ? gpsCoords.lng : null
     };
     localStorage.setItem('znr_chat_identity', JSON.stringify(identity));
+    guardarContacto(identity);
     actualizarPresenciaNombre();
     document.body.removeChild(overlay);
     onDone();
+  });
+}
+
+// Escribe el teléfono/dirección/horario/GPS UNA sola vez a
+// contactos/{liveId}/{uid} — nunca dentro de cada mensaje de chat.
+// Las reglas de RTDB marcan este nodo como no-legible desde ningún
+// cliente (ni siquiera el propio comprador lo relee); solo el
+// backend, con credenciales de servidor, puede leerlo — y solo lo
+// hace el vendedor dueño del live, al cerrar la transmisión.
+async function guardarContacto(idn) {
+  await authReady;
+  if (!liveId || !authUid) return;
+  const payload = {
+    telefono: idn.telefono || '',
+    direccion: idn.direccion || '',
+    horario: idn.horario || '',
+    ts: Date.now()
+  };
+  if (typeof idn.lat === 'number' && typeof idn.lng === 'number') {
+    payload.lat = idn.lat;
+    payload.lng = idn.lng;
+  }
+  set(ref(db, `contactos/${liveId}/${authUid}`), payload).catch(err => {
+    console.error('guardarContacto falló (revisa las reglas de Firebase):', err);
   });
 }
 
@@ -650,18 +675,13 @@ function enviarMensaje(textoDirecto) {
   const text = textoDirecto != null ? textoDirecto.trim() : input.value.trim();
   if (!text || !identity) return;
   if (textoDirecto == null) input.value = '';
+  if (!authUid) { alert('Un momento, tu sesión aún se está preparando — intenta de nuevo.'); return; }
   const payload = {
+    uid: authUid,
     author: identity.nombre,
-    telefono: identity.telefono,
-    direccion: identity.direccion || '',
-    horario: identity.horario || '',
     text, isVendor: false, ts: Date.now(),
     producto_id: String(sesion.producto_actual_id || '')
   };
-  if (typeof identity.lat === 'number' && typeof identity.lng === 'number') {
-    payload.lat = identity.lat;
-    payload.lng = identity.lng;
-  }
   push(ref(db, `chats/${liveId}/messages`), payload).catch(err => {
     alert('No se pudo enviar tu comentario: ' + err.message);
     if (textoDirecto == null) input.value = text;
