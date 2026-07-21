@@ -424,6 +424,37 @@ function construirOrdenAleatorioComunidad(hits) {
   return pagina1.concat(resto);
 }
 
+// ── Snapshot estático del catálogo (RTDB) ──────────────────────────────────
+// Se refresca cada 5 min desde Apps Script (ver generarSnapshotCatalogo /
+// instalarTriggerSnapshotCatalogo en el backend). Es un GET REST corto a
+// Firebase, no una conexión persistente — no compite con el límite de 100
+// conexiones simultáneas de los lives. El objetivo es que la vista por
+// defecto de Comunidad (la de MÁS tráfico: cualquier visitante que entra
+// sin buscar ni filtrar) no gaste una búsqueda de Algolia por sesión.
+const CATALOGO_SNAPSHOT_URL = 'https://znr-live-default-rtdb.firebaseio.com/catalogo/snapshot.json';
+const CATALOGO_SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000; // 2x el refresh (5 min); más viejo = el trigger probablemente murió
+
+async function intentarCatalogoDesdeSnapshot() {
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(CATALOGO_SNAPSHOT_URL, { signal: controller.signal });
+    clearTimeout(tid);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !data.ok || !Array.isArray(data.products) || !data.products.length) return null;
+    if (!data.generadoEn || (Date.now() - data.generadoEn) > CATALOGO_SNAPSHOT_MAX_AGE_MS) {
+      console.warn('Snapshot de catálogo desactualizado o sin generadoEn, usando Algolia');
+      return null;
+    }
+    return data;
+  } catch (err) {
+    // Silencioso a propósito: cualquier falla (CSP, red, RTDB caído) cae
+    // directo al camino de Algolia que ya existía, sin romper la carga.
+    return null;
+  }
+}
+
 // ── Carga y renderiza una página de productos vía Algolia (público, rápido) ──
 async function loadComunidadPageAlgolia(page, filters, opts = {}) {
   if (isLoading && !opts.force) return;
@@ -452,20 +483,27 @@ async function loadComunidadPageAlgolia(page, filters, opts = {}) {
   try {
     if (!window.algoliaIndex) throw new Error('Algolia no está configurado');
 
-    // Las opciones del select se cargan aparte y solo una vez, así siempre
-    // muestran TODAS las categorías/vendedores, no solo las del filtro activo.
-    loadComunidadFilterOptionsAlgolia();
-
     if (esVistaComunidadPorDefecto(filters)) {
       // ── Vista por defecto: se trae un lote grande UNA sola vez y se pagina
       // en memoria (así la página 1 queda reservada a verificados+ZNR y el
       // resto se mantiene fijo mientras el usuario navega de página) ──────
       if (!communityRandomOrder) {
-        const searchResult = await window.algoliaIndex.search('', {
-          hitsPerPage: 300,
-          facets: ['categoria', 'vendedor_nombre']
-        });
-        communityRandomOrder = construirOrdenAleatorioComunidad(searchResult.hits || []);
+        const snapshot = await intentarCatalogoDesdeSnapshot();
+        if (snapshot) {
+          communityRandomOrder = snapshot.products;
+          if (snapshot.filterOptions) {
+            populateFiltersFromOptions(snapshot.filterOptions);
+            comunidadFilterOptionsLoaded = true;
+          }
+        } else {
+          // Sin snapshot fresco: camino original, vía Algolia.
+          loadComunidadFilterOptionsAlgolia();
+          const searchResult = await window.algoliaIndex.search('', {
+            hitsPerPage: 300,
+            facets: ['categoria', 'vendedor_nombre']
+          });
+          communityRandomOrder = construirOrdenAleatorioComunidad(searchResult.hits || []);
+        }
       }
 
       currentPage      = page;
@@ -479,6 +517,10 @@ async function loadComunidadPageAlgolia(page, filters, opts = {}) {
 
     } else {
       // ── Con filtros/búsqueda/orden activos: paginado normal vía Algolia ──
+      // Las opciones del select se cargan aparte y solo una vez, así siempre
+      // muestran TODAS las categorías/vendedores, no solo las del filtro activo.
+      loadComunidadFilterOptionsAlgolia();
+
       const filterParts = [];
       if (filters.categoria) filterParts.push('categoria:"' + String(filters.categoria).replace(/"/g, '') + '"');
       if (filters.vendedor)  filterParts.push('vendedor_uid:"' + String(filters.vendedor).replace(/"/g, '') + '"');
