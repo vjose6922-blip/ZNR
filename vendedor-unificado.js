@@ -2246,7 +2246,7 @@ if (planInfoEl) {
     }
   }, 300);
 }
-
+}
 function closeSettingsModal() {
 const modal = document.getElementById('settings-modal');
 if (modal) modal.style.display = 'none';
