@@ -1292,8 +1292,16 @@ async function loadBeneficiariosGrid() {
   const grid = document.getElementById('comunidad-beneficiarios-grid');
   if (!grid || !window.API_URL) return;
   try {
-    const res = await fetch(window.API_URL + '?' + new URLSearchParams({ action: 'obtenerBeneficiariosAprobados' }));
-    const data = await res.json();
+let data = null;
+if (window.znrFirestore && window.znrFirestore.getBeneficiariosAprobados) {
+  data = await window.znrFirestore.getBeneficiariosAprobados();
+}
+if (!data || !data.ok) {
+  // Firestore no disponible o falló: respaldo con GAS (comportamiento anterior)
+  const res = await fetch(window.API_URL + '?' + new URLSearchParams({ action: 'obtenerBeneficiariosAprobados' }));
+  data = await res.json();
+}
+    
     if (!data.ok) throw new Error(data.error || 'Error del servidor');
     const beneficiarios = data.beneficiarios || [];
     beneficiariosCargados = true;
