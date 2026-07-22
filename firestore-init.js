@@ -16,6 +16,7 @@
  */
 
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -30,8 +31,45 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 window.znrFirestore = window.znrFirestore || {};
+
+/**
+ * Pide un Firebase Custom Token a GAS e inicia sesión en Firebase Auth
+ * con él. Debe llamarse ANTES de leer colecciones protegidas por
+ * auth.uid (notificaciones_centro, ventas_comunidad). Devuelve el uid
+ * con el que quedó autenticado, o null si falló (en cuyo caso el
+ * caller debe seguir usando GAS normalmente, sin Firestore).
+ *
+ * ownerType: 'vendedor' | 'cliente'
+ * ownerRef:  vendorToken (si es vendedor) o teléfono a 10 dígitos (si es cliente)
+ */
+window.znrFirestore.signIn = async function (ownerType, ownerRef) {
+  try {
+    const params = new URLSearchParams();
+    params.append('action', 'obtenerFirebaseToken');
+    if (ownerType === 'vendedor') params.append('vendorToken', ownerRef);
+    else params.append('telefono', ownerRef);
+
+    const res = await fetch(window.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, // mismo patrón que window.apiFetch
+      body: params.toString()
+    });
+    const data = await res.json();
+    if (!data.ok || !data.firebaseToken) {
+      console.warn('No se pudo obtener firebaseToken:', data.error);
+      return null;
+    }
+
+    const cred = await signInWithCustomToken(auth, data.firebaseToken);
+    return cred.user.uid; // debería coincidir con data.uid
+  } catch (err) {
+    console.warn('signIn de Firebase falló:', err);
+    return null;
+  }
+};
 
 /**
  * Devuelve { ok: true, beneficiarios: [...] } igual que el endpoint GAS
