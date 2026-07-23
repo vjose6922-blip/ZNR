@@ -1083,14 +1083,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 
-
 <script>
 (function () {
   var metas = document.querySelectorAll('meta[http-equiv="Content-Security-Policy"], meta[http-equiv="content-security-policy"]');
-  console.log('🔍 CSP meta tags encontrados: ' + metas.length);
+  var texto = '🔍 CSP meta tags encontrados: ' + metas.length + '\n\n';
   metas.forEach(function (m, i) {
-    console.log('🔍 CSP #' + i + ': ' + m.getAttribute('content'));
+    texto += 'CSP #' + i + ':\n' + m.getAttribute('content') + '\n\n';
   });
+  alert(texto);
   document.addEventListener('securitypolicyviolation', function (e) {
     console.error('🚨 CSP violation -> directiva: ' + e.violatedDirective + ' | bloqueado: ' + e.blockedURI + ' | policy: ' + e.originalPolicy);
   });
