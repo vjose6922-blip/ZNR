@@ -59,18 +59,34 @@
     }
   }
 
+  async function fetchFeedVendedor(identity) {
+    if (window.znrFirestore && window.znrFirestore.getNotificacionesCentro) {
+      const r = await window.znrFirestore.getNotificacionesCentro('vendedor', identity.id, identity.vendorToken);
+      if (r && r.ok) return r;
+    }
+    return fetchFeed('misNotificacionesVendedor', { vendorToken: identity.vendorToken });
+  }
+
+  async function fetchFeedCliente(phone) {
+    if (window.znrFirestore && window.znrFirestore.getNotificacionesCentro) {
+      const r = await window.znrFirestore.getNotificacionesCentro('cliente', phone, phone);
+      if (r && r.ok) return r;
+    }
+    return fetchFeed('misNotificacionesCliente', { phone });
+  }
+
   async function fetchNotificaciones() {
     const identity = getIdentity();
     if (!identity || !apiUrl()) return { ok: true, notificaciones: [] };
 
     const requests = [];
     if (identity.type === 'vendedor') {
-      requests.push(fetchFeed('misNotificacionesVendedor', { vendorToken: identity.vendorToken }));
+      requests.push(fetchFeedVendedor(identity));
       if (identity.telefono) {
-        requests.push(fetchFeed('misNotificacionesCliente', { phone: identity.telefono }));
+        requests.push(fetchFeedCliente(identity.telefono));
       }
     } else {
-      requests.push(fetchFeed('misNotificacionesCliente', { phone: identity.id }));
+      requests.push(fetchFeedCliente(identity.id));
     }
 
     const results = await Promise.all(requests);
