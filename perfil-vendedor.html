@@ -9,7 +9,7 @@
  script-src 'self' 'unsafe-inline' https://www.gstatic.com;
  style-src 'self' 'unsafe-inline';
  img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://placehold.co https://via.placeholder.com;
- connect-src 'self' https://script.google.com https://script.googleusercontent.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://wttr.in https://www.gstatic.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://firebase.googleapis.com https://znr-live-default-rtdb.firebaseio.com https://nominatim.openstreetmap.org;
+ connect-src 'self' https://script.google.com https://script.googleusercontent.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://wttr.in https://www.gstatic.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com https://firebase.googleapis.com https://znr-live-default-rtdb.firebaseio.com https://nominatim.openstreetmap.org;
  font-src 'self';
  frame-src 'none';
  frame-ancestors 'none';
@@ -523,6 +523,43 @@
         gap: 10px;
       }
     }
+
+    /* ── Error de carga con retry ── */
+    .profile-error-box {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--color-error, #ef4444);
+    }
+    .profile-error-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .profile-retry-btn {
+      padding: 10px 28px;
+      border: none;
+      border-radius: 30px;
+      background: var(--color-accent-solid, #ff4f81);
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    .profile-retry-btn:hover {
+      background: #ff6b8a;
+    }
+    .profile-retry-btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .profile-error-hint {
+      font-size: 12px;
+      color: var(--color-text-soft);
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body class="theme-aeromexico profile-page">
@@ -708,6 +745,11 @@
 
       function digitsOnly(str) {
         return String(str || '').replace(/\D/g, '');
+      }
+
+      // Pausa auxiliar para el backoff entre reintentos
+      function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
       }
 
       const PRODUCTS_PAGE_SIZE = 12;
@@ -1114,6 +1156,57 @@
           </div>`;
       }
 
+      // ── Fetch del perfil con reintento automático (backoff) ──
+      // Antes: un solo intento; si la red fallaba un instante (cambio de
+      // WiFi/datos, señal débil), el usuario veía "Failed to fetch" de
+      // inmediato sin que la app volviera a intentarlo.
+      // Ahora: hasta 3 intentos (600ms, 1200ms de espera entre ellos)
+      // antes de mostrar el error. La mayoría de los cortes de red breves
+      // se resuelven solos dentro de ese margen.
+      const PROFILE_FETCH_MAX_RETRIES = 2; // 3 intentos en total
+      const PROFILE_FETCH_BASE_DELAY  = 600; // ms
+
+      async function fetchProfileWithRetry(apiUrl, uid) {
+        const url = `${apiUrl}?action=obtenerPerfilVendedor&uid=${encodeURIComponent(uid)}`;
+        let lastErr;
+        for (let attempt = 0; attempt <= PROFILE_FETCH_MAX_RETRIES; attempt++) {
+          try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (!data.ok) throw new Error(data.error || 'Error al obtener perfil');
+            return data;
+          } catch (err) {
+            lastErr = err;
+            if (attempt < PROFILE_FETCH_MAX_RETRIES) {
+              await sleep(PROFILE_FETCH_BASE_DELAY * Math.pow(2, attempt));
+            }
+          }
+        }
+        throw lastErr;
+      }
+
+      function showProfileError(container, uid, message) {
+        if (!container) return;
+        container.innerHTML = `
+          <div class="profile-error-box">
+            ${Icon('x')} Error al cargar el perfil: ${esc(message)}
+            <div class="profile-error-actions">
+              <button id="profile-retry-btn" class="profile-retry-btn">Reintentar</button>
+              <a href="comunidad.html" class="back-link">${Icon('arrow-left')} Volver a Comunidad</a>
+              <div class="profile-error-hint">Si el problema sigue, revisa tu conexión a internet.</div>
+            </div>
+          </div>
+        `;
+        const retryBtn = document.getElementById('profile-retry-btn');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', function() {
+            retryBtn.disabled = true;
+            retryBtn.textContent = 'Reintentando...';
+            fetchProfile(uid);
+          });
+        }
+      }
+
       async function fetchProfile(uid) {
         if (!uid) {
           const container = document.getElementById('profile-container');
@@ -1140,31 +1233,16 @@
           return;
         }
 
-        // 2. Sin caché: mostrar skeleton + fetch
+        // 2. Sin caché: mostrar skeleton + fetch (con reintento automático)
         if (container) showProfileSkeleton(container, 6);
 
         try {
-          const url = `${apiUrl}?action=obtenerPerfilVendedor&uid=${encodeURIComponent(uid)}`;
-          const response = await fetch(url);
-          const data = await response.json();
-
-          if (!data.ok) {
-            throw new Error(data.error || 'Error al obtener perfil');
-          }
-
+          const data = await fetchProfileWithRetry(apiUrl, uid);
           setProfileCache(uid, data);
           renderProfile(data);
         } catch (err) {
           console.error('Error cargando perfil:', err);
-          if (container) {
-            container.innerHTML = `
-              <div style="text-align:center;padding:40px;color:var(--color-error);">
-                ${Icon('x')} Error al cargar el perfil: ${esc(err.message)}
-                <br><br>
-                <a href="comunidad.html" class="back-link">${Icon('arrow-left')} Volver a Comunidad</a>
-              </div>
-            `;
-          }
+          showProfileError(container, uid, err.message);
           hideLoader();
         }
       }
