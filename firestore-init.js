@@ -17,7 +17,7 @@
 
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-lite.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaOe_lxLdQtTFCtw2BDR8KZRSafEMkkes",
@@ -178,3 +178,4 @@ window.znrFirestore.getVentasComunidadVendedor = async function (vendorUid, vend
     return { ok: false, error: String(err) };
   }
 };
+
