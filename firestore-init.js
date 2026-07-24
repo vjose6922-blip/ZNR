@@ -1,196 +1,236 @@
 /**
- * firestore-init.js
+ * FirestoreSync.gs
  * ------------------------------------------------------------------
- * Inicializa Firestore en el frontend y expone helpers de lectura en
- * window.znrFirestore para que scripts clásicos (no-módulo) como
- * comunidad.js puedan usarlos sin convertirse ellos mismos en módulos.
+ * Capa de conexión entre Apps Script y Firestore vía la REST API,
+ * usando el mismo Service Account que ya usas para FCM/RTDB
+ * (Script Property: FCM_SERVICE_ACCOUNT).
  *
- * Usa getApps()/getApp() para reutilizar la instancia de Firebase si
- * fcm-init.js (u otro módulo) ya la inicializó en la misma página, y
- * evitar el error "Firebase App named '[DEFAULT]' already exists".
+ * SOLO se usa para ESCRIBIR (espejo write-through) desde GAS. Las
+ * lecturas rápidas del frontend deben ir directo con el SDK de
+ * Firestore en el navegador — este archivo no reemplaza eso, solo
+ * mantiene los documentos actualizados para que esas lecturas sirvan.
  *
- * IMPORTANTE: agrega el <script type="module" src="firestore-init.js">
- * ANTES del <script src="comunidad.js" defer"> en el HTML, para que
- * window.znrFirestore ya exista cuando comunidad.js se ejecute.
+ * SETUP REQUERIDO (una sola vez):
+ * 1. En la consola de Firebase del proyecto que uses (el mismo de
+ *    FCM/RTDB, u otro), crear una base de datos Firestore en modo
+ *    Nativo si aún no existe.
+ * 2. Confirmar que el Service Account guardado en FCM_SERVICE_ACCOUNT
+ *    tenga el rol "Cloud Datastore User" (o "Editor") en ese proyecto
+ *    de GCP. Si el proyecto de Firestore es distinto al de FCM_PROJECT_ID,
+ *    agrega la Script Property FIRESTORE_PROJECT_ID con el project_id
+ *    correcto.
+ * 3. Correr testFirestoreConnection() una vez desde el editor de Apps
+ *    Script para confirmar que las credenciales y el scope funcionan.
+ * 4. Escribir las Firestore Security Rules restringiendo escritura solo
+ *    al Service Account (las escrituras vía este módulo usan un token
+ *    OAuth2 de servidor, no pasan por las reglas de cliente, pero igual
+ *    hay que bloquear escritura pública desde el SDK del navegador).
  * ------------------------------------------------------------------
  */
 
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-lite.js";
+function _getFirestoreService() {
+  var serviceAccountJson = getSecret("FCM_SERVICE_ACCOUNT");
+  var creds = JSON.parse(serviceAccountJson);
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAaOe_lxLdQtTFCtw2BDR8KZRSafEMkkes",
-  authDomain: "znr-live.firebaseapp.com",
-  databaseURL: "https://znr-live-default-rtdb.firebaseio.com",
-  projectId: "znr-live",
-  storageBucket: "znr-live.firebasestorage.app",
-  messagingSenderId: "1038143238323",
-  appId: "1:1038143238323:web:5171b9dd8823628086c0c6"
-};
+  return OAuth2.createService("Firestore")
+    .setTokenUrl("https://oauth2.googleapis.com/token")
+    .setPrivateKey(creds.private_key)
+    .setIssuer(creds.client_email)
+    .setPropertyStore(PropertiesService.getScriptProperties())
+    .setScope("https://www.googleapis.com/auth/datastore");
+}
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+function _firestoreProjectId() {
+  // Si Firestore vive en el mismo proyecto de Firebase que ya usas para
+  // FCM, no hace falta configurar nada extra. Si decides usar un
+  // proyecto distinto, agrega FIRESTORE_PROJECT_ID en Script Properties.
+  return getOptionalSecret("FIRESTORE_PROJECT_ID") || getSecret("FCM_PROJECT_ID");
+}
 
-window.znrFirestore = window.znrFirestore || {};
+function _firestoreBaseUrl() {
+  return "https://firestore.googleapis.com/v1/projects/" + _firestoreProjectId() + "/databases/(default)/documents";
+}
+
+// ============================================================
+// Conversión JS <-> formato REST de Firestore
+// (Firestore REST envuelve cada valor con un descriptor de tipo:
+//  {"stringValue": "x"}, {"integerValue": "5"}, etc.)
+// ============================================================
+
+function _fsEncodeValue(value) {
+  if (value === null || typeof value === 'undefined') return { nullValue: null };
+  if (typeof value === 'boolean') return { booleanValue: value };
+  if (typeof value === 'number') {
+    return (value % 1 === 0) ? { integerValue: String(value) } : { doubleValue: value };
+  }
+  if (value instanceof Date) return { timestampValue: value.toISOString() };
+  if (typeof value === 'string') return { stringValue: value };
+  if (Array.isArray(value)) {
+    return { arrayValue: { values: value.map(_fsEncodeValue) } };
+  }
+  if (typeof value === 'object') {
+    return { mapValue: { fields: _fsEncodeFields(value) } };
+  }
+  return { stringValue: String(value) };
+}
+
+function _fsEncodeFields(obj) {
+  var fields = {};
+  Object.keys(obj).forEach(function (key) {
+    fields[key] = _fsEncodeValue(obj[key]);
+  });
+  return fields;
+}
+
+function _fsDecodeValue(value) {
+  if (!value) return null;
+  if ('stringValue' in value) return value.stringValue;
+  if ('integerValue' in value) return Number(value.integerValue);
+  if ('doubleValue' in value) return value.doubleValue;
+  if ('booleanValue' in value) return value.booleanValue;
+  if ('nullValue' in value) return null;
+  if ('timestampValue' in value) return value.timestampValue;
+  if ('arrayValue' in value) return (value.arrayValue.values || []).map(_fsDecodeValue);
+  if ('mapValue' in value) return _fsDecodeFields(value.mapValue.fields || {});
+  return null;
+}
+
+function _fsDecodeFields(fields) {
+  var obj = {};
+  Object.keys(fields || {}).forEach(function (key) {
+    obj[key] = _fsDecodeValue(fields[key]);
+  });
+  return obj;
+}
+
+// ============================================================
+// Operaciones CRUD
+// ============================================================
 
 /**
- * Pide un Firebase Custom Token a GAS e inicia sesión en Firebase Auth
- * con él. Debe llamarse ANTES de leer colecciones protegidas por
- * auth.uid (notificaciones_centro, ventas_comunidad). Devuelve el uid
- * con el que quedó autenticado, o null si falló (en cuyo caso el
- * caller debe seguir usando GAS normalmente, sin Firestore).
+ * Crea o actualiza (merge) un documento en Firestore.
  *
- * ownerType: 'vendedor' | 'cliente'
- * ownerRef:  vendorToken (si es vendedor) o teléfono a 10 dígitos (si es cliente)
+ * collectionPath : ej. "beneficiarios_aprobados"
+ * docId          : ej. el id del beneficiario/producto/vendedor
+ * dataObj        : objeto plano JS con los campos a guardar
+ *
+ * Usa PATCH + updateMask con TODOS los campos de dataObj. Eso equivale
+ * a un "set con merge": crea el doc si no existe, y si ya existía solo
+ * toca los campos indicados (no borra campos que otro flujo haya
+ * escrito y que dataObj no incluya).
+ *
+ * Nunca lanza excepción hacia arriba — devuelve true/false. Como dice
+ * el plan: la sincronización a Firestore NUNCA debe tumbar la
+ * operación principal en Sheets si falla.
  */
-window.znrFirestore.signIn = async function (ownerType, ownerRef) {
+function fsMirrorWrite(collectionPath, docId, dataObj) {
   try {
-    const params = new URLSearchParams();
-    params.append('action', 'obtenerFirebaseToken');
-    if (ownerType === 'vendedor') params.append('vendorToken', ownerRef);
-    else params.append('telefono', ownerRef);
-
-    const res = await fetch(window.API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, // mismo patrón que window.apiFetch
-      body: params.toString()
-    });
-    const data = await res.json();
-    if (!data.ok || !data.firebaseToken) {
-      console.warn('No se pudo obtener firebaseToken:', data.error);
-      return null;
+    var service = _getFirestoreService();
+    if (!service.hasAccess()) {
+      Logger.log('⚠️ Sin acceso OAuth2 para Firestore: ' + service.getLastError());
+      return false;
     }
 
-    const cred = await signInWithCustomToken(auth, data.firebaseToken);
-    return cred.user.uid; // debería coincidir con data.uid
+    var fieldNames = Object.keys(dataObj).filter(function (k) { return k !== ''; });
+    if (!fieldNames.length) return true; // nada que escribir
+
+    var maskParams = fieldNames
+      .map(function (f) { return 'updateMask.fieldPaths=' + encodeURIComponent(f); })
+      .join('&');
+    var url = _firestoreBaseUrl() + '/' + collectionPath + '/' +
+      encodeURIComponent(String(docId)) + '?' + maskParams;
+
+    var payload = { fields: _fsEncodeFields(dataObj) };
+
+    var response = UrlFetchApp.fetch(url, {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + service.getAccessToken() },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+
+    var code = response.getResponseCode();
+    if (code >= 200 && code < 300) return true;
+
+    Logger.log('⚠️ fsMirrorWrite falló (' + code + ') en ' + collectionPath + '/' + docId +
+      ': ' + response.getContentText());
+    return false;
   } catch (err) {
-    console.warn('signIn de Firebase falló:', err);
-    return null;
+    Logger.log('🔥 ERROR fsMirrorWrite: ' + err.toString());
+    return false;
   }
-};
-
-/**
- * Devuelve { ok: true, beneficiarios: [...] } igual que el endpoint GAS
- * obtenerBeneficiariosAprobados, o { ok: false, error } si algo falla
- * (el caller debe hacer fallback a GAS en ese caso).
- */
-window.znrFirestore.getBeneficiariosAprobados = async function () {
-  try {
-    const snap = await getDocs(collection(db, 'beneficiarios_aprobados'));
-    const beneficiarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    return { ok: true, beneficiarios };
-  } catch (err) {
-    console.warn('Firestore beneficiarios_aprobados falló, se usará GAS como respaldo:', err);
-    return { ok: false, error: String(err) };
-  }
-};
-
-/**
- * Devuelve { ok: true, promedio, total, detalle } igual que el endpoint
- * GAS obtenerCalificacionesVendedor, o { ok: false, error } si falla
- * (el caller debe hacer fallback a GAS en ese caso). Si el vendedor
- * todavía no tiene calificaciones, el doc puede no existir todavía en
- * Firestore (nunca se escribió) — en ese caso también se cae a GAS,
- * que sabe devolver el resumen en cero de forma segura.
- */
-window.znrFirestore.getCalificacionesVendedor = async function (vendedorUid) {
-  try {
-    const snap = await getDoc(doc(db, 'calificaciones_vendedor', vendedorUid));
-    if (!snap.exists()) return { ok: false, error: 'doc no encontrado' };
-    const data = snap.data();
-    return { ok: true, promedio: data.promedio, total: data.total, detalle: data.detalle || [] };
-  } catch (err) {
-    console.warn('Firestore calificaciones_vendedor falló, se usará GAS como respaldo:', err);
-    return { ok: false, error: String(err) };
-  }
-};
-
-/**
- * Asegura que haya una sesión de Firebase Auth con el uid esperado
- * ("vendedor_<id>" o "cliente_<id>"). Si ya está autenticado como ese
- * uid, no hace ninguna llamada de red. Si no, pide un custom token a
- * GAS e inicia sesión. Una vez logueado, Firebase mantiene la sesión
- * sola entre recargas de página (no hay que repetir esto en cada
- * visita, solo cuando cambia de identidad o no hay sesión).
- *
- * ownerRef: vendorToken (si ownerType === 'vendedor') o teléfono (si 'cliente')
- */
-window.znrFirestore.ensureSignedIn = async function (ownerType, ownerId, ownerRef) {
-  const expectedUid = ownerType + '_' + String(ownerId);
-  if (auth.currentUser && auth.currentUser.uid === expectedUid) return expectedUid;
-  return await window.znrFirestore.signIn(ownerType, ownerRef);
-};
-
-function _fsNormalizarFecha(data) {
-  if (data && data.fecha && typeof data.fecha.toDate === 'function') {
-    data.fecha = data.fecha.toDate().toISOString();
-  }
-  return data;
 }
 
 /**
- * Devuelve { ok: true, notificaciones: [...] } igual que
- * misNotificacionesVendedor/misNotificacionesCliente (últimas 30, más
- * recientes primero), o { ok: false, error } si falla o si no hay
- * sesión de Firebase (el caller debe hacer fallback a GAS).
- *
- * ownerType: 'vendedor' | 'cliente'
- * ownerId:   vendor.uid (vendedor) o teléfono (cliente)
- * ownerRef:  vendorToken (vendedor) o teléfono (cliente) — lo que
- *            necesita GAS para emitir el custom token
+ * Borra un documento en Firestore. No es ruidoso si el doc ya no
+ * existía (Firestore responde 200 igual sobre un delete de doc
+ * inexistente).
  */
-window.znrFirestore.getNotificacionesCentro = async function (ownerType, ownerId, ownerRef) {
+function fsMirrorDelete(collectionPath, docId) {
   try {
-    const uid = await window.znrFirestore.ensureSignedIn(ownerType, ownerId, ownerRef);
-    if (!uid) return { ok: false, error: 'sin sesión de Firebase' };
+    var service = _getFirestoreService();
+    if (!service.hasAccess()) {
+      Logger.log('⚠️ Sin acceso OAuth2 para Firestore (delete): ' + service.getLastError());
+      return false;
+    }
 
-    const q = query(
-      collection(db, 'notificaciones_centro', ownerType + '_' + String(ownerId), 'items'),
-      orderBy('fecha', 'desc'),
-      limit(30)
-    );
-    const snap = await getDocs(q);
-    const notificaciones = snap.docs.map(d => _fsNormalizarFecha({ id: d.id, ownerType, ...d.data() }));
-    return { ok: true, notificaciones };
+    var url = _firestoreBaseUrl() + '/' + collectionPath + '/' + encodeURIComponent(String(docId));
+    var response = UrlFetchApp.fetch(url, {
+      method: 'delete',
+      headers: { Authorization: 'Bearer ' + service.getAccessToken() },
+      muteHttpExceptions: true
+    });
+
+    var code = response.getResponseCode();
+    if (code >= 200 && code < 300) return true;
+
+    Logger.log('⚠️ fsMirrorDelete falló (' + code + ') en ' + collectionPath + '/' + docId +
+      ': ' + response.getContentText());
+    return false;
   } catch (err) {
-    console.warn('Firestore notificaciones_centro falló, se usará GAS como respaldo:', err);
-    return { ok: false, error: String(err) };
+    Logger.log('🔥 ERROR fsMirrorDelete: ' + err.toString());
+    return false;
   }
-};
+}
 
 /**
- * Devuelve { ok: true, notificaciones: [...] } igual que
- * listarNotificacionesVentaComunidad (un objeto por pedido agrupado),
- * o { ok: false, error } si falla (el caller debe hacer fallback a GAS).
+ * Lectura puntual desde GAS. Poco usada en el patrón final (el
+ * frontend debe leer Firestore directo con su propio SDK), pero útil
+ * para debug, backfills iniciales y el test de conexión de abajo.
  */
-window.znrFirestore.getVentasComunidadVendedor = async function (vendorUid, vendorToken) {
+function fsGet(collectionPath, docId) {
   try {
-    const uid = await window.znrFirestore.ensureSignedIn('vendedor', vendorUid, vendorToken);
-    if (!uid) return { ok: false, error: 'sin sesión de Firebase' };
-
-    const snap = await getDocs(collection(db, 'ventas_comunidad', vendorUid, 'pedidos'));
-    const notificaciones = snap.docs.map(d => _fsNormalizarFecha(d.data()));
-    return { ok: true, notificaciones };
+    var service = _getFirestoreService();
+    if (!service.hasAccess()) return null;
+    var url = _firestoreBaseUrl() + '/' + collectionPath + '/' + encodeURIComponent(String(docId));
+    var response = UrlFetchApp.fetch(url, {
+      headers: { Authorization: 'Bearer ' + service.getAccessToken() },
+      muteHttpExceptions: true
+    });
+    if (response.getResponseCode() !== 200) return null;
+    var body = JSON.parse(response.getContentText());
+    return _fsDecodeFields(body.fields || {});
   } catch (err) {
-    console.warn('Firestore ventas_comunidad falló, se usará GAS como respaldo:', err);
-    return { ok: false, error: String(err) };
+    Logger.log('🔥 ERROR fsGet: ' + err.toString());
+    return null;
   }
-};
+}
 
 /**
- * Devuelve { ok: true, vendedor: {...} } igual que el campo "vendedor"
- * de obtenerPerfilVendedor (sin "productos" — eso se sigue pidiendo a
- * GAS por separado), o { ok: false, error } si falla o no existe.
+ * Prueba de conexión de punta a punta: escribe un doc en la colección
+ * "_test", lo lee de vuelta, y lo borra. Correr UNA VEZ manualmente
+ * desde el editor de Apps Script (▶ Ejecutar con esta función
+ * seleccionada) después de completar el setup del encabezado. Revisa
+ * el Registro de ejecución para ver el resultado.
  */
-window.znrFirestore.getPerfilVendedor = async function (uid) {
-  try {
-    const snap = await getDoc(doc(db, 'perfil_vendedor', uid));
-    if (!snap.exists()) return { ok: false, error: 'doc no encontrado' };
-    return { ok: true, vendedor: _fsNormalizarFecha(snap.data()) };
-  } catch (err) {
-    console.warn('Firestore perfil_vendedor falló, se usará GAS como respaldo:', err);
-    return { ok: false, error: String(err) };
+function testFirestoreConnection() {
+  var ok = fsMirrorWrite('_test', 'ping', { hola: 'mundo', fecha: new Date(), numero: 42 });
+  Logger.log('Escritura de prueba: ' + (ok ? 'OK' : 'FALLÓ'));
+  if (ok) {
+    var leido = fsGet('_test', 'ping');
+    Logger.log('Lectura de prueba: ' + JSON.stringify(leido));
+    fsMirrorDelete('_test', 'ping');
+    Logger.log('Doc de prueba borrado.');
   }
-};
+}
