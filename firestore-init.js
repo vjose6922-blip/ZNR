@@ -131,31 +131,70 @@ function fsMirrorWrite(collectionPath, docId, dataObj) {
       return false;
     }
 
-    var fieldNames = Object.keys(dataObj).filter(function (k) { return k !== ''; });
-    if (!fieldNames.length) return true; // nada que escribir
+    // ==========================================================
+    // Limpia nombres de campos inválidos (vacíos o con espacios)
+    // ==========================================================
+    var cleanData = {};
+
+    Object.keys(dataObj).forEach(function (key) {
+      var cleanKey = String(key).trim();
+
+      if (cleanKey !== '') {
+        cleanData[cleanKey] = dataObj[key];
+      } else {
+        Logger.log('⚠️ Campo ignorado por tener nombre vacío.');
+      }
+    });
+
+    var fieldNames = Object.keys(cleanData);
+
+    if (!fieldNames.length) {
+      Logger.log('⚠️ No hay campos válidos para escribir.');
+      return true;
+    }
 
     var maskParams = fieldNames
-      .map(function (f) { return 'updateMask.fieldPaths=' + encodeURIComponent(f); })
+      .map(function (f) {
+        return 'updateMask.fieldPaths=' + encodeURIComponent(f);
+      })
       .join('&');
-    var url = _firestoreBaseUrl() + '/' + collectionPath + '/' +
-      encodeURIComponent(String(docId)) + '?' + maskParams;
 
-    var payload = { fields: _fsEncodeFields(dataObj) };
+    var url = _firestoreBaseUrl() + '/' +
+      collectionPath + '/' +
+      encodeURIComponent(String(docId)) +
+      '?' + maskParams;
+
+    var payload = {
+      fields: _fsEncodeFields(cleanData)
+    };
 
     var response = UrlFetchApp.fetch(url, {
       method: 'patch',
       contentType: 'application/json',
-      headers: { Authorization: 'Bearer ' + service.getAccessToken() },
+      headers: {
+        Authorization: 'Bearer ' + service.getAccessToken()
+      },
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
     });
 
     var code = response.getResponseCode();
-    if (code >= 200 && code < 300) return true;
 
-    Logger.log('⚠️ fsMirrorWrite falló (' + code + ') en ' + collectionPath + '/' + docId +
-      ': ' + response.getContentText());
+    if (code >= 200 && code < 300) {
+      return true;
+    }
+
+    Logger.log(
+      '⚠️ fsMirrorWrite falló (' + code + ') en ' +
+      collectionPath + '/' + docId +
+      ': ' + response.getContentText()
+    );
+
+    Logger.log('Campos enviados: ' + JSON.stringify(fieldNames));
+    Logger.log('Payload: ' + JSON.stringify(cleanData));
+
     return false;
+
   } catch (err) {
     Logger.log('🔥 ERROR fsMirrorWrite: ' + err.toString());
     return false;
