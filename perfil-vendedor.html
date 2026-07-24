@@ -1163,9 +1163,8 @@
       // Ahora: hasta 3 intentos (600ms, 1200ms de espera entre ellos)
       // antes de mostrar el error. La mayoría de los cortes de red breves
       // se resuelven solos dentro de ese margen.
-      const PROFILE_FETCH_MAX_RETRIES = 2; // 3 intentos en total
+       const PROFILE_FETCH_MAX_RETRIES = 2; // 3 intentos en total
       const PROFILE_FETCH_BASE_DELAY  = 600; // ms
-
       async function fetchProfileWithRetry(apiUrl, uid) {
         const url = `${apiUrl}?action=obtenerPerfilVendedor&uid=${encodeURIComponent(uid)}`;
         let lastErr;
@@ -1216,28 +1215,42 @@
           hideLoader();
           return;
         }
-
         const apiUrl = window.API_URL;
         if (!apiUrl) {
           if (typeof showTemporaryMessage === 'function') showTemporaryMessage('Error: API_URL no definida', 'error');
           hideLoader();
           return;
         }
-
         const container = document.getElementById('profile-container');
-
-        // 1. Si hay caché fresco (< 30 min), usarlo y no llamar a GAS
+        // 1. Si hay caché fresco (< 30 min), usarlo y no llamar a GAS/Firestore
         const cached = getProfileCache(uid);
         if (cached) {
           renderProfile(cached);
           return;
         }
-
         // 2. Sin caché: mostrar skeleton + fetch (con reintento automático)
         if (container) showProfileSkeleton(container, 6);
-
         try {
-          const data = await fetchProfileWithRetry(apiUrl, uid);
+          let data = null;
+
+          // 2a. Intentar Firestore primero (perfil) + GAS solo para productos
+          if (window.znrFirestore && window.znrFirestore.getPerfilVendedor) {
+            const perfilFs = await window.znrFirestore.getPerfilVendedor(uid);
+            if (perfilFs && perfilFs.ok) {
+              try {
+                const prodUrl = `${apiUrl}?${new URLSearchParams({ action: 'listarComunidad', vendedor_uid: uid, limit: '200' })}`;
+                const prodRes = await fetch(prodUrl);
+                const prodData = await prodRes.json();
+                data = { ok: true, vendedor: perfilFs.vendedor, productos: (prodData && prodData.ok) ? (prodData.products || []) : [] };
+              } catch (e) { /* si falla el listado de productos, cae al bloque de abajo */ }
+            }
+          }
+
+          // 2b. Si Firestore no está disponible o falló: GAS con reintento (igual que ya tenías)
+          if (!data) {
+            data = await fetchProfileWithRetry(apiUrl, uid);
+          }
+
           setProfileCache(uid, data);
           renderProfile(data);
         } catch (err) {
